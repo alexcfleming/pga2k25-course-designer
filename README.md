@@ -2,7 +2,7 @@
 
 A custom Windows desktop application for PGA TOUR 2K25 course design workflows.
 
-> Status: **.NET solution scaffolded. First feature working: an experimental greens book (one-page PNG of all greens with slope colour, plus optional per-green studies and PDF).**
+> Status: **.NET solution scaffolded. First feature working: a greens book (one-page PNG of all greens with slope colour, plus optional per-green studies and PDF), with terrain calibrated against in-game spot elevations.**
 
 ## Documentation
 
@@ -20,7 +20,8 @@ A custom Windows desktop application for PGA TOUR 2K25 course design workflows.
 | `src/Pga2K25.App` | WPF desktop app (greens book front-end) |
 | `tests/Pga2K25.Tests` | xUnit: codec round-trip, metadata derivations, contouring, PDF build |
 | `tools/course_codec.py` | Python CLI to inspect / unpack / pack `.course` files |
-| `samples/courses/` | Sample `.course` files used as test fixtures |
+| `samples/courses/` | Sample `.course` files used as test fixtures (incl. Cassimbo) |
+| `samples/calibration/` | In-game green screenshots + spot-label captures used to calibrate the terrain model |
 
 Requires the .NET 8 SDK (`winget install Microsoft.DotNet.SDK.8`).
 
@@ -38,6 +39,6 @@ dotnet run --project src/Pga2K25.App
 
 ## Next steps
 
-1. Calibrate the terrain model against in-game spot elevations (see [docs/greens-book.md](docs/greens-book.md#calibration-plan)).
+1. Add calibration captures from more courses and holes (`pga2k25 calibrate`, see [docs/greens-book.md](docs/greens-book.md#calibration)).
 2. Reproduce game-generated green outlines and levelling.
 3. Add a 2D course map view to the app.

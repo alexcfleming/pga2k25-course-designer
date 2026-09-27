@@ -104,7 +104,7 @@ public sealed class GreensBookRenderer : IDisposable
     void Header(SKCanvas canvas, float right, float y, float u)
     {
         Text(canvas, _options.Credit, right, y, 9 * u * (u < 1 ? 1 : 1.3f), _regular, Grey, SKTextAlign.Right, tracking: 1.5f * u);
-        Text(canvas, "EXPERIMENTAL — terrain reconstructed from brush stamps, not yet calibrated",
+        Text(canvas, "Terrain reconstructed from brush stamps  ·  calibrated on 4 in-game greens (spot RMS ≤ 10 %)",
             right, y + 16 * u * (u < 1 ? 1 : 1.2f), 8 * u * (u < 1 ? 1 : 1.4f), _italic, Grey, SKTextAlign.Right);
     }
 

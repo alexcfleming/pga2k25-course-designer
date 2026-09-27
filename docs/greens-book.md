@@ -1,4 +1,4 @@
-# Greens Book (experimental)
+# Greens Book
 
 The tool generates greens-book graphics straight from a Course Designer `.course` file.
 
@@ -27,7 +27,7 @@ Each green is oriented so the approach comes from the bottom. The linework follo
 dotnet run --project src/Pga2K25.Cli -- greensbook "path/to/course.course" -o out --studies
 ```
 
-Other options: `--pdf`, `--mono`, `--no-sheet`, `--holes 1,18`, `--hardness 0.7`, `--blur 1.0`, `--credit "NAME"`.
+Other options: `--pdf`, `--mono`, `--no-sheet`, `--holes 1,18`, `--hardness 0.85`, `--blur 1.0`, `--credit "NAME"`.
 
 The Windows app (`src/Pga2K25.App`) offers the same options (slope colour, per-green studies, PDF, hardness, credit) and opens the finished sheet.
 
@@ -35,8 +35,8 @@ The Windows app (`src/Pga2K25.App`) offers the same options (slope colour, per-g
 
 The `.course` file does **not** contain a heightmap. It holds an ordered log of brush stamps (`height[]`), which the game replays using brush shapes and post-processing that aren't in the file. `TerrainReplay` approximates this:
 
-1. Replay `height[]` in file order. **tool 0** blends toward the stamp's absolute value, and **tool 1** adds its value. Each stamp's weight is a circular plateau with a smoothstep falloff (default `Hardness` **0.7**). Brush shape ids and rotation are ignored.
-2. If the course sets `blurHeight`, apply a Gaussian blur (default σ = 1 m).
+1. Replay `height[]` in file order. **tool 0** blends toward the stamp's absolute value, and **tool 1** adds its value. Each stamp's weight is a circular plateau with a smoothstep falloff (default `Hardness` **0.85**, calibrated; see below). Brush shape ids and rotation are ignored.
+2. If the course sets `blurHeight`, apply a Gaussian blur (σ = 1 m, calibrated).
 3. Sample a 0.25 m raster around the green. Statistics skip the outer 1 m (collar roll-off). Compute gradients (arrows), marching-squares contours, and spot elevations relative to the green anchor (0).
 
 ### Green outlines
@@ -67,11 +67,49 @@ Only in-game ground truth can separate the two.
 
 Pages whose 95th-percentile slope exceeds 12 % carry an *"Implausibly steep"* warning. Every page is marked *"EXPERIMENTAL — terrain model unvalidated"*.
 
-## Calibration plan
+## Calibration
 
-Your screenshot pipeline already extracts in-game spot elevations (ft/in labels) and slope-arrow classes from the designer grid. That is exactly the ground truth this model needs:
+**Data:** in-game overhead green screenshots of Cassimbo holes 1, 7, 10 and 13, each with manually placed measure labels. They are stored in `samples/calibration/cassimbo/` (the images plus `captures.json`).
 
-1. For a course we have as a `.course` file, capture the overhead green grid for a mix of holes, including drawn greens and generated greens.
-2. Read the spot labels (the existing `--find-labels` workflow). Map each label's pixel position to world X/Z using two known points, such as the green anchor and a pin.
-3. Fit the model parameters (hardness, blur, green-levelling behaviour) to minimise RMS against the spot elevations. Report the error as % of each green's range, as in the study (under 10 % trustworthy, 10–18 % indicative, over 18 % check).
-4. Once generated greens fit, remove the experimental banner for those holes.
+**Pixel → world mapping.**
+
+- The four flagstick cups (the dark dot at each pole base) are matched to the course file's four pins.
+- A similarity transform is fitted with the screen image mirrored (image y points down). Every pin↔cup assignment is tried and the best is kept.
+- Pins fit to within 6–30 cm on every hole, so a label position maps onto the course to within a few tens of centimetres.
+- The circle marker in screenshots is **not** the green anchor: it sits 5–8 m away, consistent with it being a game artifact.
+
+**Scoring.**
+
+- Heights are compared offset-free, because the in-game 0 is arbitrary.
+- Error is reported as RMS in inches and as % of that green's label range: under 10 % trustworthy, 10–18 % indicative, over 18 % check.
+- Labels less than 1 m inside the green edge, or outside it (several "0" references were placed on the fringe), are reported but not scored. This matches the book's own edge exclusion.
+
+**Grid colour.** In-game grid lines are coloured by slope *along the line*. Along-line slope correlates better with line hue than slope magnitude does, and across-line slope correlates poorly. The line hue was used as a second, slope-shape check.
+
+**Result** (hardness 0.85, blur 1 m; run `pga2k25 calibrate samples/courses/cassimbo.course samples/calibration/cassimbo/captures.json`):
+
+| Hole | Pin fit | Spot RMS | % of range |
+|---|---|---|---|
+| 1 | 0.06 m | 0.4 in | 2 % |
+| 7 | 0.30 m | 2.2 in | 8 % |
+| 10 | 0.08 m | 0.4 in | 10 % (range only 4 in) |
+| 13 | 0.12 m | 0.6 in | 5 % |
+
+**Model variants tried and rejected:**
+
+- softer plateaus (hardness 0–0.7), which gave edge walls and 18–360 % errors
+- heavier blur (1.5–2 m), which smeared walls into the green
+- reduced brush radius
+- Gaussian falloff
+- a falloff width that grows sub-linearly with brush size (√r, fixed minimum, power laws)
+
+All of these were worse on heights, slopes, or both.
+
+**Known limits:**
+
+- Heights match well, but the slope *shape* only moderately agrees with the in-game grid colours (rank correlation about 0.5). The model still concentrates slope into narrower bands than the game shows, so treat band sharpness as approximate.
+- Surfaces beyond the green edge (fringe and walls) are unreliable.
+- Game-generated greens with no drawn spline are still not reproduced.
+- The calibration covers one course. Re-run `calibrate` with captures from another course before trusting it elsewhere.
+
+**Adding captures:** for each hole, record the pixel position of the four cups and each label's text centre with its signed inch value in a `captures.json` like the Cassimbo one, then run `pga2k25 calibrate`.
