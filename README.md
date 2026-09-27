@@ -2,35 +2,42 @@
 
 A custom Windows desktop application for PGA TOUR 2K25 course design workflows.
 
-> Status: **analysis complete, stack not yet scaffolded.** See the docs below.
+> Status: **.NET solution scaffolded. First feature working: an experimental greens book (one-page PNG of all greens with slope colour, plus optional per-green studies and PDF).**
 
 ## Documentation
 
 - [Course file format spec](docs/course-format/pga2k25-course-format.md): how `.course` files are structured and how to read and write them safely.
 - [Reference app analysis](docs/reference-analysis/course-finisher-analysis.md): architecture, UI, features and algorithms of *Mal's TGC 2K25 Course Finisher*, plus a blueprint for our app.
+- [Greens book](docs/greens-book.md): what it produces, how the terrain is reconstructed, current limits, and the calibration plan.
 
-## Repository layout
+## Solution layout
 
-| Path | Purpose |
-|------|---------|
-| `src/` | Application source (planned: C# / .NET 8, WPF + MVVM) |
-| `docs/` | Design and architecture documentation |
-| `tools/course_codec.py` | Python CLI to `info` / `unpack` / `pack` `.course` files (lossless round-trip) |
+| Project | Purpose |
+|---|---|
+| `src/Pga2K25.CourseFormat` | Lossless `.course` codec (`CourseFile`) + typed read model (`CourseModel`: holes, pins, splines, height stamps) |
+| `src/Pga2K25.GreensBook` | Geometry, terrain replay, green analysis, SkiaSharp PDF/PNG renderer |
+| `src/Pga2K25.Cli` | `pga2k25 info` / `pga2k25 greensbook` command line |
+| `src/Pga2K25.App` | WPF desktop app (greens book front-end) |
+| `tests/Pga2K25.Tests` | xUnit: codec round-trip, metadata derivations, contouring, PDF build |
+| `tools/course_codec.py` | Python CLI to inspect / unpack / pack `.course` files |
 | `samples/courses/` | Sample `.course` files used as test fixtures |
-| `reference/` | Local copy of the reference application (git-ignored, not redistributed) |
 
-## Quick start: inspect a course
+Requires the .NET 8 SDK (`winget install Microsoft.DotNet.SDK.8`).
 
 ```bash
-python tools/course_codec.py info samples/courses/shinnecockhills.course
+dotnet test
 ```
 
 ```bash
-python tools/course_codec.py unpack samples/courses/shinnecockhills.course out/shinnecock
+dotnet run --project src/Pga2K25.Cli -- greensbook samples/courses/shinnecockhills.course -o out --studies
+```
+
+```bash
+dotnet run --project src/Pga2K25.App
 ```
 
 ## Next steps
 
-1. Scaffold the .NET solution (`CourseFormat`, `Geometry`, `Terrain`, `Operations`, `App`, tests).
-2. Port the codec to C# with a byte-stable round-trip test over `samples/courses/`.
-3. Build the heightfield replay and a 2D map view.
+1. Calibrate the terrain model against in-game spot elevations (see [docs/greens-book.md](docs/greens-book.md#calibration-plan)).
+2. Reproduce game-generated green outlines and levelling.
+3. Add a 2D course map view to the app.

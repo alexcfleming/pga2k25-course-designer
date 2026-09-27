@@ -208,7 +208,7 @@ The 2K25 hole list. 2K23 used `holes2` and 2K21 used `holes`.
 
 ```json
 {
-  "waypoints": [ {x,y,z}, {x,y,z}, {x,y,z} ],   // route: [0]=back tee … [-1]=green centre
+  "waypoints": [ {x,y,z}, {x,y,z}, {x,y,z} ],   // route: [0]=route start (usually the back tee) … [-1]=green centre
   "tees":  [ {"position": {x, y, z}} , … ],    // 1–5 tee markers, ordered FRONT → BACK
   "pins":  [ {"position": {x, y, z}, "description": 0}, … ],  // 1–4 pins, RELATIVE to waypoints[-1]
   "par": 4,
@@ -225,7 +225,7 @@ The 2K25 hole list. 2K23 used `holes2` and 2K21 used `holes`.
 
 Key rules:
 
-- `waypoints[0]` equals the **back tee** position, and the **last tee** in `tees[]` is that same point. `waypoints[-1]` is the **green centre / pin anchor**. Intermediate waypoints are dogleg aim points (1 in all samples, giving 3 waypoints total).
+- `waypoints[0]` is the **route start**. In 53 of 54 sample holes it equals the back (last) tee, but Shinnecock hole 18 is an exception: its route starts 10–43 m from every tee, so don't assume the two coincide. `waypoints[-1]` is the **green centre / pin anchor**. Intermediate waypoints are dogleg aim points (1 in all samples, giving 3 waypoints total).
 - **Pin coordinates are offsets from `waypoints[-1]`** (the reference tool reads `anchor + pin.position` and writes `candidate − anchor`). A single `(0, 0)` pin means "at the green centre".
 - `y` is `0.0` on route, tee and pin points. The game projects them onto the terrain.
 - Per-hole numeric overrides use `-1` / `-1.0` for "inherit the course-level value".
@@ -370,7 +370,7 @@ This is the browse/lobby summary. **It duplicates data from `CourseDescription`,
 | `courseId` | `CourseDescription._id` |
 | `holes`, `par`, `par3s`, `par4s`, `par5s`, `pars[]` | From `holes3[].par` |
 | `length` | **Sum over holes of the polyline length of `holes3[].waypoints`** (metres, back-tee route). Verified to 0.1 m on all 3 samples |
-| `teeSetInfos[]` | One per tee set: `{color, holeLengths[]}`. `color` order matches `teeColours` (`[4,0,3,2]`). Set *i* uses `tees[i]` of each hole (front → back); holes with fewer tees reuse their tee. Lengths are polyline lengths from that tee through the remaining waypoints to the green |
+| `teeSetInfos[]` | One per tee set: `{color, holeLengths[]}`. `color` order matches `teeColours` (`[4,0,3,2]`). Set *i* uses `tees[i]` of each hole (front → back); holes with fewer tees reuse their tee. Length = `|tee − waypoints[1]| + route length from waypoints[1] to waypoints[-1]` (i.e. the tee replaces `waypoints[0]`). Verified to 0.1 mm on all 54 holes × 4 sets |
 | `pinSets` | Maximum pins per hole |
 | ⚠ `pinPositions[hole][]` | Holds **absolute TEE positions** (equal to `holes3[].tees[].position`) — the key names are swapped in the game data |
 | ⚠ `teePositions[hole][]` | Holds **absolute PIN positions** (`waypoints[-1] + pin offset`) |
