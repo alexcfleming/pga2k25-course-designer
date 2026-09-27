@@ -6,3 +6,4 @@
 *.dds binary
 *.dll binary
 *.exe binary
+*.course binary
