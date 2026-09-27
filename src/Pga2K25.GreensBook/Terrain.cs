@@ -3,18 +3,20 @@ using Pga2K25.CourseFormat;
 namespace Pga2K25.GreensBook;
 
 /// <summary>
-/// Tunables for the EXPERIMENTAL heightfield replay. The game's brush shapes,
-/// hardness and post-processing are not stored in the .course file, so these
-/// are best guesses to be calibrated against in-game spot elevations.
+/// Tunables for the heightfield replay. The game's brush shapes, hardness and
+/// post-processing are not stored in the .course file; defaults are fitted to
+/// in-game readings (see docs/greens-book.md, "Calibration").
 /// </summary>
 public sealed record TerrainModelOptions
 {
-    /// <summary>Fraction of the brush radius at full strength before the smoothstep falloff (0 = cone-like, 0.7 = broad plateau).
-    /// Default chosen from plausibility sweeps on Cassimbo (median green slopes 1.3–3%); not yet calibrated.</summary>
-    public double Hardness { get; init; } = 0.7;
+    /// <summary>
+    /// Fraction of the brush radius at full strength before the smoothstep falloff (0 = cone-like, 1 = hard edge).
+    /// Calibrated on Cassimbo holes 1, 7, 10, 13 against in-game spot elevations and grid slope colours.
+    /// </summary>
+    public double Hardness { get; init; } = 0.85;
 
     /// <summary>Gaussian blur sigma (m) applied when the course sets blurHeight; 0 disables.</summary>
-    public double BlurSigmaMetres { get; init; } = 1.0;
+    public double BlurSigmaMetres { get; init; } = 1.0;   // calibrated with Hardness
 
     /// <summary>Raster cell size in metres.</summary>
     public double CellMetres { get; init; } = 0.25;

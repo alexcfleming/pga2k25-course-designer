@@ -5,12 +5,16 @@ using Pga2K25.GreensBook;
 const string Usage = """
     pga2k25 info <file.course>
     pga2k25 greensbook <file.course> [-o <dir>] [--studies] [--pdf] [--no-sheet] [--mono]
-                       [--holes 1,2,3] [--hardness 0.7] [--blur 1.0] [--credit "NAME"]
+                       [--holes 1,2,3] [--hardness 0.85] [--blur 1.0] [--credit "NAME"]
+    pga2k25 calibrate <file.course> <captures.json> [--hardness 0.85] [--blur 1.0]
 
       default output: one PNG page with every green ("<course> - Greens Book.png")
       --studies   also write a high-res study PNG per green (3300 x 2550 px)
       --pdf       also write a PDF (sheet page + one page per green)
       --mono      black-and-white linework, no slope colour
+
+      calibrate compares modelled elevations with in-game spot labels read off green
+      screenshots (see samples/calibration/cassimbo/captures.json for the format)
     """;
 
 if (args.Length < 2) { Console.Error.WriteLine(Usage); return 2; }
@@ -21,6 +25,7 @@ try
     {
         case "info": return Info(args[1]);
         case "greensbook": return GreensBook(args[1], args[2..]);
+        case "calibrate" when args.Length >= 3: return Calibrate(args[1], args[2], args[3..]);
         default: Console.Error.WriteLine(Usage); return 2;
     }
 }
@@ -71,6 +76,39 @@ static int GreensBook(string path, string[] rest)
     options = options with { Terrain = terrain };
 
     GreensBookBuilder.Build(path, outDir, options, outputs, holes, new SyncProgress(Console.WriteLine));
+    return 0;
+}
+
+static int Calibrate(string coursePath, string capturesPath, string[] rest)
+{
+    var terrain = new TerrainModelOptions();
+    for (int i = 0; i < rest.Length; i++)
+    {
+        double Next() => double.Parse(i + 1 < rest.Length ? rest[++i] : throw new ArgumentException($"{rest[i]} needs a value"), CultureInfo.InvariantCulture);
+        switch (rest[i])
+        {
+            case "--hardness": terrain = terrain with { Hardness = Next() }; break;
+            case "--blur": terrain = terrain with { BlurSigmaMetres = Next() }; break;
+            default: throw new ArgumentException($"unknown option {rest[i]}");
+        }
+    }
+    var course = CourseFile.Load(coursePath).ReadModel();
+    var options = new GreensBookOptions { Terrain = terrain };
+    var results = Calibration.Evaluate(course, Calibration.LoadCaptures(capturesPath), options);
+
+    Console.WriteLine($"{course.Name}: hardness {terrain.Hardness:0.00}, blur {terrain.BlurSigmaMetres:0.00} m");
+    foreach (var r in results)
+    {
+        string band = r.PercentOfRange < 10 ? "trustworthy" : r.PercentOfRange <= 18 ? "indicative" : "CHECK";
+        Console.WriteLine($"Hole {r.Hole,2}: pin fit {r.PinFitMetres:0.00} m, {r.MetresPerPixel * 100:0.00} cm/px, " +
+                          $"spot RMS {r.RmsInches:0.0} in = {r.PercentOfRange:0}% of {r.RangeInches:0} in  [{band}]");
+        foreach (var s in r.Spots)
+            Console.WriteLine($"   label {GreenAnalyzer.FormatFeetInches(s.Label.Inches),6}  model {GreenAnalyzer.FormatFeetInches(s.ModelInches),6}" +
+                              $"  edge {s.EdgeDistance,5:0.0} m{(s.Used ? "" : "  (not scored: edge/outside)")}");
+    }
+    var scored = results.Where(r => double.IsFinite(r.PercentOfRange)).ToList();
+    if (scored.Count > 0)
+        Console.WriteLine($"Mean {scored.Average(r => r.PercentOfRange):0.0}% of range, worst {scored.Max(r => r.PercentOfRange):0.0}%.");
     return 0;
 }
 
