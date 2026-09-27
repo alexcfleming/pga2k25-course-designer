@@ -1,0 +1,36 @@
+# Reference application binaries (analyzed locally, never committed)
+reference/*
+!reference/.gitkeep
+
+# .NET / Visual Studio
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userprefs
+*.rsuser
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa]rm64/
+*.nupkg
+packages/
+TestResults/
+*.log
+
+# JetBrains / VS Code
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# Node (if a web-based UI layer is chosen)
+node_modules/
+dist/
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store

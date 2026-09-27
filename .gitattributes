@@ -1,0 +1,8 @@
+* text=auto
+*.sln text eol=crlf
+*.csproj text eol=crlf
+*.png binary
+*.jpg binary
+*.dds binary
+*.dll binary
+*.exe binary
