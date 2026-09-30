@@ -26,7 +26,7 @@
         <StackPanel Grid.Row="0" Margin="0,0,0,12">
             <TextBlock Text="Course Designer" FontSize="26" FontWeight="Bold" Foreground="{StaticResource Ink}"/>
             <TextBlock Foreground="{StaticResource Grey}" FontStyle="Italic" TextWrapping="Wrap"
-                       Text="Greens books, scorecard maps and (soon) yardage book pages from PGA TOUR 2K25 Course Designer .course files."/>
+                       Text="Greens books, scorecard maps and yardage books from PGA TOUR 2K25 Course Designer .course files."/>
         </StackPanel>
 
         <Grid Grid.Row="1" Margin="0,0,0,10">
@@ -39,6 +39,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
             <TextBlock Text="Course file" VerticalAlignment="Center"/>
             <TextBox x:Name="CourseBox" Grid.Column="1" Padding="4"/>
@@ -47,7 +48,12 @@
             <TextBox x:Name="OutputBox" Grid.Row="1" Grid.Column="1" Padding="4" Margin="0,8,0,0"/>
             <Button Grid.Row="1" Grid.Column="2" Content="Browse…" Margin="6,8,0,0" Click="BrowseOutput_Click"/>
             <TextBlock Grid.Row="2" Text="Credit" VerticalAlignment="Center" Margin="0,8,0,0"/>
-            <TextBox x:Name="CreditBox" Grid.Row="2" Grid.Column="1" Text="ALEX C. FLEMING" Padding="4" Margin="0,8,0,0"/>
+            <TextBlock Grid.Row="2" Text="Hole data" VerticalAlignment="Center" Margin="0,8,0,0"/>
+            <TextBox x:Name="DataBox" Grid.Row="2" Grid.Column="1" Padding="4" Margin="0,8,0,0"
+                     ToolTip="Optional spreadsheet (.xlsx or .csv) with tee names, bearings and notes. Yardages always come from the course file."/>
+            <Button Grid.Row="2" Grid.Column="2" Content="Browse…" Margin="6,8,0,0" Click="BrowseData_Click"/>
+            <TextBlock Grid.Row="3" Text="Credit" VerticalAlignment="Center" Margin="0,8,0,0"/>
+            <TextBox x:Name="CreditBox" Grid.Row="3" Grid.Column="1" Text="ALEX C. FLEMING" Padding="4" Margin="0,8,0,0"/>
         </Grid>
 
         <TabControl Grid.Row="2" Margin="0,0,0,10" Padding="12">
@@ -71,16 +77,6 @@
                 <StackPanel>
                     <TextBlock Foreground="{StaticResource Grey}" FontStyle="Italic" TextWrapping="Wrap" Margin="0,0,0,10"
                                Text="Overhead course map traced from fairways, tees, greens, bunkers and waste areas, with hole routes, numbers and the scorecard."/>
-                    <Grid Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="Hole data (optional)" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                        <TextBox x:Name="DataBox" Grid.Column="1" Padding="3" ToolTip="Spreadsheet with tee names and yardages (.xlsx or .csv)"/>
-                        <Button Grid.Column="2" Content="Browse…" Click="BrowseData_Click"/>
-                    </Grid>
                     <WrapPanel Margin="0,0,0,8">
                         <TextBlock Text="Themes" VerticalAlignment="Center" Margin="0,0,10,0"/>
                         <CheckBox x:Name="VintageBox" Content="Vintage (ink on parchment)" IsChecked="True"/>
@@ -106,8 +102,20 @@
                     <Button x:Name="MapButton" Content="Create Scorecard Map" HorizontalAlignment="Left" Margin="0" FontWeight="Bold" Click="Map_Click"/>
                 </StackPanel>
             </TabItem>
-            <TabItem Header="Yardage Book" IsEnabled="False">
-                <TextBlock Text="Per-hole yardage book pages — next." Foreground="{StaticResource Grey}"/>
+            <TabItem Header="Yardage Book">
+                <StackPanel>
+                    <TextBlock Foreground="{StaticResource Grey}" FontStyle="Italic" TextWrapping="Wrap" Margin="0,0,0,10"
+                               Text="One portrait 4.25 × 11 in page per hole: carries and fronts of hazards, fairway widths, distance arcs, spot heights, aim points, green depth and every tee set. Written as a single vector PDF workbook."/>
+                    <WrapPanel Margin="0,0,0,10">
+                        <TextBlock Text="Holes" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBox x:Name="YardageHolesBox" Text="All" Width="120" Padding="3" Margin="0,0,18,0"
+                                 ToolTip="All, or a list such as 1-9 or 1, 4, 11-14"/>
+                        <CheckBox x:Name="YardagePdfBox" Content="PDF workbook" IsChecked="True"/>
+                        <CheckBox x:Name="YardagePngBox" Content="PNG per hole (1275 × 3300)"/>
+                        <CheckBox x:Name="YardageVerboseBox" Content="Explain hazard labels in log"/>
+                    </WrapPanel>
+                    <Button x:Name="YardageButton" Content="Create Yardage Book" HorizontalAlignment="Left" Margin="0" FontWeight="Bold" Click="Yardage_Click"/>
+                </StackPanel>
             </TabItem>
         </TabControl>
 
