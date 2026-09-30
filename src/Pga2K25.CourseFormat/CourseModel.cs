@@ -47,9 +47,28 @@ public sealed record SurfaceSpline(int Index, int Surface, bool Closed, double W
 /// <param name="Tool">0 = absolute height, 1 = relative (raise/lower/level).</param>
 public sealed record HeightStamp(int Index, int Tool, int Type, Vec2 Position, double Scale, double RotationY, double Value);
 
+/// <param name="Scale">Brush diameter in metres (scale.x).</param>
+/// <param name="Value">Paint opacity 0–1.</param>
+public sealed record SurfaceBrush(int Index, int Category, int Type, Vec2 Position, double Scale, double RotationY, double Value);
+
+/// <summary>
+/// Surface ids used by surfaceSplines2[].surface and surfaceBrushes2[].surfaceCategory.
+/// 0/1/2/3/4/7/10 are confirmed by the reference Course Finisher. 8, 15 and 18 were identified by
+/// matching Cassimbo's layers against an in-game overhead capture (see docs/scorecard-maps.md).
+/// </summary>
 public static class Surfaces
 {
     public const int Bunker = 0, Green = 1, Fairway = 2, Rough = 3, HeavyRough = 4, CartPath = 7, Water = 10;
+
+    /// <summary>Dirt/service road (wide open ribbons).</summary>
+    public const int Road = 8;
+
+    /// <summary>Waste area (grey sand/gravel scrub).</summary>
+    public const int Waste = 15;
+
+    /// <summary>Inner fairway cut drawn inside Fairway shapes (splines). As a brush category the
+    /// reference tool uses 18 for terrain weathering, so 18 brushes are not treated as fairway.</summary>
+    public const int FairwayCut = 18;
 }
 
 /// <summary>Read-only typed view over a CourseDescription JSON document.</summary>
@@ -61,6 +80,7 @@ public sealed class CourseModel
     public required IReadOnlyList<Hole> Holes { get; init; }
     public required IReadOnlyList<SurfaceSpline> SurfaceSplines { get; init; }
     public required IReadOnlyList<HeightStamp> HeightStamps { get; init; }
+    public required IReadOnlyList<SurfaceBrush> SurfaceBrushes { get; init; }
     public bool FlattenGreens { get; init; }
     public bool BlurHeight { get; init; }
     public double GreenSpeed { get; init; }
@@ -87,6 +107,7 @@ public sealed class CourseModel
             Holes = ReadHoles(desc["holes3"] as JsonArray),
             SurfaceSplines = ReadSplines(desc["surfaceSplines2"] as JsonArray),
             HeightStamps = ReadStamps(desc["height"] as JsonArray),
+            SurfaceBrushes = ReadBrushes(desc["surfaceBrushes2"] as JsonArray),
             FlattenGreens = desc["flattenGreens"]?.GetValue<bool>() ?? false,
             BlurHeight = desc["blurHeight"]?.GetValue<bool>() ?? false,
             GreenSpeed = Num(desc["greenSpeed"], -1),
@@ -136,6 +157,19 @@ public sealed class CourseModel
             var s = height[i]!.AsObject();
             result.Add(new HeightStamp(i, (int)Num(s["tool"]), (int)Num(s["type"]), ReadVec(s["position"]),
                 Num(s["scale"]?["x"]), Num(s["rotation"]?["y"]), Num(s["value"])));
+        }
+        return result;
+    }
+
+    static List<SurfaceBrush> ReadBrushes(JsonArray? brushes)
+    {
+        var result = new List<SurfaceBrush>();
+        if (brushes is null) return result;
+        for (int i = 0; i < brushes.Count; i++)
+        {
+            var b = brushes[i]!.AsObject();
+            result.Add(new SurfaceBrush(i, (int)Num(b["surfaceCategory"], -1), (int)Num(b["type"]), ReadVec(b["position"]),
+                Num(b["scale"]?["x"]), Num(b["rotation"]?["y"]), Num(b["value"], 1)));
         }
         return result;
     }
