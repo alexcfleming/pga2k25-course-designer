@@ -1,6 +1,5 @@
-using Pga2K25.CourseFormat;
 
-namespace Pga2K25.GreensBook;
+namespace Pga2K25.CourseFormat;
 
 public static class Geometry
 {

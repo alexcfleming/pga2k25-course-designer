@@ -1,9 +1,11 @@
 using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using Microsoft.Win32;
 using Pga2K25.CourseFormat;
 using Pga2K25.GreensBook;
+using Pga2K25.Maps;
 
 namespace Pga2K25.App;
 
@@ -29,6 +31,12 @@ public partial class MainWindow : Window
         if (dialog.ShowDialog(this) == true) OutputBox.Text = dialog.FolderName;
     }
 
+    void BrowseData_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog { Title = "Select hole data", Filter = "Hole data (*.xlsx;*.csv)|*.xlsx;*.csv|All files|*.*" };
+        if (dialog.ShowDialog(this) == true) DataBox.Text = dialog.FileName;
+    }
+
     void Summarize(string path)
     {
         try
@@ -45,37 +53,76 @@ public partial class MainWindow : Window
         }
     }
 
-    async void Generate_Click(object sender, RoutedEventArgs e)
+    bool TryInputs(out string course, out string output)
     {
-        string course = CourseBox.Text.Trim(), output = OutputBox.Text.Trim();
-        if (!File.Exists(course)) { MessageBox.Show(this, "Select a .course file first.", "Greens Book"); return; }
+        course = CourseBox.Text.Trim();
+        output = OutputBox.Text.Trim();
+        if (!File.Exists(course)) { MessageBox.Show(this, "Select a .course file first.", "Course Designer"); return false; }
         if (output.Length == 0) output = Path.GetDirectoryName(course)!;
+        return true;
+    }
 
+    async void Greens_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryInputs(out var course, out var output)) return;
         var options = new GreensBookOptions
         {
             Credit = CreditBox.Text.Trim(),
             ColourSlopes = ColourBox.IsChecked == true,
             Terrain = new TerrainModelOptions { Hardness = HardnessSlider.Value },
         };
-        var outputs = new GreensBookOutputs
+        var outputs = new GreensBookOutputs { GreenStudies = StudiesBox.IsChecked == true, Pdf = PdfBox.IsChecked == true };
+        await Run(GreensButton, "GREENS BOOK", progress =>
         {
-            GreenStudies = StudiesBox.IsChecked == true,
-            Pdf = PdfBox.IsChecked == true,
-        };
-        var progress = new Progress<string>(Log);   // marshals back to the UI thread
+            var result = GreensBookBuilder.Build(course, output, options, outputs, log: progress);
+            int flagged = result.Greens.Count(g => g.Warnings.Any(w => w.StartsWith("Implausibly")));
+            if (flagged > 0) progress.Report($"{flagged} green(s) look implausibly steep; the terrain model is probably wrong for those holes.");
+            return result.SheetPath ?? result.PdfPath;
+        });
+    }
 
-        GenerateButton.IsEnabled = false;
+    async void Map_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryInputs(out var course, out var output)) return;
+        var themes = new List<MapThemeKind>();
+        if (VintageBox.IsChecked == true) themes.Add(MapThemeKind.Vintage);
+        if (ModernBox.IsChecked == true) themes.Add(MapThemeKind.Modern);
+        if (themes.Count == 0) { MessageBox.Show(this, "Pick at least one theme.", "Scorecard Map"); return; }
+        HoleData? data = null;
+        if (DataBox.Text.Trim() is { Length: > 0 } dataPath)
+        {
+            try { data = HoleData.Load(dataPath); }
+            catch (Exception ex) { MessageBox.Show(this, $"Could not read hole data: {ex.Message}", "Scorecard Map"); return; }
+        }
+        var options = new ScorecardMapOptions
+        {
+            Data = data,
+            ShowWaste = WasteBox.IsChecked == true,
+            MergeBunkers = MergeBox.IsChecked == true,
+            BunkerMergeMetres = double.TryParse(MergeMetresBox.Text, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var mm) && mm > 0 ? mm : 10,
+            Credit = CreditBox.Text.Trim(),
+            Subtitle = SubtitleBox.Text.Trim(),
+            AutoRotate = RotateBox.IsChecked == true,
+            ShowPaths = PathsBox.IsChecked == true,
+            Orientation = (PageOrientation)OrientationBox.SelectedIndex,
+        };
+        bool pdf = MapPdfBox.IsChecked == true;
+        await Run(MapButton, "SCORECARD MAP", progress =>
+            ScorecardMapBuilder.Build(course, output, options, themes, pdf, log: progress).Files.FirstOrDefault());
+    }
+
+    async Task Run(Button button, string title, Func<IProgress<string>, string?> work)
+    {
+        var progress = new Progress<string>(Log);   // marshals back to the UI thread
+        button.IsEnabled = false;
         OpenButton.IsEnabled = false;
         Log("");
-        Log("=== CREATING GREENS BOOK ===");
+        Log($"=== {title} ===");
         try
         {
-            var result = await Task.Run(() => GreensBookBuilder.Build(course, output, options, outputs, log: progress));
-            _lastOutput = result.SheetPath ?? result.PdfPath;
-            OpenButton.IsEnabled = true;
-            int flagged = result.Greens.Count(g => g.Warnings.Any(w => w.StartsWith("Implausibly")));
-            if (flagged > 0)
-                Log($"{flagged} green(s) look implausibly steep; the terrain model is probably wrong for those holes.");
+            _lastOutput = await Task.Run(() => work(progress));
+            OpenButton.IsEnabled = _lastOutput is not null;
             Log("Done.");
         }
         catch (Exception ex)
@@ -84,7 +131,7 @@ public partial class MainWindow : Window
         }
         finally
         {
-            GenerateButton.IsEnabled = true;
+            button.IsEnabled = true;
         }
     }
 

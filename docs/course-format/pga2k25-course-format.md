@@ -13,7 +13,7 @@ Confidence markers used below:
 | **Inferred** | Consistent with the data but not proven |
 | **Unknown** | Present in the data; purpose not yet determined |
 
-All distances are **metres**. The world plane is **X/Z**; **Y is up**.
+All distances are **metres**. The world plane is **X/Z**; **Y is up**. Compass: **north = -Z, east = -X**. This was fitted from the Cassimbo designer's 36 tee/approach bearings (residual about 14 degrees RMS against estimated bearings) and confirmed by the designer. Seen from above with north up, +X points west and +Z points south.
 
 ---
 

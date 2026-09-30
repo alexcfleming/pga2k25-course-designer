@@ -42,7 +42,7 @@ public class CourseFormatTests
         Assert.Equal((int)CourseModel.Num(meta["holes"]), model.Holes.Count);
         Assert.Equal((int)CourseModel.Num(meta["par"]), model.Holes.Sum(h => h.Par));
         // CourseMetadata.length is the sum of back-tee route polylines.
-        Assert.Equal(CourseModel.Num(meta["length"]), model.Holes.Sum(h => h.RouteLength), 1);
+        Assert.Equal(CourseModel.Num(meta["length"]), model.Holes.Sum(h => h.RouteLength), tolerance: 0.1);
 
         // The game's metadata key names are swapped: "teePositions" holds absolute pins
         // and "pinPositions" holds tees. Our model reads pins as offsets from the green anchor.
@@ -55,7 +55,7 @@ public class CourseFormatTests
             AssertPoints(hole.Pins, metaPins[i]!.AsArray());
             AssertPoints(hole.Tees, metaTees[i]!.AsArray());
             for (int set = 0; set < teeSets.Count; set++)
-                Assert.Equal(CourseModel.Num(teeSets[set]!["holeLengths"]![i]), hole.TeeSetLength(set), 2);
+                Assert.Equal(CourseModel.Num(teeSets[set]!["holeLengths"]![i]), hole.TeeSetLength(set), tolerance: 0.01);
         }
     }
 
@@ -64,8 +64,8 @@ public class CourseFormatTests
         Assert.Equal(expected.Count, actual.Count);
         for (int i = 0; i < actual.Count; i++)
         {
-            Assert.Equal(CourseModel.Num(expected[i]!["x"]), actual[i].X, 2);
-            Assert.Equal(CourseModel.Num(expected[i]!["z"]), actual[i].Z, 2);
+            Assert.Equal(CourseModel.Num(expected[i]!["x"]), actual[i].X, tolerance: 0.01);
+            Assert.Equal(CourseModel.Num(expected[i]!["z"]), actual[i].Z, tolerance: 0.01);
         }
     }
 }

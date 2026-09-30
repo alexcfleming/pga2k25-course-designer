@@ -3,6 +3,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Pga2K25.GreensBook\Pga2K25.GreensBook.csproj" />
     <ProjectReference Include="..\Pga2K25.CourseFormat\Pga2K25.CourseFormat.csproj" />
+    <ProjectReference Include="..\Pga2K25.Maps\Pga2K25.Maps.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
