@@ -51,6 +51,10 @@ public sealed record HeightStamp(int Index, int Tool, int Type, Vec2 Position, d
 /// <param name="Value">Paint opacity 0–1.</param>
 public sealed record SurfaceBrush(int Index, int Category, int Type, Vec2 Position, double Scale, double RotationY, double Value);
 
+/// <summary>One placed asset instance (tree, bush, rock, prop) from placedObjects4.</summary>
+/// <param name="AssetPath">Prefab path, e.g. "Assets/Foliage/SpeedTree/Bushes/...".</param>
+public sealed record PlacedObject(string AssetPath, Vec2 Position, double Scale);
+
 /// <summary>
 /// Surface ids used by surfaceSplines2[].surface and surfaceBrushes2[].surfaceCategory.
 /// 0/1/2/3/4/7/10 are confirmed by the reference Course Finisher. 8, 15 and 18 were identified by
@@ -81,6 +85,7 @@ public sealed class CourseModel
     public required IReadOnlyList<SurfaceSpline> SurfaceSplines { get; init; }
     public required IReadOnlyList<HeightStamp> HeightStamps { get; init; }
     public required IReadOnlyList<SurfaceBrush> SurfaceBrushes { get; init; }
+    public required IReadOnlyList<PlacedObject> PlacedObjects { get; init; }
     public bool FlattenGreens { get; init; }
     public bool BlurHeight { get; init; }
     public double GreenSpeed { get; init; }
@@ -108,6 +113,7 @@ public sealed class CourseModel
             SurfaceSplines = ReadSplines(desc["surfaceSplines2"] as JsonArray),
             HeightStamps = ReadStamps(desc["height"] as JsonArray),
             SurfaceBrushes = ReadBrushes(desc["surfaceBrushes2"] as JsonArray),
+            PlacedObjects = ReadObjects(desc["placedObjects4"] as JsonArray),
             FlattenGreens = desc["flattenGreens"]?.GetValue<bool>() ?? false,
             BlurHeight = desc["blurHeight"]?.GetValue<bool>() ?? false,
             GreenSpeed = Num(desc["greenSpeed"], -1),
@@ -170,6 +176,19 @@ public sealed class CourseModel
             var b = brushes[i]!.AsObject();
             result.Add(new SurfaceBrush(i, (int)Num(b["surfaceCategory"], -1), (int)Num(b["type"]), ReadVec(b["position"]),
                 Num(b["scale"]?["x"]), Num(b["rotation"]?["y"]), Num(b["value"], 1)));
+        }
+        return result;
+    }
+
+    static List<PlacedObject> ReadObjects(JsonArray? groups)
+    {
+        var result = new List<PlacedObject>();
+        if (groups is null) return result;
+        foreach (var g in groups)
+        {
+            string path = g?["Key"]?["path"]?.GetValue<string>() ?? "";
+            foreach (var item in Array(g?["Value"]?["items"]))
+                result.Add(new PlacedObject(path, ReadVec(item!["position"]), Num(item["scale"]?["x"], 1)));
         }
         return result;
     }

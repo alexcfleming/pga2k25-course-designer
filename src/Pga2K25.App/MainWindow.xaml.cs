@@ -6,6 +6,7 @@ using Microsoft.Win32;
 using Pga2K25.CourseFormat;
 using Pga2K25.GreensBook;
 using Pga2K25.Maps;
+using Pga2K25.YardageBook;
 
 namespace Pga2K25.App;
 
@@ -110,6 +111,48 @@ public partial class MainWindow : Window
         bool pdf = MapPdfBox.IsChecked == true;
         await Run(MapButton, "SCORECARD MAP", progress =>
             ScorecardMapBuilder.Build(course, output, options, themes, pdf, log: progress).Files.FirstOrDefault());
+    }
+
+    async void Yardage_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryInputs(out var course, out var output)) return;
+        if (!TryParseHoles(YardageHolesBox.Text, out var holes))
+        {
+            MessageBox.Show(this, "Holes should be All, or a list such as 1-9 or 1, 4, 11-14.", "Yardage Book");
+            return;
+        }
+        var outputs = new YardageBookOutputs { Pdf = YardagePdfBox.IsChecked == true, Pngs = YardagePngBox.IsChecked == true };
+        if (!outputs.Pdf && !outputs.Pngs) { MessageBox.Show(this, "Pick the PDF workbook, PNGs, or both.", "Yardage Book"); return; }
+        var options = new YardageOptions { Credit = CreditBox.Text.Trim() };
+        if (DataBox.Text.Trim() is { Length: > 0 } dataPath)
+        {
+            // Names only: every yardage and elevation comes from the course file.
+            try { options = options with { TeeNames = HoleData.Load(dataPath).TeeNames }; }
+            catch (Exception ex) { MessageBox.Show(this, $"Could not read hole data: {ex.Message}", "Yardage Book"); return; }
+        }
+        bool verbose = YardageVerboseBox.IsChecked == true;
+        await Run(YardageButton, "YARDAGE BOOK", progress =>
+        {
+            var result = YardageBookBuilder.Build(course, output, options, outputs, holes, progress, verbose);
+            return result.PdfPath ?? result.PngPaths.FirstOrDefault();
+        });
+    }
+
+    /// <summary>"All" (or blank) → null; otherwise a list of numbers and ranges, e.g. "1-9, 12".</summary>
+    internal static bool TryParseHoles(string text, out List<int>? holes)
+    {
+        holes = null;
+        text = text.Trim();
+        if (text.Length == 0 || text.Equals("all", StringComparison.OrdinalIgnoreCase)) return true;
+        var list = new List<int>();
+        foreach (var part in text.Split([',', ' ', ';'], StringSplitOptions.RemoveEmptyEntries))
+        {
+            var ends = part.Split('-');
+            if (ends.Length > 2 || !int.TryParse(ends[0], out int a) || !int.TryParse(ends[^1], out int b) || a < 1 || b < a) return false;
+            for (int i = a; i <= b; i++) if (!list.Contains(i)) list.Add(i);
+        }
+        holes = list;
+        return list.Count > 0;
     }
 
     async Task Run(Button button, string title, Func<IProgress<string>, string?> work)

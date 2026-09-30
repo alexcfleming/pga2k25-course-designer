@@ -2,11 +2,16 @@ using System.Globalization;
 using Pga2K25.CourseFormat;
 using Pga2K25.GreensBook;
 using Pga2K25.Maps;
+using Pga2K25.YardageBook;
 
 const string Usage = """
     pga2k25 info <file.course>
     pga2k25 greensbook <file.course> [-o <dir>] [--studies] [--pdf] [--no-sheet] [--mono]
                        [--holes 1,2,3] [--hardness 0.85] [--blur 1.0] [--credit "NAME"]
+    pga2k25 yardage <file.course> [-o <dir>] [--holes 1,2] [--data holes.xlsx] [--png] [--no-pdf]
+                    [--verbose] [--credit "NAME"]
+      default output: one PDF workbook, a portrait 4.25 x 11 in page per hole
+      --png       also write a 1275 x 3300 px PNG per hole
     pga2k25 calibrate <file.course> <captures.json> [--hardness 0.85] [--blur 1.0]
     pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|both] [--landscape|--portrait]
                       [--north-up] [--data holes.xlsx|.csv] [--waste] [--raw-bunkers] [--no-paths]
@@ -30,6 +35,7 @@ try
         case "info": return Info(args[1]);
         case "greensbook": return GreensBook(args[1], args[2..]);
         case "scorecard": return Scorecard(args[1], args[2..]);
+        case "yardage": return Yardage(args[1], args[2..]);
         case "calibrate" when args.Length >= 3: return Calibrate(args[1], args[2], args[3..]);
         default: Console.Error.WriteLine(Usage); return 2;
     }
@@ -114,6 +120,34 @@ static int Calibrate(string coursePath, string capturesPath, string[] rest)
     var scored = results.Where(r => double.IsFinite(r.PercentOfRange)).ToList();
     if (scored.Count > 0)
         Console.WriteLine($"Mean {scored.Average(r => r.PercentOfRange):0.0}% of range, worst {scored.Max(r => r.PercentOfRange):0.0}%.");
+    return 0;
+}
+
+static int Yardage(string path, string[] rest)
+{
+    var options = new YardageOptions();
+    string outDir = Path.GetDirectoryName(Path.GetFullPath(path))!;
+    List<int>? holes = null;
+    var outputs = new YardageBookOutputs();
+    bool verbose = false;
+    for (int i = 0; i < rest.Length; i++)
+    {
+        string Next() => i + 1 < rest.Length ? rest[++i] : throw new ArgumentException($"{rest[i]} needs a value");
+        switch (rest[i])
+        {
+            case "-o": case "--out": outDir = Next(); break;
+            case "--holes": holes = Next().Split(',').Select(int.Parse).ToList(); break;
+            case "--data": options = options with { TeeNames = HoleData.Load(Next()).TeeNames }; break;   // names only
+            case "--verbose": verbose = true; break;
+            case "--png": outputs = outputs with { Pngs = true }; break;
+            case "--no-pdf": outputs = outputs with { Pdf = false }; break;
+            case "--pdf": break;   // default; accepted for compatibility
+            case "--credit": options = options with { Credit = Next() }; break;
+            default: throw new ArgumentException($"unknown option {rest[i]}");
+        }
+    }
+    if (!outputs.Pdf && !outputs.Pngs) throw new ArgumentException("--no-pdf needs --png, or there is nothing to write");
+    YardageBookBuilder.Build(path, outDir, options, outputs, holes, new SyncProgress(Console.WriteLine), verbose);
     return 0;
 }
 

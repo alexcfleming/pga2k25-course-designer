@@ -49,13 +49,52 @@ public sealed class MapProjection
     public SKPath Path(IReadOnlyList<Vec2> pts, bool close)
     {
         using var b = new SKPathBuilder();
-        if (pts.Count > 0)
-        {
-            b.MoveTo(Map(pts[0]));
-            for (int i = 1; i < pts.Count; i++) b.LineTo(Map(pts[i]));
-            if (close) b.Close();
-        }
+        AddPolyline(b, pts, close);
         return b.Detach();
+    }
+
+    /// <summary>
+    /// Appends a projected polyline, simplified (Douglas–Peucker) to <paramref name="tolerance"/> page units.
+    /// Merged shapes are traced on a fine grid, so most of their vertices are closer together than print
+    /// can resolve; dropping them keeps vector PDFs small without any visible change.
+    /// </summary>
+    public void AddPolyline(SKPathBuilder b, IReadOnlyList<Vec2> pts, bool close, float tolerance = 0.1f)
+    {
+        if (pts.Count == 0) return;
+        var m = new SKPoint[pts.Count];
+        for (int i = 0; i < m.Length; i++) m[i] = Map(pts[i]);
+        var keep = Simplify(m, tolerance);
+        b.MoveTo(m[0]);
+        for (int i = 1; i < m.Length; i++) if (keep[i]) b.LineTo(m[i]);
+        if (close) b.Close();
+    }
+
+    static bool[] Simplify(SKPoint[] p, float tol)
+    {
+        var keep = new bool[p.Length];
+        keep[0] = keep[^1] = true;
+        if (p.Length < 3) { Array.Fill(keep, true); return keep; }
+        var stack = new Stack<(int, int)>();
+        stack.Push((0, p.Length - 1));
+        float tol2 = tol * tol;
+        while (stack.Count > 0)
+        {
+            var (a, z) = stack.Pop();
+            float dx = p[z].X - p[a].X, dy = p[z].Y - p[a].Y, len2 = dx * dx + dy * dy;
+            int worst = -1; float worstD = tol2;
+            for (int i = a + 1; i < z; i++)
+            {
+                float ex = p[i].X - p[a].X, ey = p[i].Y - p[a].Y, d2;
+                if (len2 < 1e-12f) d2 = ex * ex + ey * ey;
+                else { float c = ex * dy - ey * dx; d2 = c * c / len2; }
+                if (d2 > worstD) { worstD = d2; worst = i; }
+            }
+            if (worst < 0) continue;
+            keep[worst] = true;
+            stack.Push((a, worst));
+            stack.Push((worst, z));
+        }
+        return keep;
     }
 
     /// <summary>Fits points into <paramref name="rect"/> at a fixed rotation.</summary>
