@@ -149,11 +149,23 @@ public sealed class TerrainSurvey
     /// <summary>Slope (%) at a world point.</summary>
     public double SlopePct(Vec2 p) => Field.Gradient(p).Length * 100;
 
+    /// <summary>The plot sheet: routing (or whole plot) window, interval from the ground near play.</summary>
     public static TerrainSurvey Build(CourseModel course, TerrainMapOptions o)
     {
         var layers = CourseLayers.From(course);
         var (min, max) = Window(course, layers, o);
+        return Build(course, o, layers, min, max, p => layers.DistanceToPlay(p) <= o.CorridorMetres, datumMetres: null);
+    }
 
+    /// <summary>
+    /// Survey of an arbitrary axis-aligned window. The contour interval is chosen from the relief of the
+    /// ground where <paramref name="focus"/> holds (at most <see cref="TerrainMapOptions.MaxCorridorLevels"/>
+    /// levels). Without a sea, <paramref name="datumMetres"/> fixes the 0 ft level so several sheets agree;
+    /// null uses the lowest ground in the window.
+    /// </summary>
+    public static TerrainSurvey Build(CourseModel course, TerrainMapOptions o, CourseLayers layers, Vec2 min, Vec2 max,
+        Func<Vec2, bool> focus, double? datumMetres)
+    {
         // Replay a little beyond the window so blur and gradients are clean at the edges.
         double padM = 4 * o.Terrain.CellMetres + 3 * o.SmoothMetres;
         var pad = new Vec2(padM, padM);
@@ -174,23 +186,27 @@ public sealed class TerrainSurvey
 
         double? sea = o.ShowWater ? o.SeaLevelMetres ?? DetectSeaLevel(course) : null;
         if (sea is { } level && lo > level + ShoreToleranceMetres) sea = null;   // the sea never reaches this window
-        if (sea is { } s0) { lo = s0; hi = Math.Max(hi, s0); }
-        double datum = lo;
-        double maxFeet = (hi - lo) * FeetPerMetre;
+        double datum = sea ?? datumMetres ?? lo;
+        if (sea is not null) lo = datum;                     // nothing below the sea is contoured
+        hi = Math.Max(hi, datum);
+        double minFeet = (lo - datum) * FeetPerMetre, maxFeet = (hi - datum) * FeetPerMetre;
         int indexEvery = Math.Max(1, o.IndexEvery);
-        var corridor = CorridorRange(field, layers, min, max, o.CorridorMetres, sea ?? double.NegativeInfinity);
+        var corridor = FocusRange(field, min, max, focus, sea ?? double.NegativeInfinity);
         var corridorFeet = ((corridor.Low - datum) * FeetPerMetre, (corridor.High - datum) * FeetPerMetre);
         double interval = o.ContourIntervalFeet is > 0 ? o.ContourIntervalFeet.Value
             : ChooseInterval(corridorFeet.Item2 - corridorFeet.Item1, o.MaxCorridorLevels);
         // Keep the whole sheet legible too: at most ~250 index levels over mountains.
         if (o.ContourIntervalFeet is not > 0)
-            while (maxFeet / (interval * indexEvery) > 250) interval = ChooseInterval(maxFeet, (int)(maxFeet / interval) - 1);
+            while ((maxFeet - minFeet) / (interval * indexEvery) > 250) interval = ChooseInterval(maxFeet - minFeet, (int)((maxFeet - minFeet) / interval) - 1);
 
         // Thin minor contours where slope packs them tighter than the spacing limit.
         double maxMinorSlope = o.MinContourSpacingPixels > 0
             ? interval / FeetPerMetre / (o.MinContourSpacingPixels / o.PixelsPerMetre)
             : double.PositiveInfinity;
-        var contours = TraceContours(field, datum, maxFeet, interval, indexEvery, maxMinorSlope);
+        // Thinning leaves slivers where the slope hovers at the limit; drop minor pieces shorter than a few spacings.
+        double minFragment = o.MinContourSpacingPixels > 0 ? 6 * o.MinContourSpacingPixels / o.PixelsPerMetre : 0;
+        var contours = TraceContours(field, datum, minFeet, maxFeet, interval, indexEvery, maxMinorSlope)
+            .Where(c => c.Index || Length(c.Points) >= minFragment).ToList();
         var survey = new TerrainSurvey
         {
             Course = course, Layers = layers, Min = min, Max = max, Field = field, DatumMetres = datum, MaxFeet = maxFeet,
@@ -201,6 +217,13 @@ public sealed class TerrainSurvey
         if (o.ShowSummits) survey.Summits.AddRange(FindSummits(survey, interval));
         foreach (var h in layers.Holes) survey.Holes.Add(Route(survey, h, o));
         return survey;
+    }
+
+    static double Length(IReadOnlyList<Vec2> pts)
+    {
+        double sum = 0;
+        for (int i = 1; i < pts.Count; i++) sum += Vec2.Distance(pts[i - 1], pts[i]);
+        return sum;
     }
 
     /// <summary>Median explicit height of the ocean props (wave, churn, impact), or null if there are none.</summary>
@@ -239,15 +262,15 @@ public sealed class TerrainSurvey
         return nice[^1];
     }
 
-    /// <summary>Lowest and highest elevation (m) within <paramref name="reach"/> of any route, on a 4 m lattice.</summary>
-    static (double Low, double High) CorridorRange(Heightfield field, CourseLayers layers, Vec2 min, Vec2 max, double reach, double floor)
+    /// <summary>Lowest and highest dry elevation (m) where <paramref name="focus"/> holds, on a 4 m lattice.</summary>
+    static (double Low, double High) FocusRange(Heightfield field, Vec2 min, Vec2 max, Func<Vec2, bool> focus, double floor)
     {
         double lo = double.MaxValue, hi = double.MinValue;
         for (double x = min.X; x <= max.X; x += 4)
             for (double z = min.Z; z <= max.Z; z += 4)
             {
                 var p = new Vec2(x, z);
-                if (layers.DistanceToPlay(p) > reach) continue;
+                if (!focus(p)) continue;
                 double v = field.Sample(p);
                 if (v < floor) continue;
                 lo = Math.Min(lo, v); hi = Math.Max(hi, v);
@@ -255,8 +278,11 @@ public sealed class TerrainSurvey
         return lo > hi ? (0, 0) : (lo, hi);
     }
 
-    static List<ContourLine> TraceContours(Heightfield field, double datum, double maxFeet, double interval, int indexEvery, double maxMinorSlope)
+    static List<ContourLine> TraceContours(Heightfield field, double datum, double minFeet, double maxFeet, double interval, int indexEvery,
+        double maxMinorSlope)
     {
+        // Level 0 is the lowest point itself unless ground dips below a fixed datum.
+        int k0 = minFeet < 0 ? (int)Math.Ceiling(minFeet / interval) : 1;
         int n = (int)Math.Floor(maxFeet / interval);
         var all = new bool[field.Values.Length];
         Array.Fill(all, true);
@@ -267,22 +293,25 @@ public sealed class TerrainSurvey
             int w = field.Width, h = field.Height;
             Parallel.For(0, h, iz =>
             {
-                int zm = Math.Max(0, iz - 1), zp = Math.Min(h - 1, iz + 1);
+                // A wide stencil (about 3 m) so the mask edge is smooth rather than ragged.
+                int r = Math.Max(1, (int)Math.Round(1.5 / field.Cell));
+                int zm = Math.Max(0, iz - r), zp = Math.Min(h - 1, iz + r);
                 for (int ix = 0; ix < w; ix++)
                 {
-                    int xm = Math.Max(0, ix - 1), xp = Math.Min(w - 1, ix + 1);
+                    int xm = Math.Max(0, ix - r), xp = Math.Min(w - 1, ix + r);
                     double gx = (field[xp, iz] - field[xm, iz]) / ((xp - xm) * field.Cell);
                     double gz = (field[ix, zp] - field[ix, zm]) / ((zp - zm) * field.Cell);
                     gentle[iz * w + ix] = gx * gx + gz * gz <= maxMinorSlope * maxMinorSlope;
                 }
             });
         }
-        var byLevel = new List<ContourLine>[n + 1];
-        Parallel.For(1, n + 1, k =>
+        if (n < k0) return [];
+        var byLevel = new List<ContourLine>[n - k0 + 1];
+        Parallel.For(k0, n + 1, k =>
         {
             double feet = k * interval;
             bool index = k % indexEvery == 0;
-            byLevel[k] = MarchingSquares.Trace(field, field.Values, index ? all : gentle, datum + feet / FeetPerMetre)
+            byLevel[k - k0] = MarchingSquares.Trace(field, field.Values, index ? all : gentle, datum + feet / FeetPerMetre)
                 .Where(l => l.Count >= 2)
                 .Select(l => new ContourLine(feet, index, l))
                 .ToList();

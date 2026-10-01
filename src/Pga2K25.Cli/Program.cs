@@ -17,6 +17,9 @@ const string Usage = """
     pga2k25 terrain <file.course> [-o <dir>] [--full-plot] [--margin 150] [--interval 5] [--index 5]
                     [--shading relief|slope|none] [--ppm 4] [--cell 1.0] [--grid 100] [--no-features]
                     [--hardness 0.85] [--large-hardness 0.3] [--smooth 0] [--sea-level <m>] [--no-water]
+                    [--holes 7,12|all [--sheet-grid 50] [--no-pdf] [--no-png]]
+      --holes     instead, one 8.5 x 11 in terrain sketch sheet per hole, oriented like the
+                  yardage book (PNGs at 300 dpi + one PDF)
                     [--no-summits] [--credit "NAME"]
       one north-up PNG of the plot: contours, relief or slope shading, lettered grid and
       the routing as sticks and dots ("<course> - Terrain Map.png")
@@ -170,6 +173,8 @@ static int Yardage(string path, string[] rest)
 static int Terrain(string path, string[] rest)
 {
     var options = new TerrainMapOptions();
+    var sheet = new HoleSheetOptions();
+    string? holes = null;
     string outDir = Path.GetDirectoryName(Path.GetFullPath(path))!;
     for (int i = 0; i < rest.Length; i++)
     {
@@ -178,6 +183,10 @@ static int Terrain(string path, string[] rest)
         switch (rest[i])
         {
             case "-o": case "--out": outDir = Next(); break;
+            case "--holes": holes = Next(); break;
+            case "--sheet-grid": sheet = sheet with { GridYards = NextDouble() }; break;
+            case "--no-pdf": sheet = sheet with { Pdf = false }; break;
+            case "--no-png": sheet = sheet with { Png = false }; break;
             case "--full-plot": options = options with { Extent = MapExtent.FullPlot }; break;
             case "--margin": options = options with { MarginMetres = NextDouble() }; break;
             case "--interval": options = options with { ContourIntervalFeet = NextDouble() }; break;
@@ -208,7 +217,14 @@ static int Terrain(string path, string[] rest)
             default: throw new ArgumentException($"unknown option {rest[i]}");
         }
     }
-    TerrainMapBuilder.Build(path, outDir, options, new SyncProgress(Console.WriteLine));
+    if (holes is null)
+    {
+        TerrainMapBuilder.Build(path, outDir, options, new SyncProgress(Console.WriteLine));
+        return 0;
+    }
+    // Per-hole sketch sheets; the plot map's --interval would be too coarse here, so it applies only if given.
+    var numbers = holes.Equals("all", StringComparison.OrdinalIgnoreCase) ? null : holes.Split(',').Select(int.Parse).ToList();
+    HoleSheetBuilder.Build(path, outDir, sheet with { Map = options }, numbers, new SyncProgress(Console.WriteLine));
     return 0;
 }
 

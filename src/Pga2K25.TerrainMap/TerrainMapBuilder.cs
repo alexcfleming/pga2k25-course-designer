@@ -58,3 +58,89 @@ public static class TerrainMapBuilder
               $"from the line, worst {props[^1].Distance:0} m)";
     }
 }
+
+public sealed record HoleSheetResult(IReadOnlyList<string> PngPaths, string? PdfPath, IReadOnlyList<HoleSheet> Sheets);
+
+public static class HoleSheetBuilder
+{
+    /// <summary>
+    /// Writes one Letter-size terrain sketch sheet per selected hole: PNGs in "&lt;course&gt; - Hole Sheets/"
+    /// and a PDF with one page per hole ("&lt;course&gt; - Hole Sheets.pdf"), both print at true scale.
+    /// </summary>
+    public static HoleSheetResult Build(string coursePath, string outputDir, HoleSheetOptions options,
+        IEnumerable<int>? holeNumbers = null, IProgress<string>? log = null)
+    {
+        var course = CourseFile.Load(coursePath).ReadModel();
+        var selected = holeNumbers?.ToHashSet();
+        var holes = course.Holes.Where(h => selected is null || selected.Contains(h.Number)).ToList();
+        if (holes.Count == 0) throw new InvalidOperationException("No matching holes found in the course.");
+        var layers = Maps.CourseLayers.From(course);
+
+        // Same 0 ft as the course terrain map: sea level, or the lowest ground of the routing window.
+        var plot = TerrainSurvey.Build(course, options.Map with
+        {
+            Terrain = options.Map.Terrain with { CellMetres = 4 }, ShowSummits = false, ContourIntervalFeet = 100,
+        });
+        double datum = plot.DatumMetres;
+
+        var sheets = new List<HoleSheet>();
+        foreach (var h in holes)
+        {
+            var sheet = HoleSheet.Build(course, layers, h, options, datum, datumIsSeaLevel: plot.SeaLevelMetres is not null);
+            sheets.Add(sheet);
+            var r = sheet.Routing;
+            log?.Report($"Hole {h.Number,2}: par {h.Par}, {r.Yards} yds, sheet {(sheet.Along.To - sheet.Along.From) * TerrainSurvey.YardsPerMetre:0} × " +
+                        $"{(sheet.Across.To - sheet.Across.From) * TerrainSurvey.YardsPerMetre:0} yds, {sheet.Survey.IntervalFeet:0.##} ft contours, " +
+                        $"tee {r.TeeFeet:0} → green {r.GreenFeet:0} ft, green site {r.GreenSiteSlopePct:0.0}%.");
+        }
+
+        string baseName = string.Concat((string.IsNullOrWhiteSpace(course.Name) ? Path.GetFileNameWithoutExtension(coursePath) : course.Name)
+            .Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)).Trim();
+        Directory.CreateDirectory(outputDir);
+        using var renderer = new HoleSheetRenderer(options);
+
+        var pngs = new List<string>();
+        if (options.Png)
+        {
+            string dir = Path.Combine(outputDir, $"{baseName} - Hole Sheets");
+            Directory.CreateDirectory(dir);
+            var size = renderer.PixelSize;
+            foreach (var sheet in sheets)
+            {
+                using var surface = SKSurface.Create(new SKImageInfo(size.Width, size.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
+                renderer.Draw(surface.Canvas, course.Name, sheet);
+                using var image = surface.Snapshot();
+                using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+                string path = Path.Combine(dir, $"Hole_{sheet.Routing.Hole.Number:00}.png");
+                using (var f = File.Create(path)) data.SaveTo(f);
+                pngs.Add(path);
+            }
+            log?.Report($"Hole sheet PNGs ({pngs.Count}, {size.Width} × {size.Height} px = 8.5 × 11 in at {options.Dpi:0} dpi): {dir}");
+        }
+
+        string? pdfPath = null;
+        if (options.Pdf)
+        {
+            pdfPath = Path.Combine(outputDir, $"{baseName} - Hole Sheets.pdf");
+            using var stream = File.Create(pdfPath);
+            using var doc = SKDocument.CreatePdf(stream, new SKDocumentPdfMetadata
+            {
+                Title = $"{course.Name} — Hole terrain sheets",
+                Author = options.Map.Credit,
+                Creator = "PGA 2K25 Course Designer",
+                RasterDpi = (float)options.Dpi,
+                EncodingQuality = 100,
+            });
+            foreach (var sheet in sheets)
+            {
+                var canvas = doc.BeginPage(HoleSheet.PageWidth, HoleSheet.PageHeight);
+                canvas.Scale((float)(72 / options.Dpi));   // the renderer works in pixels at Dpi
+                renderer.Draw(canvas, course.Name, sheet);
+                doc.EndPage();
+            }
+            doc.Close();
+            log?.Report($"Hole sheet PDF ({sheets.Count} Letter page(s)): {pdfPath}");
+        }
+        return new HoleSheetResult(pngs, pdfPath, sheets);
+    }
+}

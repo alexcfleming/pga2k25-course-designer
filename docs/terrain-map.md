@@ -28,6 +28,26 @@ The output is `<course> - Terrain Map.png`. At the default 4 px per metre, a 1.5
 
 Elevations are in **feet above sea level** when the plot has a sea, otherwise above the lowest point on the sheet. Yardages follow the game's rule: back tee → second waypoint → … → green, the same as the scorecard; the course file is the source of truth.
 
+## Hole sheets
+
+`--holes 2,7,16` (or `all`), or **Create Hole Sheets** in the app, makes one **US Letter portrait page per hole** for sketching hole features by hand. You get a 300 dpi PNG per hole in `<course> - Hole Sheets/` and one PDF, `<course> - Hole Sheets.pdf`. Both print at true scale; the footer says how many yards an inch is at 100 %.
+
+```bash
+dotnet run --project src/Pga2K25.Cli -- terrain samples/courses/sagan-khushun.course --holes 2,7,16 --credit "NAME"
+```
+
+- **Orientation is the yardage book's:** back tee at the bottom, green straight up the page, using the same rotation as `HoleAnalysis` (checked by a test). A north arrow turned to match is in the footer.
+- **Window:** 40 m behind the back tee to 50 m past the green, widened to the page. Doglegs keep at least 60 m either side of the route. It always fits on one page, so long holes are smaller scale: about 31 yds/in for a 160-yd par 3 and 60–80 yds/in for long par 4s and 5s.
+- **Finer terrain:** a 0.5 m raster. The contour interval is the smallest of 1 / 2 / 5 … ft that keeps the ground **within 50 m of this hole's route** to 60 levels or fewer, so a hillside or the sea at the edge of the page doesn't coarsen it. On Sagan-Khushun every hole tried came out at 2 ft (index every 10 ft). Minor contours are thinned where they would run closer than 2 pt, and slivers left by the thinning are dropped.
+- **A grid on the hole:** lines every 50 yds from the back tee (labelled in yards down both edges), and every 50 yds left and right of the tee→green line (`L50 · C · R50`, as you walk to the green) along the top and bottom. A spot height sits at each crossing.
+- **The hole:**
+  - route, aim point and ticks every 25 yds, with the ground height at every 50
+  - the green site as an outline only, so the ground under it stays clear for sketching, with its fall arrow
+  - neighbouring holes as faint dashed lines with their numbers
+  - drawn surfaces and sea as on the plot map
+- **Header:** hole, par and yards, tee → green elevations, green-site slope and the elevation range near the hole. There is no badge on the map itself.
+- **0 ft** is the same on every sheet and on the plot map: sea level, or the plot map's lowest point when there is no sea.
+
 ## Terrain model
 
 This uses the same stamp replay as the greens book (`TerrainReplay`), with one change. Brushes **40 m or more across** use a softer falloff (`LargeBrushHardness`, default 0.3) than the calibrated 0.85.
@@ -53,6 +73,9 @@ This softer falloff is a judgement, not a calibration. Before committing to a de
 | `--hardness` / `--large-hardness` | | 0.85 / 0.3 | Brush falloff for small / large brushes |
 | `--smooth` | | 0 | Extra Gaussian smoothing (sigma, m) before contouring |
 | `--no-features`, `--no-summits` | Drawn surfaces | shown | |
+| `--holes` | Create Hole Sheets / Holes | | Hole sheets instead of the plot map (`all` or a list) |
+| `--sheet-grid` | | 50 | Hole sheet grid (yd) |
+| `--no-pdf`, `--no-png` | | both | Hole sheet outputs |
 | `--sea-level`, `--no-water` | | from ocean props | Sea level (world m), or no sea |
 
 ## Code
@@ -60,7 +83,12 @@ This softer falloff is a judgement, not a calibration. Before committing to a de
 `src/Pga2K25.TerrainMap`:
 
 - `TerrainSurvey`: the window, replay, datum, interval choice, contours (via `GreensBook.MarchingSquares`, run in parallel per level), summits and per-hole figures
-- `TerrainMapRenderer`: SkiaSharp drawing. Shading is rasterised at the terrain resolution and drawn with cubic resampling. Contour labels are placed first so the lines can be clipped around them, and route labels try 16 positions to stay clear of routes and other labels.
-- `TerrainMapBuilder`: writes the PNG
+- `TerrainInk`: SkiaSharp drawing shared by both sheets.
+  - Shading is rasterised at the terrain resolution and drawn through the projection with cubic resampling, at any rotation.
+  - Contour labels are placed first so the lines can be clipped around them.
+  - Route labels try 16 positions to stay clear of routes and other labels.
+  - It also draws the routing and green sites.
+- `TerrainMapRenderer` / `TerrainMapBuilder`: the plot map
+- `HoleSheet` / `HoleSheetRenderer` / `HoleSheetBuilder`: hole sheets (window, finer survey, Letter layout, PNG + PDF)
 
 Tests are in `tests/Pga2K25.Tests/TerrainMapTests.cs` and run against `samples/courses/sagan-khushun.course`.
