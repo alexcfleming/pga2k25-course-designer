@@ -53,7 +53,8 @@ public sealed record SurfaceBrush(int Index, int Category, int Type, Vec2 Positi
 
 /// <summary>One placed asset instance (tree, bush, rock, prop) from placedObjects4.</summary>
 /// <param name="AssetPath">Prefab path, e.g. "Assets/Foliage/SpeedTree/Bushes/...".</param>
-public sealed record PlacedObject(string AssetPath, Vec2 Position, double Scale);
+/// <param name="Height">Explicit elevation (position.y); null when the object snaps to terrain ("-Infinity").</param>
+public sealed record PlacedObject(string AssetPath, Vec2 Position, double Scale, double? Height = null);
 
 /// <summary>
 /// Surface ids used by surfaceSplines2[].surface and surfaceBrushes2[].surfaceCategory.
@@ -188,7 +189,11 @@ public sealed class CourseModel
         {
             string path = g?["Key"]?["path"]?.GetValue<string>() ?? "";
             foreach (var item in Array(g?["Value"]?["items"]))
-                result.Add(new PlacedObject(path, ReadVec(item!["position"]), Num(item["scale"]?["x"], 1)));
+            {
+                double y = Num(item!["position"]?["y"], double.NegativeInfinity);
+                result.Add(new PlacedObject(path, ReadVec(item["position"]), Num(item["scale"]?["x"], 1),
+                    double.IsFinite(y) ? y : null));
+            }
         }
         return result;
     }

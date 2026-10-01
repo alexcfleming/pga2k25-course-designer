@@ -18,6 +18,15 @@ public sealed record TerrainModelOptions
     /// <summary>Gaussian blur sigma (m) applied when the course sets blurHeight; 0 disables.</summary>
     public double BlurSigmaMetres { get; init; } = 1.0;   // calibrated with Hardness
 
+    /// <summary>
+    /// Hardness for brushes at least <see cref="LargeBrushMetres"/> across; null uses <see cref="Hardness"/>.
+    /// The greens calibration only constrains the flat tops of stamps, not how big sculpting brushes fall
+    /// off, so plot-scale maps use a softer value to avoid circular terraces the game doesn't show.
+    /// </summary>
+    public double? LargeBrushHardness { get; init; }
+
+    public double LargeBrushMetres { get; init; } = 40;
+
     /// <summary>Raster cell size in metres.</summary>
     public double CellMetres { get; init; } = 0.25;
 }
@@ -85,12 +94,14 @@ public static class TerrainReplay
         int h = (int)Math.Ceiling((max.Z - min.Z + 2 * margin) / cell);
         var field = new Heightfield(origin, cell, w, h);
         var values = field.Values;
-        double inner = Math.Clamp(options.Hardness, 0, 0.98);
+        double hard = Math.Clamp(options.Hardness, 0, 0.98);
+        double soft = Math.Clamp(options.LargeBrushHardness ?? options.Hardness, 0, 0.98);
 
         foreach (var s in course.HeightStamps)
         {
             double r = s.Scale / 2;
             if (r <= 0 || !double.IsFinite(s.Value)) continue;
+            double inner = s.Scale >= options.LargeBrushMetres ? soft : hard;
             int x0 = Math.Max(0, (int)Math.Floor((s.Position.X - r - origin.X) / cell));
             int x1 = Math.Min(w - 1, (int)Math.Ceiling((s.Position.X + r - origin.X) / cell));
             int z0 = Math.Max(0, (int)Math.Floor((s.Position.Z - r - origin.Z) / cell));
@@ -115,6 +126,12 @@ public static class TerrainReplay
 
         if (sigma > 0) GaussianBlur(field, sigma / cell);
         return field;
+    }
+
+    /// <summary>Separable Gaussian blur in place; <paramref name="sigmaMetres"/> ≤ 0 does nothing.</summary>
+    public static void Smooth(Heightfield field, double sigmaMetres)
+    {
+        if (sigmaMetres > 0) GaussianBlur(field, sigmaMetres / field.Cell);
     }
 
     static void GaussianBlur(Heightfield f, double sigmaCells)

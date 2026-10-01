@@ -3,6 +3,7 @@ using Pga2K25.CourseFormat;
 using Pga2K25.Finisher;
 using Pga2K25.GreensBook;
 using Pga2K25.Maps;
+using Pga2K25.TerrainMap;
 using Pga2K25.YardageBook;
 
 const string Usage = """
@@ -13,6 +14,14 @@ const string Usage = """
                     [--verbose] [--credit "NAME"]
       default output: one PDF workbook, a portrait 4.25 x 11 in page per hole
       --png       also write a 1275 x 3300 px PNG per hole
+    pga2k25 terrain <file.course> [-o <dir>] [--full-plot] [--margin 150] [--interval 5] [--index 5]
+                    [--shading relief|slope|none] [--ppm 4] [--cell 1.0] [--grid 100] [--no-features]
+                    [--hardness 0.85] [--large-hardness 0.3] [--smooth 0] [--sea-level <m>] [--no-water]
+                    [--no-summits] [--credit "NAME"]
+      one north-up PNG of the plot: contours, relief or slope shading, lettered grid and
+      the routing as sticks and dots ("<course> - Terrain Map.png")
+      --interval  contour interval in feet (default: smallest of 1/2/5/10… that fits)
+      --ppm       output pixels per metre of ground (default 4)
     pga2k25 calibrate <file.course> <captures.json> [--hardness 0.85] [--blur 1.0]
     pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|both] [--landscape|--portrait]
                       [--north-up] [--data holes.xlsx|.csv] [--waste] [--raw-bunkers] [--no-paths]
@@ -40,6 +49,7 @@ try
         case "greensbook": return GreensBook(args[1], args[2..]);
         case "scorecard": return Scorecard(args[1], args[2..]);
         case "yardage": return Yardage(args[1], args[2..]);
+        case "terrain": return Terrain(args[1], args[2..]);
         case "calibrate" when args.Length >= 3: return Calibrate(args[1], args[2], args[3..]);
         case "analyze": Console.WriteLine(CourseFinisher.Analyze(args[1]).Summary()); return 0;
         case "finish": return Finish(args[1], args[2..]);
@@ -154,6 +164,51 @@ static int Yardage(string path, string[] rest)
     }
     if (!outputs.Pdf && !outputs.Pngs) throw new ArgumentException("--no-pdf needs --png, or there is nothing to write");
     YardageBookBuilder.Build(path, outDir, options, outputs, holes, new SyncProgress(Console.WriteLine), verbose);
+    return 0;
+}
+
+static int Terrain(string path, string[] rest)
+{
+    var options = new TerrainMapOptions();
+    string outDir = Path.GetDirectoryName(Path.GetFullPath(path))!;
+    for (int i = 0; i < rest.Length; i++)
+    {
+        string Next() => i + 1 < rest.Length ? rest[++i] : throw new ArgumentException($"{rest[i]} needs a value");
+        double NextDouble() => double.Parse(Next(), CultureInfo.InvariantCulture);
+        switch (rest[i])
+        {
+            case "-o": case "--out": outDir = Next(); break;
+            case "--full-plot": options = options with { Extent = MapExtent.FullPlot }; break;
+            case "--margin": options = options with { MarginMetres = NextDouble() }; break;
+            case "--interval": options = options with { ContourIntervalFeet = NextDouble() }; break;
+            case "--index": options = options with { IndexEvery = int.Parse(Next(), CultureInfo.InvariantCulture) }; break;
+            case "--shading":
+                options = options with
+                {
+                    Shading = Next().ToLowerInvariant() switch
+                    {
+                        "relief" => ReliefShading.Relief,
+                        "slope" => ReliefShading.Slope,
+                        "none" => ReliefShading.None,
+                        var t => throw new ArgumentException($"unknown shading {t}"),
+                    },
+                };
+                break;
+            case "--ppm": options = options with { PixelsPerMetre = NextDouble() }; break;
+            case "--cell": options = options with { Terrain = options.Terrain with { CellMetres = NextDouble() } }; break;
+            case "--hardness": options = options with { Terrain = options.Terrain with { Hardness = NextDouble() } }; break;
+            case "--large-hardness": options = options with { Terrain = options.Terrain with { LargeBrushHardness = NextDouble() } }; break;
+            case "--smooth": options = options with { SmoothMetres = NextDouble() }; break;
+            case "--grid": options = options with { GridYards = NextDouble() }; break;
+            case "--no-features": options = options with { ShowFeatures = false }; break;
+            case "--no-summits": options = options with { ShowSummits = false }; break;
+            case "--sea-level": options = options with { SeaLevelMetres = NextDouble() }; break;
+            case "--no-water": options = options with { ShowWater = false }; break;
+            case "--credit": options = options with { Credit = Next() }; break;
+            default: throw new ArgumentException($"unknown option {rest[i]}");
+        }
+    }
+    TerrainMapBuilder.Build(path, outDir, options, new SyncProgress(Console.WriteLine));
     return 0;
 }
 

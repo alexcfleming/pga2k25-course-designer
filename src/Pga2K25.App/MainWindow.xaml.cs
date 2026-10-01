@@ -7,6 +7,7 @@ using Pga2K25.CourseFormat;
 using Pga2K25.Finisher.Desktop;
 using Pga2K25.GreensBook;
 using Pga2K25.Maps;
+using Pga2K25.TerrainMap;
 using Pga2K25.YardageBook;
 
 namespace Pga2K25.App;
@@ -146,6 +147,32 @@ public partial class MainWindow : Window, IFinisherHost
             var result = YardageBookBuilder.Build(course, output, options, outputs, holes, progress, verbose);
             return result.PdfPath ?? result.PngPaths.FirstOrDefault();
         });
+    }
+
+    async void Terrain_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryInputs(out var course, out var output)) return;
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        double? interval = null;
+        string intervalText = TerrainIntervalBox.Text.Trim();
+        if (intervalText.Length > 0 && !intervalText.Equals("auto", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!double.TryParse(intervalText, System.Globalization.NumberStyles.Float, inv, out var ft) || ft <= 0)
+            { MessageBox.Show(this, "Contour interval should be Auto or a number of feet.", "Terrain Map"); return; }
+            interval = ft;
+        }
+        if (!double.TryParse(TerrainPpmBox.Text, System.Globalization.NumberStyles.Float, inv, out var ppm) || ppm < 0.5 || ppm > 10)
+        { MessageBox.Show(this, "Pixels per metre should be between 0.5 and 10.", "Terrain Map"); return; }
+        var options = new TerrainMapOptions
+        {
+            Extent = TerrainExtentBox.SelectedIndex == 1 ? MapExtent.FullPlot : MapExtent.Routing,
+            Shading = (ReliefShading)TerrainShadingBox.SelectedIndex,
+            ContourIntervalFeet = interval,
+            PixelsPerMetre = ppm,
+            ShowFeatures = TerrainFeaturesBox.IsChecked == true,
+            Credit = CreditBox.Text.Trim(),
+        };
+        await Run(TerrainButton, "TERRAIN MAP", progress => TerrainMapBuilder.Build(course, output, options, progress).PngPath);
     }
 
     /// <summary>"All" (or blank) → null; otherwise a list of numbers and ranges, e.g. "1-9, 12".</summary>

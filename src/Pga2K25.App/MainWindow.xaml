@@ -27,7 +27,7 @@
         <StackPanel Grid.Row="0" Margin="0,0,0,12">
             <TextBlock Text="Course Designer" FontSize="26" FontWeight="Bold" Foreground="{StaticResource Ink}"/>
             <TextBlock Foreground="{StaticResource Grey}" FontStyle="Italic" TextWrapping="Wrap"
-                       Text="Greens books, scorecard maps, yardage books and course finishing for PGA TOUR 2K25 Course Designer .course files."/>
+                       Text="Greens books, scorecard maps, yardage books, terrain maps and course finishing for PGA TOUR 2K25 Course Designer .course files."/>
         </StackPanel>
 
         <Grid Grid.Row="1" Margin="0,0,0,10">
@@ -115,6 +115,33 @@
                         <CheckBox x:Name="YardageVerboseBox" Content="Explain hazard labels in log"/>
                     </WrapPanel>
                     <Button x:Name="YardageButton" Content="Create Yardage Book" HorizontalAlignment="Left" Margin="0" FontWeight="Bold" Click="Yardage_Click"/>
+                </StackPanel>
+            </TabItem>
+            <TabItem Header="Terrain Map">
+                <StackPanel>
+                    <TextBlock Foreground="{StaticResource Grey}" FontStyle="Italic" TextWrapping="Wrap" Margin="0,0,0,10"
+                               Text="One large north-up PNG of the plot for planning: contours with labelled index lines, relief or slope shading, hilltop spot heights, a lettered 100-yard grid, and the routing as sticks and dots with yardage ticks and green-site fall."/>
+                    <WrapPanel Margin="0,0,0,10">
+                        <TextBlock Text="Area" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="TerrainExtentBox" Width="150" SelectedIndex="0" Margin="0,0,18,0">
+                            <ComboBoxItem Content="Routing + margin"/>
+                            <ComboBoxItem Content="Full plot"/>
+                        </ComboBox>
+                        <TextBlock Text="Shading" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="TerrainShadingBox" Width="110" SelectedIndex="0" Margin="0,0,18,0">
+                            <ComboBoxItem Content="Relief"/>
+                            <ComboBoxItem Content="Slope"/>
+                            <ComboBoxItem Content="None"/>
+                        </ComboBox>
+                        <TextBlock Text="Contour (ft)" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBox x:Name="TerrainIntervalBox" Text="Auto" Width="44" Padding="2" Margin="0,0,18,0"
+                                 ToolTip="Auto, or a contour interval in feet such as 2 or 5"/>
+                        <TextBlock Text="px / m" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBox x:Name="TerrainPpmBox" Text="4" Width="36" Padding="2" Margin="0,0,18,0"
+                                 ToolTip="Output resolution: pixels per metre of ground"/>
+                        <CheckBox x:Name="TerrainFeaturesBox" Content="Drawn surfaces" IsChecked="True"/>
+                    </WrapPanel>
+                    <Button x:Name="TerrainButton" Content="Create Terrain Map" HorizontalAlignment="Left" Margin="0" FontWeight="Bold" Click="Terrain_Click"/>
                 </StackPanel>
             </TabItem>
             <TabItem Header="Course Finisher">

@@ -6,6 +6,7 @@
     <ProjectReference Include="..\Pga2K25.Maps\Pga2K25.Maps.csproj" />
     <ProjectReference Include="..\Pga2K25.YardageBook\Pga2K25.YardageBook.csproj" />
     <ProjectReference Include="..\Pga2K25.Finisher\Pga2K25.Finisher.csproj" />
+    <ProjectReference Include="..\Pga2K25.TerrainMap\Pga2K25.TerrainMap.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
