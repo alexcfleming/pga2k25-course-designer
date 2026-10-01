@@ -38,3 +38,6 @@ Desktop.ini
 # Python
 __pycache__/
 *.pyc
+
+# Packaged builds (tools/package-reference tool.ps1)
+dist/
