@@ -120,7 +120,7 @@
             <TabItem Header="Terrain Map">
                 <StackPanel>
                     <TextBlock Foreground="{StaticResource Grey}" FontStyle="Italic" TextWrapping="Wrap" Margin="0,0,0,10"
-                               Text="One large north-up PNG of the plot for planning: contours with labelled index lines, relief or slope shading, hilltop spot heights, a lettered 100-yard grid, and the routing as sticks and dots with yardage ticks and green-site fall."/>
+                               Text="One large north-up PNG of the plot for planning: contours with labelled index lines, relief or slope shading, hilltop spot heights, a lettered 100-yard grid, and the routing as sticks and dots with yardage ticks and green-site fall. Hole sheets: one 8.5 × 11 in page per hole, oriented like the yardage book, with finer contours and a yardage grid to sketch on."/>
                     <WrapPanel Margin="0,0,0,10">
                         <TextBlock Text="Area" VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <ComboBox x:Name="TerrainExtentBox" Width="150" SelectedIndex="0" Margin="0,0,18,0">
@@ -141,7 +141,13 @@
                                  ToolTip="Output resolution: pixels per metre of ground"/>
                         <CheckBox x:Name="TerrainFeaturesBox" Content="Drawn surfaces" IsChecked="True"/>
                     </WrapPanel>
-                    <Button x:Name="TerrainButton" Content="Create Terrain Map" HorizontalAlignment="Left" Margin="0" FontWeight="Bold" Click="Terrain_Click"/>
+                    <StackPanel Orientation="Horizontal">
+                        <Button x:Name="TerrainButton" Content="Create Terrain Map" Margin="0" FontWeight="Bold" Click="Terrain_Click"/>
+                        <Button x:Name="HoleSheetsButton" Content="Create Hole Sheets" Margin="18,0,0,0" FontWeight="Bold" Click="HoleSheets_Click"/>
+                        <TextBlock Text="Holes" VerticalAlignment="Center" Margin="10,0,8,0"/>
+                        <TextBox x:Name="SheetHolesBox" Text="All" Width="120" Padding="3"
+                                 ToolTip="All, or a list such as 1-9 or 2, 7, 16. Letter PNGs at 300 dpi plus one PDF."/>
+                    </StackPanel>
                 </StackPanel>
             </TabItem>
             <TabItem Header="Course Finisher">

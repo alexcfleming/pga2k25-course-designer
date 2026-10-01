@@ -93,3 +93,70 @@ public class TerrainMapTests
         }
     }
 }
+
+public class HoleSheetTests
+{
+    static readonly string SaganPath = Path.Combine(TestPaths.SamplesDir, "sagan-khushun.course");
+    static readonly Lazy<CourseModel> Course = new(() => CourseFile.Load(SaganPath).ReadModel());
+
+    static HoleSheet Sheet(int hole, HoleSheetOptions? o = null)
+    {
+        var course = Course.Value;
+        return HoleSheet.Build(course, Pga2K25.Maps.CourseLayers.From(course), course.Holes.Single(h => h.Number == hole),
+            o ?? new HoleSheetOptions { CellMetres = 1 }, datumMetres: 0);
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(7)]
+    [InlineData(12)]
+    public void Orientation_MatchesTheYardageBook(int hole)
+    {
+        var course = Course.Value;
+        var analysis = Pga2K25.YardageBook.HoleAnalysis.Analyze(course, Pga2K25.Maps.CourseLayers.From(course),
+            course.Holes.Single(h => h.Number == hole), new Pga2K25.YardageBook.YardageOptions(), 0.4);
+        var sheet = Sheet(hole);
+        Assert.Equal(analysis.RotationDegrees, sheet.RotationDegrees, 6);
+
+        // Back tee at the bottom of the map, green near the top.
+        var p = sheet.Projection(HoleSheet.MapRectPoints);
+        var tee = p.Map(sheet.BackTee);
+        var green = p.Map(sheet.Routing.Hole.GreenAnchor);
+        Assert.True(green.Y < tee.Y);
+        Assert.InRange(green.X - tee.X, -1, 1);
+    }
+
+    [Fact]
+    public void Window_KeepsTheWholeRouteWithClearance()
+    {
+        var o = new HoleSheetOptions { CellMetres = 1 };
+        var sheet = Sheet(12, o);
+        foreach (var pt in sheet.Routing.Route) Assert.True(sheet.Contains(pt));
+        Assert.True(sheet.Along.From <= -o.MetresBehindTee + 1e-6);
+        Assert.Equal(HoleSheet.MapRectPoints.Width / HoleSheet.MapRectPoints.Height,
+            (sheet.Across.To - sheet.Across.From) / (sheet.Along.To - sheet.Along.From), 6);
+        Assert.True(sheet.Survey.IntervalFeet <= 2);    // finer than the plot map's 5 ft
+    }
+
+    [Fact]
+    public void Build_WritesLetterPngAndPdf()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "pga2k25-sheets-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var result = HoleSheetBuilder.Build(SaganPath, dir, new HoleSheetOptions { Dpi = 100, CellMetres = 1 }, [2]);
+            using var bitmap = SKBitmap.Decode(result.PngPaths.Single());
+            Assert.Equal((850, 1100), (bitmap.Width, bitmap.Height));
+            // Letter in points (Skia writes e.g. 792.00006).
+            var pdf = System.Text.Encoding.Latin1.GetString(File.ReadAllBytes(result.PdfPath!));
+            var box = System.Text.RegularExpressions.Regex.Match(pdf, @"/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]");
+            Assert.True(box.Success);
+            Assert.Equal(612, double.Parse(box.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture), 2);
+            Assert.Equal(792, double.Parse(box.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture), 2);
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+}

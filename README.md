@@ -2,7 +2,7 @@
 
 A custom Windows desktop application for PGA TOUR 2K25 course design workflows.
 
-> Status: **Greens books** (one-page PNG of all greens with slope colour, per-green studies, PDF; terrain calibrated against in-game spot elevations) **scorecard maps** (vintage and modern themes) **yardage books** (an 18-page portrait PDF workbook, optional PNG per hole) and **terrain maps** (one large contour sheet of a routed plot for planning) are working. The **Course Finisher** has been ported from the reference Python tool.
+> Status: **Greens books** (one-page PNG of all greens with slope colour, per-green studies, PDF; terrain calibrated against in-game spot elevations) **scorecard maps** (vintage and modern themes) **yardage books** (an 18-page portrait PDF workbook, optional PNG per hole) and **terrain maps** (one large contour sheet of a routed plot, plus a Letter-size sketch sheet per hole) are working. The **Course Finisher** has been ported from the reference Python tool.
 
 ## Documentation
 

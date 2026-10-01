@@ -151,19 +151,42 @@ public partial class MainWindow : Window, IFinisherHost
 
     async void Terrain_Click(object sender, RoutedEventArgs e)
     {
-        if (!TryInputs(out var course, out var output)) return;
+        if (!TryInputs(out var course, out var output) || TerrainOptions() is not { } options) return;
+        await Run(TerrainButton, "TERRAIN MAP", progress => TerrainMapBuilder.Build(course, output, options, progress).PngPath);
+    }
+
+    async void HoleSheets_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryInputs(out var course, out var output) || TerrainOptions() is not { } options) return;
+        if (!TryParseHoles(SheetHolesBox.Text, out var holes))
+        {
+            MessageBox.Show(this, "Holes should be All, or a list such as 1-9 or 2, 7, 16.", "Hole Sheets");
+            return;
+        }
+        // Shading, interval, surfaces and credit carry over; the sheet sets its own resolution and area.
+        var sheet = new HoleSheetOptions { Map = options };
+        await Run(HoleSheetsButton, "HOLE SHEETS", progress =>
+        {
+            var result = HoleSheetBuilder.Build(course, output, sheet, holes, progress);
+            return result.PdfPath ?? result.PngPaths.FirstOrDefault();
+        });
+    }
+
+    /// <summary>Terrain options from the tab, or null (after a message) when a field is invalid.</summary>
+    TerrainMapOptions? TerrainOptions()
+    {
         var inv = System.Globalization.CultureInfo.InvariantCulture;
         double? interval = null;
         string intervalText = TerrainIntervalBox.Text.Trim();
         if (intervalText.Length > 0 && !intervalText.Equals("auto", StringComparison.OrdinalIgnoreCase))
         {
             if (!double.TryParse(intervalText, System.Globalization.NumberStyles.Float, inv, out var ft) || ft <= 0)
-            { MessageBox.Show(this, "Contour interval should be Auto or a number of feet.", "Terrain Map"); return; }
+            { MessageBox.Show(this, "Contour interval should be Auto or a number of feet.", "Terrain Map"); return null; }
             interval = ft;
         }
         if (!double.TryParse(TerrainPpmBox.Text, System.Globalization.NumberStyles.Float, inv, out var ppm) || ppm < 0.5 || ppm > 10)
-        { MessageBox.Show(this, "Pixels per metre should be between 0.5 and 10.", "Terrain Map"); return; }
-        var options = new TerrainMapOptions
+        { MessageBox.Show(this, "Pixels per metre should be between 0.5 and 10.", "Terrain Map"); return null; }
+        return new TerrainMapOptions
         {
             Extent = TerrainExtentBox.SelectedIndex == 1 ? MapExtent.FullPlot : MapExtent.Routing,
             Shading = (ReliefShading)TerrainShadingBox.SelectedIndex,
@@ -172,7 +195,6 @@ public partial class MainWindow : Window, IFinisherHost
             ShowFeatures = TerrainFeaturesBox.IsChecked == true,
             Credit = CreditBox.Text.Trim(),
         };
-        await Run(TerrainButton, "TERRAIN MAP", progress => TerrainMapBuilder.Build(course, output, options, progress).PngPath);
     }
 
     /// <summary>"All" (or blank) → null; otherwise a list of numbers and ranges, e.g. "1-9, 12".</summary>
