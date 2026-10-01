@@ -1,7 +1,8 @@
 <Window x:Class="Pga2K25.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="PGA 2K25 Course Designer" Height="700" Width="940" MinHeight="520" MinWidth="760"
+        xmlns:fin="clr-namespace:Pga2K25.Finisher.Desktop;assembly=Pga2K25.Finisher.Desktop"
+        Title="PGA 2K25 Course Designer" Height="820" Width="1000" MinHeight="560" MinWidth="760"
         Background="White" FontFamily="Georgia" FontSize="13">
     <Window.Resources>
         <SolidColorBrush x:Key="Ink" Color="#1f1d1a"/>
@@ -26,7 +27,7 @@
         <StackPanel Grid.Row="0" Margin="0,0,0,12">
             <TextBlock Text="Course Designer" FontSize="26" FontWeight="Bold" Foreground="{StaticResource Ink}"/>
             <TextBlock Foreground="{StaticResource Grey}" FontStyle="Italic" TextWrapping="Wrap"
-                       Text="Greens books, scorecard maps and yardage books from PGA TOUR 2K25 Course Designer .course files."/>
+                       Text="Greens books, scorecard maps, yardage books and course finishing for PGA TOUR 2K25 Course Designer .course files."/>
         </StackPanel>
 
         <Grid Grid.Row="1" Margin="0,0,0,10">
@@ -47,7 +48,6 @@
             <TextBlock Grid.Row="1" Text="Output folder" VerticalAlignment="Center" Margin="0,8,0,0"/>
             <TextBox x:Name="OutputBox" Grid.Row="1" Grid.Column="1" Padding="4" Margin="0,8,0,0"/>
             <Button Grid.Row="1" Grid.Column="2" Content="Browse…" Margin="6,8,0,0" Click="BrowseOutput_Click"/>
-            <TextBlock Grid.Row="2" Text="Credit" VerticalAlignment="Center" Margin="0,8,0,0"/>
             <TextBlock Grid.Row="2" Text="Hole data" VerticalAlignment="Center" Margin="0,8,0,0"/>
             <TextBox x:Name="DataBox" Grid.Row="2" Grid.Column="1" Padding="4" Margin="0,8,0,0"
                      ToolTip="Optional spreadsheet (.xlsx or .csv) with tee names, bearings and notes. Yardages always come from the course file."/>
@@ -116,6 +116,9 @@
                     </WrapPanel>
                     <Button x:Name="YardageButton" Content="Create Yardage Book" HorizontalAlignment="Left" Margin="0" FontWeight="Bold" Click="Yardage_Click"/>
                 </StackPanel>
+            </TabItem>
+            <TabItem Header="Course Finisher">
+                <fin:FinisherPanel x:Name="Finisher" MaxHeight="340"/>
             </TabItem>
         </TabControl>
 

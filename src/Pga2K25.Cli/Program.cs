@@ -1,5 +1,6 @@
 using System.Globalization;
 using Pga2K25.CourseFormat;
+using Pga2K25.Finisher;
 using Pga2K25.GreensBook;
 using Pga2K25.Maps;
 using Pga2K25.YardageBook;
@@ -24,6 +25,9 @@ const string Usage = """
 
       calibrate compares modelled elevations with in-game spot labels read off green
       screenshots (see samples/calibration/cassimbo/captures.json for the format)
+
+    pga2k25 analyze <file.course>
+    pga2k25 finish <file.course> [options]   (see course-finisher --help)
     """;
 
 if (args.Length < 2) { Console.Error.WriteLine(Usage); return 2; }
@@ -37,6 +41,8 @@ try
         case "scorecard": return Scorecard(args[1], args[2..]);
         case "yardage": return Yardage(args[1], args[2..]);
         case "calibrate" when args.Length >= 3: return Calibrate(args[1], args[2], args[3..]);
+        case "analyze": Console.WriteLine(CourseFinisher.Analyze(args[1]).Summary()); return 0;
+        case "finish": return Finish(args[1], args[2..]);
         default: Console.Error.WriteLine(Usage); return 2;
     }
 }
@@ -187,6 +193,12 @@ static int Scorecard(string path, string[] rest)
         }
     }
     ScorecardMapBuilder.Build(path, outDir, options, themes, pdf, log: new SyncProgress(Console.WriteLine));
+    return 0;
+}
+
+static int Finish(string path, string[] rest)
+{
+    FinisherCommandLine.Run(path, rest, new SyncProgress(Console.WriteLine));
     return 0;
 }
 

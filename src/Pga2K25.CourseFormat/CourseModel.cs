@@ -202,6 +202,10 @@ public sealed class CourseModel
     {
         if (node is not JsonValue value) return fallback;
         if (value.TryGetValue(out double d)) return d;
+        // Values built in memory (e.g. JsonValue.Create(8)) keep their CLR type.
+        if (value.TryGetValue(out int i)) return i;
+        if (value.TryGetValue(out long l)) return l;
+        if (value.TryGetValue(out float f)) return f;
         if (value.TryGetValue(out JsonElement e))
         {
             if (e.ValueKind == JsonValueKind.Number) return e.GetDouble();

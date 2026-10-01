@@ -5,6 +5,7 @@
     <ProjectReference Include="..\Pga2K25.CourseFormat\Pga2K25.CourseFormat.csproj" />
     <ProjectReference Include="..\Pga2K25.Maps\Pga2K25.Maps.csproj" />
     <ProjectReference Include="..\Pga2K25.YardageBook\Pga2K25.YardageBook.csproj" />
+    <ProjectReference Include="..\Pga2K25.Finisher.Desktop\Pga2K25.Finisher.Desktop.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
