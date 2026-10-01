@@ -103,8 +103,9 @@ try {
             -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=none
         if ($LASTEXITCODE -ne 0) { throw "Publish of $p failed." }
     }
-    Get-ChildItem (Join-Path 'src') -Recurse -Directory -Include bin, obj | Remove-Item -Recurse -Force
-    Get-ChildItem (Join-Path 'tests') -Recurse -Directory -Include bin, obj | Remove-Item -Recurse -Force
+    Get-ChildItem $bin -Filter *.pdb | Remove-Item -Force   # SkiaSharp ships a ~100 MB native symbol file
+    Get-ChildItem 'src' -Recurse -Directory -Include bin, obj | Remove-Item -Recurse -Force
+    Get-ChildItem 'tests' -Recurse -Directory -Include bin, obj | Remove-Item -Recurse -Force
 }
 finally {
     Pop-Location
@@ -165,7 +166,18 @@ Not yet done: a side-by-side comparison with the Python tool on a real LiDAR-imp
 "@
 
 if (Test-Path $zip) { Remove-Item -Force $zip }
-Compress-Archive -Path $stage -DestinationPath $zip
+# Compress-Archive in Windows PowerShell writes '\' separators, which some unzip tools mangle.
+Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
+$archive = [IO.Compression.ZipFile]::Open($zip, 'Create')
+try {
+    foreach ($file in Get-ChildItem $stage -Recurse -File) {
+        $entry = $name + '/' + $file.FullName.Substring($stage.Length + 1).Replace('\', '/')
+        [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $file.FullName, $entry, 'Optimal') | Out-Null
+    }
+}
+finally {
+    $archive.Dispose()
+}
 Remove-Item -Recurse -Force $stage
 $size = [math]::Round((Get-Item $zip).Length / 1MB, 1)
 Write-Host "Package: $zip ($size MB)"
