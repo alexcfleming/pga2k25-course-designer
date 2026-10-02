@@ -27,7 +27,7 @@
         <StackPanel Grid.Row="0" Margin="0,0,0,12">
             <TextBlock Text="Course Designer" FontSize="26" FontWeight="Bold" Foreground="{StaticResource Ink}"/>
             <TextBlock Foreground="{StaticResource Grey}" FontStyle="Italic" TextWrapping="Wrap"
-                       Text="Greens books, scorecard maps, yardage books, terrain maps and course finishing for PGA TOUR 2K25 Course Designer .course files."/>
+                       Text="Greens books, scorecard maps, yardage books, terrain maps, course cards and course finishing for PGA TOUR 2K25 Course Designer .course files."/>
         </StackPanel>
 
         <Grid Grid.Row="1" Margin="0,0,0,10">
@@ -148,6 +148,47 @@
                         <TextBox x:Name="SheetHolesBox" Text="All" Width="120" Padding="3"
                                  ToolTip="All, or a list such as 1-9 or 2, 7, 16. Letter PNGs at 300 dpi plus one PDF."/>
                     </StackPanel>
+                </StackPanel>
+            </TabItem>
+            <TabItem Header="Course Cards">
+                <StackPanel>
+                    <TextBlock Foreground="{StaticResource Grey}" FontStyle="Italic" TextWrapping="Wrap" Margin="0,0,0,10"
+                               Text="Compass rose, hole data card and course data card. Pars, yardages and bearings come from the course file; the Hole data workbook (if set) only adds tee names, hazard tags and green notes, and its yardages and bearings are checked against the file. Errors stop the build unless Force is ticked."/>
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="110"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Card settings" VerticalAlignment="Center"/>
+                        <TextBox x:Name="CardConfigBox" Grid.Column="1" Padding="4"
+                                 ToolTip="Optional JSON: title, description, palette, ocean label and side, wind, logo, tee names (see docs/course-cards.md)"/>
+                        <Button Grid.Column="2" Content="Browse…" Click="BrowseCardConfig_Click"/>
+                    </Grid>
+                    <WrapPanel Margin="0,0,0,10">
+                        <TextBlock Text="Wind from (°)" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBox x:Name="CardWindBox" Width="44" Padding="2" Margin="0,0,18,0"
+                                 ToolTip="Prevailing wind bearing (blows FROM), e.g. 225 for SW. Blank uses the settings file, or draws no wind."/>
+                        <TextBlock Text="Ocean" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <ComboBox x:Name="CardOceanBox" Width="120" SelectedIndex="0" Margin="0,0,18,0">
+                            <ComboBoxItem Content="From settings"/>
+                            <ComboBoxItem Content="Detect"/>
+                            <ComboBoxItem Content="None"/>
+                            <ComboBoxItem Content="NORTH"/>
+                            <ComboBoxItem Content="NORTH-EAST"/>
+                            <ComboBoxItem Content="EAST"/>
+                            <ComboBoxItem Content="SOUTH-EAST"/>
+                            <ComboBoxItem Content="SOUTH"/>
+                            <ComboBoxItem Content="SOUTH-WEST"/>
+                            <ComboBoxItem Content="WEST"/>
+                            <ComboBoxItem Content="NORTH-WEST"/>
+                        </ComboBox>
+                        <CheckBox x:Name="CardPngBox" Content="PNG" IsChecked="True"/>
+                        <CheckBox x:Name="CardPdfBox" Content="PDF" IsChecked="True"/>
+                        <CheckBox x:Name="CardSvgBox" Content="SVG"/>
+                        <CheckBox x:Name="CardForceBox" Content="Force (draft despite errors)"/>
+                    </WrapPanel>
+                    <Button x:Name="CardsButton" Content="Create Course Cards" HorizontalAlignment="Left" Margin="0" FontWeight="Bold" Click="Cards_Click"/>
                 </StackPanel>
             </TabItem>
             <TabItem Header="Course Finisher">

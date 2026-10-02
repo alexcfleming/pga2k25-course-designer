@@ -2,7 +2,7 @@
 
 A custom Windows desktop application for PGA TOUR 2K25 course design workflows.
 
-> Status: **Greens books** (one-page PNG of all greens with slope colour, per-green studies, PDF; terrain calibrated against in-game spot elevations) **scorecard maps** (vintage and modern themes) **yardage books** (an 18-page portrait PDF workbook, optional PNG per hole) and **terrain maps** (one large contour sheet of a routed plot, plus a Letter-size sketch sheet per hole) are working. The **Course Finisher** has been ported from the reference Python tool.
+> Status: **Greens books** (one-page PNG of all greens with slope colour, per-green studies, PDF; terrain calibrated against in-game spot elevations) **scorecard maps** (vintage and modern themes) **yardage books** (an 18-page portrait PDF workbook, optional PNG per hole) and **terrain maps** (one large contour sheet of a routed plot, plus a Letter-size sketch sheet per hole) and **course cards** (compass rose, hole data card and course data card) are working. The **Course Finisher** has been ported from the reference Python tool.
 
 ## Documentation
 
@@ -12,6 +12,7 @@ A custom Windows desktop application for PGA TOUR 2K25 course design workflows.
 - [Scorecard maps](docs/scorecard-maps.md): themes, layout, how features are traced, and known limits.
 - [Yardage book](docs/yardage-book.md): page contents, hazard numbering, rock footprint estimation, and PDF output.
 - [Terrain map](docs/terrain-map.md): contour planning sheet of the plot with the routing as sticks and dots; terrain model notes and options.
+- [Course cards](docs/course-cards.md): compass rose, hole data card and course data card from the course file; validation rules, settings, the 180° blind spot.
 - [Course Finisher](docs/course-finisher.md): the C# port of Mal's TGC 2K25 Course Finisher — pass map, Python ↔ C# mapping, interoperability, differences and findings.
 
 ## Solution layout
@@ -23,10 +24,11 @@ A custom Windows desktop application for PGA TOUR 2K25 course design workflows.
 | `src/Pga2K25.Maps` | Course feature layers, auto-rotating projection, themed scorecard-map renderer |
 | `src/Pga2K25.YardageBook` | Per-hole analysis (hazard numbers, widths, spot heights, rock footprints) and the yardage page / PDF workbook renderer |
 | `src/Pga2K25.TerrainMap` | Plot-scale terrain survey (contours, summits, per-hole elevations and green-site slope) and the terrain planning map renderer |
+| `src/Pga2K25.CourseCard` | Course cards: data from the course file (bearings, scorecard yards), validation, rose / table / composite renderer (bundled Lora font) |
 | `src/Pga2K25.Finisher` | C# port of Mal's TGC 2K25 Course Finisher v0.10 REV10E: spline smoothing, tees, pins, cart paths, heavy rough, weathering, native water and its greens book, for TGC Tool (LiDAR) imports |
 | `src/Pga2K25.Finisher.Desktop`, `src/Pga2K25.FinisherApp`, `src/Pga2K25.Finisher.Cli` | The finisher form as a shared WPF control, and standalone `CourseFinisher.exe` / `course-finisher.exe` front ends (packaged by `tools/package-finisher.ps1`) |
-| `src/Pga2K25.Cli` | `pga2k25 info` / `greensbook` / `scorecard` / `yardage` / `terrain` / `calibrate` / `analyze` / `finish` command line |
-| `src/Pga2K25.App` | WPF desktop app (Greens Book, Scorecard Map, Yardage Book, Terrain Map and Course Finisher tabs) |
+| `src/Pga2K25.Cli` | `pga2k25 info` / `greensbook` / `scorecard` / `yardage` / `terrain` / `cards` / `calibrate` / `analyze` / `finish` command line |
+| `src/Pga2K25.App` | WPF desktop app (Greens Book, Scorecard Map, Yardage Book, Terrain Map, Course Cards and Course Finisher tabs) |
 | `tests/Pga2K25.Tests` | xUnit: codec round-trip, metadata derivations, contouring, calibration regression, map projection, output builds |
 | `tools/package-finisher.ps1` | Builds `dist/Pga2K25-CourseFinisher-*.zip`: finisher-only source solution, tests, docs and ready-to-run exes |
 | `tools/course_codec.py` | Python CLI to inspect / unpack / pack `.course` files |
@@ -53,6 +55,10 @@ dotnet run --project src/Pga2K25.Cli -- yardage samples/courses/cassimbo.course 
 
 ```bash
 dotnet run --project src/Pga2K25.Cli -- terrain samples/courses/sagan-khushun.course -o out
+```
+
+```bash
+dotnet run --project src/Pga2K25.Cli -- cards samples/courses/sagan-khushun.course -o out --config samples/data/sagan-khushun-card.json
 ```
 
 ```bash

@@ -1,4 +1,5 @@
 using System.Globalization;
+using Pga2K25.CourseCard;
 using Pga2K25.CourseFormat;
 using Pga2K25.Finisher;
 using Pga2K25.GreensBook;
@@ -25,6 +26,11 @@ const string Usage = """
       the routing as sticks and dots ("<course> - Terrain Map.png")
       --interval  contour interval in feet (default: smallest of 1/2/5/10… that fits)
       --ppm       output pixels per metre of ground (default 4)
+    pga2k25 cards <file.course> [-o <dir>] [--config course-card.json] [--data holes.xlsx]
+                  [--formats png,pdf,svg] [--dpi 300] [--wind 225] [--ocean WEST|none] [--force]
+      compass rose, hole data card and course data card from the course file; a workbook only
+      adds tee names, hazard tags and green notes (its yardages/bearings are checked, not used);
+      ERRORs stop the build unless --force (drafts only; errors are still reported)
     pga2k25 calibrate <file.course> <captures.json> [--hardness 0.85] [--blur 1.0]
     pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|both] [--landscape|--portrait]
                       [--north-up] [--data holes.xlsx|.csv] [--waste] [--raw-bunkers] [--no-paths]
@@ -53,6 +59,7 @@ try
         case "scorecard": return Scorecard(args[1], args[2..]);
         case "yardage": return Yardage(args[1], args[2..]);
         case "terrain": return Terrain(args[1], args[2..]);
+        case "cards": return Cards(args[1], args[2..]);
         case "calibrate" when args.Length >= 3: return Calibrate(args[1], args[2], args[3..]);
         case "analyze": Console.WriteLine(CourseFinisher.Analyze(args[1]).Summary()); return 0;
         case "finish": return Finish(args[1], args[2..]);
@@ -225,6 +232,32 @@ static int Terrain(string path, string[] rest)
     // Per-hole sketch sheets; the plot map's --interval would be too coarse here, so it applies only if given.
     var numbers = holes.Equals("all", StringComparison.OrdinalIgnoreCase) ? null : holes.Split(',').Select(int.Parse).ToList();
     HoleSheetBuilder.Build(path, outDir, sheet with { Map = options }, numbers, new SyncProgress(Console.WriteLine));
+    return 0;
+}
+
+static int Cards(string path, string[] rest)
+{
+    var config = new CourseCardConfig();
+    string outDir = Path.GetDirectoryName(Path.GetFullPath(path))!;
+    string? workbook = null;
+    bool force = false;
+    for (int i = 0; i < rest.Length; i++)
+    {
+        string Next() => i + 1 < rest.Length ? rest[++i] : throw new ArgumentException($"{rest[i]} needs a value");
+        switch (rest[i])
+        {
+            case "-o": case "--out": outDir = Next(); break;
+            case "--config": config = CourseCardConfig.Load(Next()) with { }; break;
+            case "--data": workbook = Next(); break;
+            case "--formats": config = config with { Formats = Next().Split(',') }; break;
+            case "--dpi": config = config with { Dpi = double.Parse(Next(), CultureInfo.InvariantCulture) }; break;
+            case "--wind": config = config with { WindFromDegrees = int.Parse(Next(), CultureInfo.InvariantCulture) }; break;
+            case "--ocean": config = config with { OceanSide = Next() }; break;
+            case "--force": force = true; break;
+            default: throw new ArgumentException($"unknown option {rest[i]}");
+        }
+    }
+    CourseCardBuilder.Build(path, outDir, config, workbook, new SyncProgress(Console.WriteLine), force);
     return 0;
 }
 

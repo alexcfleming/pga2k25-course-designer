@@ -3,6 +3,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
+using Pga2K25.CourseCard;
 using Pga2K25.CourseFormat;
 using Pga2K25.Finisher.Desktop;
 using Pga2K25.GreensBook;
@@ -195,6 +196,50 @@ public partial class MainWindow : Window, IFinisherHost
             ShowFeatures = TerrainFeaturesBox.IsChecked == true,
             Credit = CreditBox.Text.Trim(),
         };
+    }
+
+    void BrowseCardConfig_Click(object sender, RoutedEventArgs e)
+    {
+        var dialog = new OpenFileDialog { Title = "Select card settings", Filter = "Card settings (*.json)|*.json|All files|*.*" };
+        if (dialog.ShowDialog(this) == true) CardConfigBox.Text = dialog.FileName;
+    }
+
+    async void Cards_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryInputs(out var course, out var output)) return;
+        CourseCardConfig config;
+        try
+        {
+            config = CardConfigBox.Text.Trim() is { Length: > 0 } path ? CourseCardConfig.Load(path) : new CourseCardConfig();
+        }
+        catch (Exception ex) { MessageBox.Show(this, $"Could not read card settings: {ex.Message}", "Course Cards"); return; }
+
+        if (CardWindBox.Text.Trim() is { Length: > 0 } wind)
+        {
+            if (!int.TryParse(wind, out int deg) || deg is < 0 or > 359)
+            { MessageBox.Show(this, "Wind should be a bearing from 0 to 359, or blank.", "Course Cards"); return; }
+            config = config with { WindFromDegrees = deg };
+        }
+        // 0 = from settings, 1 = detect from the surf props, 2 = none, then the eight sides.
+        config = CardOceanBox.SelectedIndex switch
+        {
+            0 => config,
+            1 => config with { OceanSide = null },
+            2 => config with { OceanSide = "none" },
+            _ => config with { OceanSide = ((ComboBoxItem)CardOceanBox.SelectedItem).Content.ToString() },
+        };
+        var formats = new List<string>();
+        if (CardPngBox.IsChecked == true) formats.Add("png");
+        if (CardPdfBox.IsChecked == true) formats.Add("pdf");
+        if (CardSvgBox.IsChecked == true) formats.Add("svg");
+        if (formats.Count == 0) { MessageBox.Show(this, "Pick at least one format.", "Course Cards"); return; }
+        config = config with { Formats = formats };
+
+        string? workbook = DataBox.Text.Trim() is { Length: > 0 } data ? data : null;
+        bool force = CardForceBox.IsChecked == true;
+        await Run(CardsButton, "COURSE CARDS", progress =>
+            CourseCardBuilder.Build(course, output, config, workbook, progress, force).Files
+                .FirstOrDefault(f => f.EndsWith("Course Data Card.png", StringComparison.OrdinalIgnoreCase)) ?? output);
     }
 
     /// <summary>"All" (or blank) → null; otherwise a list of numbers and ranges, e.g. "1-9, 12".</summary>
