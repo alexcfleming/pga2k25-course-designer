@@ -1,0 +1,15 @@
+{
+  // Sagan-Khushun course cards. Palette taken from the colours already used in its terrain map and hole sheets:
+  // par 3 = reference-grid slate, par 4 = index-contour brown, par 5 = flag red; paper, ink and rules as on those sheets.
+  "title": "Sagan-Khushun",
+  "palette": {
+    "par3": "#56708C",
+    "par4": "#8A4F28",
+    "par5": "#C0392B",
+    "ink": "#1F1D1A",
+    "salt": "#FBF8F1",
+    "fog": "#CFC8BB"
+  },
+  "oceanSide": "WEST",
+  "formats": [ "png", "pdf" ]
+}
