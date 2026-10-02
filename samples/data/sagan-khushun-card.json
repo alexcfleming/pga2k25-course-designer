@@ -11,5 +11,7 @@
     "fog": "#CFC8BB"
   },
   "oceanSide": "WEST",
+  "windFromDegrees": 225,
+  "windNote": "onshore",
   "formats": [ "png", "pdf" ]
 }
