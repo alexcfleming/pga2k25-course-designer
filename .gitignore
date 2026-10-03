@@ -28,7 +28,6 @@ TestResults/
 
 # Node (if a web-based UI layer is chosen)
 node_modules/
-dist/
 
 # OS
 Thumbs.db
@@ -38,6 +37,3 @@ Desktop.ini
 # Python
 __pycache__/
 *.pyc
-
-# Packaged builds (tools/package-finisher.ps1)
-dist/
