@@ -37,6 +37,13 @@ public sealed class MapProjection
         return new SKPoint(_pageCentre.X + (float)(u * PointsPerMetre), _pageCentre.Y - (float)(v * PointsPerMetre));
     }
 
+    /// <summary>World point under a page point (the inverse of <see cref="Map"/>).</summary>
+    public Vec2 Unmap(SKPoint p)
+    {
+        double u = (p.X - _pageCentre.X) / PointsPerMetre, v = -(p.Y - _pageCentre.Y) / PointsPerMetre;
+        return new Vec2(_centre.X + u * _cos + v * _sin, _centre.Z - u * _sin + v * _cos);
+    }
+
     /// <summary>Page direction (unit, canvas coordinates) of a world direction.</summary>
     public SKPoint MapDirection(Vec2 d)
     {
