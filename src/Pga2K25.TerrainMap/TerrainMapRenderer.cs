@@ -34,6 +34,17 @@ public sealed class TerrainMapRenderer : TerrainInk
 
     public SKSizeI PageSize(TerrainSurvey s) => Plan(s).Size;
 
+    /// <summary>Where the map sits on the page and its projection, for viewers that read positions back.</summary>
+    public (SKRect Map, MapProjection Projection) MapFrame(TerrainSurvey s) => (Plan(s).Map, Plan(s).Projection);
+
+    /// <summary>Reference-grid square ("F7") of a page point on the map, or null off the map or with no grid.</summary>
+    public string? GridReference(TerrainSurvey s, SKPoint page)
+    {
+        var map = Plan(s).Map;
+        if (_o.GridYards <= 0 || !map.Contains(page)) return null;
+        return $"{ColumnName((int)((page.X - map.Left) / GridStep))}{(int)((page.Y - map.Top) / GridStep) + 1}";
+    }
+
     public void Draw(SKCanvas canvas, TerrainSurvey s)
     {
         var l = Plan(s);

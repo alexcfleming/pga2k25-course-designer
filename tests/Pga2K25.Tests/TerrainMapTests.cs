@@ -304,3 +304,36 @@ public class RouteHeightTests
         Assert.True(rms < 10, $"RMS {rms:0.0} ft (the old round-disc model was 15 ft)");
     }
 }
+
+public class MapReadBackTests
+{
+    [Fact]
+    public void Projection_UnmapIsTheInverseOfMap()
+    {
+        var p = Pga2K25.Maps.MapProjection.Fit([new Vec2(-300, -200), new Vec2(400, 500)], SkiaSharp.SKRect.Create(10, 20, 800, 600),
+            Pga2K25.Maps.MapProjection.NorthUpRotation, padding: 1.0);
+        foreach (var w in new[] { new Vec2(0, 0), new Vec2(-250.5, 130.25), new Vec2(399, -199) })
+        {
+            var back = p.Unmap(p.Map(w));
+            Assert.Equal(w.X, back.X, 3);
+            Assert.Equal(w.Z, back.Z, 3);
+        }
+    }
+
+    [Fact]
+    public void Renderer_ReportsTheMapFrameAndGridSquares()
+    {
+        var course = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, "sagan-khushun.course")).ReadModel();
+        var o = new TerrainMapOptions { PixelsPerMetre = 1, Terrain = new TerrainMapOptions().Terrain with { CellMetres = 4 } };
+        var s = TerrainSurvey.Build(course, o);
+        using var r = new TerrainMapRenderer(o);
+        var (map, projection) = r.MapFrame(s);
+        Assert.Equal("A1", r.GridReference(s, new SkiaSharp.SKPoint(map.Left + 1, map.Top + 1)));
+        Assert.Null(r.GridReference(s, new SkiaSharp.SKPoint(map.Left - 5, map.Top - 5)));
+        // The first hole's tee maps onto the map and reads back to the same ground.
+        var tee = s.Holes[0].Route[0];
+        var px = projection.Map(tee);
+        Assert.True(map.Contains(px));
+        Assert.Equal(s.Feet(tee), s.Feet(projection.Unmap(px)), 1);
+    }
+}

@@ -1,0 +1,93 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Pga2K25.Studio.ViewModels"
+             x:Class="Pga2K25.Studio.Views.LibraryView"
+             x:DataType="vm:LibraryViewModel">
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1" Padding="20,10">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Border Classes="chip" Background="{StaticResource Tint}" VerticalAlignment="Center">
+            <TextBlock Text="Read only" FontSize="12" Foreground="#3F4A43"/>
+          </Border>
+          <Button Content="Refresh" Command="{Binding ReloadCommand}"/>
+          <Button Content="Add course…" Click="AddCourse_Click"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+          <TextBlock Text="Course Designer" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+          <TextBlock Text="Library" Classes="muted" VerticalAlignment="Center"/>
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <ScrollViewer>
+      <StackPanel Margin="28,24,28,32" Spacing="18" MaxWidth="1400">
+        <DockPanel>
+          <TextBox DockPanel.Dock="Right" Width="260" Watermark="Search courses" Text="{Binding Search}" VerticalAlignment="Bottom"/>
+          <StackPanel Spacing="4">
+            <TextBlock Classes="h1" Text="Your courses"/>
+            <TextBlock Classes="muted">
+              <Run Text="Read straight from "/>
+              <Run Text="{Binding FolderText}" FontFamily="Cascadia Mono, Consolas, monospace" FontSize="13"/>
+            </TextBlock>
+          </StackPanel>
+        </DockPanel>
+
+        <DockPanel>
+          <TextBlock DockPanel.Dock="Right" Classes="muted small" Text="{Binding Status}" VerticalAlignment="Center"/>
+          <ItemsControl ItemsSource="{Binding Filters}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="8"/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:FilterViewModel">
+                <Button Classes="pill" Classes.selected="{Binding IsSelected}" Content="{Binding Label}" Command="{Binding SelectCommand}"/>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </DockPanel>
+
+        <ItemsControl ItemsSource="{Binding Courses}">
+          <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="16" LineSpacing="16"/></ItemsPanelTemplate>
+          </ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:CourseCardViewModel">
+              <Button Classes="coursecard" Width="300" VerticalAlignment="Top" Command="{Binding OpenCommand}">
+                <StackPanel>
+                  <Panel Height="188" Background="#E6E9E3">
+                    <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" IsVisible="{Binding HasThumbnail}"/>
+                    <TextBlock Text="No thumbnail saved" Classes="muted" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding NoThumbnail}"/>
+                    <Border Classes="chip" Background="{Binding ChipBackground}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10">
+                      <TextBlock Text="{Binding KindLabel}" FontSize="12" FontWeight="Medium" Foreground="{Binding ChipForeground}"/>
+                    </Border>
+                  </Panel>
+                  <StackPanel Margin="16,14,16,16" Spacing="6">
+                    <DockPanel>
+                      <TextBlock DockPanel.Dock="Right" Text="{Binding Saved}" Classes="muted small" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding Entry.Name}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                    </DockPanel>
+                    <TextBlock Text="{Binding Meta}" Foreground="#3F4A43"/>
+                    <ItemsControl ItemsSource="{Binding Built}" Margin="0,4,0,0">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                          <Border Background="{StaticResource Tint}" CornerRadius="6" Padding="8,3">
+                            <TextBlock Text="{Binding}" FontSize="12" Foreground="#3F4A43"/>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="{Binding Note}" IsVisible="{Binding HasNote}" FontSize="12" Foreground="#8A5300" TextWrapping="Wrap"/>
+                  </StackPanel>
+                </StackPanel>
+              </Button>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>

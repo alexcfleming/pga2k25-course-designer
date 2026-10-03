@@ -25,7 +25,8 @@ A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer
 | `src/Pga2K25.TerrainMap` | Plot-scale terrain survey (contours, summits, per-hole elevations and green-site slope) and the terrain planning map renderer |
 | `src/Pga2K25.CourseCard` | Course cards: data from the course file (bearings, scorecard yards), validation, rose / table / composite renderer (bundled Lora font) |
 | `src/Pga2K25.Cli` | `pga2k25 info` / `greensbook` / `scorecard` / `yardage` / `terrain` / `cards` / `calibrate` command line |
-| `src/Pga2K25.App` | WPF desktop app (Greens Book, Scorecard Map, Yardage Book, Terrain Map and Course Cards tabs) |
+| `src/Pga2K25.Studio` | **Course Designer Studio** (Avalonia, in progress): a course library read from the game's Courses folder, and a per-course workspace with a live terrain map, hole inspector with in-game measurements, and one-click product builds |
+| `src/Pga2K25.App` | WPF desktop app (Greens Book, Scorecard Map, Yardage Book, Terrain Map and Course Cards tabs); to be replaced by Studio |
 | `tests/Pga2K25.Tests` | xUnit: course decoding, metadata derivations, contouring, calibration regression, map projection, output builds |
 | `tools/course_codec.py` | Python CLI to inspect / unpack `.course` files (read only) |
 | `samples/courses/` | Sample `.course` files used as test fixtures (incl. Cassimbo, and the unbuilt routed plot Sagan-Khushun) |
@@ -60,6 +61,14 @@ dotnet run --project src/Pga2K25.Cli -- cards samples/courses/sagan-khushun.cour
 ```bash
 dotnet run --project src/Pga2K25.App
 ```
+
+```bash
+dotnet run --project src/Pga2K25.Studio
+```
+
+Studio reads every `.course` in `Documents\My Games\PGA TOUR 2K25\Courses`, plus any you add, and writes products to `Documents\PGA 2K25 Greens Books\<course>\`. Settings live in `%AppData%\CourseDesignerStudio\settings.json`. In-game route measurements go in `Measurements.csv` beside a course's products (same format as `samples/calibration/route-heights`). The workspace then shows game against model for each hole and an overall model check. Pass a `.course` path on the command line to open straight into that course.
+
+Studio uses Avalonia 12 on .NET 8. Avalonia's XAML source generator needs a newer compiler than the .NET 8 SDK has, so the views load their XAML with `AvaloniaXamlLoader` and look up named controls themselves.
 
 ## Next steps
 

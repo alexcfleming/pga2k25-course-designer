@@ -1,0 +1,195 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Pga2K25.Studio.ViewModels"
+             x:Class="Pga2K25.Studio.Views.WorkspaceView"
+             x:DataType="vm:WorkspaceViewModel">
+  <DockPanel>
+    <!-- Title bar -->
+    <Border DockPanel.Dock="Top" Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1" Padding="20,10">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Border Classes="chip" Background="{StaticResource Tint}" VerticalAlignment="Center">
+            <TextBlock Text="Read only" FontSize="12" Foreground="#3F4A43"/>
+          </Border>
+          <Button Content="Open output folder" Command="{Binding OpenOutputFolderCommand}"/>
+          <Button Classes="primary" Content="Build all products" Command="{Binding BuildAllCommand}" IsEnabled="{Binding !Busy}"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+          <TextBlock Text="Course Designer" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+          <Button Classes="nav" Content="Library" Command="{Binding BackToLibraryCommand}" Padding="6,2" MinHeight="0"/>
+          <TextBlock Text="/" Classes="muted" VerticalAlignment="Center"/>
+          <TextBlock Text="{Binding CourseName}" FontWeight="Medium" VerticalAlignment="Center"/>
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <!-- Status bar -->
+    <Border DockPanel.Dock="Bottom" Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,1,0,0" Padding="20,6">
+      <DockPanel>
+        <ProgressBar DockPanel.Dock="Right" Width="160" IsIndeterminate="True" IsVisible="{Binding Busy}" VerticalAlignment="Center"/>
+        <TextBlock Text="{Binding Status}" Classes="muted small" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+      </DockPanel>
+    </Border>
+
+    <Grid ColumnDefinitions="*,340" RowDefinitions="Auto,*" Margin="24,20,24,16" ColumnSpacing="16" RowSpacing="16">
+      <!-- Header -->
+      <DockPanel Grid.ColumnSpan="2">
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
+          <Border Classes="chip" Background="{StaticResource AccentTint}" CornerRadius="8" IsVisible="{Binding HasModelCheck}">
+            <TextBlock Text="{Binding ModelCheck}" FontSize="12" Foreground="{StaticResource AccentInk}"/>
+          </Border>
+          <Border Classes="chip" Background="#E3EDF5" CornerRadius="8">
+            <TextBlock Text="{Binding SeaText}" FontSize="12" Foreground="#1E4A70"/>
+          </Border>
+        </StackPanel>
+        <StackPanel Spacing="4">
+          <TextBlock Classes="h1" Text="Terrain map"/>
+          <TextBlock Classes="muted">
+            <Run Text="{Binding CourseName}"/>
+            <Run Text=" · "/>
+            <Run Text="{Binding CourseMeta}"/>
+          </TextBlock>
+        </StackPanel>
+      </DockPanel>
+
+      <!-- Viewer -->
+      <Border Grid.Row="1" Classes="card" ClipToBounds="True">
+        <DockPanel>
+          <Border DockPanel.Dock="Top" BorderBrush="#E6E9E3" BorderThickness="0,0,0,1" Padding="12,8">
+            <DockPanel>
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <Button Content="−" Width="34" Padding="0" HorizontalContentAlignment="Center" Click="ZoomOut_Click" ToolTip.Tip="Zoom out (Ctrl + wheel)"/>
+                <TextBlock x:Name="ZoomText" Classes="mono small" Width="48" TextAlignment="Center" VerticalAlignment="Center"/>
+                <Button Content="+" Width="34" Padding="0" HorizontalContentAlignment="Center" Click="ZoomIn_Click" ToolTip.Tip="Zoom in (Ctrl + wheel)"/>
+                <Button Content="Fit" Click="Fit_Click"/>
+              </StackPanel>
+              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <ListBox Classes="segmented" ItemsSource="{Binding Shadings}" SelectedItem="{Binding Shading}">
+                  <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                  </ListBox.ItemsPanel>
+                </ListBox>
+                <ToggleButton Classes="pill" Content="Surfaces" IsChecked="{Binding ShowSurfaces}"/>
+                <ToggleButton Classes="pill" Content="Grid" IsChecked="{Binding ShowGrid}"/>
+                <ToggleButton Classes="pill" Content="Hilltops" IsChecked="{Binding ShowHilltops}"/>
+              </StackPanel>
+            </DockPanel>
+          </Border>
+
+          <Border DockPanel.Dock="Bottom" BorderBrush="#E6E9E3" BorderThickness="0,1,0,0" Padding="12,10">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Left" Text="Holes" Classes="muted small" VerticalAlignment="Center" Margin="0,0,10,0"/>
+              <ItemsControl ItemsSource="{Binding Holes}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:HoleButtonViewModel">
+                    <Button Classes="hole" Classes.selected="{Binding IsSelected}" Content="{Binding Number}" Command="{Binding SelectCommand}"/>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </DockPanel>
+          </Border>
+
+          <Panel Background="#DDEBD9">
+            <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+              <LayoutTransformControl x:Name="Zoomer">
+                <Image x:Name="Map" Source="{Binding MapImage}" Stretch="None" Cursor="Cross"/>
+              </LayoutTransformControl>
+            </ScrollViewer>
+            <Border Background="{StaticResource Ink}" CornerRadius="8" Padding="10,6" Margin="12" HorizontalAlignment="Left" VerticalAlignment="Bottom">
+              <TextBlock Text="{Binding HoverText}" Foreground="White" Classes="mono small"/>
+            </Border>
+            <Border Background="#CCF3F4F0" IsVisible="{Binding Loading}">
+              <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
+                <ProgressBar IsIndeterminate="True" Width="220"/>
+                <TextBlock Text="Rendering the terrain map…" Classes="muted" HorizontalAlignment="Center"/>
+              </StackPanel>
+            </Border>
+          </Panel>
+        </DockPanel>
+      </Border>
+
+      <!-- Inspector -->
+      <ScrollViewer Grid.Row="1" Grid.Column="1">
+        <StackPanel Spacing="16">
+          <Border Classes="card" Padding="16" IsVisible="{Binding HasHole}">
+            <StackPanel Spacing="14">
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Right" Text="{Binding HoleParYards}" Classes="muted" VerticalAlignment="Bottom"/>
+                <TextBlock Text="{Binding HoleTitle}" FontSize="20" FontWeight="SemiBold"/>
+              </DockPanel>
+              <UniformGrid Columns="3" ColumnSpacing="8">
+                <Border Background="{StaticResource Ground}" CornerRadius="8" Padding="10">
+                  <StackPanel><TextBlock Text="Tee" Classes="muted small"/><TextBlock Text="{Binding TeeFeet}" FontSize="18" FontWeight="SemiBold"/></StackPanel>
+                </Border>
+                <Border Background="{StaticResource Ground}" CornerRadius="8" Padding="10">
+                  <StackPanel><TextBlock Text="Green" Classes="muted small"/><TextBlock Text="{Binding GreenFeet}" FontSize="18" FontWeight="SemiBold"/></StackPanel>
+                </Border>
+                <Border Background="{StaticResource Ground}" CornerRadius="8" Padding="10">
+                  <StackPanel><TextBlock Text="Change" Classes="muted small"/><TextBlock Text="{Binding ChangeFeet}" FontSize="18" FontWeight="SemiBold"/></StackPanel>
+                </Border>
+              </UniformGrid>
+              <StackPanel Spacing="6">
+                <DockPanel>
+                  <TextBlock DockPanel.Dock="Right" Text="{Binding SiteText}" Classes="mono small" VerticalAlignment="Center"/>
+                  <TextBlock Text="Green site as it lies" FontWeight="Medium"/>
+                </DockPanel>
+                <Border Height="8" Background="{StaticResource Tint}" CornerRadius="4" ClipToBounds="True">
+                  <Border Width="{Binding TiltBarWidth}" Background="{Binding TiltBarBrush}" HorizontalAlignment="Left"/>
+                </Border>
+                <TextBlock Text="Before shaping; greens are levelled when built in game." Classes="muted small" TextWrapping="Wrap"/>
+              </StackPanel>
+              <StackPanel Spacing="6" IsVisible="{Binding HasLegs}">
+                <TextBlock Text="Measured in game vs model" FontWeight="Medium"/>
+                <Grid ColumnDefinitions="*,56,56,64">
+                  <TextBlock Text="Leg" Classes="muted small"/>
+                  <TextBlock Grid.Column="1" Text="Game" Classes="muted small" TextAlignment="Right"/>
+                  <TextBlock Grid.Column="2" Text="Model" Classes="muted small" TextAlignment="Right"/>
+                  <TextBlock Grid.Column="3" Text="Off by" Classes="muted small" TextAlignment="Right"/>
+                </Grid>
+                <ItemsControl ItemsSource="{Binding Legs}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:LegRowViewModel">
+                      <Grid ColumnDefinitions="*,56,56,64" Margin="0,2">
+                        <TextBlock Text="{Binding Label}" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Game}" Classes="mono" FontSize="13" TextAlignment="Right"/>
+                        <TextBlock Grid.Column="2" Text="{Binding Model}" Classes="mono" FontSize="13" TextAlignment="Right"/>
+                        <TextBlock Grid.Column="3" Text="{Binding Diff}" Classes="mono" FontSize="13" TextAlignment="Right" Foreground="{Binding DiffBrush}"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card" Padding="16">
+            <StackPanel Spacing="4">
+              <TextBlock Classes="h2" Text="Products" Margin="0,0,0,6"/>
+              <ItemsControl ItemsSource="{Binding ProductRows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ProductRowViewModel">
+                    <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,8">
+                      <DockPanel>
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                          <Button Content="Open" Command="{Binding OpenCommand}" IsEnabled="{Binding CanOpen}" MinHeight="30" Padding="10,0"/>
+                          <Button Content="{Binding BuildLabel}" Command="{Binding BuildCommand}" MinHeight="30" Padding="10,0"/>
+                        </StackPanel>
+                        <StackPanel>
+                          <TextBlock Text="{Binding Name}" FontWeight="Medium"/>
+                          <TextBlock Text="{Binding StatusText}" FontSize="12" Foreground="{Binding StatusBrush}"/>
+                        </StackPanel>
+                      </DockPanel>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
+    </Grid>
+  </DockPanel>
+</UserControl>
