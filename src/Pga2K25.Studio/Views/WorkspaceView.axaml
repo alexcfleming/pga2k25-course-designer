@@ -31,6 +31,61 @@
       </DockPanel>
     </Border>
 
+    <!-- Section menu -->
+    <Border DockPanel.Dock="Left" Width="236" Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,1,0" Padding="12,16">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Bottom" Spacing="4">
+          <TextBlock Text="Output folder" Classes="muted small" Margin="10,0"/>
+          <TextBlock Text="{Binding OutputFolder}" Classes="mono" FontSize="11" Foreground="#3F4A43" TextWrapping="Wrap" Margin="10,0"/>
+        </StackPanel>
+        <StackPanel Spacing="18">
+          <Button Classes="nav" Command="{Binding BackToLibraryCommand}">
+            <TextBlock Text="← Library"/>
+          </Button>
+          <StackPanel Spacing="2">
+            <DockPanel Margin="10,0,0,10">
+              <Border DockPanel.Dock="Left" Width="40" Height="40" CornerRadius="6" ClipToBounds="True" Background="#E6E9E3" Margin="0,0,10,0">
+                <Image Source="{Binding CourseThumbnail}" Stretch="UniformToFill"/>
+              </Border>
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="{Binding CourseName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="{Binding CourseKindText}" Classes="muted small"/>
+              </StackPanel>
+            </DockPanel>
+            <ItemsControl ItemsSource="{Binding Sections}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:NavItemViewModel">
+                  <Button Classes="nav" Classes.selected="{Binding IsSelected}" Command="{Binding SelectCommand}" Margin="0,1" AutomationProperties.Name="{Binding Label}">
+                    <DockPanel>
+                      <TextBlock DockPanel.Dock="Right" Text="{Binding Detail}" Classes="muted small" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding Label}"/>
+                    </DockPanel>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+          <StackPanel Spacing="4" IsVisible="{Binding !!Recent.Count}">
+            <TextBlock Text="Recent" Classes="muted small" Margin="10,0"/>
+            <ItemsControl ItemsSource="{Binding Recent}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:RecentCourseViewModel">
+                  <Button Classes="nav" Command="{Binding OpenCommand}" Margin="0,1" AutomationProperties.Name="{Binding Name}">
+                    <StackPanel Orientation="Horizontal" Spacing="10">
+                      <Border Width="28" Height="28" CornerRadius="5" ClipToBounds="True" Background="#E6E9E3">
+                        <Image Source="{Binding Thumbnail}" Stretch="UniformToFill"/>
+                      </Border>
+                      <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
     <Grid ColumnDefinitions="*,340" RowDefinitions="Auto,*" Margin="24,20,24,16" ColumnSpacing="16" RowSpacing="16">
       <!-- Header -->
       <DockPanel Grid.ColumnSpan="2">
@@ -43,7 +98,7 @@
           </Border>
         </StackPanel>
         <StackPanel Spacing="4">
-          <TextBlock Classes="h1" Text="Terrain map"/>
+          <TextBlock Classes="h1" Text="{Binding Section}"/>
           <TextBlock Classes="muted">
             <Run Text="{Binding CourseName}"/>
             <Run Text=" · "/>
@@ -53,7 +108,7 @@
       </DockPanel>
 
       <!-- Viewer -->
-      <Border Grid.Row="1" Classes="card" ClipToBounds="True">
+      <Border Grid.Row="1" Classes="card" ClipToBounds="True" IsVisible="{Binding IsTerrain}">
         <DockPanel>
           <Border DockPanel.Dock="Top" BorderBrush="#E6E9E3" BorderThickness="0,0,0,1" Padding="12,8">
             <DockPanel>
@@ -85,7 +140,7 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:HoleButtonViewModel">
-                    <Button Classes="hole" Classes.selected="{Binding IsSelected}" Content="{Binding Number}" Command="{Binding SelectCommand}"/>
+                    <Button Classes="hole" Classes.selected="{Binding IsSelected}" Content="{Binding Number}" Command="{Binding SelectCommand}" AutomationProperties.Name="{Binding Number, StringFormat=Hole {0}}"/>
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
@@ -112,7 +167,7 @@
       </Border>
 
       <!-- Inspector -->
-      <ScrollViewer Grid.Row="1" Grid.Column="1">
+      <ScrollViewer Grid.Row="1" Grid.Column="1" IsVisible="{Binding IsTerrain}">
         <StackPanel Spacing="16">
           <Border Classes="card" Padding="16" IsVisible="{Binding HasHole}">
             <StackPanel Spacing="14">
@@ -189,6 +244,117 @@
             </StackPanel>
           </Border>
         </StackPanel>
+      </ScrollViewer>
+
+      <!-- Measurements -->
+      <ScrollViewer Grid.Row="1" Grid.ColumnSpan="2" IsVisible="{Binding IsMeasurements}">
+        <StackPanel Spacing="16" MaxWidth="980" HorizontalAlignment="Left">
+          <Border Classes="card" Padding="16">
+            <StackPanel Spacing="12">
+              <TextBlock Classes="h2" Text="Add a reading"/>
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Use the in-game measure tool from the back tee square to the aim-point marker, or from the aim point to the green circle. Yards are filled in from the course file, so you can check the click landed on the marker."/>
+              <WrapPanel Orientation="Horizontal" ItemSpacing="10" LineSpacing="10">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Hole" Classes="muted small"/>
+                  <ComboBox ItemsSource="{Binding HoleNumbers}" SelectedItem="{Binding NewHole}" Width="90"/>
+                </StackPanel>
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Leg" Classes="muted small"/>
+                  <ComboBox ItemsSource="{Binding LegChoices}" SelectedItem="{Binding NewLeg}" Width="150"/>
+                </StackPanel>
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Yards" Classes="muted small"/>
+                  <TextBox Text="{Binding NewYards}" Width="90"/>
+                </StackPanel>
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Height change" Classes="muted small"/>
+                  <TextBox Text="{Binding NewFeet}" Width="160" Watermark="e.g. +13 ft 6 in"/>
+                </StackPanel>
+                <Button Classes="primary" Content="Add reading" Command="{Binding AddMeasurementCommand}" VerticalAlignment="Bottom"/>
+              </WrapPanel>
+              <TextBlock Text="{Binding MeasureError}" Foreground="#A32D2D" IsVisible="{Binding MeasureError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card" Padding="16">
+            <StackPanel Spacing="8">
+              <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Open file" Command="{Binding OpenMeasurementsFileCommand}"/>
+                <StackPanel>
+                  <TextBlock Classes="h2" Text="Readings"/>
+                  <TextBlock Text="{Binding MeasurementSummary}" Classes="muted small"/>
+                </StackPanel>
+              </DockPanel>
+              <Grid ColumnDefinitions="60,130,90,100,100,100,*" Margin="0,6,0,0">
+                <TextBlock Text="Hole" Classes="muted small"/>
+                <TextBlock Grid.Column="1" Text="Leg" Classes="muted small"/>
+                <TextBlock Grid.Column="2" Text="Yards" Classes="muted small" TextAlignment="Right"/>
+                <TextBlock Grid.Column="3" Text="Game" Classes="muted small" TextAlignment="Right"/>
+                <TextBlock Grid.Column="4" Text="Model" Classes="muted small" TextAlignment="Right"/>
+                <TextBlock Grid.Column="5" Text="Off by" Classes="muted small" TextAlignment="Right"/>
+              </Grid>
+              <ItemsControl ItemsSource="{Binding MeasurementRows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:MeasurementRowViewModel">
+                    <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,4">
+                      <Grid ColumnDefinitions="60,130,90,100,100,100,*">
+                        <TextBlock Text="{Binding Hole}" FontWeight="Medium" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Leg}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="{Binding Yards}" Classes="mono" TextAlignment="Right" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="3" Text="{Binding Game}" Classes="mono" TextAlignment="Right" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="4" Text="{Binding Model}" Classes="mono" TextAlignment="Right" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="5" Text="{Binding Diff}" Classes="mono" TextAlignment="Right" Foreground="{Binding DiffBrush}" VerticalAlignment="Center"/>
+                        <Button Grid.Column="6" Content="Remove" Command="{Binding RemoveCommand}" HorizontalAlignment="Right" MinHeight="28" Padding="10,0"/>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Classes="muted small" TextWrapping="Wrap">
+                <Run Text="Saved to "/>
+                <Run Text="{Binding MeasurementsFile}"/>
+                <Run Text=". The course file is never changed."/>
+              </TextBlock>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
+
+      <!-- Course settings -->
+      <ScrollViewer Grid.Row="1" Grid.ColumnSpan="2" IsVisible="{Binding IsCourseSettings}">
+        <Border Classes="card" Padding="20" MaxWidth="820" HorizontalAlignment="Left" VerticalAlignment="Top">
+          <StackPanel Spacing="18">
+            <StackPanel Spacing="4">
+              <TextBlock Classes="h2" Text="Hole-data workbook"/>
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Optional. Adds tee names, hole names and hazard notes to the yardage book, scorecard map and course cards. Yardages always come from the course file."/>
+              <DockPanel Margin="0,6,0,0">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
+                  <Button Content="Choose…" Click="BrowseWorkbook_Click"/>
+                  <Button Content="Clear" Command="{Binding ClearWorkbookCommand}"/>
+                </StackPanel>
+                <TextBox Text="{Binding WorkbookPath}" IsReadOnly="True" Watermark="None"/>
+              </DockPanel>
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Classes="h2" Text="Course card settings"/>
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Optional. A card settings file (wind, ocean side, formats) for the course cards."/>
+              <DockPanel Margin="0,6,0,0">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
+                  <Button Content="Choose…" Click="BrowseCardConfig_Click"/>
+                  <Button Content="Clear" Command="{Binding ClearCardConfigCommand}"/>
+                </StackPanel>
+                <TextBox Text="{Binding CardConfigPath}" IsReadOnly="True" Watermark="None"/>
+              </DockPanel>
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Classes="h2" Text="Files"/>
+              <TextBlock Text="Course file (read only)" Classes="muted small"/>
+              <TextBlock Text="{Binding CoursePath}" Classes="mono small" TextWrapping="Wrap"/>
+              <TextBlock Text="Products and measurements" Classes="muted small" Margin="0,6,0,0"/>
+              <TextBlock Text="{Binding OutputFolder}" Classes="mono small" TextWrapping="Wrap"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
       </ScrollViewer>
     </Grid>
   </DockPanel>

@@ -32,6 +32,7 @@ public partial class WorkspaceViewModel : ObservableObject
     SKRect _mapRect;
     Pga2K25.Maps.MapProjection? _projection;
     List<MeasuredLeg> _measured = [];
+    int _selectedHole;
 
     [ObservableProperty] private WriteableBitmap? _mapImage;
     [ObservableProperty] private bool _loading = true;
@@ -75,6 +76,7 @@ public partial class WorkspaceViewModel : ObservableObject
         _main = main;
         Entry = entry;
         RefreshProducts();
+        InitSections();
         Task.Run(LoadSurvey);
     }
 
@@ -104,6 +106,10 @@ public partial class WorkspaceViewModel : ObservableObject
                 foreach (var h in survey.Holes)
                     Holes.Add(new HoleButtonViewModel(h.Hole.Number, n => SelectHole(n, centre: true)));
                 UpdateModelCheck();
+                HoleNumbers.Clear();
+                foreach (var h in survey.Holes) HoleNumbers.Add(h.Hole.Number);
+                NewHole = HoleNumbers.FirstOrDefault() is int first and > 0 ? first : null;
+                RebuildMeasurementRows();
                 Status = $"{survey.Contours.Count:N0} contour lines every {survey.IntervalFeet:0.##} ft";
                 Render(initial: true);
                 if (Holes.Count > 0) SelectHole(Holes[0].Number, centre: false);
@@ -168,6 +174,7 @@ public partial class WorkspaceViewModel : ObservableObject
     void SelectHole(int number, bool centre)
     {
         if (_survey?.Holes.FirstOrDefault(h => h.Hole.Number == number) is not { } h) return;
+        _selectedHole = number;
         foreach (var b in Holes) b.IsSelected = b.Number == number;
         HasHole = true;
         HoleTitle = $"Hole {number}";
@@ -180,7 +187,8 @@ public partial class WorkspaceViewModel : ObservableObject
         TiltBarBrush = Brush.Parse(h.GreenSiteGradePct > 8 ? "#B87514" : "#2D6A42");
 
         Legs.Clear();
-        var r = h.Route;
+        // The file's own route waypoints: readings are taken from the route's tee marker, not necessarily the back tee.
+        var r = h.Hole.Route;
         foreach (var m in _measured.Where(m => m.Hole == number))
         {
             var (a, b) = m.TeeToAim ? (r[0], r[1]) : (r[^2], r[^1]);
@@ -204,7 +212,7 @@ public partial class WorkspaceViewModel : ObservableObject
         foreach (var m in _measured)
         {
             if (_survey.Holes.FirstOrDefault(h => h.Hole.Number == m.Hole) is not { } h) continue;
-            var r = h.Route;
+            var r = h.Hole.Route;
             var (a, b) = m.TeeToAim ? (r[0], r[1]) : (r[^2], r[^1]);
             double e = _survey.Feet(b) - _survey.Feet(a) - m.Feet;
             sum += e * e;

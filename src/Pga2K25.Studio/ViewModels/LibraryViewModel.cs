@@ -49,6 +49,8 @@ public partial class LibraryViewModel : ObservableObject
 
     [RelayCommand] private void Reload() => Refresh();
 
+    [RelayCommand] private void OpenSettings() => _main.ShowSettings();
+
     public void AddCourse(string path)
     {
         if (!_main.Settings.ExtraCourses.Contains(path, StringComparer.OrdinalIgnoreCase))

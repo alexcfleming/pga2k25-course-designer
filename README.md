@@ -25,7 +25,7 @@ A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer
 | `src/Pga2K25.TerrainMap` | Plot-scale terrain survey (contours, summits, per-hole elevations and green-site slope) and the terrain planning map renderer |
 | `src/Pga2K25.CourseCard` | Course cards: data from the course file (bearings, scorecard yards), validation, rose / table / composite renderer (bundled Lora font) |
 | `src/Pga2K25.Cli` | `pga2k25 info` / `greensbook` / `scorecard` / `yardage` / `terrain` / `cards` / `calibrate` command line |
-| `src/Pga2K25.Studio` | **Course Designer Studio** (Avalonia, in progress): a course library read from the game's Courses folder, and a per-course workspace with a live terrain map, hole inspector with in-game measurements, and one-click product builds |
+| `src/Pga2K25.Studio` | **Course Designer Studio** (Avalonia, in progress): a course library read from the game's Courses folder, app settings, and a per-course workspace. The workspace has a section menu (terrain map, measurements, course settings) and recent courses, a live terrain map, a hole inspector with in-game measurements against the model, a measurements page to add and remove readings, and one-click product builds |
 | `src/Pga2K25.App` | WPF desktop app (Greens Book, Scorecard Map, Yardage Book, Terrain Map and Course Cards tabs); to be replaced by Studio |
 | `tests/Pga2K25.Tests` | xUnit: course decoding, metadata derivations, contouring, calibration regression, map projection, output builds |
 | `tools/course_codec.py` | Python CLI to inspect / unpack `.course` files (read only) |

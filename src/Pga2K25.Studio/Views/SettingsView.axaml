@@ -1,0 +1,56 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Pga2K25.Studio.ViewModels"
+             x:Class="Pga2K25.Studio.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+  <DockPanel>
+    <Border DockPanel.Dock="Top" Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1" Padding="20,10">
+      <DockPanel>
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <Button Content="Cancel" Command="{Binding CancelCommand}"/>
+          <Button Classes="primary" Content="Save" Command="{Binding SaveCommand}"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
+          <TextBlock Text="Course Designer" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>
+          <TextBlock Text="Settings" Classes="muted" VerticalAlignment="Center"/>
+        </StackPanel>
+      </DockPanel>
+    </Border>
+
+    <ScrollViewer>
+      <StackPanel Margin="28,24" Spacing="18" MaxWidth="860" HorizontalAlignment="Left">
+        <TextBlock Classes="h1" Text="Settings"/>
+        <Border Classes="card" Padding="20">
+          <StackPanel Spacing="20">
+            <StackPanel Spacing="4">
+              <TextBlock Classes="h2" Text="Courses folder"/>
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Where the game saves your courses. Every .course file in it appears in the library; files are only ever read."/>
+              <DockPanel Margin="0,6,0,0">
+                <Button DockPanel.Dock="Right" Content="Choose…" Margin="8,0,0,0" Click="BrowseCourses_Click"/>
+                <TextBox Text="{Binding CoursesFolder}"/>
+              </DockPanel>
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Classes="h2" Text="Output folder"/>
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Products and measurements go in a folder per course inside this one."/>
+              <DockPanel Margin="0,6,0,0">
+                <Button DockPanel.Dock="Right" Content="Choose…" Margin="8,0,0,0" Click="BrowseOutput_Click"/>
+                <TextBox Text="{Binding OutputRoot}"/>
+              </DockPanel>
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Classes="h2" Text="Credit"/>
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="The name printed on the greens book, maps, yardage book and cards."/>
+              <TextBox Text="{Binding Credit}" Margin="0,6,0,0" MaxWidth="420" HorizontalAlignment="Left" MinWidth="320"/>
+            </StackPanel>
+            <TextBlock Text="{Binding Error}" Foreground="#A32D2D" IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+          </StackPanel>
+        </Border>
+        <TextBlock Classes="muted small" TextWrapping="Wrap">
+          <Run Text="Saved in "/>
+          <Run Text="{Binding SettingsFile}"/>
+        </TextBlock>
+      </StackPanel>
+    </ScrollViewer>
+  </DockPanel>
+</UserControl>
