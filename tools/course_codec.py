@@ -1,4 +1,4 @@
-"""Unpack / repack PGA TOUR 2K25 .course files.
+"""Inspect and unpack PGA TOUR 2K25 .course files (read only: never writes a .course file).
 
 Layers: gzip > UTF-16 JSON envelope > binaryData{CourseDescription, Thumbnail,
 CourseMetadata} each base64 > gzip > UTF-16 JSON.  See
@@ -7,7 +7,6 @@ docs/course-format/pga2k25-course-format.md.
 Usage:
     python tools/course_codec.py info   <file.course>
     python tools/course_codec.py unpack <file.course> <out_dir>
-    python tools/course_codec.py pack   <in_dir> <file.course>
 """
 import base64
 import gzip
@@ -15,8 +14,6 @@ import json
 import math
 import sys
 from pathlib import Path
-
-BLOBS = ("CourseDescription", "Thumbnail", "CourseMetadata")
 
 
 def _decode_text(raw: bytes):
@@ -28,10 +25,6 @@ def _decode_text(raw: bytes):
     raise ValueError("Unrecognized JSON text encoding")
 
 
-def _encode_text(obj) -> bytes:
-    return json.dumps(obj, separators=(",", ":"), ensure_ascii=False).encode("utf-16")
-
-
 def load(path):
     """Return (envelope, {blob_name: parsed_json})."""
     envelope = _decode_text(gzip.decompress(Path(path).read_bytes()))
@@ -40,15 +33,6 @@ def load(path):
         for name, value in envelope.get("binaryData", {}).items()
     }
     return envelope, blobs
-
-
-def save(path, envelope, blobs, level=6):
-    out = dict(envelope)
-    out["binaryData"] = {
-        name: base64.b64encode(gzip.compress(_encode_text(obj), compresslevel=level)).decode("ascii")
-        for name, obj in blobs.items()
-    }
-    Path(path).write_bytes(gzip.compress(_encode_text(out), compresslevel=level))
 
 
 def route_length(hole):
@@ -83,17 +67,8 @@ def unpack(path, out_dir):
         (out / "Thumbnail.jpg").write_bytes(base64.b64decode(thumb))
 
 
-def pack(in_dir, path):
-    src = Path(in_dir)
-    envelope = json.loads((src / "envelope.json").read_text(encoding="utf-8"))
-    names = envelope.get("binaryData") or list(BLOBS)
-    blobs = {n: json.loads((src / f"{n}.json").read_text(encoding="utf-8")) for n in names}
-    envelope["binaryData"] = {}
-    save(path, envelope, blobs)
-
-
 if __name__ == "__main__":
-    commands = {"info": info, "unpack": unpack, "pack": pack}
+    commands = {"info": info, "unpack": unpack}
     if len(sys.argv) < 3 or sys.argv[1] not in commands:
         sys.exit(__doc__)
     commands[sys.argv[1]](*sys.argv[2:])

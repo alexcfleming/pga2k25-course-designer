@@ -55,7 +55,7 @@ Encoding notes:
 - Python's `"utf-16"` codec emits a BOM + little-endian, which matches the game output byte-for-byte at the start of the stream.
 - Game files are gzip with header `XFL=0`; compressed sizes are close to zlib level 6–9. The reference tool writes `compresslevel=1`, which makes files ~1.9× larger (still loads fine, but we should use level 6+).
 - JSON is compact (`separators=(',', ':')`) with non-ASCII characters left unescaped.
-- A round-trip `decode → encode → decode` with this recipe returns an identical object for all three samples (tested).
+- A round-trip `decode → encode → decode` with this recipe returned an identical object for all three samples. This was tested while the codec could still write; it is read only now.
 
 Sizes (Shinnecock Ridge): file 204 KB → outer JSON 409 KB → CourseDescription 969 KB of UTF-16 text (~485 K characters).
 
@@ -157,7 +157,7 @@ When `hasCurves` is `false`, handles usually coincide with neighbouring anchors 
 
 `useV4Height`, `useWaypointHeight`, `useSrgbBrushes`, `useOldFairwayEdges`, `useV19DetailPlacement`, `useV20ClusterRotation`, `useV21PathBrush`, `useV21HeavyRough`, `blurHeight`, `useV28FairwaySeed`, `useV30Rough`, `useV31SplatControlMasking`, `useV43AltSurfaceSplineScale`, `useV44IgnoreBunkerWaterLevelClipping`, `useV46HeightFieldDiscretization`, `useV47OverlaySplineScale`, `useV48ThemeAssetPack`, `legacyTerrain`.
 
-These are booleans that switch the game between legacy and current generator behaviour. **We must round-trip them untouched.**
+These are booleans that switch the game between legacy and current generator behaviour. **Any writer must leave them untouched.**
 
 ### 4.3 Environment
 
@@ -396,13 +396,7 @@ The JPEG is an overhead render of about 35–55 KB.
 
 ---
 
-## 7. Writing rules for our app
+## 7. Writing
 
-1. **Preserve unknown keys.** Deserialize into a model that keeps unrecognized properties (e.g. `JsonExtensionData`) so the ~140 keys we don't edit round-trip exactly.
-2. **Append, don't reorder**, in `height[]` and `surfaceBrushes2[]`. These are replayed in order.
-3. **Keep `"-Infinity"` as a string** in `position.y`.
-4. **Don't round everything.** The reference tool rounds *every* float in the document to 3 decimals on save (`parse_float=round(x,3)`). That is lossy for rotations and handles. Only round values we generate.
-5. **Regenerate `CourseMetadata`** (length, pars, tee sets, pin/tee positions with the swapped keys) whenever holes, tees or pins change. The thumbnail can be kept.
-6. **Track our own edits** in a private top-level key (the reference tool uses `malificaCourseFinisher`; the game ignores unknown keys). Record `{startIndex, count, sha256 signature}` for each generated tail so a re-run can remove exactly what we added and nothing the user added by hand.
-7. **Never overwrite the source file.** Default the output to `<name> - <suffix>.course`.
-8. Gzip at compression level 6 or higher, UTF-16 LE with BOM, compact JSON.
+This app is **read only**: it analyses course files and never writes them. The writing rules that applied to the archived Course Finisher are in that archive: preserving unknown keys, appending to `height[]`, keeping the `"-Infinity"` sentinel, regenerating `CourseMetadata`, tracking edits, and never overwriting the source. They are on the `course-finisher-archive` tag, in this file's section 7.
+

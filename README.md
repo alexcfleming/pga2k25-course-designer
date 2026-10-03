@@ -6,7 +6,7 @@ A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer
 
 ## Documentation
 
-- [Course file format spec](docs/course-format/pga2k25-course-format.md): how `.course` files are structured and how to read and write them safely.
+- [Course file format spec](docs/course-format/pga2k25-course-format.md): how `.course` files are structured and how to read them.
 - [Reference app analysis](docs/reference-analysis/course-finisher-analysis.md): architecture, UI, features and algorithms of *Mal's TGC 2K25 Course Finisher*, plus a blueprint for our app.
 - [Greens book](docs/greens-book.md): what it produces, how the terrain is reconstructed, current limits, and calibration.
 - [Scorecard maps](docs/scorecard-maps.md): themes, layout, how features are traced, and known limits.
@@ -18,7 +18,7 @@ A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer
 
 | Project | Purpose |
 |---|---|
-| `src/Pga2K25.CourseFormat` | Lossless `.course` codec (`CourseFile`), typed read model (`CourseModel`: holes, pins, splines, surface brushes, height stamps), shared spline geometry |
+| `src/Pga2K25.CourseFormat` | Read-only `.course` decoder (`CourseFile`), typed read model (`CourseModel`: holes, pins, splines, surface brushes, height stamps), shared spline geometry |
 | `src/Pga2K25.GreensBook` | Terrain replay, green analysis, calibration, SkiaSharp greens-book renderer |
 | `src/Pga2K25.Maps` | Course feature layers, auto-rotating projection, themed scorecard-map renderer |
 | `src/Pga2K25.YardageBook` | Per-hole analysis (hazard numbers, widths, spot heights, rock footprints) and the yardage page / PDF workbook renderer |
@@ -26,8 +26,8 @@ A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer
 | `src/Pga2K25.CourseCard` | Course cards: data from the course file (bearings, scorecard yards), validation, rose / table / composite renderer (bundled Lora font) |
 | `src/Pga2K25.Cli` | `pga2k25 info` / `greensbook` / `scorecard` / `yardage` / `terrain` / `cards` / `calibrate` command line |
 | `src/Pga2K25.App` | WPF desktop app (Greens Book, Scorecard Map, Yardage Book, Terrain Map and Course Cards tabs) |
-| `tests/Pga2K25.Tests` | xUnit: codec round-trip, metadata derivations, contouring, calibration regression, map projection, output builds |
-| `tools/course_codec.py` | Python CLI to inspect / unpack / pack `.course` files |
+| `tests/Pga2K25.Tests` | xUnit: course decoding, metadata derivations, contouring, calibration regression, map projection, output builds |
+| `tools/course_codec.py` | Python CLI to inspect / unpack `.course` files (read only) |
 | `samples/courses/` | Sample `.course` files used as test fixtures (incl. Cassimbo, and the unbuilt routed plot Sagan-Khushun) |
 | `samples/calibration/` | In-game green screenshots + spot-label captures used to calibrate the terrain model |
 
