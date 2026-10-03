@@ -77,8 +77,9 @@ public sealed record TerrainMapOptions
     public bool ShowFeatures { get; init; } = true;
 
     /// <summary>
-    /// Sea level (world m). Null detects it from placed ocean props (their explicit height, 0 m on stock
-    /// plots); with no ocean on the plot there is no sea. Ground below it is drawn as water and not contoured.
+    /// Sea level (world m). Null uses the placed ocean props' height when there are any, otherwise the game's
+    /// sea plane at world 0 m (Berwick Coast has no ocean props, yet its in-game coastline follows 0 m).
+    /// Ground below it is drawn as water and not contoured; a window that never dips below it has no sea.
     /// </summary>
     public double? SeaLevelMetres { get; init; }
     public bool ShowWater { get; init; } = true;
@@ -165,15 +166,13 @@ public sealed class TerrainSurvey
 
     /// <summary>
     /// Painted water (streams and ponds from the course's water brushes), one flag per <see cref="Field"/> cell;
-    /// empty when there is none. Sea is separate (<see cref="IsWater(double)"/>).
+    /// empty when there is none. The game cuts the channel to the water level, so the whole stroke is water
+    /// (Berwick Coast's stream is continuous in game). Sea is separate (<see cref="IsWater(double)"/>).
     /// </summary>
     public bool[] PaintedWater { get; init; } = [];
 
     /// <summary>Edges of the painted water (world coordinates).</summary>
     public List<List<Vec2>> PaintedWaterEdges { get; init; } = [];
-
-    /// <summary>Outline of everything the water brushes cover, wet or not: water painted over higher ground stays dry.</summary>
-    public List<List<Vec2>> PaintedWaterFootprint { get; init; } = [];
 
     /// <summary>Sea or painted water at a world point.</summary>
     public bool IsWet(Vec2 p)
@@ -364,15 +363,13 @@ public sealed class TerrainSurvey
         double minFragment = o.MinContourSpacingPixels > 0 ? 6 * o.MinContourSpacingPixels / o.PixelsPerMetre : 0;
         var contours = TraceContours(field, datum, minFeet, maxFeet, interval, indexEvery, maxMinorSlope)
             .Where(c => c.Index || Length(c.Points) >= minFragment).ToList();
-        var painted = o.ShowWater ? PaintWater(course, field, wetOnly: true) : [];
-        var footprint = o.ShowWater ? PaintWater(course, field, wetOnly: false) : [];
+        var painted = o.ShowWater ? PaintWater(course, field) : [];
         var survey = new TerrainSurvey
         {
             Course = course, Layers = layers, Min = min, Max = max, Field = field, DatumMetres = datum, MaxFeet = maxFeet,
             CorridorFeet = corridorFeet, SeaLevelMetres = sea,
             Shoreline = sea is { } shore ? Trace(field, shore + ShoreToleranceMetres) : [],
             PaintedWater = painted, PaintedWaterEdges = painted.Length == 0 ? [] : TraceMask(field, painted),
-            PaintedWaterFootprint = footprint.Length == 0 ? [] : TraceMask(field, footprint),
             IntervalFeet = interval, IndexEvery = indexEvery, Contours = contours, Summits = [], Holes = [],
         };
         if (o.ShowSummits) survey.Summits.AddRange(FindSummits(survey, interval));
@@ -399,8 +396,14 @@ public sealed class TerrainSurvey
         return sum;
     }
 
+    /// <summary>The game's sea plane (world m): every plot has it, though it only shows where the ground dips below.</summary>
+    public const double SeaPlaneMetres = 0;
+
+    /// <summary>Sea level: the ocean props' height when the plot has any, otherwise the sea plane.</summary>
+    public static double DetectSeaLevel(CourseModel course) => OceanPropLevel(course) ?? SeaPlaneMetres;
+
     /// <summary>Median explicit height of the ocean props (wave, churn, impact), or null if there are none.</summary>
-    public static double? DetectSeaLevel(CourseModel course)
+    public static double? OceanPropLevel(CourseModel course)
     {
         var heights = course.PlacedObjects
             .Where(p => p.Height is not null && p.AssetPath.Contains("Ocean", StringComparison.OrdinalIgnoreCase))
@@ -409,18 +412,17 @@ public sealed class TerrainSurvey
     }
 
     /// <summary>
-    /// Cells under the course's water brushes (with <paramref name="wetOnly"/>, only where the ground lies below that
-    /// brush's water level). The file stores
-    /// a stroke as separate dabs (about one brush width apart, sometimes more), so consecutive dabs closer than
-    /// twice their width are joined into one stroke. Empty when nothing is wet.
+    /// Cells under the course's water brushes. The file stores a stroke as separate dabs (about one brush width
+    /// apart, sometimes more), so consecutive dabs at the same level closer than twice their width are joined
+    /// into one stroke. Empty when there is none on the sheet.
     /// </summary>
-    static bool[] PaintWater(CourseModel course, Heightfield field, bool wetOnly)
+    static bool[] PaintWater(CourseModel course, Heightfield field)
     {
         var brushes = course.WaterBrushes.Where(b => b.Scale > 0 && double.IsFinite(b.Value)).ToList();
         if (brushes.Count == 0) return [];
         var wet = new bool[field.Values.Length];
         bool any = false;
-        void Stroke(Vec2 a, Vec2 b, double r, double level)
+        void Stroke(Vec2 a, Vec2 b, double r)
         {
             int x0 = Math.Max(0, (int)Math.Floor((Math.Min(a.X, b.X) - r - field.Origin.X) / field.Cell));
             int x1 = Math.Min(field.Width - 1, (int)Math.Ceiling((Math.Max(a.X, b.X) + r - field.Origin.X) / field.Cell));
@@ -433,7 +435,7 @@ public sealed class TerrainSurvey
                 {
                     var c = field.CellCentre(ix, iz);
                     double t = len2 > 0 ? Math.Clamp(((c.X - a.X) * ab.X + (c.Z - a.Z) * ab.Z) / len2, 0, 1) : 0;
-                    if (Vec2.Distance(c, a + ab * t) > r || wetOnly && field[ix, iz] >= level) continue;
+                    if (Vec2.Distance(c, a + ab * t) > r) continue;
                     wet[iz * field.Width + ix] = true;
                     any = true;
                 }
@@ -441,13 +443,13 @@ public sealed class TerrainSurvey
         for (int i = 0; i < brushes.Count; i++)
         {
             var b = brushes[i];
-            Stroke(b.Position, b.Position, b.Scale / 2, b.Value);
+            Stroke(b.Position, b.Position, b.Scale / 2);
             if (i + 1 < brushes.Count)
             {
                 var n = brushes[i + 1];
                 double width = Math.Min(b.Scale, n.Scale);
                 if (Vec2.Distance(b.Position, n.Position) <= 2 * Math.Max(b.Scale, n.Scale) && Math.Abs(b.Value - n.Value) < 0.01)
-                    Stroke(b.Position, n.Position, width / 2, b.Value);
+                    Stroke(b.Position, n.Position, width / 2);
             }
         }
         return any ? wet : [];

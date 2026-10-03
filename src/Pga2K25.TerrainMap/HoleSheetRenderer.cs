@@ -263,7 +263,7 @@ public sealed class HoleSheetRenderer : TerrainInk
             canvas.DrawCircle(x + sw / 2, y + 1.5f * u, 0.8f * u, dot);
             Text(canvas, "52", x + sw / 2 + 2 * u, y, 5 * u, _sansItalic, GridLine);
         }, $"Grid {_sheet.GridYards:0} yds, spot heights at crossings");
-        bool painted = s.PaintedWaterFootprint.Count > 0;
+        bool painted = s.PaintedWater.Length > 0;
         if (s.SeaLevelMetres is not null || painted)
             Row(0, 3, (x, y) =>
             {

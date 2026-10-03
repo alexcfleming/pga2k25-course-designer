@@ -239,7 +239,9 @@ An **ordered edit log** of terrain stamps. The game replays it top-to-bottom to 
 | `0` | **Absolute** height stamp. `value` = target elevation (m). |
 | `1` | **Relative / local** stamp: raise, lower or level. `value` = local offset; `0.0` with type 9 = "flatten at 0.0 ft". |
 
-Observed `type` (brush shape id) usage across the samples:
+**Brush shape (`type`)** — the designer's landscaping palette slot: slot + 8 for slots 0–29, slot + 9 for slots 30–68 (type 38 is not in the palette). Found on a test plot with one dab of each brush (`samples/courses/brush-test-plot.course`); the 69 shapes are in `assets/brushes` (`catalog.png` numbers them). The brush image spans ±`scale` metres, top towards +Z at rotation 0, turned by `rotation.y` like a Unity Y rotation. Common ones: 54 = soft round (slot 45, the most used), 55 = soft oval (46), 53 = rough streak (44), 49 = faint splatter (40), 39 = rock speckle (30), 72 = hard square (63; ten 1000-scale squares flatten a blank plot), 73 = hard circle (64).
+
+Observed `type` usage across the samples:
 
 | type | tool 0 (n) | tool 1 (n) | Notes |
 |---|---|---|---|
@@ -249,7 +251,7 @@ Observed `type` (brush shape id) usage across the samples:
 | 23, 24, 45 | few | few | Tiny detail brushes (scale 1–6 m) |
 | 39, 40 | – | 365 | Large soft relative brushes (hill shaping) |
 | 42, 49, 53, 54, 55 | many | many | Large area brushes (scale up to 1,000 m); 54/55 dominate |
-| **72** | – | – | **Fine terrain lattice**: a grid of absolute stamps produced by LiDAR/heightmap import tools ("TGC Tool"). **Not present in any of our samples.** |
+| **72** | blank plots | – | Hard square (slot 63). Ten 1000-scale squares flatten a new plot. LiDAR/heightmap import tools ("TGC Tool") also lay a fine lattice of small type-72 absolute stamps; none of our samples has one. |
 
 `scale.x` ranges from 1.1 m to 1,000 m, and `rotation.y` is used on most shaped brushes.
 
@@ -308,7 +310,7 @@ Each layer is `{ "brushes": [Brush], "splines": [Spline], "IsEmpty": bool }`:
 
 `costMap[]`, `distanceMarkers[]` and `walkingDestinations[]` are empty in all samples.
 
-`water[]` holds painted water: Brushes (§3.2) with `surfaceCategory` 9, `type` 72, `value` = water level (m, also in `position.y`) and an extra `options: {flowOrientation, flowSpeed}`. Berwick Coast has 55, all at 8.507 m: one stream stroke stored as dabs of a 10 m brush, 10–17 m apart, rotated along the flow. The terrain map treats water as showing where the ground under a stroke is below its level (inferred, not confirmed in game).
+`water[]` holds painted water: Brushes (§3.2) with `surfaceCategory` 9, `type` 72, `value` = water level (m, also in `position.y`) and an extra `options: {flowOrientation, flowSpeed}`. Berwick Coast has 55, all at 8.507 m: one stream stroke stored as dabs of a 10 m brush, 10–17 m apart, rotated along the flow. In game the stroke is continuous water with cut banks, so the terrain map draws the whole joined stroke as water.
 
 ### 4.11 Placed objects — `placedObjects4[]` (Confirmed)
 

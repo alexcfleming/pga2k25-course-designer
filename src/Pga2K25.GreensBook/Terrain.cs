@@ -3,9 +3,9 @@ using Pga2K25.CourseFormat;
 namespace Pga2K25.GreensBook;
 
 /// <summary>
-/// Tunables for the heightfield replay. The game's brush shapes, hardness and
-/// post-processing are not stored in the .course file; defaults are fitted to
-/// in-game readings (see docs/greens-book.md, "Calibration").
+/// Tunables for the heightfield replay. Brushes are stamped with their real shapes (<see cref="BrushShape"/>);
+/// the hardness settings only shape brushes of unknown type. Defaults are checked against in-game readings
+/// (docs/greens-book.md, "Calibration"; docs/terrain-map.md, "Terrain model").
 /// </summary>
 public sealed record TerrainModelOptions
 {
@@ -26,6 +26,13 @@ public sealed record TerrainModelOptions
     public double? LargeBrushHardness { get; init; }
 
     public double LargeBrushMetres { get; init; } = 40;
+
+    /// <summary>
+    /// Stamp each brush with its real shape (<see cref="BrushShape"/>: the designer's brush image over ±scale,
+    /// rotated). False replays every brush as a round disc of diameter scale with the hardness falloff above,
+    /// which is what the model did before the brush shapes were known. Unknown types always use the disc.
+    /// </summary>
+    public bool BrushShapes { get; init; } = true;
 
     /// <summary>Raster cell size in metres.</summary>
     public double CellMetres { get; init; } = 0.25;
@@ -80,9 +87,9 @@ public static class TerrainReplay
 {
     /// <summary>
     /// Rebuilds elevations over a window by replaying <c>height[]</c> in file order:
-    /// tool 0 blends toward the stamp's absolute value, tool 1 adds its value,
-    /// both weighted by a circular plateau + smoothstep falloff.
-    /// Brush shape ids and rotation are ignored (all treated as round).
+    /// tool 0 (flatten) blends toward the stamp's absolute value, tool 1 (raise) adds its value, both weighted
+    /// by the brush's shape at its size and rotation (<see cref="StampShape"/>). Unknown types use a circular
+    /// plateau + smoothstep falloff.
     /// </summary>
     public static Heightfield Build(CourseModel course, Vec2 min, Vec2 max, TerrainModelOptions options)
     {
@@ -99,8 +106,13 @@ public static class TerrainReplay
 
         foreach (var s in course.HeightStamps)
         {
+            if (s.Scale <= 0 || !double.IsFinite(s.Value)) continue;
+            if (options.BrushShapes && BrushShape.ForType(s.Type) is { } shape)
+            {
+                StampShape(field, s, shape);
+                continue;
+            }
             double r = s.Scale / 2;
-            if (r <= 0 || !double.IsFinite(s.Value)) continue;
             double inner = s.Scale >= options.LargeBrushMetres ? soft : hard;
             int x0 = Math.Max(0, (int)Math.Floor((s.Position.X - r - origin.X) / cell));
             int x1 = Math.Min(w - 1, (int)Math.Ceiling((s.Position.X + r - origin.X) / cell));
@@ -126,6 +138,42 @@ public static class TerrainReplay
 
         if (sigma > 0) GaussianBlur(field, sigma / cell);
         return field;
+    }
+
+    /// <summary>
+    /// One stamp with its brush image: weight = image brightness at the cell, the image spanning ±scale around
+    /// the stamp, top towards +Z, turned by rotation.y as a Unity Y rotation (clockwise seen from above).
+    /// Raise (tool 1) adds value × brightness, so dim (soft) brushes add less. Flatten (tool 0) moves the ground
+    /// towards the value by brightness ÷ the brush's peak, so every flatten reaches its value at its centre.
+    /// That split fits both Cassimbo's flattened greens and Berwick Coast's measured heights.
+    /// </summary>
+    static void StampShape(Heightfield field, HeightStamp s, BrushShape shape)
+    {
+        double half = s.Scale, reach = half * Math.Sqrt(2), cell = field.Cell;
+        var origin = field.Origin;
+        int w = field.Width, h = field.Height;
+        int x0 = Math.Max(0, (int)Math.Floor((s.Position.X - reach - origin.X) / cell));
+        int x1 = Math.Min(w - 1, (int)Math.Ceiling((s.Position.X + reach - origin.X) / cell));
+        int z0 = Math.Max(0, (int)Math.Floor((s.Position.Z - reach - origin.Z) / cell));
+        int z1 = Math.Min(h - 1, (int)Math.Ceiling((s.Position.Z + reach - origin.Z) / cell));
+        if (x0 > x1 || z0 > z1) return;
+        double th = s.RotationY * Math.PI / 180, cos = Math.Cos(th), sin = Math.Sin(th);
+        double gain = s.Tool == 0 && shape.Peak > 0 ? 1 / shape.Peak : 1;
+        var values = field.Values;
+        Parallel.For(z0, z1 + 1, iz =>
+        {
+            double dz = origin.Z + (iz + 0.5) * cell - s.Position.Z;
+            for (int ix = x0; ix <= x1; ix++)
+            {
+                double dx = origin.X + (ix + 0.5) * cell - s.Position.X;
+                // World offset into brush axes: local +X = (cos, −sin), local +Z = (sin, cos).
+                double u = (dx * cos - dz * sin) / half, v = (dx * sin + dz * cos) / half;
+                double weight = Math.Min(1, shape.Weight(u, v) * gain);
+                if (weight <= 0) continue;
+                int k = iz * w + ix;
+                values[k] = s.Tool == 0 ? values[k] + (s.Value - values[k]) * weight : values[k] + s.Value * weight;
+            }
+        });
     }
 
     /// <summary>Separable Gaussian blur in place; <paramref name="sigmaMetres"/> ≤ 0 does nothing.</summary>

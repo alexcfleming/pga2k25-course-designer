@@ -292,15 +292,15 @@ public sealed class TerrainMapRenderer : TerrainInk
                 canvas.DrawRect(sx + 2 * u, cy - 5 * u, sw - 4 * u, 10 * u, f);
                 using var e = Stroke(Shore, 0.9f * u);
                 canvas.DrawLine(sx + 2 * u, cy - 5 * u, sx + sw - 2 * u, cy - 5 * u, e);
-            }, "Sea, with shoreline at 0 ft (from the ocean props)");
-        if (s.PaintedWaterFootprint.Count > 0)
+            }, "Sea, with shoreline at 0 ft");
+        if (s.PaintedWater.Length > 0)
             Row(cy =>
             {
                 using var f = Fill(Sea);
                 canvas.DrawRect(sx + 2 * u, cy - 4 * u, sw - 4 * u, 8 * u, f);
                 using var e = Stroke(Shore, 0.6f * u);
                 canvas.DrawRect(sx + 2 * u, cy - 4 * u, sw - 4 * u, 8 * u, e);
-            }, "Painted water; dashed where painted over ground above its level");
+            }, "Streams and ponds painted in the designer");
         if (_o.ShowFeatures && (s.Layers.Grass.Count + s.Layers.Greens.Count + s.Layers.BunkerAreas.Count + s.Layers.WaterAreas.Count) > 0)
             Row(cy =>
             {
@@ -352,7 +352,7 @@ public sealed class TerrainMapRenderer : TerrainInk
         string[] notes =
         [
             $"Terrain rebuilt from the course's {s.Course.HeightStamps.Count:N0} height stamps",
-            "(brush shapes treated as round). Check critical",
+            "with the designer's brush shapes. Check critical",
             "grades in the game before committing a design.",
             $"Sheet covers {(s.Max.X - s.Min.X) * TerrainSurvey.YardsPerMetre:N0} × {(s.Max.Z - s.Min.Z) * TerrainSurvey.YardsPerMetre:N0} yds.",
         ];

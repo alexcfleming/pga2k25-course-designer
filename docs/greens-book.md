@@ -105,6 +105,8 @@ Pages whose 95th-percentile slope exceeds 12 % carry an *"Implausibly steep"* wa
 
 All of these were worse on heights, slopes, or both.
 
+**Brush shapes (2026-10-03).** The replay now stamps each brush with its real shape from the designer's palette (see docs/terrain-map.md, "Terrain model"). The hardness and blur above still apply to brushes of unknown shape. With the shapes, the Cassimbo greens score 4 %, 12 %, 9 % and 6 % of range (holes 1, 7, 10, 13), against 2–10 % for the round-disc model. That model was tuned on these greens alone, and away from them it was badly wrong: 22 ft RMS on Berwick Coast's route heights, against 2 ft with the shapes.
+
 **Known limits:**
 
 - Heights match well, but the slope *shape* only moderately agrees with the in-game grid colours (rank correlation about 0.5). The model still concentrates slope into narrower bands than the game shows, so treat band sharpness as approximate.
