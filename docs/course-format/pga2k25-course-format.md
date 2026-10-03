@@ -306,7 +306,9 @@ Each layer is `{ "brushes": [Brush], "splines": [Spline], "IsEmpty": bool }`:
 | `crowdMap2` | Gallery/crowd zones |
 | `AllMapEdits[4]` | Array of the same layer shape. Contents mirror `clearDetail` / `clearTrees` (likely an aggregate the game rebuilds) |
 
-`water[]`, `costMap[]`, `distanceMarkers[]` and `walkingDestinations[]` are empty in all samples.
+`costMap[]`, `distanceMarkers[]` and `walkingDestinations[]` are empty in all samples.
+
+`water[]` holds painted water: Brushes (§3.2) with `surfaceCategory` 9, `type` 72, `value` = water level (m, also in `position.y`) and an extra `options: {flowOrientation, flowSpeed}`. Berwick Coast has 55, all at 8.507 m: one stream stroke stored as dabs of a 10 m brush, 10–17 m apart, rotated along the flow. The terrain map treats water as showing where the ground under a stroke is below its level (inferred, not confirmed in game).
 
 ### 4.11 Placed objects — `placedObjects4[]` (Confirmed)
 

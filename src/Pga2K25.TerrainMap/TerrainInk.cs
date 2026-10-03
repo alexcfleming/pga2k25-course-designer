@@ -43,7 +43,7 @@ public abstract class TerrainInk : IDisposable
 
     protected readonly TerrainMapOptions _o;
     protected readonly float _u;
-    protected readonly SKTypeface _serif, _serifBold, _serifItalic, _sans, _sansBold, _sansItalic;
+    protected readonly SKTypeface _serif, _serifBold, _serifItalic, _sans, _sansBold, _sansItalic, _sansBoldItalic;
 
     /// <param name="pixelsPerPoint">Output pixels per typographic point; every size below is in points.</param>
     /// <summary>Green sites as a tinted disc (plot map) or an outline that leaves the ground clear to sketch on.</summary>
@@ -64,6 +64,7 @@ public abstract class TerrainInk : IDisposable
         _sans = SKTypeface.FromFamilyName(sans, SKFontStyle.Normal);
         _sansBold = SKTypeface.FromFamilyName(sans, SKFontStyle.Bold);
         _sansItalic = SKTypeface.FromFamilyName(sans, SKFontStyle.Italic);
+        _sansBoldItalic = SKTypeface.FromFamilyName(sans, SKFontStyle.BoldItalic);
     }
 
     static string Resolve(params string[] families) =>
@@ -73,7 +74,7 @@ public abstract class TerrainInk : IDisposable
     public void Dispose()
     {
         _serif.Dispose(); _serifBold.Dispose(); _serifItalic.Dispose();
-        _sans.Dispose(); _sansBold.Dispose(); _sansItalic.Dispose();
+        _sans.Dispose(); _sansBold.Dispose(); _sansItalic.Dispose(); _sansBoldItalic.Dispose();
     }
 
     // ───────────────────────────── terrain ─────────────────────────────
@@ -101,7 +102,7 @@ public abstract class TerrainInk : IDisposable
             int zm = Math.Max(0, iz - 1), zp = Math.Min(h - 1, iz + 1);
             for (int ix = 0; ix < w; ix++)
             {
-                if (s.IsWater(f[ix, iz])) { pixels[iz * w + ix] = unchecked((int)sea); continue; }
+                if (s.IsWater(f[ix, iz]) || s.PaintedWater.Length > 0 && s.PaintedWater[iz * w + ix]) { pixels[iz * w + ix] = unchecked((int)sea); continue; }
                 int xm = Math.Max(0, ix - 1), xp = Math.Min(w - 1, ix + 1);
                 double gx = (f[xp, iz] - f[xm, iz]) / ((xp - xm) * cell);   // dh/dX
                 double gz = (f[ix, zp] - f[ix, zm]) / ((zp - zm) * cell);   // dh/dZ
@@ -121,18 +122,53 @@ public abstract class TerrainInk : IDisposable
             }
         });
 
-        using var bitmap = new SKBitmap(new SKImageInfo(w, h, SKColorType.Bgra8888, SKAlphaType.Opaque));
+        DrawRaster(canvas, f, p, pixels, SKAlphaType.Opaque);
+    }
+
+    /// <summary>Draws one pixel per terrain cell, mapping the raster's axes through the projection.</summary>
+    static void DrawRaster(SKCanvas canvas, GreensBook.Heightfield f, MapProjection p, int[] pixels, SKAlphaType alpha)
+    {
+        using var bitmap = new SKBitmap(new SKImageInfo(f.Width, f.Height, SKColorType.Bgra8888, alpha));
         Marshal.Copy(pixels, 0, bitmap.GetPixels(), pixels.Length);
         using var image = SKImage.FromBitmap(bitmap);
-        // Bitmap pixel (i, j) covers world cell (i, j): map the raster's axes through the projection.
+        // Bitmap pixel (i, j) covers world cell (i, j).
         var o = p.Map(f.Origin);
-        var ax = p.Map(f.Origin + new Vec2(cell, 0));
-        var az = p.Map(f.Origin + new Vec2(0, cell));
+        var ax = p.Map(f.Origin + new Vec2(f.Cell, 0));
+        var az = p.Map(f.Origin + new Vec2(0, f.Cell));
         var matrix = new SKMatrix(ax.X - o.X, az.X - o.X, o.X, ax.Y - o.Y, az.Y - o.Y, o.Y, 0, 0, 1);
         canvas.Save();
         canvas.Concat(in matrix);
         canvas.DrawImage(image, 0, 0, new SKSamplingOptions(SKCubicResampler.Mitchell));
         canvas.Restore();
+    }
+
+    /// <summary>
+    /// Painted streams and ponds, laid over the contours (the bed under the water isn't contoured), with their edges,
+    /// and a dashed outline of the whole painted area so stretches left dry by higher ground still show.
+    /// </summary>
+    protected void DrawPaintedWater(SKCanvas canvas, TerrainSurvey s, MapProjection p)
+    {
+        if (s.PaintedWaterFootprint.Count > 0)
+        {
+            using var dashed = Stroke(Shore.WithAlpha(150), 0.45f * _u);
+            using var dash = SKPathEffect.CreateDash([2.2f * _u, 1.6f * _u], 0);
+            dashed.PathEffect = dash;
+            using var fb = new SKPathBuilder();
+            foreach (var line in s.PaintedWaterFootprint) p.AddPolyline(fb, line, close: false, tolerance: 0.35f);
+            using var fp = fb.Detach();
+            canvas.DrawPath(fp, dashed);
+        }
+        if (s.PaintedWater.Length == 0) return;
+        // Premultiplied sea colour; the cubic resampling softens the cell edges.
+        uint wet = 0xFF000000u | (uint)Sea.Red << 16 | (uint)Sea.Green << 8 | Sea.Blue;
+        var pixels = new int[s.PaintedWater.Length];
+        for (int i = 0; i < pixels.Length; i++) if (s.PaintedWater[i]) pixels[i] = unchecked((int)wet);
+        DrawRaster(canvas, s.Field, p, pixels, SKAlphaType.Premul);
+        using var edge = Stroke(Shore, 0.6f * _u);
+        using var b = new SKPathBuilder();
+        foreach (var line in s.PaintedWaterEdges) p.AddPolyline(b, line, close: false, tolerance: 0.35f);
+        using var path = b.Detach();
+        canvas.DrawPath(path, edge);
     }
 
     protected void DrawShoreline(SKCanvas canvas, TerrainSurvey s, MapProjection p)
@@ -223,6 +259,8 @@ public abstract class TerrainInk : IDisposable
                 var mid = PointAt(pts, cum, at);
                 if (SKPoint.Distance(a, b) < 2 * half * 0.94f) continue;               // too curvy here
                 if (!safe.Contains(mid)) continue;
+                // No labels on cliff faces: the lines are too close to read them against.
+                if (s.SlopePct(WorldAt(c.Points, cum, at)) > 60) continue;
                 var box = SKRect.Create(mid.X - half, mid.Y - size * 0.7f, 2 * half, size * 1.4f);
                 if (obstacles.Any(o => o.IntersectsWith(Inflate(box, 6 * u)))) continue;
                 if (routes.Any(r => DistanceToPolyline(mid, r) < half + 6 * u)) continue;
@@ -377,17 +415,19 @@ public abstract class TerrainInk : IDisposable
     {
         float u = _u;
         float radius = Math.Max(3.5f * u, (float)(_o.GreenSiteRadiusMetres * p.PointsPerMetre));
+        // The site circle sits on the drawn green when there is one; the flag stays on the route's end.
+        var site = p.Map(h.GreenSiteCentre);
         if (FillGreenSites)
-            using (var fill = Fill(GreenFill.WithAlpha(150))) canvas.DrawCircle(at, radius, fill);
-        using (var edge = Stroke(GreenEdge, 0.9f * u)) canvas.DrawCircle(at, radius, edge);
+            using (var fill = Fill(GreenFill.WithAlpha(150))) canvas.DrawCircle(site, radius, fill);
+        using (var edge = Stroke(GreenEdge, 0.9f * u)) canvas.DrawCircle(site, radius, edge);
 
-        // Fall arrow across the green site, when it falls by more than 1 %.
-        if (h.GreenSiteSlopePct > 1 && h.GreenSiteFallDirection.Length > 0)
+        // Fall arrow across the green site, when its best-fit plane falls by more than 1 %.
+        if (h.GreenSiteGradePct > 1 && h.GreenSiteFallDirection.Length > 0)
         {
             var d = p.MapDirection(h.GreenSiteFallDirection);
             float len = radius * 0.72f;
-            var a = new SKPoint(at.X - d.X * len, at.Y - d.Y * len);
-            var b = new SKPoint(at.X + d.X * len, at.Y + d.Y * len);
+            var a = new SKPoint(site.X - d.X * len, site.Y - d.Y * len);
+            var b = new SKPoint(site.X + d.X * len, site.Y + d.Y * len);
             using var arrow = Stroke(GreenEdge, 0.8f * u);
             canvas.DrawLine(a, b, arrow);
             var n = new SKPoint(-d.Y, d.X);
@@ -501,6 +541,18 @@ public abstract class TerrainInk : IDisposable
         if (i >= pts.Length) return pts[^1];
         float t = (s - cum[i - 1]) / Math.Max(1e-6f, cum[i] - cum[i - 1]);
         return new SKPoint(pts[i - 1].X + (pts[i].X - pts[i - 1].X) * t, pts[i - 1].Y + (pts[i].Y - pts[i - 1].Y) * t);
+    }
+
+    /// <summary>World point at page distance <paramref name="at"/> along a projected line (uniform scale, so proportional).</summary>
+    static Vec2 WorldAt(IReadOnlyList<Vec2> world, float[] cum, float at)
+    {
+        int i = Array.BinarySearch(cum, at);
+        if (i >= 0) return world[i];
+        i = ~i;
+        if (i <= 0) return world[0];
+        if (i >= world.Count) return world[^1];
+        double t = (at - cum[i - 1]) / Math.Max(1e-6, cum[i] - cum[i - 1]);
+        return world[i - 1] + (world[i] - world[i - 1]) * t;
     }
 
     protected static SKPoint Tangent(SKPoint[] pts, float[] cum, float s)

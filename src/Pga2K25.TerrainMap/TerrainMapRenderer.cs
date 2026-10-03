@@ -48,9 +48,11 @@ public sealed class TerrainMapRenderer : TerrainInk
         var obstacles = new List<SKRect>();
         var summitLabels = _o.ShowSummits ? PlaceSummits(s, l.Projection, l.Map, obstacles) : [];
         DrawContours(canvas, s, l.Projection, l.Map, routes, obstacles);
+        DrawPaintedWater(canvas, s, l.Projection);
         DrawSummits(canvas, summitLabels);
         if (_o.GridYards > 0) DrawGridLines(canvas, l);
         DrawRouting(canvas, s.Holes, l.Projection, routes, obstacles);
+        DrawLandmarks(canvas, s, l.Projection, routes, obstacles);
         canvas.Restore();
 
         using (var frame = Stroke(Ink, 0.9f * _u)) canvas.DrawRect(l.Map, frame);
@@ -89,6 +91,30 @@ public sealed class TerrainMapRenderer : TerrainInk
         }
     }
 
+    void DrawLandmarks(SKCanvas canvas, TerrainSurvey s, MapProjection p, List<SKPoint[]> routes, List<SKRect> obstacles)
+    {
+        float u = _u;
+        using var ink = Fill(Ink);
+        using var ring = Stroke(Paper, 0.8f * u);
+        foreach (var lm in s.Landmarks)
+        {
+            var at = p.Map(lm.Position);
+            if (lm.Minor)
+            {
+                canvas.DrawCircle(at, 1.6f * u, ink);
+                if (lm.Label.Length > 0)
+                    Text(canvas, lm.Label, at.X + 3 * u, at.Y + 2 * u, 5.4f * u, _sansItalic, Ink, halo: Paper);
+                continue;
+            }
+            var box = new SKRect(at.X - 2.6f * u, at.Y - 2.6f * u, at.X + 2.6f * u, at.Y + 2.6f * u);
+            canvas.DrawRect(box, ink);
+            canvas.DrawRect(box, ring);
+            obstacles.Add(box);
+            PlaceText(canvas, lm.Label, at, 5 * u, 6.6f * u, _sansBoldItalic, Ink, routes.Count > 0 ? routes : [[at, at]], obstacles,
+                preferred: new SKPoint(1, 0));
+        }
+    }
+
     public static string ColumnName(int i) => i < 26 ? ((char)('A' + i)).ToString() : ColumnName(i / 26 - 1) + (char)('A' + i % 26);
 
     // ───────────────────────────── title & panel ─────────────────────────────
@@ -99,7 +125,7 @@ public sealed class TerrainMapRenderer : TerrainInk
         var t = l.Title;
         string name = string.IsNullOrWhiteSpace(s.Course.Name) ? "Course" : s.Course.Name;
         Text(canvas, name.ToUpperInvariant(), t.Left, t.Top + 26 * u, 26 * u, _serifBold, Ink, tracking: 2.2f * u);
-        Text(canvas, $"Terrain & routing plan  ·  {Interval(s)} contours, index every {s.IntervalFeet * s.IndexEvery:0.##} ft  ·  " +
+        Text(canvas, $"{(s.Holes.Count == 0 ? "Terrain plan for routing" : "Terrain & routing plan")}  ·  {Interval(s)} contours, index every {s.IntervalFeet * s.IndexEvery:0.##} ft  ·  " +
                      (s.SeaLevelMetres is null ? "elevations in feet above the lowest point on the sheet" : "elevations in feet above sea level"), t.Left, t.Top + 44 * u, 10 * u, _serifItalic, Grey);
         if (!string.IsNullOrWhiteSpace(_o.Credit))
             Text(canvas, _o.Credit.ToUpperInvariant(), t.Right, t.Top + 26 * u, 9 * u, _serif, Grey, SKTextAlign.Right, tracking: 1.6f * u);
@@ -112,7 +138,7 @@ public sealed class TerrainMapRenderer : TerrainInk
 
     const float RowH = 12.5f;
 
-    float PanelHeight(TerrainSurvey s) => (300 + RowH * (s.Holes.Count + 2) + 420) * _u;
+    float PanelHeight(TerrainSurvey s) => (s.Holes.Count == 0 ? 520 : 300 + RowH * (s.Holes.Count + 2) + 420) * _u;
 
     void DrawPanel(SKCanvas canvas, TerrainSurvey s, Layout l)
     {
@@ -128,6 +154,24 @@ public sealed class TerrainMapRenderer : TerrainInk
             y += 22 * u;
         }
 
+        if (s.Holes.Count == 0)
+        {
+            // Blank plot: what there is to route around.
+            Heading("THE PLOT");
+            Text(canvas, "No holes routed yet", r.Left, y + 6 * u, 10 * u, _serifBold, Ink);
+            y += 16 * u;
+            Text(canvas, $"{(s.Max.X - s.Min.X) * TerrainSurvey.YardsPerMetre:N0} × {(s.Max.Z - s.Min.Z) * TerrainSurvey.YardsPerMetre:N0} yds  ·  " +
+                         $"high point {s.MaxFeet:0} ft", r.Left, y + 6 * u, 8 * u, _serifItalic, Grey);
+            y += 14 * u;
+            foreach (var lm in s.Landmarks.Where(l => !l.Minor))
+            {
+                Text(canvas, $"{lm.Name}  ·  {s.Feet(lm.Position):0} ft", r.Left, y + 6 * u, 7.6f * u, _sans, Ink);
+                y += 11 * u;
+            }
+            y += 14 * u;
+        }
+        else
+        {
         // Summary.
         Heading("THE ROUTING");
         int totalYards = s.Holes.Sum(h => h.Yards), par = s.Holes.Sum(h => h.Hole.Par);
@@ -139,8 +183,8 @@ public sealed class TerrainMapRenderer : TerrainInk
 
         // Hole table.
         Heading("HOLES  (back tees)");
-        float[] cols = [0, 22, 46, 86, 122, 160, 200];
-        string[] head = ["No.", "Par", "Yds", "Tee ft", "Green ft", "Change", "Site"];
+        float[] cols = [0, 20, 42, 78, 112, 146, 180, 206];
+        string[] head = ["No.", "Par", "Yds", "Tee ft", "Green ft", "Change", "Tilt", "±ft"];
         for (int i = 0; i < head.Length; i++)
             Text(canvas, head[i], r.Left + (cols[i] + (i == 0 ? 0 : 30)) * u, y + 6 * u, 6.8f * u, _sansBold, Grey, i == 0 ? SKTextAlign.Left : SKTextAlign.Right);
         y += RowH * u;
@@ -150,20 +194,20 @@ public sealed class TerrainMapRenderer : TerrainInk
             [
                 h.Hole.Number.ToString(), h.Hole.Par.ToString(), h.Yards.ToString(), $"{h.TeeFeet:0}", $"{h.GreenFeet:0}",
                 Math.Abs(h.ChangeFeet) < 0.5 ? "0" : $"{(h.ChangeFeet > 0 ? "+" : "−")}{Math.Abs(h.ChangeFeet):0}",
-                $"{h.GreenSiteSlopePct:0.0}%",
+                $"{h.GreenSiteGradePct:0.0}%", $"{h.GreenSiteReliefFeet:0}",
             ];
             for (int i = 0; i < cells.Length; i++)
             {
-                var colour = i == 6 && h.GreenSiteSlopePct > 5 ? Flag : Ink;
-                Text(canvas, cells[i], r.Left + (cols[i] + (i == 0 ? 0 : 30)) * u, y + 6 * u, 7.6f * u, i == 0 ? _sansBold : _sans, colour,
+                Text(canvas, cells[i], r.Left + (cols[i] + (i == 0 ? 0 : 30)) * u, y + 6 * u, 7.6f * u, i == 0 ? _sansBold : _sans, Ink,
                     i == 0 ? SKTextAlign.Left : SKTextAlign.Right);
             }
             y += RowH * u;
         }
-        Text(canvas, $"Change: green vs back tee.  Site: mean slope within {_o.GreenSiteRadiusMetres * TerrainSurvey.YardsPerMetre:0} yds", r.Left, y + 6 * u, 6.6f * u, _sansItalic, Grey);
+        Text(canvas, $"Change: green vs back tee.  Green site (drawn green, or {_o.GreenSiteRadiusMetres * TerrainSurvey.YardsPerMetre:0} yds round) as the", r.Left, y + 6 * u, 6.6f * u, _sansItalic, Grey);
         y += 10 * u;
-        Text(canvas, "of the green anchor (red over 5 %).", r.Left, y + 6 * u, 6.6f * u, _sansItalic, Grey);
+        Text(canvas, "ground lies, before shaping: tilt of its best-fit plane, ± most the ground departs from it.", r.Left, y + 6 * u, 6.6f * u, _sansItalic, Grey);
         y += 22 * u;
+        }
 
         // Legend.
         Heading("LEGEND");
@@ -192,6 +236,8 @@ public sealed class TerrainMapRenderer : TerrainInk
                 using var f = Fill(Ink);
                 canvas.DrawPath(tri, f);
             }, "Hilltop spot height (ft)");
+        if (s.Holes.Count > 0)
+        {
         Row(cy =>
         {
             using var c = Stroke(Ink, 1.3f * u);
@@ -224,6 +270,14 @@ public sealed class TerrainMapRenderer : TerrainInk
             canvas.DrawCircle(c, 5.5f * u, f);
             Text(canvas, "7", c.X, c.Y + 2.4f * u, 6.6f * u, _sansBold, SKColors.White, SKTextAlign.Center);
         }, "Hole number · par · yards · rise or fall to green");
+        }
+        if (s.Landmarks.Count > 0)
+            Row(cy =>
+            {
+                var c = new SKPoint(sx + sw / 2, cy + 1 * u);
+                using var f = Fill(Ink);
+                canvas.DrawRect(c.X - 2.6f * u, c.Y - 2.6f * u, 5.2f * u, 5.2f * u, f);
+            }, "Clubhouse, range tee, practice green (· range markers, yds)");
         if (_o.GridYards > 0)
             Row(cy =>
             {
@@ -239,6 +293,14 @@ public sealed class TerrainMapRenderer : TerrainInk
                 using var e = Stroke(Shore, 0.9f * u);
                 canvas.DrawLine(sx + 2 * u, cy - 5 * u, sx + sw - 2 * u, cy - 5 * u, e);
             }, "Sea, with shoreline at 0 ft (from the ocean props)");
+        if (s.PaintedWaterFootprint.Count > 0)
+            Row(cy =>
+            {
+                using var f = Fill(Sea);
+                canvas.DrawRect(sx + 2 * u, cy - 4 * u, sw - 4 * u, 8 * u, f);
+                using var e = Stroke(Shore, 0.6f * u);
+                canvas.DrawRect(sx + 2 * u, cy - 4 * u, sw - 4 * u, 8 * u, e);
+            }, "Painted water; dashed where painted over ground above its level");
         if (_o.ShowFeatures && (s.Layers.Grass.Count + s.Layers.Greens.Count + s.Layers.BunkerAreas.Count + s.Layers.WaterAreas.Count) > 0)
             Row(cy =>
             {

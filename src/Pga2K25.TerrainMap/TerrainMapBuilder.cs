@@ -11,7 +11,6 @@ public static class TerrainMapBuilder
     public static TerrainMapResult Build(string coursePath, string outputDir, TerrainMapOptions options, IProgress<string>? log = null)
     {
         var course = CourseFile.Load(coursePath).ReadModel();
-        if (course.Holes.Count == 0) throw new InvalidOperationException("The course has no holes to route.");
 
         var survey = TerrainSurvey.Build(course, options);
         log?.Report($"Terrain: {course.HeightStamps.Count:N0} stamps replayed over {(survey.Max.X - survey.Min.X):0} × {(survey.Max.Z - survey.Min.Z):0} m " +
@@ -21,9 +20,12 @@ public static class TerrainMapBuilder
         log?.Report(survey.SeaLevelMetres is { } sea
             ? $"Sea level {sea:0.##} m (ocean props); shoreline traced in {survey.Shoreline.Count} piece(s){ShoreCheck(survey)}; elevations above sea level."
             : "No sea on the sheet; elevations above the lowest point.");
+        if (course.WaterBrushes.Count > 0) log?.Report(PaintedWaterNote(survey));
+        if (survey.Holes.Count == 0)
+            log?.Report($"No holes routed: whole plot mapped; landmarks: {string.Join(", ", survey.Landmarks.Where(l => !l.Minor).Select(l => l.Name).DefaultIfEmpty("none"))}.");
         foreach (var h in survey.Holes)
             log?.Report($"Hole {h.Hole.Number,2}: par {h.Hole.Par}, {h.Yards} yds, tee {h.TeeFeet:0} ft → green {h.GreenFeet:0} ft " +
-                        $"({h.ChangeFeet:+0;-0;0} ft), green site {h.GreenSiteSlopePct:0.0}%.");
+                        $"({h.ChangeFeet:+0;-0;0} ft), {SiteNote(h)}.");
 
         using var renderer = new TerrainMapRenderer(options);
         var size = renderer.PageSize(survey);
@@ -36,12 +38,27 @@ public static class TerrainMapBuilder
         string baseName = string.Concat((string.IsNullOrWhiteSpace(course.Name) ? Path.GetFileNameWithoutExtension(coursePath) : course.Name)
             .Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)).Trim();
         string path = Path.Combine(outputDir, $"{baseName} - Terrain Map.png");
-        using (var image = surface.Snapshot())
-        using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
+        // Lossless, maximum zlib effort: these sheets are large and mostly smooth tint and fine lines.
+        using (var pixmap = surface.PeekPixels())
+        using (var data = pixmap.Encode(new SKPngEncoderOptions(SKPngEncoderFilterFlags.AllFilters, 9)))
         using (var f = File.Create(path))
             data.SaveTo(f);
         log?.Report($"Terrain map ({size.Width:N0} × {size.Height:N0} px): {path}");
         return new TerrainMapResult(path, size, survey);
+    }
+
+    internal static string SiteNote(HoleRouting h) =>
+        $"{(h.GreenSiteIsDrawn ? "drawn green" : "green site")} {h.GreenSiteGradePct:0.0}% tilt, ±{h.GreenSiteReliefFeet:0.0} ft";
+
+    /// <summary>The painted water's level(s) and how much of it is wet: a check that the brushes sit below the terrain.</summary>
+    static string PaintedWaterNote(TerrainSurvey s)
+    {
+        var levels = s.Course.WaterBrushes.Select(b => Math.Round((b.Value - s.DatumMetres) * TerrainSurvey.FeetPerMetre)).Distinct().Order().ToList();
+        double area = s.PaintedWater.Count(w => w) * s.Field.Cell * s.Field.Cell;
+        string at = $"{s.Course.WaterBrushes.Count} water brush(es) at {string.Join(", ", levels.Select(l => $"{l:0}"))} ft";
+        return area > 0
+            ? $"Painted water: {at}; {area:N0} m² below that level drawn as water."
+            : $"Painted water: {at}, but the modelled ground under them is all above that level, so none is drawn.";
     }
 
     /// <summary>How far the on-sheet surf props sit from the modelled shoreline: a check on the terrain replay.</summary>
@@ -91,7 +108,7 @@ public static class HoleSheetBuilder
             var r = sheet.Routing;
             log?.Report($"Hole {h.Number,2}: par {h.Par}, {r.Yards} yds, sheet {(sheet.Along.To - sheet.Along.From) * TerrainSurvey.YardsPerMetre:0} × " +
                         $"{(sheet.Across.To - sheet.Across.From) * TerrainSurvey.YardsPerMetre:0} yds, {sheet.Survey.IntervalFeet:0.##} ft contours, " +
-                        $"tee {r.TeeFeet:0} → green {r.GreenFeet:0} ft, green site {r.GreenSiteSlopePct:0.0}%.");
+                        $"tee {r.TeeFeet:0} → green {r.GreenFeet:0} ft, {TerrainMapBuilder.SiteNote(r)}.");
         }
 
         string baseName = string.Concat((string.IsNullOrWhiteSpace(course.Name) ? Path.GetFileNameWithoutExtension(coursePath) : course.Name)

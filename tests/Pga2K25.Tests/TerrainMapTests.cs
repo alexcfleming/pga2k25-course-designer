@@ -94,6 +94,76 @@ public class TerrainMapTests
     }
 }
 
+public class BlankPlotTests
+{
+    [Fact]
+    public void BlankPlot_MapsTheWholePlotWithLandmarksAndAPlateauInterval()
+    {
+        var course = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, "falcons-nest.course")).ReadModel();
+        Assert.Empty(course.Holes);
+        var s = TerrainSurvey.Build(course, new TerrainMapOptions { Terrain = new TerrainMapOptions().Terrain with { CellMetres = 2 } });
+        Assert.Empty(s.Holes);
+        Assert.True(s.Max.X - s.Min.X > 1900);                              // the whole 2 km plot
+        Assert.Contains(s.Landmarks, l => l.Name == "Clubhouse");
+        Assert.Contains(s.Landmarks, l => l.Name == "Driving range");
+        Assert.Contains(s.Landmarks, l => l.Name == "Range marker" && l.Label == "150");
+        // The plateau around the clubhouse sets the interval, not the 800 ft of cliffs around it.
+        Assert.True(s.IntervalFeet <= 5, $"interval {s.IntervalFeet}");
+        Assert.True(s.MaxFeet / (s.IntervalFeet * s.IndexEvery) <= 120);
+    }
+}
+
+public class WaterAndGreenSiteTests
+{
+    static TerrainSurvey Survey(string file) =>
+        TerrainSurvey.Build(CourseFile.Load(Path.Combine(TestPaths.SamplesDir, file)).ReadModel(),
+            new TerrainMapOptions { Terrain = new TerrainMapOptions().Terrain with { CellMetres = 2 } });
+
+    static readonly Lazy<TerrainSurvey> Berwick = new(() => Survey("berwick-coast.course"));
+
+    [Fact]
+    public void PaintedWater_IsDrawnWhereTheGroundIsBelowItsLevel()
+    {
+        var s = Berwick.Value;
+        Assert.Equal(55, s.Course.WaterBrushes.Count);                     // a 700 m stream at 8.5 m
+        Assert.Null(s.SeaLevelMetres);
+        Assert.NotEmpty(s.PaintedWaterEdges);
+        Assert.NotEmpty(s.PaintedWaterFootprint);
+        int wet = 0;
+        for (int i = 0; i < s.PaintedWater.Length; i++)
+        {
+            if (!s.PaintedWater[i]) continue;
+            wet++;
+            Assert.True(s.Field.Values[i] < 8.51);
+        }
+        Assert.InRange(wet * s.Field.Cell * s.Field.Cell, 1000, 7000);     // the dabs are joined into a stroke, not beads
+    }
+
+    [Fact]
+    public void GreenSite_SeparatesTiltFromLumpiness()
+    {
+        // Berwick 11 sits among dune mounds: nearly level overall but very uneven. Berwick 8 is an even, steep slope.
+        var s = Berwick.Value;
+        var h11 = s.Holes.Single(h => h.Hole.Number == 11);
+        var h8 = s.Holes.Single(h => h.Hole.Number == 8);
+        Assert.True(h11.GreenSiteGradePct < 8 && h11.GreenSiteReliefFeet > 10, $"{h11.GreenSiteGradePct} / {h11.GreenSiteReliefFeet}");
+        Assert.True(h8.GreenSiteGradePct > 25, $"{h8.GreenSiteGradePct}");
+    }
+
+    [Fact]
+    public void GreenSite_UsesADrawnGreenAtTheAnchor()
+    {
+        // Murray Estate 1's route ends 11 m off its drawn green's centre, beside raised pads.
+        var s = Survey("murray-estate.course");
+        var h1 = s.Holes.Single(h => h.Hole.Number == 1);
+        Assert.True(h1.GreenSiteIsDrawn);
+        Assert.True(Vec2.Distance(h1.GreenSiteCentre, h1.Hole.GreenAnchor) > 5);
+        Assert.Contains(s.Layers.Greens, g => Geometry.Contains(g, h1.GreenSiteCentre));
+        Assert.True(h1.GreenSiteGradePct < 5, $"{h1.GreenSiteGradePct}");
+        Assert.All(s.Holes.Where(h => !h.GreenSiteIsDrawn), h => Assert.Equal(h.Hole.GreenAnchor, h.GreenSiteCentre));
+    }
+}
+
 public class HoleSheetTests
 {
     static readonly string SaganPath = Path.Combine(TestPaths.SamplesDir, "sagan-khushun.course");
