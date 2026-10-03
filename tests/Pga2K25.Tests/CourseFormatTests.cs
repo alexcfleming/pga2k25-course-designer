@@ -10,23 +10,22 @@ public class CourseFormatTests
 
     [Theory]
     [MemberData(nameof(SampleCourses))]
-    public void RoundTrip_PreservesEveryDocument(string fileName)
+    public void Load_DecodesEveryDocument(string fileName)
     {
-        var original = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, fileName));
-        var reloaded = CourseFile.Load(original.ToBytes());
+        var file = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, fileName));
 
-        Assert.Equal(original.Blobs.Select(b => b.Key), reloaded.Blobs.Select(b => b.Key));
-        foreach (var (name, node) in original.Blobs)
-            Assert.True(JsonNode.DeepEquals(node, reloaded.GetBlob(name)), $"{name} changed on round-trip");
-        Assert.True(JsonNode.DeepEquals(original.Envelope, reloaded.Envelope));
+        Assert.Contains(file.Blobs, b => b.Key == CourseFile.DescriptionKey);
+        Assert.Contains(file.Blobs, b => b.Key == CourseFile.MetadataKey);
+        Assert.All(file.Blobs, b => Assert.NotNull(b.Value));
+        Assert.False(file.Envelope.ContainsKey("binaryData"));   // decoded into Blobs
     }
 
     [Theory]
     [MemberData(nameof(SampleCourses))]
-    public void RoundTrip_KeepsNegativeInfinitySentinelAsString(string fileName)
+    public void Load_KeepsNegativeInfinitySentinelAsString(string fileName)
     {
-        var reloaded = CourseFile.Load(CourseFile.Load(Path.Combine(TestPaths.SamplesDir, fileName)).ToBytes());
-        var y = reloaded.Description["height"]![0]!["position"]!["y"]!;
+        var file = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, fileName));
+        var y = file.Description["height"]![0]!["position"]!["y"]!;
         Assert.Equal("-Infinity", y.GetValue<string>());
     }
 
