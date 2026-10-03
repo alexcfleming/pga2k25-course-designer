@@ -1,7 +1,6 @@
 <Window x:Class="Pga2K25.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:fin="clr-namespace:Pga2K25.Finisher.Desktop;assembly=Pga2K25.Finisher.Desktop"
         Title="PGA 2K25 Course Designer" Height="820" Width="1000" MinHeight="560" MinWidth="760"
         Background="White" FontFamily="Georgia" FontSize="13">
     <Window.Resources>
@@ -27,7 +26,7 @@
         <StackPanel Grid.Row="0" Margin="0,0,0,12">
             <TextBlock Text="Course Designer" FontSize="26" FontWeight="Bold" Foreground="{StaticResource Ink}"/>
             <TextBlock Foreground="{StaticResource Grey}" FontStyle="Italic" TextWrapping="Wrap"
-                       Text="Greens books, scorecard maps, yardage books, terrain maps, course cards and course finishing for PGA TOUR 2K25 Course Designer .course files."/>
+                       Text="Greens books, scorecard maps, yardage books, terrain maps and course cards from PGA TOUR 2K25 Course Designer .course files (read only)."/>
         </StackPanel>
 
         <Grid Grid.Row="1" Margin="0,0,0,10">
@@ -191,9 +190,6 @@
                     </WrapPanel>
                     <Button x:Name="CardsButton" Content="Create Course Cards" HorizontalAlignment="Left" Margin="0" FontWeight="Bold" Click="Cards_Click"/>
                 </StackPanel>
-            </TabItem>
-            <TabItem Header="Course Finisher">
-                <fin:FinisherPanel x:Name="Finisher" MaxHeight="340"/>
             </TabItem>
         </TabControl>
 

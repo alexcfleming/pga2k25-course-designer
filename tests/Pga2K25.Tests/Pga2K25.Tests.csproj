@@ -25,7 +25,6 @@
     <ProjectReference Include="..\..\src\Pga2K25.CourseFormat\Pga2K25.CourseFormat.csproj" />
     <ProjectReference Include="..\..\src\Pga2K25.Maps\Pga2K25.Maps.csproj" />
     <ProjectReference Include="..\..\src\Pga2K25.YardageBook\Pga2K25.YardageBook.csproj" />
-    <ProjectReference Include="..\..\src\Pga2K25.Finisher\Pga2K25.Finisher.csproj" />
     <ProjectReference Include="..\..\src\Pga2K25.TerrainMap\Pga2K25.TerrainMap.csproj" />
     <ProjectReference Include="..\..\src\Pga2K25.CourseCard\Pga2K25.CourseCard.csproj" />
   </ItemGroup>

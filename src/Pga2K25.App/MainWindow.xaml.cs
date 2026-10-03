@@ -5,7 +5,6 @@ using System.Windows.Controls;
 using Microsoft.Win32;
 using Pga2K25.CourseCard;
 using Pga2K25.CourseFormat;
-using Pga2K25.Finisher.Desktop;
 using Pga2K25.GreensBook;
 using Pga2K25.Maps;
 using Pga2K25.TerrainMap;
@@ -13,19 +12,14 @@ using Pga2K25.YardageBook;
 
 namespace Pga2K25.App;
 
-public partial class MainWindow : Window, IFinisherHost
+public partial class MainWindow : Window
 {
     string? _lastOutput;
 
     public MainWindow()
     {
         InitializeComponent();
-        Finisher.Host = this;
     }
-
-    string? IFinisherHost.CoursePath => TryInputs(out var course, out _) ? course : null;
-    string? IFinisherHost.OutputFolder => OutputBox.Text.Trim() is { Length: > 0 } f ? f : null;
-    Task IFinisherHost.Run(Button button, string title, Func<IProgress<string>, string?> work) => Run(button, title, work);
 
     void BrowseCourse_Click(object sender, RoutedEventArgs e)
     {
@@ -34,7 +28,6 @@ public partial class MainWindow : Window, IFinisherHost
         CourseBox.Text = dialog.FileName;
         if (string.IsNullOrWhiteSpace(OutputBox.Text))
             OutputBox.Text = Path.GetDirectoryName(dialog.FileName);
-        Finisher.ResetOutput();
         Summarize(dialog.FileName);
     }
 
