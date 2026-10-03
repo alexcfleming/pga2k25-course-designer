@@ -12,6 +12,7 @@
           </Border>
           <Button Content="Refresh" Command="{Binding ReloadCommand}"/>
           <Button Content="Add course…" Click="AddCourse_Click"/>
+          <Button Content="Settings" Command="{Binding OpenSettingsCommand}"/>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
           <TextBlock Text="Course Designer" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center"/>

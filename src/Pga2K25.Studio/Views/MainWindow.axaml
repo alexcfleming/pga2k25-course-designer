@@ -13,6 +13,9 @@
     <DataTemplate DataType="vm:WorkspaceViewModel">
       <views:WorkspaceView/>
     </DataTemplate>
+    <DataTemplate DataType="vm:SettingsViewModel">
+      <views:SettingsView/>
+    </DataTemplate>
   </Window.DataTemplates>
   <ContentControl Content="{Binding Current}"/>
 </Window>

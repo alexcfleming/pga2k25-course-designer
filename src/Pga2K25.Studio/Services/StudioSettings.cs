@@ -11,6 +11,17 @@ public sealed class StudioSettings
     public string OutputRoot { get; set; } = Path.Combine(Documents, "PGA 2K25 Greens Books");
     public string Credit { get; set; } = "ALEX C. FLEMING";
 
+    /// <summary>Course files opened most recently first (at most <see cref="MaxRecent"/>).</summary>
+    public List<string> Recent { get; set; } = [];
+    public const int MaxRecent = 6;
+
+    public void Touch(string coursePath)
+    {
+        Recent.RemoveAll(p => string.Equals(p, coursePath, StringComparison.OrdinalIgnoreCase));
+        Recent.Insert(0, coursePath);
+        if (Recent.Count > MaxRecent) Recent.RemoveRange(MaxRecent, Recent.Count - MaxRecent);
+    }
+
     /// <summary>Course files added by hand from outside the courses folder (e.g. a published course's saved copy).</summary>
     public List<string> ExtraCourses { get; set; } = [];
 

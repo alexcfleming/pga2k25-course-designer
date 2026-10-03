@@ -4,6 +4,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Pga2K25.Studio.ViewModels;
 
@@ -61,6 +62,28 @@ public partial class WorkspaceView : UserControl
         if ((e.KeyModifiers & KeyModifiers.Control) == 0) return;
         ApplyZoom(_zoom * (e.Delta.Y > 0 ? 1.2 : 1 / 1.2), e.GetPosition(_scroller));
         e.Handled = true;
+    }
+
+    async void BrowseWorkbook_Click(object? sender, RoutedEventArgs e)
+    {
+        if (await PickFile("Choose the hole-data workbook", "Workbook", ["*.xlsx", "*.csv"]) is { } path) _vm?.SetWorkbook(path);
+    }
+
+    async void BrowseCardConfig_Click(object? sender, RoutedEventArgs e)
+    {
+        if (await PickFile("Choose course card settings", "Card settings", ["*.json"]) is { } path) _vm?.SetCardConfig(path);
+    }
+
+    async Task<string?> PickFile(string title, string kind, IReadOnlyList<string> patterns)
+    {
+        if (TopLevel.GetTopLevel(this) is not { } top) return null;
+        var files = await top.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = title,
+            AllowMultiple = false,
+            FileTypeFilter = [new FilePickerFileType(kind) { Patterns = patterns }],
+        });
+        return files.FirstOrDefault()?.TryGetLocalPath();
     }
 
     void ZoomIn_Click(object? sender, RoutedEventArgs e) => ApplyZoom(_zoom * 1.25, null);
