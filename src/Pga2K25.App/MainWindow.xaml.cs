@@ -189,7 +189,7 @@ public partial class MainWindow : Window, IFinisherHost
         { MessageBox.Show(this, "Pixels per metre should be between 0.5 and 10.", "Terrain Map"); return null; }
         return new TerrainMapOptions
         {
-            Extent = TerrainExtentBox.SelectedIndex == 1 ? MapExtent.FullPlot : MapExtent.Routing,
+            Extent = TerrainExtentBox.SelectedIndex switch { 1 => MapExtent.FullPlot, 2 => MapExtent.Buildable, _ => MapExtent.Routing },
             Shading = (ReliefShading)TerrainShadingBox.SelectedIndex,
             ContourIntervalFeet = interval,
             PixelsPerMetre = ppm,

@@ -15,7 +15,7 @@ const string Usage = """
                     [--verbose] [--credit "NAME"]
       default output: one PDF workbook, a portrait 4.25 x 11 in page per hole
       --png       also write a 1275 x 3300 px PNG per hole
-    pga2k25 terrain <file.course> [-o <dir>] [--full-plot] [--margin 150] [--interval 5] [--index 5]
+    pga2k25 terrain <file.course> [-o <dir>] [--full-plot|--buildable] [--margin 150] [--interval 5] [--index 5]
                     [--shading relief|slope|none] [--ppm 4] [--cell 1.0] [--grid 100] [--no-features]
                     [--hardness 0.85] [--large-hardness 0.3] [--smooth 0] [--sea-level <m>] [--no-water]
                     [--holes 7,12|all [--sheet-grid 50] [--no-pdf] [--no-png]]
@@ -195,6 +195,7 @@ static int Terrain(string path, string[] rest)
             case "--no-pdf": sheet = sheet with { Pdf = false }; break;
             case "--no-png": sheet = sheet with { Png = false }; break;
             case "--full-plot": options = options with { Extent = MapExtent.FullPlot }; break;
+            case "--buildable": options = options with { Extent = MapExtent.Buildable }; break;
             case "--margin": options = options with { MarginMetres = NextDouble() }; break;
             case "--interval": options = options with { ContourIntervalFeet = NextDouble() }; break;
             case "--index": options = options with { IndexEvery = int.Parse(Next(), CultureInfo.InvariantCulture) }; break;

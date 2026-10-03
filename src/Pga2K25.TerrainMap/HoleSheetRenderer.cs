@@ -54,6 +54,7 @@ public sealed class HoleSheetRenderer : TerrainInk
         // Hilltop markers on the line itself would read as course furniture; leave those off.
         var summits = _o.ShowSummits ? PlaceSummits(s, p, map, obstacles).Where(t => DistanceToPolyline(t.At, route) > 12 * u).ToList() : [];
         DrawContours(canvas, s, p, map, all, obstacles, labelSpacing: 120);
+        DrawPaintedWater(canvas, s, p);
         DrawGridSpots(canvas, spots);
         DrawSummits(canvas, summits);
         DrawNeighbours(canvas, s, all, self, map);
@@ -132,7 +133,7 @@ public sealed class HoleSheetRenderer : TerrainInk
             foreach (var c in AcrossLines(h))
             {
                 var w = h.At(a, c);
-                if (h.Survey.IsWater(h.Survey.Field.Sample(w))) continue;
+                if (h.Survey.IsWet(w)) continue;
                 var at = p.Map(w);
                 if (DistanceToPolyline(at, route) < 18 * u) continue;
                 string text = Feet(h.Survey.Feet(w));
@@ -205,7 +206,7 @@ public sealed class HoleSheetRenderer : TerrainInk
             var pt = PointAt(r, cum, at);
             var dir = Tangent(r, cum, at);
             var n = new SKPoint(dir.Y, -dir.X);   // opposite side to the tick numbers
-            if (h.Survey.IsWater(h.Survey.Field.Sample(w))) continue;
+            if (h.Survey.IsWet(w)) continue;
             // Aim points carry their own label; keep their surroundings clear.
             if (r.Skip(1).SkipLast(1).Any(a => SKPoint.Distance(a, pt) < 14 * u)) continue;
             var lp = new SKPoint(pt.X + n.X * 9 * u, pt.Y + n.Y * 9 * u + size * 0.36f);
@@ -226,8 +227,8 @@ public sealed class HoleSheetRenderer : TerrainInk
 
         string change = Math.Abs(h.ChangeFeet) < 0.5 ? "level" : $"{(h.ChangeFeet > 0 ? "+" : "−")}{Math.Abs(h.ChangeFeet):0} ft";
         Text(canvas, $"Tee {h.TeeFeet:0} ft  →  green {h.GreenFeet:0} ft  ({change})", right, top + 10 * u, 8.5f * u, _sansBold, Ink, SKTextAlign.Right);
-        Text(canvas, $"Green site slope {h.GreenSiteSlopePct:0.0}%  ·  ground on sheet {s.CorridorFeet.Low:0}–{s.CorridorFeet.High:0} ft",
-            right, top + 22 * u, 7.5f * u, _sans, h.GreenSiteSlopePct > 5 ? Flag : Grey, SKTextAlign.Right);
+        Text(canvas, $"Green site as it lies: {h.GreenSiteGradePct:0.0}% tilt, ±{h.GreenSiteReliefFeet:0} ft  ·  ground on sheet {s.CorridorFeet.Low:0}–{s.CorridorFeet.High:0} ft",
+            right, top + 22 * u, 7.5f * u, _sans, Grey, SKTextAlign.Right);
 
         string datum = sheet.DatumIsSeaLevel ? "elevations in feet above sea level" : "elevations in feet, same datum as the course terrain map";
         Text(canvas, $"{courseName}  ·  terrain sketch sheet  ·  {s.IntervalFeet:0.##} ft contours, index every {s.IntervalFeet * s.IndexEvery:0.##} ft  ·  {datum}",
@@ -262,12 +263,13 @@ public sealed class HoleSheetRenderer : TerrainInk
             canvas.DrawCircle(x + sw / 2, y + 1.5f * u, 0.8f * u, dot);
             Text(canvas, "52", x + sw / 2 + 2 * u, y, 5 * u, _sansItalic, GridLine);
         }, $"Grid {_sheet.GridYards:0} yds, spot heights at crossings");
-        if (s.SeaLevelMetres is not null)
+        bool painted = s.PaintedWaterFootprint.Count > 0;
+        if (s.SeaLevelMetres is not null || painted)
             Row(0, 3, (x, y) =>
             {
                 using var f = Fill(Sea); canvas.DrawRect(x, y - 3.5f * u, sw, 7 * u, f);
                 using var e = Stroke(Shore, 0.9f * u); canvas.DrawLine(x, y - 3.5f * u, x + sw, y - 3.5f * u, e);
-            }, "Sea and shoreline");
+            }, s.SeaLevelMetres is null ? "Painted water" : painted ? "Sea, shoreline and painted water" : "Sea and shoreline");
 
         Row(1, 0, (x, y) =>
         {

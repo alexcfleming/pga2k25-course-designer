@@ -87,6 +87,12 @@ public sealed class CourseModel
     public required IReadOnlyList<HeightStamp> HeightStamps { get; init; }
     public required IReadOnlyList<SurfaceBrush> SurfaceBrushes { get; init; }
     public required IReadOnlyList<PlacedObject> PlacedObjects { get; init; }
+
+    /// <summary>
+    /// Painted water (<c>water[]</c>): brushes whose <see cref="SurfaceBrush.Value"/> is the water level (m).
+    /// Water shows where the ground inside a brush lies below that level.
+    /// </summary>
+    public IReadOnlyList<SurfaceBrush> WaterBrushes { get; init; } = [];
     public bool FlattenGreens { get; init; }
     public bool BlurHeight { get; init; }
     public double GreenSpeed { get; init; }
@@ -115,6 +121,7 @@ public sealed class CourseModel
             HeightStamps = ReadStamps(desc["height"] as JsonArray),
             SurfaceBrushes = ReadBrushes(desc["surfaceBrushes2"] as JsonArray),
             PlacedObjects = ReadObjects(desc["placedObjects4"] as JsonArray),
+            WaterBrushes = ReadBrushes(desc["water"] as JsonArray),
             FlattenGreens = desc["flattenGreens"]?.GetValue<bool>() ?? false,
             BlurHeight = desc["blurHeight"]?.GetValue<bool>() ?? false,
             GreenSpeed = Num(desc["greenSpeed"], -1),
