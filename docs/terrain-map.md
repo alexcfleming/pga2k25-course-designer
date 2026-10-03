@@ -98,6 +98,8 @@ The terrain is rebuilt by replaying the file's height stamps in order (`TerrainR
 
 - **Test plot peaks:** raises set to +100 ft, measured in game. The rough streak (type 53) reaches at least 94.7 ft (model 91). The splatter (type 49) has peaks of 49, 68 and 71 ft (model 60). So a raise does rise by value × brightness, with dim brushes rising less. Rescaling raises to the icons' white level (243, not 255) made the route heights slightly worse, so it isn't applied.
 
+**Pre-made plot terrain.** Some designer plots come with terrain that exists before any brushes, controlled by a plot setting. It behaves differently from brush terrain and isn't modelled here: the replay only knows the brushes in `height[]`. Set that option to zero and flatten the plot (as Alex does) before relying on these maps. If a plot still has its pre-made terrain, the maps will be wrong wherever it shows.
+
 The images come from screenshots of the palette icons, so fine detail is approximate (texture brushes, exact edge softness). That is the likely cause of Murray Estate hole 3: its green sits partway out on a splatter and two streak raises, where the placement of the texture's lumps matters. Check critical grades in the game.
 
 ## Options
