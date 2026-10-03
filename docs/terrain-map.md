@@ -12,8 +12,8 @@ The output is `<course> - Terrain Map.png`. At the default 4 px per metre, a 1.5
 
 - **Contours.** The interval is the smallest of 1 / 2 / 5 / 10 / 20 … ft that keeps the ground within 80 m of play to at most 60 levels. Every 5th line is a heavier **index contour**, labelled in line (the line breaks around the number). On steep ground, minor contours are dropped where they would run closer than 7 px; index contours are always drawn.
 - **Shading.** `relief` (default) is a pale elevation tint with a soft north-west hillshade. `slope` shows planning classes: 0–3 % green sites, 3–8 % fairway, 8–15 % steep for play, 15–25 % needs grading, over 25 % severe. `none` is plain paper.
-- **Sea.** If the plot has ocean props (`OceanChurn…` surf and wave prefabs), sea level is their placed height: 0 m on stock plots, with the surface a hair above the plot's untouched flat base. Ground at or below sea level (2 cm tolerance for blur) is filled blue, edged with a shoreline, and not contoured. Elevations are then measured **above sea level**. Inland hollows that reach 0 m fill too, as they would under a flat ocean. The log reports how many surf props lie offshore and how far they sit from the modelled shoreline, as a check on the terrain. On Sagan-Khushun the median is about 30 m. `--sea-level <m>` overrides the detected level; `--no-water` turns the sea off.
-- **Painted water.** Streams and ponds painted with the designer's water brush (`water[]`, each dab carrying its water level) are filled blue wherever the modelled ground under them is below that level, edged, and drawn over the contours. The file stores a stroke as separate dabs, sometimes more than a brush width apart, so consecutive dabs at the same level and within two brush widths are joined into one stroke. A dashed outline shows the whole painted area, so a stretch painted over higher ground (which stays dry) still shows; check those in the game. The log gives the level and the wet area. On Berwick Coast a 700 m stream at 8.5 m comes out as about 4,300 m² of water with a few dry stretches. `--no-water` turns this off too.
+- **Sea.** Every plot has the game's sea plane at world 0 m; it shows wherever the ground dips below it. Berwick Coast has no ocean props, yet its in-game coastline follows the modelled 0 m line. When the plot does have ocean props (`OceanChurn…` surf and wave prefabs), their placed height is used instead (also 0 m on stock plots). Ground at or below sea level (2 cm tolerance for blur) is filled blue, edged with a shoreline, and not contoured, and elevations are then measured **above sea level**. A sheet whose ground never reaches 0 m has no sea (Murray Estate). Inland hollows below 0 m fill too, as they would under a flat ocean. With ocean props, the log reports how far they sit from the modelled shoreline as a check. `--sea-level <m>` overrides the level; `--no-water` turns the sea off.
+- **Painted water.** Streams and ponds painted with the designer's water brush (`water[]`, each dab carrying its water level) are filled blue over their whole stroke, edged, and drawn over the contours: the game cuts the channel to the water level, so Berwick Coast's stream runs unbroken in game. The file stores a stroke as separate dabs, sometimes more than a brush width apart, so consecutive dabs at the same level and within two brush widths are joined into one stroke. The log gives the level and area. `--no-water` turns this off too.
 - **Spot heights** on hilltops (the highest point within 60 m that stands proud of its surroundings).
 - **Lettered reference grid** of 100-yd squares, with columns A, B, C… and rows 1, 2, 3…, so notes can say "bunker at F7".
 - **Routing as sticks and dots.** Each hole shows:
@@ -80,13 +80,23 @@ Green sites are shaped and levelled in the game when the green is built. The fig
 
 ## Terrain model
 
-This uses the same stamp replay as the greens book (`TerrainReplay`), with one change. Brushes **40 m or more across** use a softer falloff (`LargeBrushHardness`, default 0.3) than the calibrated 0.85.
+The terrain is rebuilt by replaying the file's height stamps in order (`TerrainReplay`, shared with the greens book and yardage book). Each stamp is drawn with **its real brush shape**:
 
-The reason: the greens-book calibration only measures heights on the flat tops of stamps, where greens sit. It says nothing about how big sculpting brushes fall off. At plot scale, 0.85 turns every large brush into a circular terrace with a cliff edge. Neither the game's thumbnails nor any real terrain shows that. With 0.3, the plot reads as natural rolling ground, and on Sagan-Khushun the average green-site slope roughly halves.
+- The designer has 69 landscaping brushes (`assets/brushes`, cut from the palette). A stamp's `type` is the palette slot + 8 for slots 0–29 and + 9 for slots 30–68. Type 38 isn't in the palette. This was found on a test plot with one dab of each brush (`samples/courses/brush-test-plot.course`).
+- The brush image spans **±scale** metres around the stamp. The designer's "100 yd" brush is stored as scale 17.81, and its hard circle is about 32 m across in game.
+- At rotation 0 the image's top points to +Z. `rotation.y` turns it like a Unity Y rotation.
+- **Raise** (tool 1) adds the value × the image's brightness, so soft brushes add less. The most-used soft round brush (type 54) peaks at about 0.45.
+- **Flatten** (tool 0) moves the ground towards the value, by the brightness divided by the brush's peak, so every flatten reaches its value at its centre.
+- Unknown types fall back to the old round disc (diameter = scale, `Hardness` 0.85, `LargeBrushHardness` for brushes 40 m or more).
 
-The greens book and yardage book keep their calibrated settings, because `LargeBrushHardness` is null there.
+**Checks:**
 
-This softer falloff is a judgement, not a calibration. Before committing to a design, check critical grades in the game: green sites, landing areas and forced carries. If you capture in-game spot heights away from greens, the large-brush falloff can be calibrated the same way the greens were.
+- **Berwick Coast:** 36 tee → aim and aim → green height changes, measured in game on the route markers (`samples/calibration/route-heights`). RMS error 2.2 ft; the old round-disc model was 22 ft.
+- **Murray Estate:** 7 legs, 7.4 ft (was 15 ft). Hole 3 aim → green is still 17 ft out.
+- **Cassimbo greens:** calibration stays within 4–12 % of each green's range.
+- Overlaid on an in-game overhead of Berwick, the old model's coins and craters are gone and the modelled 0 m line follows the real coastline.
+
+The images come from screenshots of the palette icons, so fine detail (texture brushes, exact edge softness) is approximate. Check critical grades in the game.
 
 ## Options
 
@@ -100,7 +110,7 @@ This softer falloff is a judgement, not a calibration. Before committing to a de
 | `--ppm` | px / m | 4 | Output pixels per metre; text and line weights scale with it |
 | `--cell` | | 1.0 | Terrain raster (m) |
 | `--grid` | | 100 | Grid square (yd); 0 hides the grid |
-| `--hardness` / `--large-hardness` | | 0.85 / 0.3 | Brush falloff for small / large brushes |
+| `--hardness` / `--large-hardness` | | 0.85 / 0.3 | Falloff for small / large brushes of unknown shape (round-disc fallback) |
 | `--smooth` | | 0 | Extra Gaussian smoothing (sigma, m) before contouring |
 | `--no-features`, `--no-summits` | Drawn surfaces | shown | |
 | `--holes` | Create Hole Sheets / Holes | | Hole sheets instead of the plot map (`all` or a list) |

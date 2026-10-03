@@ -18,7 +18,7 @@ public static class TerrainMapBuilder
         log?.Report($"Contours: every {survey.IntervalFeet:0.##} ft ({survey.Contours.Count(c => c.Index)} index / {survey.Contours.Count:N0} lines), " +
                     $"{survey.Summits.Count} hilltop spot heights.");
         log?.Report(survey.SeaLevelMetres is { } sea
-            ? $"Sea level {sea:0.##} m (ocean props); shoreline traced in {survey.Shoreline.Count} piece(s){ShoreCheck(survey)}; elevations above sea level."
+            ? $"Sea level {sea:0.##} m ({(TerrainSurvey.OceanPropLevel(course) is null ? "the game's sea plane" : "ocean props")}); shoreline traced in {survey.Shoreline.Count} piece(s){ShoreCheck(survey)}; elevations above sea level."
             : "No sea on the sheet; elevations above the lowest point.");
         if (course.WaterBrushes.Count > 0) log?.Report(PaintedWaterNote(survey));
         if (survey.Holes.Count == 0)
@@ -50,15 +50,13 @@ public static class TerrainMapBuilder
     internal static string SiteNote(HoleRouting h) =>
         $"{(h.GreenSiteIsDrawn ? "drawn green" : "green site")} {h.GreenSiteGradePct:0.0}% tilt, ±{h.GreenSiteReliefFeet:0.0} ft";
 
-    /// <summary>The painted water's level(s) and how much of it is wet: a check that the brushes sit below the terrain.</summary>
+    /// <summary>The painted water's level(s) and area.</summary>
     static string PaintedWaterNote(TerrainSurvey s)
     {
         var levels = s.Course.WaterBrushes.Select(b => Math.Round((b.Value - s.DatumMetres) * TerrainSurvey.FeetPerMetre)).Distinct().Order().ToList();
         double area = s.PaintedWater.Count(w => w) * s.Field.Cell * s.Field.Cell;
         string at = $"{s.Course.WaterBrushes.Count} water brush(es) at {string.Join(", ", levels.Select(l => $"{l:0}"))} ft";
-        return area > 0
-            ? $"Painted water: {at}; {area:N0} m² below that level drawn as water."
-            : $"Painted water: {at}, but the modelled ground under them is all above that level, so none is drawn.";
+        return area > 0 ? $"Painted water: {at}; {area:N0} m² on the sheet." : $"Painted water: {at}, none on the sheet.";
     }
 
     /// <summary>How far the on-sheet surf props sit from the modelled shoreline: a check on the terrain replay.</summary>

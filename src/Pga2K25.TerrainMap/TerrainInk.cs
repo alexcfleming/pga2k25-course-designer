@@ -143,21 +143,10 @@ public abstract class TerrainInk : IDisposable
     }
 
     /// <summary>
-    /// Painted streams and ponds, laid over the contours (the bed under the water isn't contoured), with their edges,
-    /// and a dashed outline of the whole painted area so stretches left dry by higher ground still show.
+    /// Painted streams and ponds, laid over the contours (the bed under the water isn't contoured), with their edges.
     /// </summary>
     protected void DrawPaintedWater(SKCanvas canvas, TerrainSurvey s, MapProjection p)
     {
-        if (s.PaintedWaterFootprint.Count > 0)
-        {
-            using var dashed = Stroke(Shore.WithAlpha(150), 0.45f * _u);
-            using var dash = SKPathEffect.CreateDash([2.2f * _u, 1.6f * _u], 0);
-            dashed.PathEffect = dash;
-            using var fb = new SKPathBuilder();
-            foreach (var line in s.PaintedWaterFootprint) p.AddPolyline(fb, line, close: false, tolerance: 0.35f);
-            using var fp = fb.Detach();
-            canvas.DrawPath(fp, dashed);
-        }
         if (s.PaintedWater.Length == 0) return;
         // Premultiplied sea colour; the cubic resampling softens the cell edges.
         uint wet = 0xFF000000u | (uint)Sea.Red << 16 | (uint)Sea.Green << 8 | Sea.Blue;

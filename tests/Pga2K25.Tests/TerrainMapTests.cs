@@ -51,18 +51,18 @@ public class TerrainMapTests
     }
 
     [Fact]
-    public void LargeBrushSoftening_FlattensGreenSites()
+    public void LargeBrushSoftening_FlattensGreenSites_InTheDiscFallback()
     {
-        // With the greens-book hardness on every brush, big sculpting stamps make circular cliffs.
-        var hard = Survey(new TerrainMapOptions { Terrain = new() { CellMetres = 2 }, ContourIntervalFeet = 5 });
-        var soft = Survey(new TerrainMapOptions { Terrain = new() { CellMetres = 2, LargeBrushHardness = 0.3 }, ContourIntervalFeet = 5 });
+        // The old round-disc model: with the greens-book hardness on every brush, big stamps make circular cliffs.
+        var hard = Survey(new TerrainMapOptions { Terrain = new() { CellMetres = 2, BrushShapes = false }, ContourIntervalFeet = 5 });
+        var soft = Survey(new TerrainMapOptions { Terrain = new() { CellMetres = 2, BrushShapes = false, LargeBrushHardness = 0.3 }, ContourIntervalFeet = 5 });
         Assert.True(soft.Holes.Average(h => h.GreenSiteSlopePct) < hard.Holes.Average(h => h.GreenSiteSlopePct));
     }
 
     [Fact]
     public void Sea_IsDetectedFromOceanPropsAndNothingBelowItIsContoured()
     {
-        Assert.Equal(0, TerrainSurvey.DetectSeaLevel(Course.Value)!.Value, 3);
+        Assert.Equal(0, TerrainSurvey.OceanPropLevel(Course.Value)!.Value, 3);
         var s = Survey();
         Assert.NotNull(s.SeaLevelMetres);
         Assert.Equal(s.SeaLevelMetres!.Value, s.DatumMetres, 6);          // elevations are above sea level
@@ -122,32 +122,26 @@ public class WaterAndGreenSiteTests
     static readonly Lazy<TerrainSurvey> Berwick = new(() => Survey("berwick-coast.course"));
 
     [Fact]
-    public void PaintedWater_IsDrawnWhereTheGroundIsBelowItsLevel()
+    public void PaintedWater_IsOneContinuousStroke()
     {
         var s = Berwick.Value;
         Assert.Equal(55, s.Course.WaterBrushes.Count);                     // a 700 m stream at 8.5 m
-        Assert.Null(s.SeaLevelMetres);
+        Assert.Equal(0, s.SeaLevelMetres);                                   // no ocean props: the game's sea plane
         Assert.NotEmpty(s.PaintedWaterEdges);
-        Assert.NotEmpty(s.PaintedWaterFootprint);
-        int wet = 0;
-        for (int i = 0; i < s.PaintedWater.Length; i++)
-        {
-            if (!s.PaintedWater[i]) continue;
-            wet++;
-            Assert.True(s.Field.Values[i] < 8.51);
-        }
-        Assert.InRange(wet * s.Field.Cell * s.Field.Cell, 1000, 7000);     // the dabs are joined into a stroke, not beads
+        int wet = s.PaintedWater.Count(w => w);
+        // About 700 m long and 10 m wide: the dabs are joined into one stroke, not a string of beads.
+        Assert.InRange(wet * s.Field.Cell * s.Field.Cell, 6000, 9000);
     }
 
     [Fact]
     public void GreenSite_SeparatesTiltFromLumpiness()
     {
-        // Berwick 11 sits among dune mounds: nearly level overall but very uneven. Berwick 8 is an even, steep slope.
-        var s = Berwick.Value;
-        var h11 = s.Holes.Single(h => h.Hole.Number == 11);
+        // Murray Estate 8 is nearly level overall but uneven; Murray 4 is an even slope.
+        var s = Survey("murray-estate.course");
         var h8 = s.Holes.Single(h => h.Hole.Number == 8);
-        Assert.True(h11.GreenSiteGradePct < 8 && h11.GreenSiteReliefFeet > 10, $"{h11.GreenSiteGradePct} / {h11.GreenSiteReliefFeet}");
-        Assert.True(h8.GreenSiteGradePct > 25, $"{h8.GreenSiteGradePct}");
+        var h4 = s.Holes.Single(h => h.Hole.Number == 4);
+        Assert.True(h8.GreenSiteGradePct < 4 && h8.GreenSiteReliefFeet > 3, $"{h8.GreenSiteGradePct} / {h8.GreenSiteReliefFeet}");
+        Assert.True(h4.GreenSiteGradePct > 12 && h4.GreenSiteReliefFeet < 3, $"{h4.GreenSiteGradePct} / {h4.GreenSiteReliefFeet}");
     }
 
     [Fact]
@@ -228,5 +222,85 @@ public class HoleSheetTests
         {
             if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
         }
+    }
+}
+
+public class BrushShapeTests
+{
+    [Theory]
+    [InlineData(8, 0)]      // hard circle, top-left of page 1
+    [InlineData(37, 29)]
+    [InlineData(39, 30)]    // rock speckle: type 38 isn't in the palette
+    [InlineData(54, 45)]    // the soft round
+    [InlineData(72, 63)]    // the square that flattens a blank plot
+    [InlineData(77, 68)]
+    public void Type_MapsToPaletteSlot(int type, int slot) => Assert.Equal(slot, Pga2K25.GreensBook.BrushShape.Slot(type));
+
+    [Fact]
+    public void Type_OutsideThePalette_HasNoShape()
+    {
+        Assert.Null(Pga2K25.GreensBook.BrushShape.Slot(38));
+        Assert.Null(Pga2K25.GreensBook.BrushShape.Slot(7));
+        Assert.Null(Pga2K25.GreensBook.BrushShape.Slot(78));
+        Assert.NotNull(Pga2K25.GreensBook.BrushShape.ForType(54));
+    }
+
+    [Fact]
+    public void TestPlot_RaisedDabsAreTheBrushSize_OnFlatGround()
+    {
+        // One raise dab of each brush at +50 ft ("100 yd" in the designer, stored as scale 17.81) on a plot
+        // flattened by 1000 m squares. The hard circle (type 73) spans about ±0.9 × scale: ~32 m across, as in game.
+        var course = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, "brush-test-plot.course")).ReadModel();
+        var circle = course.HeightStamps.Single(s => s.Type == 73);
+        var f = Pga2K25.GreensBook.TerrainReplay.Build(course, circle.Position - new Vec2(40, 40), circle.Position + new Vec2(40, 40),
+            new Pga2K25.GreensBook.TerrainModelOptions { CellMetres = 0.5 });
+        double ground = f.Sample(circle.Position + new Vec2(35, 0)), top = f.Sample(circle.Position);
+        Assert.Equal(1.33, ground, 2);                                      // the last base square's level
+        Assert.InRange(top - ground, 0.9 * circle.Value, 1.0 * circle.Value);
+        double Rise(double r) => f.Sample(circle.Position + new Vec2(r, 0)) - ground;
+        Assert.True(Rise(12) > 0.8 * circle.Value && Rise(19) < 0.2 * circle.Value, $"{Rise(12):0.0} / {Rise(19):0.0}");
+    }
+}
+
+public class RouteHeightTests
+{
+    /// <summary>
+    /// Height change along each route leg measured in game (samples/calibration/route-heights) against the model:
+    /// the check that the terrain away from greens is right.
+    /// </summary>
+    static (double Rms, int Count) Score(string course, string legs)
+    {
+        var model = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, course)).ReadModel();
+        var rows = File.ReadAllLines(Path.Combine(TestPaths.SamplesDir, "..", "calibration", "route-heights", legs))
+            .Where(l => l.Length > 0 && char.IsDigit(l[0])).Select(l => l.Split(',')).ToList();
+        var pts = model.Holes.SelectMany(h => h.Route).ToList();
+        var pad = new Vec2(5, 5);
+        var f = Pga2K25.GreensBook.TerrainReplay.Build(model, new Vec2(pts.Min(p => p.X), pts.Min(p => p.Z)) - pad,
+            new Vec2(pts.Max(p => p.X), pts.Max(p => p.Z)) + pad, new Pga2K25.GreensBook.TerrainModelOptions { CellMetres = 1 });
+        double sum = 0;
+        foreach (var r in rows)
+        {
+            var route = model.Holes.Single(h => h.Number == int.Parse(r[0])).Route;
+            var (a, b) = r[1] == "tee-aim" ? (route[0], route[1]) : (route[^2], route[^1]);
+            double err = (f.Sample(b) - f.Sample(a)) * 3.2808399 - double.Parse(r[3], System.Globalization.CultureInfo.InvariantCulture);
+            sum += err * err;
+        }
+        return (Math.Sqrt(sum / rows.Count), rows.Count);
+    }
+
+    [Fact]
+    public void BerwickCoast_MatchesInGameRouteHeights()
+    {
+        var (rms, n) = Score("berwick-coast.course", "berwick-coast.csv");
+        Assert.Equal(36, n);
+        Assert.True(rms < 3.5, $"RMS {rms:0.0} ft (the old round-disc model was 22 ft)");
+    }
+
+    [Fact]
+    public void MurrayEstate_MatchesInGameRouteHeights()
+    {
+        var (rms, n) = Score("murray-estate.course", "murray-estate.csv");
+        Assert.Equal(7, n);
+        Assert.True(rms < 9, $"RMS {rms:0.0} ft (the old round-disc model was 15 ft)");
     }
 }
