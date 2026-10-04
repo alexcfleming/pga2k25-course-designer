@@ -1,0 +1,24 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Pga2K25.Studio.Views.ZoomImage">
+  <Panel>
+    <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+      <!-- Sized to the scaled page and centred: stretched to the viewport, the scaled page can land out of view. -->
+      <LayoutTransformControl x:Name="Zoomer" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Image x:Name="Picture" Stretch="None"/>
+      </LayoutTransformControl>
+    </ScrollViewer>
+    <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" BorderThickness="1" CornerRadius="8" Padding="4"
+            HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="12">
+      <StackPanel Orientation="Horizontal" Spacing="4">
+        <Button Content="−" Width="32" MinHeight="30" Padding="0" HorizontalContentAlignment="Center" Click="ZoomOut_Click"
+                ToolTip.Tip="Zoom out (Ctrl + wheel)" AutomationProperties.Name="Zoom out"/>
+        <TextBlock x:Name="ZoomText" Classes="mono small" Width="46" TextAlignment="Center" VerticalAlignment="Center"/>
+        <Button Content="+" Width="32" MinHeight="30" Padding="0" HorizontalContentAlignment="Center" Click="ZoomIn_Click"
+                ToolTip.Tip="Zoom in (Ctrl + wheel)" AutomationProperties.Name="Zoom in"/>
+        <Button Content="Fit" MinHeight="30" Padding="10,0" Click="Fit_Click" AutomationProperties.Name="Fit to window"/>
+        <Button Content="1:1" MinHeight="30" Padding="10,0" Click="Actual_Click" AutomationProperties.Name="Actual size"/>
+      </StackPanel>
+    </Border>
+  </Panel>
+</UserControl>

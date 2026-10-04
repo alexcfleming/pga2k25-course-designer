@@ -19,6 +19,13 @@ public partial class WorkspaceViewModel
     public bool IsCourseSettings => Section == SettingsSection;
 
     public ObservableCollection<NavItemViewModel> Sections { get; } = [];
+
+    /// <summary>The built products other than the terrain map (which has its live view), each with an in-app viewer.</summary>
+    public ObservableCollection<NavItemViewModel> ProductSections { get; } = [];
+
+    [ObservableProperty] private ProductViewerViewModel? _productViewer;
+    public bool IsProductView => ProductViewer is not null;
+    partial void OnProductViewerChanged(ProductViewerViewModel? value) => OnPropertyChanged(nameof(IsProductView));
     public ObservableCollection<RecentCourseViewModel> Recent { get; } = [];
     public Bitmap? CourseThumbnail { get; private set; }
     public string CourseKindText => Entry.Kind switch { CourseKind.InProgress => "In progress", CourseKind.Blank => "Blank plot", _ => "Routed" };
@@ -28,7 +35,23 @@ public partial class WorkspaceViewModel
         OnPropertyChanged(nameof(IsTerrain));
         OnPropertyChanged(nameof(IsMeasurements));
         OnPropertyChanged(nameof(IsCourseSettings));
-        foreach (var s in Sections) s.IsSelected = s.Label == value;
+        foreach (var s in Sections.Concat(ProductSections)) s.IsSelected = s.Label == value;
+        ProductViewer = Products.All.FirstOrDefault(p => p.Name == value && p.Name != TerrainSection) is { } product
+            ? new ProductViewerViewModel(product, Settings, Entry.Name, () => BuildAsync([product]))
+            : null;
+    }
+
+    /// <summary>Page counts beside each product in the menu; the open viewer reloads after a build.</summary>
+    void RefreshProductSections()
+    {
+        foreach (var nav in ProductSections)
+        {
+            var p = Products.All.First(x => x.Name == nav.Label);
+            int pages = Products.PagesOf(p, Settings, Entry.Name).Count;
+            nav.Detail = pages == 0 ? "—" : pages.ToString();
+        }
+        if (ProductViewer is { } v)
+            ProductViewer = new ProductViewerViewModel(v.Product, Settings, Entry.Name, () => BuildAsync([v.Product]));
     }
 
     void InitSections()
@@ -39,6 +62,9 @@ public partial class WorkspaceViewModel
         }
         foreach (var label in new[] { TerrainSection, MeasurementsSection, SettingsSection })
             Sections.Add(new NavItemViewModel(label, label == Section, () => Section = label));
+        foreach (var p in Products.All.Where(p => p.Name != TerrainSection))
+            ProductSections.Add(new NavItemViewModel(p.Name, false, () => Section = p.Name));
+        RefreshProductSections();
         var extras = Settings.ExtrasFor(Entry.Path);
         WorkbookPath = extras.Workbook ?? "";
         CardConfigPath = extras.CardConfig ?? "";

@@ -55,6 +55,25 @@ public class StudioTests
     }
 
     [Fact]
+    public void Products_FindTheirPagesAndPdfsInReadingOrder()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"studio-products-{Guid.NewGuid():N}");
+        var settings = new StudioSettings { OutputRoot = root };
+        string dir = Products.OutputDir(settings, "Test Course");
+        Directory.CreateDirectory(Path.Combine(dir, "Test Course - Green Studies"));
+        foreach (var f in new[] { "Test Course - Greens Book.png", "Test Course - Greens Book.pdf",
+                                  "Test Course - Green Studies/Hole_10.png", "Test Course - Green Studies/Hole_02.png" })
+            File.WriteAllBytes(Path.Combine(dir, f), [0]);
+        var greens = Products.All.Single(p => p.Name == "Greens book");
+
+        var pages = Products.PagesOf(greens, settings, "Test Course");
+        Assert.Equal(["Greens Book", "Hole 2", "Hole 10"], pages.Select(p => p.Title));
+        Assert.Single(Products.PdfsOf(greens, settings, "Test Course"));
+        Assert.Empty(Products.PagesOf(Products.All.Single(p => p.Name == "Course cards"), settings, "Test Course"));
+        Directory.Delete(root, recursive: true);
+    }
+
+    [Fact]
     public void Settings_RecentKeepsTheNewestSix()
     {
         var s = new StudioSettings();

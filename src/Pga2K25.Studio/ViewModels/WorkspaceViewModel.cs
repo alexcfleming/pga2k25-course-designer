@@ -111,7 +111,7 @@ public partial class WorkspaceViewModel : ObservableObject
                 NewHole = HoleNumbers.FirstOrDefault() is int first and > 0 ? first : null;
                 RebuildMeasurementRows();
                 Status = $"{survey.Contours.Count:N0} contour lines every {survey.IntervalFeet:0.##} ft";
-                Render(initial: true);
+                Render();
                 if (Holes.Count > 0) SelectHole(Holes[0].Number, centre: false);
             });
         }
@@ -121,7 +121,7 @@ public partial class WorkspaceViewModel : ObservableObject
         }
     }
 
-    void Render(bool initial = false)
+    void Render()
     {
         if (_survey is null) return;
         var survey = _survey;
@@ -147,13 +147,10 @@ public partial class WorkspaceViewModel : ObservableObject
                 _projection = projection;
                 MapImage = bitmap;
                 Loading = false;
-                if (initial) FitRequested?.Invoke();
             });
         });
     }
 
-    /// <summary>Raised once the first render is ready, so the view can fit it to the window.</summary>
-    public event Action? FitRequested;
 
     partial void OnShadingChanged(string value) => Render();
     partial void OnShowSurfacesChanged(bool value) => Render();
@@ -231,7 +228,7 @@ public partial class WorkspaceViewModel : ObservableObject
         {
             string file = Products.FileFor(p, Settings, Entry.Name);
             ProductRows.Add(new ProductRowViewModel(p.Name, File.Exists(file) ? File.GetLastWriteTime(file) : null,
-                open: () => OpenPath(file), build: () => BuildAsync([p])));
+                view: () => Section = p.Name, build: () => BuildAsync([p])));
         }
     }
 
@@ -252,6 +249,7 @@ public partial class WorkspaceViewModel : ObservableObject
         }
         Busy = false;
         RefreshProducts();
+        RefreshProductSections();
         Status = "Done";
     }
 
@@ -289,13 +287,13 @@ public sealed class LegRowViewModel(string label, double game, double model)
     public IBrush DiffBrush { get; } = Brush.Parse(Math.Abs(model - game) > 4 ? "#8A5300" : "#1F4D30");
 }
 
-public sealed partial class ProductRowViewModel(string name, DateTime? built, Action open, Func<Task> build) : ObservableObject
+public sealed partial class ProductRowViewModel(string name, DateTime? built, Action view, Func<Task> build) : ObservableObject
 {
     public string Name { get; } = name;
     public string StatusText { get; } = built is { } t ? $"Built {t:d MMM HH:mm}" : "Not built";
     public IBrush StatusBrush { get; } = Brush.Parse(built is null ? "#56605A" : "#1F4D30");
     public bool CanOpen { get; } = built is not null;
     public string BuildLabel { get; } = built is null ? "Build" : "Rebuild";
-    [RelayCommand] private void Open() => open();
+    [RelayCommand] private void View() => view();
     [RelayCommand] private Task Build() => build();
 }

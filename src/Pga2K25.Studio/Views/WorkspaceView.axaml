@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Pga2K25.Studio.ViewModels"
+             xmlns:views="using:Pga2K25.Studio.Views"
              x:Class="Pga2K25.Studio.Views.WorkspaceView"
              x:DataType="vm:WorkspaceViewModel">
   <DockPanel>
@@ -65,6 +66,21 @@
               </ItemsControl.ItemTemplate>
             </ItemsControl>
           </StackPanel>
+          <StackPanel Spacing="2">
+            <TextBlock Text="Products" Classes="muted small" Margin="10,0,0,4"/>
+            <ItemsControl ItemsSource="{Binding ProductSections}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:NavItemViewModel">
+                  <Button Classes="nav" Classes.selected="{Binding IsSelected}" Command="{Binding SelectCommand}" Margin="0,1" AutomationProperties.Name="{Binding Label}">
+                    <DockPanel>
+                      <TextBlock DockPanel.Dock="Right" Text="{Binding Detail}" Classes="muted small" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding Label}"/>
+                    </DockPanel>
+                  </Button>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
           <StackPanel Spacing="4" IsVisible="{Binding !!Recent.Count}">
             <TextBlock Text="Recent" Classes="muted small" Margin="10,0"/>
             <ItemsControl ItemsSource="{Binding Recent}">
@@ -112,12 +128,6 @@
         <DockPanel>
           <Border DockPanel.Dock="Top" BorderBrush="#E6E9E3" BorderThickness="0,0,0,1" Padding="12,8">
             <DockPanel>
-              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                <Button Content="−" Width="34" Padding="0" HorizontalContentAlignment="Center" Click="ZoomOut_Click" ToolTip.Tip="Zoom out (Ctrl + wheel)"/>
-                <TextBlock x:Name="ZoomText" Classes="mono small" Width="48" TextAlignment="Center" VerticalAlignment="Center"/>
-                <Button Content="+" Width="34" Padding="0" HorizontalContentAlignment="Center" Click="ZoomIn_Click" ToolTip.Tip="Zoom in (Ctrl + wheel)"/>
-                <Button Content="Fit" Click="Fit_Click"/>
-              </StackPanel>
               <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                 <ListBox Classes="segmented" ItemsSource="{Binding Shadings}" SelectedItem="{Binding Shading}">
                   <ListBox.ItemsPanel>
@@ -148,12 +158,8 @@
           </Border>
 
           <Panel Background="#DDEBD9">
-            <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-              <LayoutTransformControl x:Name="Zoomer">
-                <Image x:Name="Map" Source="{Binding MapImage}" Stretch="None" Cursor="Cross"/>
-              </LayoutTransformControl>
-            </ScrollViewer>
-            <Border Background="{StaticResource Ink}" CornerRadius="8" Padding="10,6" Margin="12" HorizontalAlignment="Left" VerticalAlignment="Bottom">
+            <views:ZoomImage x:Name="MapView" Source="{Binding MapImage}" FitWidth="True" Cursor="Cross"/>
+            <Border Background="{StaticResource Ink}" CornerRadius="8" Padding="10,6" Margin="12" HorizontalAlignment="Left" VerticalAlignment="Bottom" IsHitTestVisible="False">
               <TextBlock Text="{Binding HoverText}" Foreground="White" Classes="mono small"/>
             </Border>
             <Border Background="#CCF3F4F0" IsVisible="{Binding Loading}">
@@ -229,7 +235,7 @@
                     <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,8">
                       <DockPanel>
                         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                          <Button Content="Open" Command="{Binding OpenCommand}" IsEnabled="{Binding CanOpen}" MinHeight="30" Padding="10,0"/>
+                          <Button Content="View" Command="{Binding ViewCommand}" IsEnabled="{Binding CanOpen}" MinHeight="30" Padding="10,0"/>
                           <Button Content="{Binding BuildLabel}" Command="{Binding BuildCommand}" MinHeight="30" Padding="10,0"/>
                         </StackPanel>
                         <StackPanel>
@@ -245,6 +251,58 @@
           </Border>
         </StackPanel>
       </ScrollViewer>
+
+      <!-- Product viewer -->
+      <Border Grid.Row="1" Grid.ColumnSpan="2" Classes="card" ClipToBounds="True" IsVisible="{Binding IsProductView}">
+        <DockPanel DataContext="{Binding ProductViewer}" x:DataType="vm:ProductViewerViewModel">
+          <Border DockPanel.Dock="Top" BorderBrush="#E6E9E3" BorderThickness="0,0,0,1" Padding="14,8">
+            <DockPanel>
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+                <Button Content="Open PDF" Command="{Binding OpenPdfCommand}" IsVisible="{Binding HasPdf}"/>
+                <Button Content="Open image" Command="{Binding OpenImageCommand}" IsVisible="{Binding HasPages}"/>
+                <Button Content="Show in folder" Command="{Binding ShowInFolderCommand}" IsVisible="{Binding HasPages}"/>
+                <Button Content="Rebuild" Command="{Binding BuildCommand}" IsVisible="{Binding HasPages}"/>
+              </StackPanel>
+              <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <TextBlock Text="{Binding SelectedPage.Title, FallbackValue=''}" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding Summary}" Classes="muted small" VerticalAlignment="Center"/>
+              </StackPanel>
+            </DockPanel>
+          </Border>
+          <ListBox DockPanel.Dock="Left" Width="214" ItemsSource="{Binding Pages}" SelectedItem="{Binding SelectedPage}"
+                   IsVisible="{Binding ManyPages}" Background="{StaticResource Ground}" BorderThickness="0">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:PageItemViewModel">
+                <StackPanel Spacing="4" Margin="0,4">
+                  <Border Background="White" BorderBrush="{StaticResource Hairline}" BorderThickness="1" CornerRadius="4" ClipToBounds="True" MinHeight="60">
+                    <Image Source="{Binding Thumbnail}" Stretch="Uniform" MaxHeight="230"/>
+                  </Border>
+                  <TextBlock Text="{Binding Title}" FontSize="12" HorizontalAlignment="Center"/>
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+          <Panel Background="#E9EBE6">
+            <views:ZoomImage Source="{Binding Image}" FitWidth="False" IsVisible="{Binding HasPages}"/>
+            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="12" IsVisible="{Binding NotBuilt}">
+              <TextBlock HorizontalAlignment="Center" Classes="h2">
+                <Run Text="{Binding Name}"/>
+                <Run Text=" isn't built yet"/>
+              </TextBlock>
+              <TextBlock HorizontalAlignment="Center" Classes="muted" Text="Build it from the course file; it's saved to the course's output folder."/>
+              <Button Classes="primary" HorizontalAlignment="Center" Command="{Binding BuildCommand}">
+                <TextBlock>
+                  <Run Text="Build "/>
+                  <Run Text="{Binding Name}"/>
+                </TextBlock>
+              </Button>
+            </StackPanel>
+            <Border Background="#CCF3F4F0" IsVisible="{Binding LoadingPage}" IsHitTestVisible="False">
+              <ProgressBar IsIndeterminate="True" Width="200" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+          </Panel>
+        </DockPanel>
+      </Border>
 
       <!-- Measurements -->
       <ScrollViewer Grid.Row="1" Grid.ColumnSpan="2" IsVisible="{Binding IsMeasurements}">
