@@ -74,6 +74,49 @@ public class StudioTests
     }
 
     [Fact]
+    public void TerrainSettings_MapOntoTheTerrainMapOptions()
+    {
+        var t = new TerrainSettings
+        {
+            Area = TerrainSettings.Buildable, MarginMetres = 90, IntervalFeet = 5, IndexEvery = 4, GridYards = 50,
+            Shading = "Slope", ShowSurfaces = false, ShowGrid = true, ShowHilltops = false, ShowWater = false, PrintPixelsPerMetre = 3,
+        };
+        var o = t.ToOptions("CREDIT");
+        Assert.Equal(Pga2K25.TerrainMap.MapExtent.Buildable, o.Extent);
+        Assert.Equal(90, o.MarginMetres);
+        Assert.Equal(5, o.ContourIntervalFeet);
+        Assert.Equal(4, o.IndexEvery);
+        Assert.Equal(50, o.GridYards);
+        Assert.Equal(Pga2K25.TerrainMap.ReliefShading.Slope, o.Shading);
+        Assert.False(o.ShowFeatures);
+        Assert.False(o.ShowSummits);
+        Assert.False(o.ShowWater);
+        Assert.Equal(3, o.PixelsPerMetre);
+        Assert.Equal("CREDIT", o.Credit);
+        Assert.Equal(2, t.ToOptions("", pixelsPerMetre: 2).PixelsPerMetre);   // the live view's resolution
+        t.ShowGrid = false;
+        Assert.Equal(0, t.ToOptions("").GridYards);                              // grid off draws no grid
+
+        // Defaults match the command line's.
+        var d = new TerrainSettings().ToOptions("");
+        var cli = new Pga2K25.TerrainMap.TerrainMapOptions();
+        Assert.Equal((cli.Extent, cli.MarginMetres, cli.ContourIntervalFeet, cli.IndexEvery, cli.GridYards, cli.Shading, cli.PixelsPerMetre),
+                     (d.Extent, d.MarginMetres, d.ContourIntervalFeet, d.IndexEvery, d.GridYards, d.Shading, d.PixelsPerMetre));
+    }
+
+    [Fact]
+    public void TerrainSettings_SurviveASaveThroughJson()
+    {
+        var s = new StudioSettings();
+        s.ExtrasFor("a.course").Terrain.Area = TerrainSettings.WholePlot;
+        s.ExtrasFor("a.course").Terrain.IntervalFeet = 10;
+        var back = System.Text.Json.JsonSerializer.Deserialize<StudioSettings>(System.Text.Json.JsonSerializer.Serialize(s))!;
+        Assert.Equal(TerrainSettings.WholePlot, back.ExtrasFor("a.course").Terrain.Area);
+        Assert.Equal(10, back.ExtrasFor("a.course").Terrain.IntervalFeet);
+        Assert.Null(back.ExtrasFor("b.course").Terrain.IntervalFeet);
+    }
+
+    [Fact]
     public void Settings_RecentKeepsTheNewestSix()
     {
         var s = new StudioSettings();

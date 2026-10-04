@@ -30,6 +30,14 @@ The left-hand menu has the course's sections, its products with page counts, and
   - Hovering shows the ground height, slope and grid square.
   - Picking a hole centres on it. The hole panel then shows tee and green heights, the change between them, the green site's tilt and ±ft as it lies, and any in-game measurements for its legs against the model.
   - The model check above the map is the RMS difference over every measured leg.
+  - **Map options** (top of the right-hand panel):
+    - **Area:** the routing plus a margin, the whole plot, or the buildable ground.
+    - **Contours:** the interval (blank for Auto) and how often an index line is drawn.
+    - **Grid:** the grid square size.
+    - **Water:** whether to show the sea and painted water.
+    - **Printed resolution:** px per metre of the built PNG.
+    - **Saving:** Apply saves the options with the course and redraws the map; it re-surveys when the area, contours or water change. Reset to defaults restores the standard options.
+    - **Toolbar:** shading and layer choices are also saved per course.
 - **Products:**
   - **Viewer:** each product's pages as thumbnails, with the selected page large (zoom, pan, fit). Open PDF, Open image, Show in folder and Rebuild are in the toolbar.
   - **Not built yet:** a product shows a Build button instead.
@@ -39,18 +47,18 @@ The left-hand menu has the course's sections, its products with page counts, and
 
 ## What a Build makes
 
-Products are written to `<output folder>\<course>\` with the standard options:
+Products are written to `<output folder>\<course>\`:
 
 | Product | Studio builds |
 |---|---|
-| Terrain map | The routing plus a 150 m margin, relief shading, 4 px/m |
-| Hole sheets | Every hole: PNGs and one PDF |
+| Terrain map | The course's saved map options. Defaults: the routing plus a 150 m margin, relief shading, Auto contours, 4 px/m |
+| Hole sheets | Every hole: PNGs and one PDF. They use the map options for area, shading, layers and water; each sheet picks its own finer contour interval |
 | Greens book | The sheet, a study PNG per green, and the PDF |
 | Yardage book | The PDF and a PNG per hole; tee names from the workbook |
 | Scorecard map | Vintage and Modern, each as PNG and PDF; names from the workbook |
 | Course cards | From the course-card settings file and workbook; errors stop the build |
 
-Everything else is on the command line (`src/Pga2K25.Cli`): hole subsets, the whole plot or buildable ground for the terrain map, contour interval, scorecard orientation and waste, forcing a draft course card, and so on. See each product's page in `docs/`.
+Everything else is on the command line (`src/Pga2K25.Cli`): hole subsets, scorecard orientation and waste, forcing a draft course card, and so on. See each product's page in `docs/`.
 
 ## Notes for development
 

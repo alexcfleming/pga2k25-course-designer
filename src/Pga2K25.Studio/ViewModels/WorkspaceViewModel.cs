@@ -77,18 +77,12 @@ public partial class WorkspaceViewModel : ObservableObject
         Entry = entry;
         RefreshProducts();
         InitSections();
+        LoadTerrainOptions();
         Task.Run(LoadSurvey);
     }
 
-    TerrainMapOptions ViewerOptions() => new()
-    {
-        PixelsPerMetre = ViewerPixelsPerMetre,
-        Shading = Shading switch { "Slope" => ReliefShading.Slope, "Plain" => ReliefShading.None, _ => ReliefShading.Relief },
-        GridYards = ShowGrid ? 100 : 0,
-        ShowFeatures = ShowSurfaces,
-        ShowSummits = ShowHilltops,
-        Credit = Settings.Credit,
-    };
+    /// <summary>The course's saved terrain options at the viewer's resolution.</summary>
+    TerrainMapOptions ViewerOptions() => Terrain.ToOptions(Settings.Credit, ViewerPixelsPerMetre);
 
     void LoadSurvey()
     {
@@ -112,7 +106,8 @@ public partial class WorkspaceViewModel : ObservableObject
                 RebuildMeasurementRows();
                 Status = $"{survey.Contours.Count:N0} contour lines every {survey.IntervalFeet:0.##} ft";
                 Render();
-                if (Holes.Count > 0) SelectHole(Holes[0].Number, centre: false);
+                int keep = Holes.Any(h => h.Number == _selectedHole) ? _selectedHole : Holes.FirstOrDefault()?.Number ?? 0;
+                if (keep > 0) SelectHole(keep, centre: false);
             });
         }
         catch (Exception ex)
@@ -152,10 +147,10 @@ public partial class WorkspaceViewModel : ObservableObject
     }
 
 
-    partial void OnShadingChanged(string value) => Render();
-    partial void OnShowSurfacesChanged(bool value) => Render();
-    partial void OnShowGridChanged(bool value) => Render();
-    partial void OnShowHilltopsChanged(bool value) => Render();
+    partial void OnShadingChanged(string value) { SaveToolbar(); Render(); }
+    partial void OnShowSurfacesChanged(bool value) { SaveToolbar(); Render(); }
+    partial void OnShowGridChanged(bool value) { SaveToolbar(); Render(); }
+    partial void OnShowHilltopsChanged(bool value) { SaveToolbar(); Render(); }
 
     /// <summary>Ground height, slope and grid square under a bitmap pixel.</summary>
     public void Hover(Point px)
