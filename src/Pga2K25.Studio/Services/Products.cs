@@ -26,12 +26,15 @@ public static class Products
     public static readonly IReadOnlyList<ProductDefinition> All =
     [
         new("Terrain map", " - Terrain Map.png", c =>
-            TerrainMapBuilder.Build(c.CoursePath, c.OutputDir, new TerrainMapOptions { Credit = c.Settings.Credit }, c.Log).PngPath)
+            TerrainMapBuilder.Build(c.CoursePath, c.OutputDir, c.Extras.Terrain.ToOptions(c.Settings.Credit), c.Log).PngPath)
         {
             Pages = ["{0} - Terrain Map.png"],
         },
         new("Hole sheets", " - Hole Sheets.pdf", c =>
-            HoleSheetBuilder.Build(c.CoursePath, c.OutputDir, new HoleSheetOptions { Map = new TerrainMapOptions { Credit = c.Settings.Credit } }, null, c.Log).PdfPath)
+            // Area (for the shared 0 ft), shading, surfaces, hilltops and water carry over. Each sheet picks its own
+            // finer contour interval, window and resolution.
+            HoleSheetBuilder.Build(c.CoursePath, c.OutputDir,
+                new HoleSheetOptions { Map = c.Extras.Terrain.ToOptions(c.Settings.Credit) with { ContourIntervalFeet = null } }, null, c.Log).PdfPath)
         {
             Pages = ["{0} - Hole Sheets/*.png"], Pdfs = ["{0} - Hole Sheets.pdf"],
         },

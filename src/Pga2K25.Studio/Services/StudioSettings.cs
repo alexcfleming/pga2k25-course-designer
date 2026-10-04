@@ -56,4 +56,5 @@ public sealed class CourseExtras
 {
     public string? Workbook { get; set; }
     public string? CardConfig { get; set; }
+    public TerrainSettings Terrain { get; set; } = new();
 }

@@ -175,6 +175,52 @@
       <!-- Inspector -->
       <ScrollViewer Grid.Row="1" Grid.Column="1" IsVisible="{Binding IsTerrain}">
         <StackPanel Spacing="16">
+          <Border Classes="card" Padding="4">
+            <Expander HorizontalAlignment="Stretch" Background="Transparent" BorderThickness="0" AutomationProperties.Name="Map options">
+              <Expander.Header>
+                <StackPanel Spacing="2">
+                  <TextBlock Text="Map options" FontWeight="SemiBold"/>
+                  <TextBlock Text="{Binding OptSummary}" Classes="muted small" TextWrapping="Wrap"/>
+                </StackPanel>
+              </Expander.Header>
+              <StackPanel Spacing="10">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Area" Classes="muted small"/>
+                  <ComboBox ItemsSource="{Binding Areas}" SelectedItem="{Binding OptArea}" HorizontalAlignment="Stretch" AutomationProperties.Name="Area"/>
+                </StackPanel>
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="10" RowDefinitions="Auto,Auto" RowSpacing="10">
+                  <StackPanel Spacing="4">
+                    <TextBlock Text="Margin (m)" Classes="muted small"/>
+                    <TextBox Text="{Binding OptMargin}" IsEnabled="{Binding OptMarginEnabled}" AutomationProperties.Name="Margin in metres"/>
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Spacing="4">
+                    <TextBlock Text="Contour interval (ft)" Classes="muted small"/>
+                    <TextBox Text="{Binding OptInterval}" Watermark="Auto" AutomationProperties.Name="Contour interval in feet"/>
+                  </StackPanel>
+                  <StackPanel Grid.Row="1" Spacing="4">
+                    <TextBlock Text="Index every" Classes="muted small"/>
+                    <TextBox Text="{Binding OptIndex}" AutomationProperties.Name="Index contour every"/>
+                  </StackPanel>
+                  <StackPanel Grid.Row="1" Grid.Column="1" Spacing="4">
+                    <TextBlock Text="Grid square (yd)" Classes="muted small"/>
+                    <TextBox Text="{Binding OptGrid}" AutomationProperties.Name="Grid square in yards"/>
+                  </StackPanel>
+                </Grid>
+                <CheckBox Content="Sea and painted water" IsChecked="{Binding OptWater}"/>
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Printed resolution (px per metre)" Classes="muted small"/>
+                  <TextBox Text="{Binding OptPrintPpm}" Width="120" HorizontalAlignment="Left" AutomationProperties.Name="Printed resolution in pixels per metre"/>
+                </StackPanel>
+                <TextBlock Text="{Binding OptError}" Foreground="#A32D2D" TextWrapping="Wrap" IsVisible="{Binding OptError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Classes="primary" Content="Apply" Command="{Binding ApplyOptionsCommand}"/>
+                  <Button Content="Reset to defaults" Command="{Binding ResetOptionsCommand}"/>
+                </StackPanel>
+                <TextBlock Classes="muted small" TextWrapping="Wrap"
+                           Text="Saved for this course. The live map, the terrain map build and the hole sheets use them; hole sheets keep their own finer contours."/>
+              </StackPanel>
+            </Expander>
+          </Border>
           <Border Classes="card" Padding="16" IsVisible="{Binding HasHole}">
             <StackPanel Spacing="14">
               <DockPanel>
