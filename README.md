@@ -12,6 +12,7 @@ A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer
 - [Scorecard maps](docs/scorecard-maps.md): themes, layout, how features are traced, and known limits.
 - [Yardage book](docs/yardage-book.md): page contents, hazard numbering, rock footprint estimation, and PDF output.
 - [Terrain map](docs/terrain-map.md): contour planning sheet of the plot with the routing as sticks and dots; terrain model notes and options.
+- [Course Designer Studio](docs/studio.md): the desktop app, with a course library, a live terrain map, measurements, product viewers and builds.
 - [Course cards](docs/course-cards.md): compass rose, hole data card and course data card from the course file; validation rules, settings, the 180° blind spot.
 
 ## Solution layout
@@ -25,8 +26,7 @@ A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer
 | `src/Pga2K25.TerrainMap` | Plot-scale terrain survey (contours, summits, per-hole elevations and green-site slope) and the terrain planning map renderer |
 | `src/Pga2K25.CourseCard` | Course cards: data from the course file (bearings, scorecard yards), validation, rose / table / composite renderer (bundled Lora font) |
 | `src/Pga2K25.Cli` | `pga2k25 info` / `greensbook` / `scorecard` / `yardage` / `terrain` / `cards` / `calibrate` command line |
-| `src/Pga2K25.Studio` | **Course Designer Studio** (Avalonia, in progress): a course library read from the game's Courses folder, app settings, and a per-course workspace. The workspace has a section menu (terrain map, measurements, course settings) and recent courses, a live terrain map, a hole inspector with in-game measurements against the model, a measurements page to add and remove readings, in-app viewers for every built product (page thumbnails, zoom and pan, open the PDF), and one-click product builds |
-| `src/Pga2K25.App` | WPF desktop app (Greens Book, Scorecard Map, Yardage Book, Terrain Map and Course Cards tabs); to be replaced by Studio |
+| `src/Pga2K25.Studio` | **Course Designer Studio**, the desktop app (Avalonia; see [docs/studio.md](docs/studio.md)): a course library read from the game's Courses folder, app settings, and a per-course workspace. The workspace has a section menu (terrain map, measurements, course settings) and recent courses, a live terrain map, a hole inspector with in-game measurements against the model, a measurements page to add and remove readings, in-app viewers for every built product (page thumbnails, zoom and pan, open the PDF), and one-click product builds |
 | `tests/Pga2K25.Tests` | xUnit: course decoding, metadata derivations, contouring, calibration regression, map projection, output builds |
 | `tools/course_codec.py` | Python CLI to inspect / unpack `.course` files (read only) |
 | `samples/courses/` | Sample `.course` files used as test fixtures (incl. Cassimbo, and the unbuilt routed plot Sagan-Khushun) |
@@ -56,10 +56,6 @@ dotnet run --project src/Pga2K25.Cli -- terrain samples/courses/sagan-khushun.co
 
 ```bash
 dotnet run --project src/Pga2K25.Cli -- cards samples/courses/sagan-khushun.course -o out --config samples/data/sagan-khushun-card.json
-```
-
-```bash
-dotnet run --project src/Pga2K25.App
 ```
 
 ```bash

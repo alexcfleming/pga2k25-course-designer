@@ -18,7 +18,7 @@ Options:
 - `--pdf`
 - `--credit "NAME"`, `--subtitle "TEXT"`
 
-The Windows app has a **Scorecard Map** tab with the same options.
+[Course Designer Studio](studio.md) builds both themes as PNG and PDF, using the course's hole-data workbook if one is set. The other options are on the command line.
 
 ## Themes
 
