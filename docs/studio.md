@@ -1,0 +1,59 @@
+# Course Designer Studio
+
+The desktop app (`src/Pga2K25.Studio`, Avalonia 12 on .NET 8). It reads course files and never writes them.
+
+```bash
+dotnet run --project src/Pga2K25.Studio -c Release
+```
+
+Pass a `.course` path on the command line to open straight into that course.
+
+## Library
+
+- **What's listed:** every `.course` in the courses folder (default `Documents\My Games\PGA TOUR 2K25\Courses`), plus any added with **Add course…**.
+- **Each card shows:**
+  - the in-game thumbnail saved in the file
+  - its status: *Routed*, *In progress* (greens or fairways drawn) or *Blank* (no holes)
+  - holes, par and back-tee yards
+  - when it was last saved
+  - which products are already built
+- **Finding a course:** filter by status, or search by name.
+- **Settings:** the courses folder, the output folder (default `Documents\PGA 2K25 Greens Books`) and the credit line. They're saved in `%AppData%\CourseDesignerStudio\settings.json`.
+
+## Course workspace
+
+The left-hand menu has the course's sections, its products with page counts, and recently opened courses.
+
+- **Terrain map:** drawn live by the same code as the printed terrain map.
+  - Relief / Slope / Plain shading; Surfaces, Grid and Hilltops layers.
+  - Zoom with the buttons or Ctrl + wheel, drag to pan, and Fit or 1:1.
+  - Hovering shows the ground height, slope and grid square.
+  - Picking a hole centres on it. The hole panel then shows tee and green heights, the change between them, the green site's tilt and ±ft as it lies, and any in-game measurements for its legs against the model.
+  - The model check above the map is the RMS difference over every measured leg.
+- **Products:**
+  - **Viewer:** each product's pages as thumbnails, with the selected page large (zoom, pan, fit). Open PDF, Open image, Show in folder and Rebuild are in the toolbar.
+  - **Not built yet:** a product shows a Build button instead.
+  - **Building:** use the viewer, the products panel, or **Build all products**.
+- **Measurements:** in-game measure-tool readings along the route, from the tee marker to the aim point and from the aim point to the green. The yards fill in from the course file. Heights can be typed as the tool shows them (`+13'6"`, `-0'7`, `13 ft 6 in`) or in decimal feet. Readings are saved to `Measurements.csv` in the course's output folder, in the same format as `samples/calibration/route-heights`.
+- **Course settings:** a hole-data workbook (tee and hole names, hazards) and a course-card settings file for this course.
+
+## What a Build makes
+
+Products are written to `<output folder>\<course>\` with the standard options:
+
+| Product | Studio builds |
+|---|---|
+| Terrain map | The routing plus a 150 m margin, relief shading, 4 px/m |
+| Hole sheets | Every hole: PNGs and one PDF |
+| Greens book | The sheet, a study PNG per green, and the PDF |
+| Yardage book | The PDF and a PNG per hole; tee names from the workbook |
+| Scorecard map | Vintage and Modern, each as PNG and PDF; names from the workbook |
+| Course cards | From the course-card settings file and workbook; errors stop the build |
+
+Everything else is on the command line (`src/Pga2K25.Cli`): hole subsets, the whole plot or buildable ground for the terrain map, contour interval, scorecard orientation and waste, forcing a draft course card, and so on. See each product's page in `docs/`.
+
+## Notes for development
+
+- **XAML loading:** Avalonia 12's XAML source generator needs a newer C# compiler than the .NET 8 SDK has. The views load their XAML with `AvaloniaXamlLoader` and look up named controls with `FindControl`, not `InitializeComponent`.
+- **SkiaSharp:** Avalonia 12.1.3 runs on the libraries' SkiaSharp 4.152.
+- **Earlier app:** the WPF app (`src/Pga2K25.App`) was retired on 2026-10-03. Its last version is tagged `wpf-app-final`.

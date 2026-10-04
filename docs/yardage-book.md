@@ -1,6 +1,6 @@
 # Yardage book
 
-The app builds a StrackaLine-style yardage book from a `.course` file. It uses one page per hole and one page format.
+This builds a StrackaLine-style yardage book from a `.course` file. It uses one page per hole and one page format.
 
 ## Output
 
@@ -25,7 +25,7 @@ CLI options:
 - `--verbose`: explains why each hazard was or wasn't labelled.
 - `--credit "NAME"`.
 
-In the desktop app, use the **Yardage Book** tab. It takes a hole list (`All`, `1-9`, `1, 4, 11-14`), the PDF and PNG check boxes and a verbose log option. It uses the shared course, output, hole data and credit fields.
+[Course Designer Studio](studio.md) builds every hole as the PDF and PNGs, with tee names from the course's hole-data workbook if one is set. Hole subsets and `--verbose` are on the command line.
 
 ## Page contents
 

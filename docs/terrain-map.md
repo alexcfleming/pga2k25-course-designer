@@ -6,7 +6,7 @@ A single high-resolution, north-up PNG of a routed but unbuilt plot, made for pl
 dotnet run --project src/Pga2K25.Cli -- terrain samples/courses/sagan-khushun.course -o out --credit "NAME"
 ```
 
-The output is `<course> - Terrain Map.png`. At the default 4 px per metre, a 1.5 km routing gives roughly 7,000 × 6,500 px, which is about 28 × 26 in at 250 dpi. The Windows app has the same tool on its **Terrain Map** tab.
+The output is `<course> - Terrain Map.png`. At the default 4 px per metre, a 1.5 km routing gives roughly 7,000 × 6,500 px, which is about 28 × 26 in at 250 dpi. [Course Designer Studio](studio.md) draws this map live in its workspace and builds the PNG with the default options.
 
 ## What's on the sheet
 
@@ -45,13 +45,13 @@ A plot with no holes, such as one with only a clubhouse, range and practice area
   - the practice green (its flags)
   - a helipad
 - **Side panel:** shows the plot's size and relief and each landmark's elevation in place of the hole table.
-- **`--buildable`** (app: Area → *Buildable ground*) maps only that buildable ground plus a 40 m margin. On Falcon's Nest that is the plateau top. This works for routed courses too, seeded from the holes.
+- **`--buildable`** maps only that buildable ground plus a 40 m margin. On Falcon's Nest that is the plateau top. This works for routed courses too, seeded from the holes.
 
 Terrain map PNGs are written losslessly at maximum zlib compression.
 
 ## Hole sheets
 
-`--holes 2,7,16` (or `all`), or **Create Hole Sheets** in the app, makes one **US Letter portrait page per hole** for sketching hole features by hand. You get a 300 dpi PNG per hole in `<course> - Hole Sheets/` and one PDF, `<course> - Hole Sheets.pdf`. Both print at true scale; the footer says how many yards an inch is at 100 %.
+`--holes 2,7,16` (or `all`), or **Build** on Hole sheets in [Course Designer Studio](studio.md) (every hole), makes one **US Letter portrait page per hole** for sketching hole features by hand. You get a 300 dpi PNG per hole in `<course> - Hole Sheets/` and one PDF, `<course> - Hole Sheets.pdf`. Both print at true scale; the footer says how many yards an inch is at 100 %.
 
 ```bash
 dotnet run --project src/Pga2K25.Cli -- terrain samples/courses/sagan-khushun.course --holes 2,7,16 --credit "NAME"
@@ -104,23 +104,23 @@ The images come from screenshots of the palette icons, so fine detail is approxi
 
 ## Options
 
-| CLI | App | Default | |
-|---|---|---|---|
-| `--full-plot` | Area | routing + 150 m | Map every terrain stamp instead (the whole plot) |
-| `--margin` | | 150 | Metres around the routing |
-| `--interval` | Contour (ft) | auto | Contour interval in feet |
-| `--index` | | 5 | Every n-th contour is an index contour |
-| `--shading` | Shading | relief | `relief`, `slope` or `none` |
-| `--ppm` | px / m | 4 | Output pixels per metre; text and line weights scale with it |
-| `--cell` | | 1.0 | Terrain raster (m) |
-| `--grid` | | 100 | Grid square (yd); 0 hides the grid |
-| `--hardness` / `--large-hardness` | | 0.85 / 0.3 | Falloff for small / large brushes of unknown shape (round-disc fallback) |
-| `--smooth` | | 0 | Extra Gaussian smoothing (sigma, m) before contouring |
-| `--no-features`, `--no-summits` | Drawn surfaces | shown | |
-| `--holes` | Create Hole Sheets / Holes | | Hole sheets instead of the plot map (`all` or a list) |
-| `--sheet-grid` | | 50 | Hole sheet grid (yd) |
-| `--no-pdf`, `--no-png` | | both | Hole sheet outputs |
-| `--sea-level`, `--no-water` | | from ocean props | Sea level (world m), or no sea |
+| CLI | Default | |
+|---|---|---|
+| `--full-plot` | routing + 150 m | Map every terrain stamp instead (the whole plot) |
+| `--margin` | 150 | Metres around the routing |
+| `--interval` | auto | Contour interval in feet |
+| `--index` | 5 | Every n-th contour is an index contour |
+| `--shading` | relief | `relief`, `slope` or `none` |
+| `--ppm` | 4 | Output pixels per metre; text and line weights scale with it |
+| `--cell` | 1.0 | Terrain raster (m) |
+| `--grid` | 100 | Grid square (yd); 0 hides the grid |
+| `--hardness` / `--large-hardness` | 0.85 / 0.3 | Falloff for small / large brushes of unknown shape (round-disc fallback) |
+| `--smooth` | 0 | Extra Gaussian smoothing (sigma, m) before contouring |
+| `--no-features`, `--no-summits` | shown | |
+| `--holes` | | Hole sheets instead of the plot map (`all` or a list) |
+| `--sheet-grid` | 50 | Hole sheet grid (yd) |
+| `--no-pdf`, `--no-png` | both | Hole sheet outputs |
+| `--sea-level`, `--no-water` | from ocean props | Sea level (world m), or no sea |
 
 ## Code
 

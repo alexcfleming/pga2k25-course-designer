@@ -29,7 +29,7 @@ dotnet run --project src/Pga2K25.Cli -- greensbook "path/to/course.course" -o ou
 
 Other options: `--pdf`, `--mono`, `--no-sheet`, `--holes 1,18`, `--hardness 0.85`, `--blur 1.0`, `--credit "NAME"`.
 
-The Windows app (`src/Pga2K25.App`) offers the same options (slope colour, per-green studies, PDF, hardness, credit) and opens the finished sheet.
+[Course Designer Studio](studio.md) builds the sheet, a study per green and the PDF, and shows them in its viewer. The other options are on the command line.
 
 ## How the surface is built (and why it's experimental)
 

@@ -14,7 +14,7 @@ The layouts follow the reference matplotlib build from the Cassimbo card handoff
 dotnet run --project src/Pga2K25.Cli -- cards "<file.course>" -o out --config samples/data/sagan-khushun-card.json
 ```
 
-The app's **Course Cards** tab does the same. It uses the **Hole data** workbook set at the top of the window, if one is given.
+[Course Designer Studio](studio.md) builds them from the course's card settings file and hole-data workbook, set on its Course settings page.
 
 Options: `--data holes.xlsx`, `--formats png,pdf,svg`, `--dpi 300`, `--wind 225`, `--ocean WEST|none` and `--force`.
 
@@ -42,7 +42,7 @@ The **course file is the source of truth**.
 | Ocean side detected; no wind set | INFO |
 
 - **What gets written:** issues print to the log and go to `<course> - Card Validation.txt`.
-- **ERRORs stop the build.** `--force` (or **Force** in the app) draws anyway for a draft. The errors are still reported.
+- **ERRORs stop the build.** `--force` (command line only) draws anyway for a draft. The errors are still reported.
 
 On Cassimbo the game's own scorecard has hole 4's Red tee longer than its Green (364 vs 362 yds), so a normal build stops. The workbook is also stale on holes 4, 7, 11, 12 and 16. Hand-measured bearings differ from the routing by up to 35° on a few holes.
 
