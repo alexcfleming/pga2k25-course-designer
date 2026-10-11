@@ -1,4 +1,4 @@
-﻿<UserControl xmlns="https://github.com/avaloniaui"
+<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Pga2K25.Studio.ViewModels"
              x:Class="Pga2K25.Studio.Views.LibraryView"
@@ -11,7 +11,7 @@
             <TextBlock Text="Read only" FontSize="12" Foreground="#3F4A43"/>
           </Border>
           <Button Content="Refresh" Command="{Binding ReloadCommand}"/>
-          <Button Content="Add courseâ€¦" Click="AddCourse_Click"/>
+          <Button Content="Add course…" Click="AddCourse_Click"/>
           <Button Content="Settings" Command="{Binding OpenSettingsCommand}"/>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
