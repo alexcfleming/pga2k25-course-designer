@@ -195,7 +195,7 @@
                   </StackPanel>
                   <StackPanel Grid.Column="1" Spacing="4">
                     <TextBlock Text="Contour interval (ft)" Classes="muted small"/>
-                    <TextBox Text="{Binding OptInterval}" Watermark="Auto" AutomationProperties.Name="Contour interval in feet"/>
+                    <TextBox Text="{Binding OptInterval}" PlaceholderText="Auto" AutomationProperties.Name="Contour interval in feet"/>
                   </StackPanel>
                   <StackPanel Grid.Row="1" Spacing="4">
                     <TextBlock Text="Index every" Classes="muted small"/>
@@ -372,7 +372,7 @@
                 </StackPanel>
                 <StackPanel Spacing="4">
                   <TextBlock Text="Height change" Classes="muted small"/>
-                  <TextBox Text="{Binding NewFeet}" Width="160" Watermark="e.g. +13 ft 6 in"/>
+                  <TextBox Text="{Binding NewFeet}" Width="160" PlaceholderText="e.g. +13 ft 6 in"/>
                 </StackPanel>
                 <Button Classes="primary" Content="Add reading" Command="{Binding AddMeasurementCommand}" VerticalAlignment="Bottom"/>
               </WrapPanel>
@@ -436,7 +436,7 @@
                   <Button Content="Choose…" Click="BrowseWorkbook_Click"/>
                   <Button Content="Clear" Command="{Binding ClearWorkbookCommand}"/>
                 </StackPanel>
-                <TextBox Text="{Binding WorkbookPath}" IsReadOnly="True" Watermark="None"/>
+                <TextBox Text="{Binding WorkbookPath}" IsReadOnly="True" PlaceholderText="None"/>
               </DockPanel>
             </StackPanel>
             <StackPanel Spacing="4">
@@ -447,7 +447,7 @@
                   <Button Content="Choose…" Click="BrowseCardConfig_Click"/>
                   <Button Content="Clear" Command="{Binding ClearCardConfigCommand}"/>
                 </StackPanel>
-                <TextBox Text="{Binding CardConfigPath}" IsReadOnly="True" Watermark="None"/>
+                <TextBox Text="{Binding CardConfigPath}" IsReadOnly="True" PlaceholderText="None"/>
               </DockPanel>
             </StackPanel>
             <StackPanel Spacing="4">
