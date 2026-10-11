@@ -1,4 +1,4 @@
-<UserControl xmlns="https://github.com/avaloniaui"
+﻿<UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Pga2K25.Studio.ViewModels"
              x:Class="Pga2K25.Studio.Views.LibraryView"
@@ -11,7 +11,7 @@
             <TextBlock Text="Read only" FontSize="12" Foreground="#3F4A43"/>
           </Border>
           <Button Content="Refresh" Command="{Binding ReloadCommand}"/>
-          <Button Content="Add course…" Click="AddCourse_Click"/>
+          <Button Content="Add courseâ€¦" Click="AddCourse_Click"/>
           <Button Content="Settings" Command="{Binding OpenSettingsCommand}"/>
         </StackPanel>
         <StackPanel Orientation="Horizontal" Spacing="14" VerticalAlignment="Center">
@@ -24,7 +24,7 @@
     <ScrollViewer>
       <StackPanel Margin="28,24,28,32" Spacing="18" MaxWidth="1400">
         <DockPanel>
-          <TextBox DockPanel.Dock="Right" Width="260" Watermark="Search courses" Text="{Binding Search}" VerticalAlignment="Bottom"/>
+          <TextBox DockPanel.Dock="Right" Width="260" PlaceholderText="Search courses" Text="{Binding Search}" VerticalAlignment="Bottom"/>
           <StackPanel Spacing="4">
             <TextBlock Classes="h1" Text="Your courses"/>
             <TextBlock Classes="muted">

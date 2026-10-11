@@ -60,6 +60,20 @@ Products are written to `<output folder>\<course>\`:
 
 Everything else is on the command line (`src/Pga2K25.Cli`): hole subsets, scorecard orientation and waste, forcing a draft course card, and so on. See each product's page in `docs/`.
 
+## Packaging a release
+
+```
+powershell -ExecutionPolicy Bypass -File tools\package-release.ps1
+```
+
+This writes `CourseDesignerStudio-<version>-win-x64.zip` to `releases\` beside the repo (or `-OutDir <folder>`). The version is the `<Version>` in the Studio project. The zip contains:
+
+- **`CourseDesignerStudio.exe`:** self-contained and single-file, so testers don't need to install .NET. 64-bit Windows 10 or 11.
+- **`fonts\lora`:** the course cards load the fonts from beside the exe. The single-file bundler drops them, so the script copies them in.
+- **`README.txt`:** for testers, from `docs/release-readme.txt`.
+
+The exe isn't signed, so Windows SmartScreen asks testers to confirm the first run (More info → Run anyway).
+
 ## Notes for development
 
 - **XAML loading:** Avalonia 12's XAML source generator needs a newer C# compiler than the .NET 8 SDK has. The views load their XAML with `AvaloniaXamlLoader` and look up named controls with `FindControl`, not `InitializeComponent`.
