@@ -26,7 +26,10 @@ The left-hand menu has the course's sections, its products with page counts, and
 
 - **Terrain map:** drawn live by the same code as the printed terrain map.
   - Relief / Slope / Plain shading; Surfaces, Grid and Hilltops layers.
-  - Zoom with the buttons or Ctrl + wheel, drag to pan, and Fit or 1:1.
+  - Zoom with the mouse wheel or the buttons, drag to pan, and turn it with right-drag, Shift + drag or the turn buttons. Fit (or **Whole map**) shows the whole map north up.
+  - **Hole view** turns and zooms to the selected hole's sheet, tee at the bottom.
+  - **Hole sketches:** scanned hole sheets with pencil on them, laid on the ground, one hole or all at once, coloured per hole. See [Hole sketches and notes](hole-sketches.md).
+  - **Notes:** pinned to the ground (Build, Planting, Concept, Note), saved in `Notes.json` beside the products.
   - Hovering shows the ground height, slope and grid square.
   - Picking a hole centres on it. The hole panel then shows tee and green heights, the change between them, the green site's tilt and ±ft as it lies, and any in-game measurements for its legs against the model.
   - The model check above the map is the RMS difference over every measured leg.

@@ -25,6 +25,15 @@ public sealed class TerrainSettings
     /// <summary>Pixels per metre of the built PNG.</summary>
     public double PrintPixelsPerMetre { get; set; } = 4;
 
+    public const string SketchesOff = "Off", SketchesThisHole = "This hole", SketchesAll = "All holes";
+    /// <summary>Scanned hole sketches over the live map: off, the selected hole's, or every hole's.</summary>
+    public string Sketches { get; set; } = SketchesAll;
+    public bool SketchColours { get; set; } = true;
+    public double SketchOpacity { get; set; } = 0.9;
+    /// <summary>The selected hole's whole scanned sheet instead of just its pencil.</summary>
+    public bool SketchScan { get; set; }
+    public bool ShowNotes { get; set; } = true;
+
     public TerrainMapOptions ToOptions(string credit, double? pixelsPerMetre = null) => new()
     {
         Extent = Area switch { WholePlot => MapExtent.FullPlot, Buildable => MapExtent.Buildable, _ => MapExtent.Routing },

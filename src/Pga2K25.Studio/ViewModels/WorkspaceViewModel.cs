@@ -78,6 +78,9 @@ public partial class WorkspaceViewModel : ObservableObject
         RefreshProducts();
         InitSections();
         LoadTerrainOptions();
+        LoadLayerSettings();
+        LoadNotes();
+        LoadSketches();
         Task.Run(LoadSurvey);
     }
 
@@ -95,6 +98,7 @@ public partial class WorkspaceViewModel : ObservableObject
             Dispatcher.UIThread.Post(() =>
             {
                 _survey = survey;
+                SetSheetLayouts(survey);
                 SeaText = survey.SeaLevelMetres is null ? "No sea on the sheet" : "Elevations above sea level";
                 Holes.Clear();
                 foreach (var h in survey.Holes)
@@ -142,6 +146,7 @@ public partial class WorkspaceViewModel : ObservableObject
                 _projection = projection;
                 MapImage = bitmap;
                 Loading = false;
+                LayersChanged?.Invoke();
             });
         });
     }
@@ -160,7 +165,7 @@ public partial class WorkspaceViewModel : ObservableObject
         if (!_mapRect.Contains(p)) { HoverText = "Off the map"; return; }
         var w = _projection.Unmap(p);
         string grid = _renderer.GridReference(_survey, p) is { } g ? $" · {g}" : "";
-        HoverText = $"{_survey.Feet(w):0} ft · slope {_survey.SlopePct(w):0.0} %{grid}";
+        HoverText = (PlacingNote ? "Click to pin the note · " : "") + $"{_survey.Feet(w):0} ft · slope {_survey.SlopePct(w):0.0} %{grid}";
     }
 
     void SelectHole(int number, bool centre)
@@ -189,7 +194,9 @@ public partial class WorkspaceViewModel : ObservableObject
         }
         HasLegs = Legs.Count > 0;
 
-        if (centre && _projection is not null)
+        LayersChanged?.Invoke();
+        if (centre && HoleView) RequestFrame(number);
+        else if (centre && _projection is not null)
         {
             var p = _projection.Map(new Vec2((r[0].X + r[^1].X) / 2, (r[0].Z + r[^1].Z) / 2));
             CentreOn?.Invoke(new Point(p.X, p.Y));

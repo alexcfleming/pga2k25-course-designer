@@ -127,18 +127,30 @@
       <Border Grid.Row="1" Classes="card" ClipToBounds="True" IsVisible="{Binding IsTerrain}">
         <DockPanel>
           <Border DockPanel.Dock="Top" BorderBrush="#E6E9E3" BorderThickness="0,0,0,1" Padding="12,8">
-            <DockPanel>
-              <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                <ListBox Classes="segmented" ItemsSource="{Binding Shadings}" SelectedItem="{Binding Shading}">
-                  <ListBox.ItemsPanel>
-                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                  </ListBox.ItemsPanel>
-                </ListBox>
-                <ToggleButton Classes="pill" Content="Surfaces" IsChecked="{Binding ShowSurfaces}"/>
-                <ToggleButton Classes="pill" Content="Grid" IsChecked="{Binding ShowGrid}"/>
-                <ToggleButton Classes="pill" Content="Hilltops" IsChecked="{Binding ShowHilltops}"/>
+            <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="8">
+              <ListBox Classes="segmented" ItemsSource="{Binding Shadings}" SelectedItem="{Binding Shading}" VerticalAlignment="Center">
+                <ListBox.ItemsPanel>
+                  <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+              </ListBox>
+              <ToggleButton Classes="pill" Content="Surfaces" IsChecked="{Binding ShowSurfaces}" VerticalAlignment="Center"/>
+              <ToggleButton Classes="pill" Content="Grid" IsChecked="{Binding ShowGrid}" VerticalAlignment="Center"/>
+              <ToggleButton Classes="pill" Content="Hilltops" IsChecked="{Binding ShowHilltops}" VerticalAlignment="Center"/>
+              <Border Width="1" Height="22" Background="{StaticResource Hairline}" VerticalAlignment="Center" Margin="2,0"/>
+              <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                <TextBlock Text="Sketches" Classes="muted small" VerticalAlignment="Center"/>
+                <ComboBox ItemsSource="{Binding SketchModes}" SelectedItem="{Binding SketchMode}" MinWidth="110" AutomationProperties.Name="Sketch layer"/>
               </StackPanel>
-            </DockPanel>
+              <ToggleButton Classes="pill" Content="Notes" IsChecked="{Binding ShowNotes}" VerticalAlignment="Center"
+                            ToolTip.Tip="Show the pinned notes"/>
+              <ToggleButton Classes="pill" Content="+ Add note" IsChecked="{Binding PlacingNote}" VerticalAlignment="Center"
+                            ToolTip.Tip="Then click the map where the note belongs"/>
+              <Border Width="1" Height="22" Background="{StaticResource Hairline}" VerticalAlignment="Center" Margin="2,0"/>
+              <Button Content="Hole view" Command="{Binding ShowHoleViewCommand}" IsEnabled="{Binding HasHole}" MinHeight="30" Padding="10,0"
+                      VerticalAlignment="Center" ToolTip.Tip="Turn and zoom the map to the selected hole's sheet: tee at the bottom, green at the top"/>
+              <Button Content="Whole map" Command="{Binding ShowWholeMapCommand}" MinHeight="30" Padding="10,0" VerticalAlignment="Center"
+                      ToolTip.Tip="Back out to the whole map, north up"/>
+            </WrapPanel>
           </Border>
 
           <Border DockPanel.Dock="Bottom" BorderBrush="#E6E9E3" BorderThickness="0,1,0,0" Padding="12,10">
@@ -158,9 +170,42 @@
           </Border>
 
           <Panel Background="#DDEBD9">
-            <views:ZoomImage x:Name="MapView" Source="{Binding MapImage}" FitWidth="True" Cursor="Cross"/>
+            <views:MapSurface x:Name="MapView" Cursor="Cross"/>
             <Border Background="{StaticResource Ink}" CornerRadius="8" Padding="10,6" Margin="12" HorizontalAlignment="Left" VerticalAlignment="Bottom" IsHitTestVisible="False">
               <TextBlock Text="{Binding HoverText}" Foreground="White" Classes="mono small"/>
+            </Border>
+            <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" BorderThickness="1" CornerRadius="8" Padding="10,6"
+                    Margin="12" HorizontalAlignment="Left" VerticalAlignment="Top" IsHitTestVisible="False" IsVisible="{Binding HoleView}">
+              <TextBlock Text="{Binding ViewText}" FontWeight="Medium" FontSize="13"/>
+            </Border>
+            <!-- North arrow: turns with the map; click for north up. -->
+            <Border Width="44" Height="44" CornerRadius="22" Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" BorderThickness="1"
+                    Margin="12" HorizontalAlignment="Right" VerticalAlignment="Top" ToolTip.Tip="North. Click to turn the map north up." Cursor="Hand"
+                    PointerPressed="NorthUp_Pressed">
+              <Panel x:Name="NorthArrow" Width="42" Height="42">
+                <Path Data="M 21,5 L 27,23 L 21,19 L 15,23 Z" Fill="#1F2622"/>
+                <TextBlock Text="N" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,4"/>
+              </Panel>
+            </Border>
+            <Border Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" BorderThickness="1" CornerRadius="8" Padding="4"
+                    HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="12">
+              <StackPanel Orientation="Horizontal" Spacing="4">
+                <Button Width="32" MinHeight="30" Padding="0" HorizontalContentAlignment="Center" Click="RotateLeft_Click"
+                        ToolTip.Tip="Turn 15° anticlockwise (or right-drag / Shift + drag)" AutomationProperties.Name="Rotate anticlockwise">
+                  <PathIcon Width="14" Height="14" Data="M7.11 8.53L5.7 7.11C4.8 8.27 4.24 9.61 4.07 11h2.02c.14-.87.49-1.72 1.02-2.47zM6.09 13H4.07c.17 1.39.72 2.73 1.62 3.89l1.41-1.42c-.52-.75-.87-1.59-1.01-2.47zm1.01 5.32c1.16.9 2.51 1.44 3.9 1.61V17.9c-.87-.15-1.71-.49-2.46-1.03L7.1 18.32zM13 4.07V1L8.45 5.55 13 10V6.09c2.84.48 5 2.94 5 5.91s-2.16 5.43-5 5.91v2.02c3.95-.49 7-3.85 7-7.93s-3.05-7.44-7-7.93z"/>
+                </Button>
+                <Button Width="32" MinHeight="30" Padding="0" HorizontalContentAlignment="Center" Click="RotateRight_Click"
+                        ToolTip.Tip="Turn 15° clockwise (or right-drag / Shift + drag)" AutomationProperties.Name="Rotate clockwise">
+                  <PathIcon Width="14" Height="14" Data="M7.11 8.53L5.7 7.11C4.8 8.27 4.24 9.61 4.07 11h2.02c.14-.87.49-1.72 1.02-2.47zM6.09 13H4.07c.17 1.39.72 2.73 1.62 3.89l1.41-1.42c-.52-.75-.87-1.59-1.01-2.47zm1.01 5.32c1.16.9 2.51 1.44 3.9 1.61V17.9c-.87-.15-1.71-.49-2.46-1.03L7.1 18.32zM13 4.07V1L8.45 5.55 13 10V6.09c2.84.48 5 2.94 5 5.91s-2.16 5.43-5 5.91v2.02c3.95-.49 7-3.85 7-7.93s-3.05-7.44-7-7.93z" RenderTransform="scale(-1,1)"/>
+                </Button>
+                <Border Width="1" Background="{StaticResource Hairline}" Margin="2,4"/>
+                <Button Content="−" Width="32" MinHeight="30" Padding="0" HorizontalContentAlignment="Center" Click="ZoomOut_Click"
+                        ToolTip.Tip="Zoom out (mouse wheel)" AutomationProperties.Name="Zoom out"/>
+                <TextBlock x:Name="ZoomText" Classes="mono small" Width="46" TextAlignment="Center" VerticalAlignment="Center"/>
+                <Button Content="+" Width="32" MinHeight="30" Padding="0" HorizontalContentAlignment="Center" Click="ZoomIn_Click"
+                        ToolTip.Tip="Zoom in (mouse wheel)" AutomationProperties.Name="Zoom in"/>
+                <Button Content="Fit" MinHeight="30" Padding="10,0" Command="{Binding ShowWholeMapCommand}" AutomationProperties.Name="Whole map"/>
+              </StackPanel>
             </Border>
             <Border Background="#CCF3F4F0" IsVisible="{Binding Loading}">
               <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
@@ -269,6 +314,129 @@
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
               </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <!-- Selected note -->
+          <Border Classes="card" Padding="16" IsVisible="{Binding HasSelectedNote}">
+            <StackPanel Spacing="10">
+              <DockPanel>
+                <Border DockPanel.Dock="Left" Width="24" Height="24" CornerRadius="12" Background="{Binding SelectedNote.KindBrush, FallbackValue=Gray}" Margin="0,0,10,0">
+                  <TextBlock Text="{Binding SelectedNote.Number, FallbackValue=''}" Foreground="White" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Text="Note" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
+              </DockPanel>
+              <ListBox Classes="segmented" ItemsSource="{Binding NoteKinds}" SelectedItem="{Binding SelectedNote.Kind}" AutomationProperties.Name="Kind of note">
+                <ListBox.ItemsPanel>
+                  <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+              </ListBox>
+              <TextBox x:Name="NoteText" Text="{Binding SelectedNote.Text}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="96" MaxHeight="260"
+                       PlaceholderText="How to build it, what to plant, the idea…" AutomationProperties.Name="Note text"/>
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Left" Text="Belongs to" Classes="muted small" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                <ComboBox ItemsSource="{Binding NoteHoleChoices}" SelectedItem="{Binding SelectedNote.HoleChoice}" MinWidth="100"
+                          AutomationProperties.Name="Hole the note belongs to"/>
+              </DockPanel>
+              <TextBlock Classes="muted small" TextWrapping="Wrap" Text="Saved as you type. Drag the pin on the map to move it."/>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Classes="primary" Content="Done" Command="{Binding DoneNoteCommand}"/>
+                <Button Content="Delete note" Command="{Binding DeleteNoteCommand}"/>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <!-- Sketches -->
+          <Border Classes="card" Padding="16">
+            <StackPanel Spacing="10">
+              <DockPanel>
+                <Button DockPanel.Dock="Right" Content="Import scans…" Click="ImportScans_Click" IsEnabled="{Binding !Busy}" MinHeight="30" Padding="10,0"/>
+                <TextBlock Classes="h2" Text="Hole sketches" VerticalAlignment="Center"/>
+              </DockPanel>
+              <TextBlock Text="{Binding SketchSummary}" Classes="muted small" TextWrapping="Wrap"/>
+              <StackPanel Spacing="10" IsVisible="{Binding HasSketches}">
+                <ListBox Classes="segmented" ItemsSource="{Binding SketchModes}" SelectedItem="{Binding SketchMode}" AutomationProperties.Name="Sketch layer">
+                  <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                  </ListBox.ItemsPanel>
+                </ListBox>
+                <CheckBox Content="Colour each hole" IsChecked="{Binding SketchColours}"/>
+                <CheckBox Content="Whole scan for the selected hole" IsChecked="{Binding SketchScan}"/>
+                <DockPanel>
+                  <TextBlock DockPanel.Dock="Left" Text="Opacity" Classes="muted small" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                  <Slider Minimum="0.1" Maximum="1" Value="{Binding SketchOpacity}" AutomationProperties.Name="Sketch opacity"/>
+                </DockPanel>
+                <Expander HorizontalAlignment="Stretch" Background="Transparent" BorderThickness="0">
+                  <Expander.Header>
+                    <TextBlock Text="Imported sheets" FontWeight="Medium"/>
+                  </Expander.Header>
+                  <StackPanel Spacing="2">
+                    <ItemsControl ItemsSource="{Binding SketchRows}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:SketchRowViewModel">
+                          <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,6">
+                            <DockPanel>
+                              <Button DockPanel.Dock="Right" Content="Remove" Command="{Binding RemoveCommand}" MinHeight="26" Padding="8,0" VerticalAlignment="Center"/>
+                              <Border DockPanel.Dock="Left" Width="12" Height="12" CornerRadius="6" Background="{Binding Swatch}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                              <StackPanel>
+                                <TextBlock Text="{Binding Title}" FontWeight="Medium" FontSize="13"/>
+                                <TextBlock Text="{Binding Detail}" Classes="muted small" TextTrimming="CharacterEllipsis"/>
+                              </StackPanel>
+                            </DockPanel>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <Button Content="Open sketches folder" Command="{Binding OpenSketchFolderCommand}" Margin="0,6,0,0"/>
+                  </StackPanel>
+                </Expander>
+              </StackPanel>
+              <StackPanel Spacing="2" IsVisible="{Binding HasImportResults}">
+                <TextBlock Text="Last import" FontWeight="Medium" FontSize="13"/>
+                <ItemsControl ItemsSource="{Binding ImportResults}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String">
+                      <TextBlock Text="{Binding}" Classes="small" TextWrapping="Wrap" Margin="0,1"/>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+              <TextBlock Classes="muted small" TextWrapping="Wrap"
+                         Text="Scan the hole sheets printed from this app; a PDF of many pages is fine. Each page is matched to its hole, and the pencil is lifted off the print and laid on the ground where it was drawn."/>
+            </StackPanel>
+          </Border>
+
+          <!-- Notes -->
+          <Border Classes="card" Padding="16">
+            <StackPanel Spacing="8">
+              <DockPanel>
+                <ToggleButton DockPanel.Dock="Right" Classes="pill" Content="+ Add note" IsChecked="{Binding PlacingNote}"/>
+                <TextBlock Classes="h2" Text="Notes" VerticalAlignment="Center"/>
+              </DockPanel>
+              <TextBlock Text="{Binding NotesSummary}" Classes="muted small" TextWrapping="Wrap"/>
+              <ItemsControl ItemsSource="{Binding Notes}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:NoteViewModel">
+                    <Button Classes="nav" Classes.selected="{Binding IsSelected}" Command="{Binding SelectCommand}" Margin="0,1" Padding="6,6"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                      <DockPanel>
+                        <Border DockPanel.Dock="Left" Width="22" Height="22" CornerRadius="11" Background="{Binding KindBrush}" Margin="0,0,10,0" VerticalAlignment="Top">
+                          <TextBlock Text="{Binding Number}" Foreground="White" FontSize="10" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <StackPanel>
+                          <TextBlock FontSize="12" Classes="muted">
+                            <Run Text="{Binding Kind}"/>
+                            <Run Text=" · "/>
+                            <Run Text="{Binding HoleText}"/>
+                          </TextBlock>
+                          <TextBlock Text="{Binding Summary}" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                      </DockPanel>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <Button Content="Open notes file" Command="{Binding OpenNotesFileCommand}" IsVisible="{Binding HasNotes}" HorizontalAlignment="Left"/>
             </StackPanel>
           </Border>
 

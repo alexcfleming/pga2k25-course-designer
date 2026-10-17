@@ -25,6 +25,10 @@ const string Usage = """
       the routing as sticks and dots ("<course> - Terrain Map.png")
       --interval  contour interval in feet (default: smallest of 1/2/5/10… that fits)
       --ppm       output pixels per metre of ground (default 4)
+    pga2k25 sketches <file.course> <scan.pdf|.jpg|.png>... [-o <dir>] [--sheets <built Hole Sheets folder>]
+      imports scanned hole sheets with pencil sketching: finds each page's hole by matching it
+      against the course's sheets and writes "<course> - Sketches/" (pencil PNG, straightened
+      scan and sketches.json, tied to world coordinates) for the Studio's terrain map
     pga2k25 cards <file.course> [-o <dir>] [--config course-card.json] [--data holes.xlsx]
                   [--formats png,pdf,svg] [--dpi 300] [--wind 225] [--ocean WEST|none] [--force]
       compass rose, hole data card and course data card from the course file; a workbook only
@@ -57,6 +61,7 @@ try
         case "yardage": return Yardage(args[1], args[2..]);
         case "terrain": return Terrain(args[1], args[2..]);
         case "cards": return Cards(args[1], args[2..]);
+        case "sketches": return Sketches(args[1], args[2..]);
         case "calibrate" when args.Length >= 3: return Calibrate(args[1], args[2], args[3..]);
         default: Console.Error.WriteLine(Usage); return 2;
     }
@@ -169,6 +174,30 @@ static int Yardage(string path, string[] rest)
     }
     if (!outputs.Pdf && !outputs.Pngs) throw new ArgumentException("--no-pdf needs --png, or there is nothing to write");
     YardageBookBuilder.Build(path, outDir, options, outputs, holes, new SyncProgress(Console.WriteLine), verbose);
+    return 0;
+}
+
+static int Sketches(string path, string[] rest)
+{
+    string outDir = Path.GetDirectoryName(Path.GetFullPath(path))!;
+    var scans = new List<string>();
+    string? sheets = null;
+    for (int i = 0; i < rest.Length; i++)
+    {
+        if (rest[i] is "-o" or "--out" && i + 1 < rest.Length) outDir = rest[++i];
+        else if (rest[i] == "--sheets" && i + 1 < rest.Length) sheets = rest[++i];
+        else scans.Add(rest[i]);
+    }
+    if (scans.Count == 0) throw new ArgumentException("give at least one scan (PDF or image)");
+    var course = CourseFile.Load(path).ReadModel();
+    string stem = string.Concat((string.IsNullOrWhiteSpace(course.Name) ? Path.GetFileNameWithoutExtension(path) : course.Name)
+        .Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)).Trim();
+    var log = new Progress<string>(Console.WriteLine);
+    // The Hole sheets build's PNGs, when beside the output, are usually what was printed.
+    string built = sheets ?? Path.Combine(outDir, $"{stem} - Hole Sheets");
+    var results = HoleSketches.Import(path, scans, HoleSketches.FolderFor(outDir, stem), new HoleSheetOptions(), log,
+        Directory.Exists(built) ? built : null);
+    foreach (var r in results) Console.WriteLine($"{Path.GetFileName(r.Source)} p{r.Page}: {r.Message}");
     return 0;
 }
 
