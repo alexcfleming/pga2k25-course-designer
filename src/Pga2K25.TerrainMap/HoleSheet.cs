@@ -92,8 +92,26 @@ public sealed class HoleSheet
         return Vec2.Distance(p, a + ab * t);
     }
 
-    public static HoleSheet Build(CourseModel course, CourseLayers layers, Hole hole, HoleSheetOptions o, double datumMetres,
-        bool datumIsSeaLevel = false)
+    /// <summary>
+    /// A hole sheet's view without its terrain: the window along and across the hole, its rotation, and the
+    /// projection onto the sheet's map frame. Cheap, so the Studio uses it to turn the live map to a sheet's view
+    /// and to tie scanned sheets back to the ground.
+    /// </summary>
+    public sealed record Layout(Vec2 BackTee, Vec2 Forward, Vec2 Side, double RotationDegrees,
+        (double From, double To) Along, (double From, double To) Across, IReadOnlyList<Vec2> Window)
+    {
+        public MapProjection Projection(SKRect map) => MapProjection.Fit(Window, map, RotationDegrees, padding: 1.0);
+
+        /// <summary>World points under the printed map frame's corners: top-left, top-right, bottom-right, bottom-left.</summary>
+        public Vec2[] FrameCorners()
+        {
+            var p = Projection(MapRectPoints);
+            var r = MapRectPoints;
+            return [p.Unmap(new(r.Left, r.Top)), p.Unmap(new(r.Right, r.Top)), p.Unmap(new(r.Right, r.Bottom)), p.Unmap(new(r.Left, r.Bottom))];
+        }
+    }
+
+    public static Layout LayoutFor(CourseLayers layers, Hole hole, HoleSheetOptions o)
     {
         var layout = layers.Holes.Single(h => h.Hole.Number == hole.Number);
         var back = layout.BackTee;
@@ -122,6 +140,15 @@ public sealed class HoleSheet
             back + fwd * a0 + side * across.Item1, back + fwd * a0 + side * across.Item2,
             back + fwd * a1 + side * across.Item2, back + fwd * a1 + side * across.Item1,
         };
+        return new Layout(back, fwd, side, rotation, (a0, a1), across, window);
+    }
+
+    public static HoleSheet Build(CourseModel course, CourseLayers layers, Hole hole, HoleSheetOptions o, double datumMetres,
+        bool datumIsSeaLevel = false)
+    {
+        var layout = layers.Holes.Single(h => h.Hole.Number == hole.Number);
+        var (back, fwd, side, rotation, (a0, a1), across, window) = LayoutFor(layers, hole, o);
+        double Across(Vec2 p) => (p - back).X * side.X + (p - back).Z * side.Z;
 
         var line = layout.Route.Prepend(back).Concat(hole.Tees).ToList();
         bool NearPlay(Vec2 p) => InWindow(p) && line.Zip(line.Skip(1)).Any(s => SegmentDistance(p, s.First, s.Second) <= o.CorridorMetres);

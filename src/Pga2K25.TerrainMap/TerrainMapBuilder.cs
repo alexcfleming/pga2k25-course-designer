@@ -79,6 +79,19 @@ public sealed record HoleSheetResult(IReadOnlyList<string> PngPaths, string? Pdf
 public static class HoleSheetBuilder
 {
     /// <summary>
+    /// Every sheet's 0 ft, the same as the course terrain map's: sea level, or the lowest ground of the routing
+    /// window; and whether that is sea level.
+    /// </summary>
+    public static (double Datum, bool SeaLevel) PlotDatum(CourseModel course, HoleSheetOptions options)
+    {
+        var plot = TerrainSurvey.Build(course, options.Map with
+        {
+            Terrain = options.Map.Terrain with { CellMetres = 4 }, ShowSummits = false, ContourIntervalFeet = 100,
+        });
+        return (plot.DatumMetres, plot.SeaLevelMetres is not null);
+    }
+
+    /// <summary>
     /// Writes one Letter-size terrain sketch sheet per selected hole: PNGs in "&lt;course&gt; - Hole Sheets/"
     /// and a PDF with one page per hole ("&lt;course&gt; - Hole Sheets.pdf"), both print at true scale.
     /// </summary>
@@ -91,17 +104,12 @@ public static class HoleSheetBuilder
         if (holes.Count == 0) throw new InvalidOperationException("No matching holes found in the course.");
         var layers = Maps.CourseLayers.From(course);
 
-        // Same 0 ft as the course terrain map: sea level, or the lowest ground of the routing window.
-        var plot = TerrainSurvey.Build(course, options.Map with
-        {
-            Terrain = options.Map.Terrain with { CellMetres = 4 }, ShowSummits = false, ContourIntervalFeet = 100,
-        });
-        double datum = plot.DatumMetres;
+        var (datum, sea) = PlotDatum(course, options);
 
         var sheets = new List<HoleSheet>();
         foreach (var h in holes)
         {
-            var sheet = HoleSheet.Build(course, layers, h, options, datum, datumIsSeaLevel: plot.SeaLevelMetres is not null);
+            var sheet = HoleSheet.Build(course, layers, h, options, datum, datumIsSeaLevel: sea);
             sheets.Add(sheet);
             var r = sheet.Routing;
             log?.Report($"Hole {h.Number,2}: par {h.Par}, {r.Yards} yds, sheet {(sheet.Along.To - sheet.Along.From) * TerrainSurvey.YardsPerMetre:0} × " +
