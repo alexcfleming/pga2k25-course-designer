@@ -126,4 +126,11 @@ public class StudioTests
         Assert.Equal("c3.course", s.Recent[0]);
         Assert.Equal("c7.course", s.Recent[1]);
     }
+
+    [Fact]
+    public void ShellOpen_ReportsAMissingFileInsteadOfThrowing()
+    {
+        string missing = Path.Combine(Path.GetTempPath(), $"no-such-{Guid.NewGuid():N}.pdf");
+        Assert.Contains("isn't there any more", ShellOpen.Open(missing));
+    }
 }

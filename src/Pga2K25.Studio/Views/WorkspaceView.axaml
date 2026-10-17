@@ -480,6 +480,8 @@
               <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                 <TextBlock Text="{Binding SelectedPage.Title, FallbackValue=''}" FontWeight="SemiBold"/>
                 <TextBlock Text="{Binding Summary}" Classes="muted small" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding Message}" Foreground="#A32D2D" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                           IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
               </StackPanel>
             </DockPanel>
           </Border>

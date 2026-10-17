@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -30,6 +29,8 @@ public partial class ProductViewerViewModel : ObservableObject
     [ObservableProperty] private PageItemViewModel? _selectedPage;
     [ObservableProperty] private Bitmap? _image;
     [ObservableProperty] private bool _loadingPage;
+    /// <summary>Why an open didn't happen, shown in the toolbar; empty when all is well.</summary>
+    [ObservableProperty] private string _message = "";
 
     public ProductViewerViewModel(ProductDefinition product, StudioSettings settings, string courseName, Func<Task> build)
     {
@@ -96,22 +97,20 @@ public partial class ProductViewerViewModel : ObservableObject
 
     [RelayCommand] private void OpenPdf()
     {
-        if (_pdfs.FirstOrDefault() is { } pdf) Shell(pdf);
+        if (_pdfs.FirstOrDefault() is { } pdf) Message = ShellOpen.Open(pdf) ?? "";
     }
 
     [RelayCommand] private void OpenImage()
     {
-        if (SelectedPage is { } p) Shell(p.Page.Path);
+        if (SelectedPage is { } p) Message = ShellOpen.Open(p.Page.Path) ?? "";
     }
 
     [RelayCommand] private void ShowInFolder()
     {
-        if (SelectedPage is { } p) Process.Start("explorer.exe", $"/select,\"{p.Page.Path}\"");
+        if (SelectedPage is { } p) Message = ShellOpen.Reveal(p.Page.Path) ?? "";
     }
 
     [RelayCommand] private Task Build() => _build();
-
-    static void Shell(string path) => Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
 }
 
 public partial class PageItemViewModel(ProductPage page) : ObservableObject
