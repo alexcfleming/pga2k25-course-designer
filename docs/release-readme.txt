@@ -54,3 +54,4 @@ GOOD TO KNOW
 FEEDBACK
 Please send Alex any problems, with the course file and a screenshot if
 you can. Settings live in %APPDATA%\CourseDesignerStudio\settings.json.
+If something goes wrong, please also send crash.log from the same folder.

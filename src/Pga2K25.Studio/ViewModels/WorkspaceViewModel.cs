@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using Avalonia;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
@@ -264,10 +263,9 @@ public partial class WorkspaceViewModel : ObservableObject
 
     [RelayCommand] private void BackToLibrary() => _main.ShowLibrary();
 
-    static void OpenPath(string path)
+    void OpenPath(string path)
     {
-        if (File.Exists(path) || Directory.Exists(path))
-            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+        if (ShellOpen.Open(path) is { } problem) Status = problem;
     }
 }
 
