@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 1.0.1
+COURSE DESIGNER STUDIO - release 1.1.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -32,6 +32,16 @@ USING IT
   ground), contour interval, grid and printed resolution. Lower printed
   resolution means smaller terrain map files.
 - Build all products, or build each one from its page under Products.
+- Hole sketches: draw on the printed hole sheets, scan them (a phone
+  scanner PDF or photos) and click "Import scans..." in the terrain map
+  panel. Each page is matched to its hole and your pencil is laid on the
+  map where you drew it. Show one hole or all holes (a colour per hole)
+  to spot overlaps between holes.
+- Hole view: turns and zooms the map to the selected hole's sheet, tee
+  at the bottom. "Whole map" backs out. Mouse wheel zooms, right-drag
+  turns the map.
+- Notes: "+ Add note", then click the map to pin a build, planting or
+  concept note. Notes are saved in Notes.json beside the products.
 - Measurements: type in-game measure-tool readings (for example +13'6")
   to check the terrain model against the game.
 
