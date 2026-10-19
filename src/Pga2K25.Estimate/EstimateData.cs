@@ -1,0 +1,154 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Pga2K25.CourseFormat;
+
+namespace Pga2K25.Estimate;
+
+/// <summary>Unit conversions. The engine works in world metres; reports use feet for heights, yards for distances.</summary>
+public static class Units
+{
+    public const double FeetPerMetre = 3.280839895;
+    public const double YardsPerMetre = 1.0936132983;
+    public const double CubicYardsPerCubicMetre = 1.3079506193;
+    public const double SquareFeetPerSquareMetre = 10.7639104167;
+    public const double SquareMetresPerAcre = 4046.8564224;
+}
+
+/// <summary>Where a quantity comes from: read off the course file, worked out from assumptions, or assumed outright.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<Provenance>))]
+public enum Provenance { Measured, Computed, Assumed }
+
+[JsonConverter(typeof(JsonStringEnumConverter<Confidence>))]
+public enum Confidence { Low, Medium, High }
+
+/// <summary>One site-condition class (zone-presets.json). All values are placeholders until Alex sets them.</summary>
+public sealed record ZonePreset
+{
+    public double NaturalFidelity { get; init; } = 1;
+    /// <summary>Landforms wider than this count as natural; 0 = the baseline is a best-fit plane.</summary>
+    public double BaselineWavelengthYd { get; init; }
+    public double ClearingPct { get; init; }
+    public double RockFactor { get; init; } = 1;
+    public double DrainageNeed { get; init; } = 1;
+    public double ImportExportBias { get; init; }
+    public string Source { get; init; } = "PLACEHOLDER";
+    public string Notes { get; init; } = "";
+}
+
+public sealed record ZoneDefaults
+{
+    /// <summary>Class for ground inside play splines (fairway, rough, greens, tees, bunkers, waste, paths).</summary>
+    public string ManufacturedClass { get; init; } = "moderate_earthmoving";
+    /// <summary>Class for everything else: natural ground with no earthwork.</summary>
+    public string NaturalClass { get; init; } = "natural_keep";
+    /// <summary>Width over which a worked zone blends into the natural ground at its edge.</summary>
+    public double FeatherYd { get; init; } = 10;
+    /// <summary>Tees are points in the course file, so each gets an assumed round pad of this radius.</summary>
+    public double TeePadRadiusYd { get; init; } = 8;
+    /// <summary>Volume lost when cut is compacted as fill (bank → compacted).</summary>
+    public double Shrink { get; init; } = 0.10;
+    /// <summary>Volume gained when cut is dug and loaded (bank → loose), for haul-off.</summary>
+    public double Swell { get; init; } = 0.25;
+    public string Source { get; init; } = "PLACEHOLDER";
+}
+
+public sealed record ZonePresetFile
+{
+    public string Note { get; init; } = "";
+    public ZoneDefaults Defaults { get; init; } = new();
+    public Dictionary<string, ZonePreset> Presets { get; init; } = new();
+
+    public ZonePreset Get(string name) =>
+        Presets.TryGetValue(name, out var p) ? p : throw new KeyNotFoundException($"Unknown zone class '{name}'.");
+}
+
+public sealed record UnitCost
+{
+    public string Label { get; init; } = "";
+    public string Unit { get; init; } = "";
+    public double? Price { get; init; }
+    public double? Low { get; init; }
+    public double? High { get; init; }
+    public int? Year { get; init; }
+    /// <summary>placeholder, researched or derived. Placeholders stay labelled PLACEHOLDER in every report.</summary>
+    public string Status { get; init; } = "placeholder";
+    public string? Grade { get; init; }
+    public string Source { get; init; } = "";
+
+    public bool IsPlaceholder => Status.Equals("placeholder", StringComparison.OrdinalIgnoreCase);
+}
+
+public sealed record Percentage
+{
+    public double Value { get; init; }
+    public string Status { get; init; } = "placeholder";
+    public string Source { get; init; } = "";
+}
+
+public sealed record UnitCostFile
+{
+    public string Note { get; init; } = "";
+    public Dictionary<string, UnitCost> Items { get; init; } = new();
+    public Dictionary<string, Percentage> Percentages { get; init; } = new();
+
+    public UnitCost Get(string key) =>
+        Items.TryGetValue(key, out var c) ? c : throw new KeyNotFoundException($"Unknown cost item '{key}'.");
+}
+
+/// <summary>A drawn area with its own class; later zones win where they overlap, and all win over the spline default.</summary>
+public sealed record ZonePolygon
+{
+    public string Class { get; init; } = "";
+    /// <summary>World X/Z in metres, as the course file stores them.</summary>
+    public List<double[]> Polygon { get; init; } = [];
+    public string Note { get; init; } = "";
+
+    public List<Vec2> Points() => Polygon.Where(p => p.Length >= 2).Select(p => new Vec2(p[0], p[1])).ToList();
+}
+
+public sealed record HoleOverride
+{
+    /// <summary>Class for this hole's play splines in place of the default manufactured class.</summary>
+    public string? ZoneClass { get; init; }
+}
+
+/// <summary>
+/// Per-course choices (<c>Estimate.json</c> beside the products). Never holds pars, yardages or names:
+/// those come from the course file.
+/// </summary>
+public sealed record EstimateInput
+{
+    public Dictionary<string, HoleOverride> Holes { get; init; } = new();
+    public List<ZonePolygon> Zones { get; init; } = [];
+    /// <summary>Added to every zone's natural fidelity (clamped 0..1): the sensitivity dial.</summary>
+    public double FidelityOffset { get; init; }
+
+    public HoleOverride ForHole(int n) => Holes.TryGetValue(n.ToString(), out var h) ? h : new();
+}
+
+public static class EstimateData
+{
+    public static readonly JsonSerializerOptions Json = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        ReadCommentHandling = JsonCommentHandling.Skip,
+        AllowTrailingCommas = true,
+        WriteIndented = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
+
+    /// <summary>The data files shipped beside the assembly (assets/estimate).</summary>
+    public static string DataDir => Path.Combine(AppContext.BaseDirectory, "estimate");
+
+    public static ZonePresetFile LoadPresets(string? path = null) =>
+        Load<ZonePresetFile>(path ?? Path.Combine(DataDir, "zone-presets.json"));
+
+    public static UnitCostFile LoadUnitCosts(string? path = null) =>
+        Load<UnitCostFile>(path ?? Path.Combine(DataDir, "unit-costs.json"));
+
+    public static EstimateInput LoadInput(string? path) =>
+        path is not null && File.Exists(path) ? Load<EstimateInput>(path) : new EstimateInput();
+
+    static T Load<T>(string path) =>
+        JsonSerializer.Deserialize<T>(File.ReadAllText(path), Json) ?? throw new InvalidDataException($"Empty file {path}");
+}

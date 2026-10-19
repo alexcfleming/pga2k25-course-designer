@@ -1,0 +1,25 @@
+{
+  "note": "Site-condition presets for the construction estimate. Every value is a PLACEHOLDER set by judgement, not measured or sourced. natural_fidelity: share of finished relief treated as given by nature (1 = no earthwork, 0 = all relief above the wavelength is built). baseline_wavelength_yd: landforms wider than this count as natural ground; 0 means the baseline is a best-fit plane (heavy cut/fill).",
+  "defaults": {
+    "manufactured_class": "moderate_earthmoving",
+    "natural_class": "natural_keep",
+    "feather_yd": 10,
+    "tee_pad_radius_yd": 8,
+    "shrink": 0.10,
+    "swell": 0.25,
+    "source": "PLACEHOLDER"
+  },
+  "presets": {
+    "natural_keep":         { "natural_fidelity": 1.0, "baseline_wavelength_yd": 0,   "clearing_pct": 0.0, "rock_factor": 1.0, "drainage_need": 0.5, "import_export_bias": 0.0, "source": "PLACEHOLDER", "notes": "Ground left as it lies." },
+    "light_shaping":        { "natural_fidelity": 0.8, "baseline_wavelength_yd": 30,  "clearing_pct": 0.3, "rock_factor": 1.0, "drainage_need": 0.8, "import_export_bias": 0.0, "source": "PLACEHOLDER", "notes": "" },
+    "moderate_earthmoving": { "natural_fidelity": 0.5, "baseline_wavelength_yd": 60,  "clearing_pct": 0.5, "rock_factor": 1.0, "drainage_need": 1.0, "import_export_bias": 0.0, "source": "PLACEHOLDER", "notes": "Default for ground inside play splines." },
+    "heavy_cut_fill":       { "natural_fidelity": 0.2, "baseline_wavelength_yd": 0,   "clearing_pct": 0.7, "rock_factor": 1.0, "drainage_need": 1.2, "import_export_bias": 0.0, "source": "PLACEHOLDER", "notes": "Baseline is a best-fit plane." },
+    "rock":                 { "natural_fidelity": 0.6, "baseline_wavelength_yd": 60,  "clearing_pct": 0.2, "rock_factor": 3.0, "drainage_need": 0.6, "import_export_bias": 0.0, "source": "PLACEHOLDER", "notes": "Cut priced at 3x common earthwork." },
+    "wetland_reclaim":      { "natural_fidelity": 0.5, "baseline_wavelength_yd": 60,  "clearing_pct": 0.4, "rock_factor": 1.0, "drainage_need": 2.0, "import_export_bias": 0.3, "source": "PLACEHOLDER", "notes": "" },
+    "links_dune":           { "natural_fidelity": 0.7, "baseline_wavelength_yd": 40,  "clearing_pct": 0.0, "rock_factor": 1.0, "drainage_need": 0.8, "import_export_bias": 0.0, "source": "PLACEHOLDER", "notes": "" },
+    "parkland_rolling":     { "natural_fidelity": 0.6, "baseline_wavelength_yd": 60,  "clearing_pct": 0.3, "rock_factor": 1.0, "drainage_need": 1.0, "import_export_bias": 0.0, "source": "PLACEHOLDER", "notes": "" },
+    "forest":               { "natural_fidelity": 0.6, "baseline_wavelength_yd": 60,  "clearing_pct": 1.0, "rock_factor": 1.0, "drainage_need": 1.0, "import_export_bias": 0.0, "source": "PLACEHOLDER", "notes": "" },
+    "cliff_edge":           { "natural_fidelity": 0.8, "baseline_wavelength_yd": 30,  "clearing_pct": 0.1, "rock_factor": 2.5, "drainage_need": 0.6, "import_export_bias": 0.0, "source": "PLACEHOLDER", "notes": "" },
+    "marsh":                { "natural_fidelity": 0.5, "baseline_wavelength_yd": 80,  "clearing_pct": 0.2, "rock_factor": 1.0, "drainage_need": 2.5, "import_export_bias": 0.5, "source": "PLACEHOLDER", "notes": "" }
+  }
+}
