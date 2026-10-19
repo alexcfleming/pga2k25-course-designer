@@ -11,12 +11,17 @@ namespace Pga2K25.Studio.ViewModels;
 /// <summary>The workspace's section menu, recent courses, measurements page and per-course settings.</summary>
 public partial class WorkspaceViewModel
 {
-    public const string TerrainSection = "Terrain map", MeasurementsSection = "Measurements", SettingsSection = "Course settings";
+    public const string TerrainSection = "Terrain map", MeasurementsSection = "Measurements", SettingsSection = "Course settings",
+        EstimateInputsSection = "Estimate inputs", EstimateProduct = "Construction estimate";
 
     [ObservableProperty] private string _section = TerrainSection;
     public bool IsTerrain => Section == TerrainSection;
     public bool IsMeasurements => Section == MeasurementsSection;
     public bool IsCourseSettings => Section == SettingsSection;
+    public bool IsEstimateInputs => Section == EstimateInputsSection;
+
+    /// <summary>The estimate's inputs, read fresh from Estimate.json and the price overrides each time the section opens.</summary>
+    [ObservableProperty] private EstimateInputsViewModel? _estimateInputs;
 
     public ObservableCollection<NavItemViewModel> Sections { get; } = [];
 
@@ -35,6 +40,8 @@ public partial class WorkspaceViewModel
         OnPropertyChanged(nameof(IsTerrain));
         OnPropertyChanged(nameof(IsMeasurements));
         OnPropertyChanged(nameof(IsCourseSettings));
+        OnPropertyChanged(nameof(IsEstimateInputs));
+        if (value == EstimateInputsSection) OpenEstimateInputs();
         foreach (var s in Sections.Concat(ProductSections)) s.IsSelected = s.Label == value;
         ProductViewer = Products.All.FirstOrDefault(p => p.Name == value && p.Name != TerrainSection) is { } product
             ? new ProductViewerViewModel(product, Settings, Entry.Name, () => BuildAsync([product]))
@@ -60,7 +67,7 @@ public partial class WorkspaceViewModel
         {
             try { CourseThumbnail = Bitmap.DecodeToWidth(new MemoryStream(bytes), 96); } catch (Exception) { CourseThumbnail = null; }
         }
-        foreach (var label in new[] { TerrainSection, MeasurementsSection, SettingsSection })
+        foreach (var label in new[] { TerrainSection, MeasurementsSection, SettingsSection, EstimateInputsSection })
             Sections.Add(new NavItemViewModel(label, label == Section, () => Section = label));
         foreach (var p in Products.All.Where(p => p.Name != TerrainSection))
             ProductSections.Add(new NavItemViewModel(p.Name, false, () => Section = p.Name));
@@ -175,6 +182,26 @@ public partial class WorkspaceViewModel
         Settings.ExtrasFor(Entry.Path).CardConfig = string.IsNullOrWhiteSpace(path) ? null : path;
         Settings.Save();
         CardConfigPath = path ?? "";
+    }
+
+    void OpenEstimateInputs()
+    {
+        try
+        {
+            var holes = HoleNumbers.Count > 0 ? HoleNumbers.ToList()
+                : Pga2K25.CourseFormat.CourseFile.Load(Entry.Path).ReadModel().Holes.Select(h => h.Number).ToList();
+            var product = Products.All.First(p => p.Name == EstimateProduct);
+            EstimateInputs = new EstimateInputsViewModel(Pga2K25.Estimate.EstimateBuilder.InputPath(OutputFolder), holes, async () =>
+            {
+                await BuildAsync([product]);
+                Section = EstimateProduct;   // show the rebuilt report
+            });
+        }
+        catch (Exception ex)
+        {
+            EstimateInputs = null;
+            Status = $"Estimate inputs could not be read: {ex.Message}";
+        }
     }
 
     [RelayCommand] private void ClearWorkbook() => SetWorkbook(null);

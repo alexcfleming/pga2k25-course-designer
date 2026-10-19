@@ -25,7 +25,7 @@ public static class EstimateBuilder
     {
         var course = CourseFile.Load(coursePath).ReadModel();
         var presets = EstimateData.LoadPresets();
-        var costs = EstimateData.LoadUnitCosts();
+        var costs = EstimateData.LoadUnitCosts(userDir: EstimateData.UserDir);
         var rules = EstimateData.LoadRules();
         var input = EstimateData.LoadInput(InputPath(outputDir));
         var project = EstimateData.LoadProject(input);

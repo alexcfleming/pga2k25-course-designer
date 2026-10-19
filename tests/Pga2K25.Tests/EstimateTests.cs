@@ -431,6 +431,88 @@ public class EstimateTests
         Assert.Equal("$6", ReportStyle.Money(6));
     }
 
+    static string TempDir() => Path.Combine(Path.GetTempPath(), "pga2k25-estimate-" + Guid.NewGuid().ToString("N"));
+
+    [Fact]
+    public void UserPrices_LayOverShippedPrices_KeepingLabelAndUnit()
+    {
+        string dir = TempDir();
+        try
+        {
+            EstimateData.SaveUserCosts(new Dictionary<string, UnitCost>
+            {
+                ["earthwork_onsite"] = new() { Price = 7.5, Status = "quote", Source = "Builder X, 2026-10", Unit = "acre", Label = "wrong" },
+                ["no_such_item"] = new() { Price = 1 },
+            }, Path.Combine(dir, "unit-costs.json"));
+            var merged = EstimateData.LoadUnitCosts(userDir: dir);
+            var e = merged.Get("earthwork_onsite");
+            Assert.Equal(7.5, e.Price);
+            Assert.False(e.IsPlaceholder);
+            Assert.Equal("cu yd", e.Unit);
+            Assert.Equal(EstimateData.LoadUnitCosts().Get("earthwork_onsite").Label, e.Label);
+            Assert.False(merged.Items.ContainsKey("no_such_item"));
+            Assert.Equal(EstimateData.LoadUnitCosts().Get("greens"), merged.Get("greens"));
+
+            // Saving none removes the file, so the shipped prices apply again.
+            EstimateData.SaveUserCosts(new Dictionary<string, UnitCost>(), Path.Combine(dir, "unit-costs.json"));
+            Assert.False(File.Exists(Path.Combine(dir, "unit-costs.json")));
+        }
+        finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
+    }
+
+    [Fact]
+    public void InputsEditor_SavesCourseChoicesAndPrices_AndKeepsDrawnZones()
+    {
+        string dir = TempDir(), saved = EstimateData.UserDir;
+        EstimateData.UserDir = Path.Combine(dir, "user");
+        try
+        {
+            string input = Path.Combine(dir, "Estimate.json");
+            EstimateData.SaveInput(input, new EstimateInput
+            {
+                Zones = [new ZonePolygon { Class = "rock", Polygon = [[0, 0], [10, 0], [10, 10]], Note = "quarry" }],
+            });
+            var vm = new Pga2K25.Studio.ViewModels.EstimateInputsViewModel(input, [1, 2, 3], () => Task.CompletedTask);
+            Assert.Equal(1, vm.DrawnZones);
+            vm.FidelityOffset = 0.2;
+            vm.Holes.Single(h => h.Hole == 2).ZoneClass = "cliff_edge";
+            vm.Project.Single(p => p.Key == "regional_factor").Value = "1.15";
+            vm.CourseWide.Single(c => c.Key == "practice_area").Value = "0";
+            var price = vm.Prices.Single(p => p.Key == "earthwork_onsite");
+            price.Price = "$8.25";
+            price.Status = "quote";
+            price.Source = "Builder X";
+            Assert.True(vm.Save());
+            Assert.True(price.IsMine);
+
+            var back = EstimateData.LoadInput(input);
+            Assert.Equal(0.2, back.FidelityOffset);
+            Assert.Equal("cliff_edge", back.ForHole(2).ZoneClass);
+            Assert.Null(back.ForHole(1).ZoneClass);
+            Assert.Equal(1.15, back.Project["regional_factor"]);
+            Assert.Equal(0, back.CourseWide["practice_area"]);
+            Assert.Equal("quarry", back.Zones.Single().Note);
+            Assert.Equal(8.25, EstimateData.LoadUserCosts().Single().Value.Price);
+
+            // A bad number blocks the save and says which box.
+            vm.Project.Single(p => p.Key == "contingency").Value = "ten";
+            Assert.False(vm.Save());
+            Assert.Contains("Contingency", vm.Message);
+
+            // Reset puts a price back to the shipped value; saving drops the override.
+            vm.Project.Single(p => p.Key == "contingency").Value = "";
+            price.ResetCommand.Execute(null);
+            Assert.True(vm.Save());
+            Assert.Empty(EstimateData.LoadUserCosts());
+            Assert.False(price.IsMine);
+        }
+        finally
+        {
+            EstimateData.UserDir = saved;
+            if (Directory.Exists(dir)) Directory.Delete(dir, true);
+        }
+    }
+
     [Fact]
     public void ShippedData_LabelsEveryPrice()
     {
