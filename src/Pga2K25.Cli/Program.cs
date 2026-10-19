@@ -109,6 +109,26 @@ static int Estimate(string path, string[] rest)
         Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  Hole-direct total ${0:N0}: {1:P0} on placeholder prices; by quantity {2}",
             e.Total, e.PlaceholderShare, string.Join(", ", e.ShareByProvenance.Select(p => $"{p.Key.ToString().ToLowerInvariant()} {p.Value:P0}"))));
     }
+    var s = result.Summary;
+    var inv = CultureInfo.InvariantCulture;
+    Console.WriteLine();
+    Console.WriteLine(result.Partial ? $"Summary for {s.Holes} hole(s) only (partial)" : "Summary");
+    foreach (var l in s.CourseWideLines)
+        Console.WriteLine(string.Format(inv, "  {0,-40} {1,14:N0} {2}", l.Quantity.Item, l.Cost ?? 0, l.IsPlaceholder ? "PLACEHOLDER" : l.PriceStatus));
+    void Line(string label, double v) => Console.WriteLine(string.Format(inv, "  {0,-40} {1,14:N0}", label, v));
+    Line("Hole-direct", s.HoleDirect);
+    Line("Course-wide", s.CourseWide);
+    Line("Hard cost", s.Hard);
+    Line("Regional adjustment", s.RegionalAdjustment);
+    Line("Escalation to construction midpoint", s.Escalation);
+    Line("Contingency", s.Contingency);
+    Line("Construction budget", s.Construction);
+    Line("Soft costs (design, field rep, permits, owner)", s.Soft);
+    Line("TOTAL PROJECT BUDGET (ex. land & buildings)", s.Total);
+    Console.WriteLine(string.Format(inv, "  Construction per hole ${0:N0} ({1}, band ${2:N0}-${3:N0}); per acre ${4:N0} over {5:0.0} acres of {6}",
+        s.ConstructionPerHole, s.BenchmarkCheck, s.BenchmarkLow, s.BenchmarkHigh, s.ConstructionPerAcre, s.Acres, s.AcresBasis));
+    Console.WriteLine(string.Format(inv, "  Hard cost on placeholder prices {0:P0}; by quantity {1}", s.PlaceholderShare,
+        string.Join(", ", s.ShareByProvenance.Select(p => $"{p.Key.ToString().ToLowerInvariant()} {p.Value:P0}"))));
     return 0;
 }
 

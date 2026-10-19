@@ -78,18 +78,20 @@ public sealed record UnitCost
     public bool IsPlaceholder => Status.Equals("placeholder", StringComparison.OrdinalIgnoreCase);
 }
 
-public sealed record Percentage
+/// <summary>One project-level setting (project-defaults.json): a fraction, factor or amount, with where it came from.</summary>
+public sealed record Setting
 {
     public double Value { get; init; }
     public string Status { get; init; } = "placeholder";
     public string Source { get; init; } = "";
+
+    public bool IsPlaceholder => Status.Equals("placeholder", StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed record UnitCostFile
 {
     public string Note { get; init; } = "";
     public Dictionary<string, UnitCost> Items { get; init; } = new();
-    public Dictionary<string, Percentage> Percentages { get; init; } = new();
 
     public UnitCost Get(string key) =>
         Items.TryGetValue(key, out var c) ? c : throw new KeyNotFoundException($"Unknown cost item '{key}'.");
@@ -138,6 +140,10 @@ public sealed record EstimateInput
     public List<ZonePolygon> Zones { get; init; } = [];
     /// <summary>Added to every zone's natural fidelity (clamped 0..1): the sensitivity dial.</summary>
     public double FidelityOffset { get; init; }
+    /// <summary>Overrides for project-defaults.json values, by key (e.g. regional_factor).</summary>
+    public Dictionary<string, double> Project { get; init; } = new();
+    /// <summary>Quantity overrides for course-wide items, by unit-cost key (e.g. practice_area: 0 when there is none).</summary>
+    public Dictionary<string, double> CourseWide { get; init; } = new();
 
     public HoleOverride ForHole(int n) => Holes.TryGetValue(n.ToString(), out var h) ? h : new();
 }
@@ -161,6 +167,23 @@ public static class EstimateData
 
     public static UnitCostFile LoadUnitCosts(string? path = null) =>
         Load<UnitCostFile>(path ?? Path.Combine(DataDir, "unit-costs.json"));
+
+    /// <summary>Project defaults with a course's overrides applied (an override's status becomes "Estimate.json").</summary>
+    public static Dictionary<string, Setting> LoadProject(EstimateInput? input = null, string? path = null)
+    {
+        var json = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(path ?? Path.Combine(DataDir, "project-defaults.json")),
+            documentOptions: new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true })!.AsObject();
+        var result = new Dictionary<string, Setting>();
+        foreach (var (key, node) in json)
+            if (node is System.Text.Json.Nodes.JsonObject)
+                result[key] = node.Deserialize<Setting>(Json)!;
+        foreach (var (key, value) in input?.Project ?? [])
+        {
+            if (!result.ContainsKey(key)) throw new KeyNotFoundException($"Estimate.json sets unknown project value '{key}'.");
+            result[key] = new Setting { Value = value, Status = "Estimate.json", Source = "set for this course" };
+        }
+        return result;
+    }
 
     public static QuantityRules LoadRules(string? path = null) =>
         Load<QuantityRules>(path ?? Path.Combine(DataDir, "quantity-rules.json"));

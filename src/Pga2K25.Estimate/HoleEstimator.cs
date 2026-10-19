@@ -24,6 +24,10 @@ public sealed class HoleEstimate
     public required IReadOnlyList<Assumption> Assumptions { get; init; }
     /// <summary>Per cell: true where the ground is inside a play spline, tee pad or path (manufactured).</summary>
     public required bool[] Manufactured { get; init; }
+    public required double ManufacturedAcres { get; init; }
+    /// <summary>Manufactured acres × the hole class's clearing share (drawn zones use the hole class too, for now).</summary>
+    public required double ClearingAcres { get; init; }
+    public required string ClearingBasis { get; init; }
 
     /// <summary>Sum of the priced lines (unpriced lines count as nothing; see <see cref="UnpricedLines"/>).</summary>
     public double Total => Lines.Sum(l => l.Cost ?? 0);
@@ -198,6 +202,8 @@ public static class HoleEstimator
         {
             Hole = hole, Raster = raster, Earthwork = ew, Balance = bal, Quantities = rows, Lines = lines,
             Assumptions = assumptions, Manufactured = made.Cells,
+            ManufacturedAcres = madeSqFt / 43560, ClearingAcres = madeSqFt / 43560 * cls.ClearingPct,
+            ClearingBasis = I($"{holeClassName} clearing {cls.ClearingPct:P0} of manufactured ground"),
         };
     }
 
