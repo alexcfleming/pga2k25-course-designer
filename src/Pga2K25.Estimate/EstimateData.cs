@@ -111,6 +111,7 @@ public sealed record QuantityRules
     public Rule DrainageLfPerAcre { get; init; } = new() { Value = 140 };
     public Rule HeadsPerAcre { get; init; } = new() { Value = 8 };
     public Rule PathFtPerRouteFt { get; init; } = new() { Value = 1 };
+    public Rule PracticeGreenYd { get; init; } = new() { Value = 45 };
 }
 
 /// <summary>A drawn area with its own class; later zones win where they overlap, and all win over the spline default.</summary>
