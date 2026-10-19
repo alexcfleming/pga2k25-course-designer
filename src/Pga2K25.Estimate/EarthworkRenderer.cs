@@ -10,10 +10,19 @@ namespace Pga2K25.Estimate;
 /// </summary>
 public static class EarthworkRenderer
 {
-    static readonly SKColor Cream = SKColor.Parse("#F4F1EA"), Ink = SKColor.Parse("#1f1d1a"), Gold = SKColor.Parse("#B09766"),
-        Gray = SKColor.Parse("#6b665e"), Fill = SKColor.Parse("#2E8C73"), Cut = SKColor.Parse("#E06A3A");
+    static readonly SKColor Cream = ReportStyle.Cream, Ink = ReportStyle.Ink, Gold = ReportStyle.Gold,
+        Gray = ReportStyle.Gray, Fill = ReportStyle.Fill, Cut = ReportStyle.Cut;
 
     public static void RenderPng(HoleEstimate e, string courseName, string path, double pixelsPerMetre = 2)
+    {
+        using var img = RenderImage(e, courseName, pixelsPerMetre);
+        using var data = img.Encode(SKEncodedImageFormat.Png, 90);
+        using var stream = File.Create(path);
+        data.SaveTo(stream);
+    }
+
+    /// <summary>The map as an image (with its own title and legend), for a PNG or a report page.</summary>
+    public static SKImage RenderImage(HoleEstimate e, string courseName, double pixelsPerMetre = 2)
     {
         var f = e.Raster.Finished;
         // Crop to the hole's own cells plus a little natural ground.
@@ -65,8 +74,8 @@ public static class EarthworkRenderer
         using var dot = new SKPaint { Color = Ink, IsAntialias = true };
         foreach (var t in e.Hole.Tees) canvas.DrawCircle(Screen(t), 4, dot);
 
-        using var title = new SKFont(SKTypeface.FromFamilyName("Lora", SKFontStyle.Bold) ?? SKTypeface.Default, 26);
-        using var body = new SKFont(SKTypeface.FromFamilyName("Lora") ?? SKTypeface.Default, 15);
+        using var title = ReportStyle.Font(26);
+        using var body = ReportStyle.Font(15);
         using var ink = new SKPaint { Color = Ink, IsAntialias = true };
         using var gray = new SKPaint { Color = Gray, IsAntialias = true };
         var inv = CultureInfo.InvariantCulture;
@@ -86,12 +95,9 @@ public static class EarthworkRenderer
         canvas.DrawText(string.Format(inv, "cut {0:0} ft", limitFt), lx, ly + 34, SKTextAlign.Left, body, gray);
         canvas.DrawText(string.Format(inv, "fill {0:0} ft", limitFt), lx + lw - 60, ly + 34, SKTextAlign.Left, body, gray);
         using var goldPaint = new SKPaint { Color = Gold, IsAntialias = true };
-        canvas.DrawText("Heights in feet, distances in yards. Grid 1 m from the course file's brush replay. N ↑", lx + lw + 24, ly + 12, SKTextAlign.Left, body, goldPaint);
+        canvas.DrawText("Heights in feet, distances in yards. Grid 1 m from the course file's brush replay. North up.", lx + lw + 24, ly + 12, SKTextAlign.Left, body, goldPaint);
 
-        using var img = SKImage.FromBitmap(bmp);
-        using var data = img.Encode(SKEncodedImageFormat.Png, 90);
-        using var stream = File.Create(path);
-        data.SaveTo(stream);
+        return SKImage.FromBitmap(bmp);
     }
 
     static double Percentile(HoleEstimate e, double q)

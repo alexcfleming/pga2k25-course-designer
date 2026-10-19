@@ -36,9 +36,11 @@ const string Usage = """
       adds tee names, hazard tags and green notes (its yardages/bearings are checked, not used);
       ERRORs stop the build unless --force (drafts only; errors are still reported)
     pga2k25 estimate <file.course> [-o <dir>] [--holes 3,7|all] [--cell 1.0]
-      construction-estimate slice: cut/fill against an assumed starting ground (play splines
-      are manufactured, everything else natural), a cut/fill PNG per hole and line items
-      ("<course> - Estimate.json/.csv"); per-course choices from <dir>/Estimate.json
+      construction estimate: cut/fill against an assumed starting ground (play splines are
+      manufactured, everything else natural), hole and course-wide quantities with provenance,
+      the roll-up to a total budget, low/likely/high and a fidelity sweep. Writes the report
+      ("<course> - Estimate.pdf" + page PNGs) and line items ("<course> - Estimate.json/.csv");
+      per-course choices from <dir>/Estimate.json
     pga2k25 calibrate <file.course> <captures.json> [--hardness 0.85] [--blur 1.0]
     pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|both] [--landscape|--portrait]
                       [--north-up] [--data holes.xlsx|.csv] [--waste] [--raw-bunkers] [--no-paths]

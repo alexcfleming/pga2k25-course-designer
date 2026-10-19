@@ -2,15 +2,17 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Pga2K25.CourseFormat;
+using SkiaSharp;
 
 namespace Pga2K25.Estimate;
 
-public sealed record EstimateOutputs(string JsonPath, string CsvPath, IReadOnlyList<string> Pngs, IReadOnlyList<HoleEstimate> Holes,
+public sealed record EstimateOutputs(string PdfPath, string JsonPath, string CsvPath, IReadOnlyList<string> Pngs, IReadOnlyList<HoleEstimate> Holes,
     CourseSummary Summary, bool Partial, IReadOnlyDictionary<string, CourseRun> Scenarios, IReadOnlyList<SweepPoint> Sweep);
 
 /// <summary>
-/// Construction estimate: <c>&lt;course&gt; - Estimate.json</c> and <c>.csv</c> (hole and course-wide line items, quantities
-/// with provenance, assumption register, the roll-up to a total budget) and a cut/fill PNG per hole. With only some
+/// Construction estimate: the report <c>&lt;course&gt; - Estimate.pdf</c> with a PNG per page in <c>&lt;course&gt; - Estimate/</c>
+/// (summary, holes, scenarios, assumption register, a cut/fill map per hole), plus <c>&lt;course&gt; - Estimate.json</c> and
+/// <c>.csv</c> (line items, quantities with provenance, the roll-up, scenarios and the fidelity sweep). With only some
 /// holes, the roll-up covers just those holes and is marked partial. Per-course choices are read from <c>Estimate.json</c>
 /// in the output folder when present.
 /// </summary>
@@ -29,6 +31,7 @@ public static class EstimateBuilder
         var project = EstimateData.LoadProject(input);
         var scenarioFile = EstimateData.LoadScenarios();
         Directory.CreateDirectory(outputDir);
+        string stem = string.Concat(course.Name.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)).Trim();
 
         var numbers = holes ?? course.Holes.Select(h => h.Number).ToList();
         var sites = new List<HoleSite>();
@@ -47,17 +50,19 @@ public static class EstimateBuilder
         var courseWide = likely.CourseWide;
         var summary = likely.Summary;
         bool partial = results.Count < course.Holes.Count;
-        var pngs = new List<string>();
         foreach (var e in results)
-        {
-            string png = Path.Combine(outputDir, $"{course.Name} - Earthwork Hole {e.Hole.Number:00}.png");
-            EarthworkRenderer.RenderPng(e, course.Name, png);
-            pngs.Add(png);
-            log?.Report(string.Format(CultureInfo.InvariantCulture, "Hole {0}: cut {1:N0} cu yd, fill {2:N0} cu yd, priced ${3:N0} ({4:P0} on placeholder prices), {5}",
-                e.Hole.Number, e.Earthwork.CutCuYd, e.Earthwork.FillCuYd, e.Total, e.PlaceholderShare, Path.GetFileName(png)));
-        }
+            log?.Report(string.Format(CultureInfo.InvariantCulture, "Hole {0}: cut {1:N0} cu yd, fill {2:N0} cu yd, priced ${3:N0} ({4:P0} on placeholder prices)",
+                e.Hole.Number, e.Earthwork.CutCuYd, e.Earthwork.FillCuYd, e.Total, e.PlaceholderShare));
 
-        string json = Path.Combine(outputDir, $"{course.Name} - Estimate.json");
+        var report = new EstimateReport
+        {
+            CourseName = course.Name, Date = DateOnly.FromDateTime(DateTime.Now), Likely = likely, Scenarios = runs,
+            ScenarioSettings = scenarioFile, Sweep = sweep, Costs = costs, Partial = partial, CourseHoles = course.Holes.Count,
+        };
+        var (pdf, pngs) = WriteReport(report, outputDir, stem);
+        log?.Report($"Report: {Path.GetFileName(pdf)} ({pngs.Count} pages)");
+
+        string json = Path.Combine(outputDir, $"{stem} - Estimate.json");
         File.WriteAllText(json, JsonSerializer.Serialize(new
         {
             course = course.Name,
@@ -116,10 +121,50 @@ public static class EstimateBuilder
             }),
         }, EstimateData.Json));
 
-        string csv = Path.Combine(outputDir, $"{course.Name} - Estimate.csv");
+        string csv = Path.Combine(outputDir, $"{stem} - Estimate.csv");
         File.WriteAllText(csv, Csv(results, courseWide), new UTF8Encoding(true));
         log?.Report($"Wrote {Path.GetFileName(json)}, {Path.GetFileName(csv)}");
-        return new EstimateOutputs(json, csv, pngs, results, summary, partial, runs, sweep);
+        return new EstimateOutputs(pdf, json, csv, pngs, results, summary, partial, runs, sweep);
+    }
+
+    /// <summary>Report pages as one PDF and a PNG per page (150 dpi) for the Studio viewer; stale page PNGs are removed.</summary>
+    static (string Pdf, List<string> Pngs) WriteReport(EstimateReport report, string outputDir, string stem)
+    {
+        var pages = ReportRenderer.Pages(report);
+        string folder = Path.Combine(outputDir, $"{stem} - Estimate");
+        Directory.CreateDirectory(folder);
+        foreach (var old in Directory.GetFiles(folder, "*.png")) File.Delete(old);
+
+        const float Dpi = 150, Scale = Dpi / 72;
+        var pngs = new List<string>();
+        foreach (var page in pages)
+        {
+            var info = new SKImageInfo((int)Math.Round(ReportRenderer.W * Scale), (int)Math.Round(ReportRenderer.H * Scale));
+            using var surface = SKSurface.Create(info);
+            surface.Canvas.Scale(Scale);
+            page.Draw(surface.Canvas);
+            using var image = surface.Snapshot();
+            using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+            string path = Path.Combine(folder, page.Name + ".png");
+            using (var f = File.Create(path)) data.SaveTo(f);
+            pngs.Add(path);
+        }
+
+        string pdf = Path.Combine(outputDir, $"{stem} - Estimate.pdf");
+        using (var stream = File.Create(pdf))
+        using (var doc = SKDocument.CreatePdf(stream, new SKDocumentPdfMetadata
+        {
+            Title = $"{report.CourseName} — Construction Estimate", Creator = "PGA 2K25 Course Designer", RasterDpi = 200,
+        }))
+        {
+            foreach (var page in pages)
+            {
+                page.Draw(doc.BeginPage(ReportRenderer.W, ReportRenderer.H));
+                doc.EndPage();
+            }
+            doc.Close();
+        }
+        return (pdf, pngs);
     }
 
     static string Csv(IEnumerable<HoleEstimate> holes, IEnumerable<LineItem> courseWide)
