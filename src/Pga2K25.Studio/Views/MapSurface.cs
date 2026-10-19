@@ -11,6 +11,12 @@ namespace Pga2K25.Studio.Views;
 /// <summary>An image drawn over the map: <see cref="ToMap"/> takes its pixels to map-bitmap pixels.</summary>
 public sealed record SketchLayer(Bitmap Image, Matrix ToMap, double Opacity);
 
+/// <summary>
+/// Traced sketch lines in map-bitmap pixels, stroked at a steady width on screen whatever the zoom;
+/// <see cref="Construction"/> lines (shot lines, aim points) thinner and dashed.
+/// </summary>
+public sealed record LineLayer(Geometry Geometry, Color Colour, double Opacity, bool Construction);
+
 /// <summary>A note pin at a map-bitmap pixel. <see cref="Callout"/> shows beside it when selected or hovered.</summary>
 public sealed record MapPin(string Id, Point At, string Label, Color Colour, string Callout);
 
@@ -25,6 +31,7 @@ public sealed class MapSurface : Control
 
     Bitmap? _source;
     IReadOnlyList<SketchLayer> _sketches = [];
+    IReadOnlyList<LineLayer> _lines = [];
     IReadOnlyList<MapPin> _pins = [];
     string? _selectedPin, _hoverPin;
     bool _placing;
@@ -76,6 +83,7 @@ public sealed class MapSurface : Control
     }
 
     public IReadOnlyList<SketchLayer> Sketches { get => _sketches; set { _sketches = value; InvalidateVisual(); } }
+    public IReadOnlyList<LineLayer> Lines { get => _lines; set { _lines = value; InvalidateVisual(); } }
     public IReadOnlyList<MapPin> Pins { get => _pins; set { _pins = value; InvalidateVisual(); } }
     public string? SelectedPin { get => _selectedPin; set { _selectedPin = value; InvalidateVisual(); } }
 
@@ -119,6 +127,21 @@ public sealed class MapSurface : Control
             using (ctx.PushTransform(layer.ToMap * view))
             using (ctx.PushOpacity(layer.Opacity))
                 ctx.DrawImage(layer.Image, new Rect(layer.Image.Size), new Rect(0, 0, layer.Image.PixelSize.Width, layer.Image.PixelSize.Height));
+        }
+        if (_lines.Count > 0)
+        {
+            // Pens are in map pixels under the view transform, so divide by the zoom for a steady width on screen;
+            // a little heavier when zoomed in close.
+            double screen = Math.Clamp(1.4 + 0.8 * _scale, 1.6, 3.2);
+            using (ctx.PushTransform(view))
+                foreach (var layer in _lines)
+                {
+                    var brush = new SolidColorBrush(layer.Colour, layer.Opacity);
+                    var pen = layer.Construction
+                        ? new Pen(brush, screen * 0.6 / _scale, new DashStyle([4, 3], 0), PenLineCap.Round, PenLineJoin.Round)
+                        : new Pen(brush, screen / _scale, null, PenLineCap.Round, PenLineJoin.Round);
+                    ctx.DrawGeometry(null, pen, layer.Geometry);
+                }
         }
         DrawPins(ctx);
     }

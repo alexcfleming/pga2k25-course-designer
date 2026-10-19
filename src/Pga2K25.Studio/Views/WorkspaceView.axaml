@@ -361,6 +361,9 @@
                   </ListBox.ItemsPanel>
                 </ListBox>
                 <CheckBox Content="Colour each hole" IsChecked="{Binding SketchColours}"/>
+                <CheckBox Content="Shot lines and aim points" IsChecked="{Binding SketchConstruction}" IsVisible="{Binding HasTracedLines}"
+                          ToolTip.Tip="The construction lines from the tee through the lettered aim points, the aim dots and hatching, dashed"/>
+                <CheckBox Content="Raw pencil instead of traced lines" IsChecked="{Binding SketchRawPencil}" IsVisible="{Binding HasTracedLines}"/>
                 <CheckBox Content="Whole scan for the selected hole" IsChecked="{Binding SketchScan}"/>
                 <DockPanel>
                   <TextBlock DockPanel.Dock="Left" Text="Opacity" Classes="muted small" VerticalAlignment="Center" Margin="0,0,10,0"/>

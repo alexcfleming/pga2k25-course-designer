@@ -16,6 +16,8 @@ public sealed record HoleSketch
     public string Pencil { get; init; } = "";
     /// <summary>The whole straightened scan (JPEG).</summary>
     public string Scan { get; init; } = "";
+    /// <summary>The traced lines in world X/Z (<see cref="SketchLines"/>, JSON); empty for sketches imported before tracing.</summary>
+    public string Lines { get; init; } = "";
     public string Source { get; init; } = "";
     public int Page { get; init; }
     /// <summary>How well the page matched the hole's sheet (correlation, 0–1).</summary>
@@ -25,6 +27,18 @@ public sealed record HoleSketch
 
     public Vec2[] FrameCorners() => Frame.Select(c => new Vec2(c[0], c[1])).ToArray();
 }
+
+/// <summary>A hole sheet's traced lines on the ground. <see cref="SketchLine.Xz"/> is X, Z, X, Z … in metres.</summary>
+public sealed record SketchLines
+{
+    public int Version { get; init; } = 1;
+    /// <summary>The darkness below which strokes counted as light; null when the sheet is drawn in one weight.</summary>
+    public double? FaintBelow { get; init; }
+    public List<SketchLine> Lines { get; init; } = [];
+}
+
+/// <summary>One traced line: X, Z, X, Z … metres. <see cref="Construction"/>: a shot line, aim point, letter or hatching.</summary>
+public sealed record SketchLine(bool Construction, double[] Xz);
 
 public sealed record HoleSketchSet
 {
@@ -72,7 +86,7 @@ public static class HoleSketches
     {
         var set = Load(folder);
         foreach (var s in set.Sheets.Where(s => s.Hole == hole))
-            foreach (var f in new[] { s.Pencil, s.Scan })
+            foreach (var f in new[] { s.Pencil, s.Scan, s.Lines })
                 if (f.Length > 0 && File.Exists(Path.Combine(folder, f))) File.Delete(Path.Combine(folder, f));
         Save(folder, set with { Sheets = set.Sheets.Where(s => s.Hole != hole).ToList() });
     }
@@ -188,23 +202,27 @@ public static class HoleSketches
                 scanRect = Rotate180(rect);
                 norm = SheetScan.PaperNormalised(scanRect);
             }
-            var alpha = SheetScan.PencilAlpha(scanRect, norm, m.Reference);
+            var score = SheetScan.PencilScore(scanRect, norm, m.Reference);
+            var alpha = SheetScan.PencilAlpha(score, size.Width, size.Height);
+            var traced = SketchTracer.Trace(score, norm, size.Width, size.Height, out double? faintBelow);
             string stem = $"Hole_{hole.Number:00}";
             SavePencil(Path.Combine(folder, stem + " pencil.png"), alpha, size, k);
             SaveScan(Path.Combine(folder, stem + " scan.jpg"), scanRect, k);
             if (m.Flip) scanRect.Dispose();
 
             var corners = HoleSheet.LayoutFor(layers, hole, options).FrameCorners();
+            SaveLines(Path.Combine(folder, stem + " lines.json"), traced, faintBelow, corners, size);
             set.Sheets.RemoveAll(s => s.Hole == hole.Number);
             set.Sheets.Add(new HoleSketch
             {
-                Hole = hole.Number, Pencil = stem + " pencil.png", Scan = stem + " scan.jpg",
+                Hole = hole.Number, Pencil = stem + " pencil.png", Scan = stem + " scan.jpg", Lines = stem + " lines.json",
                 Source = Path.GetFileName(p.File), Page = p.Page, Match = Math.Round(m.Score, 3),
                 Frame = corners.Select(c => new[] { Math.Round(c.X, 3), Math.Round(c.Z, 3) }).ToArray(),
                 Imported = DateTime.Now,
             });
-            int inked = alpha.Count(a => a > 0);
-            results.Add(new ScanResult(p.File, p.Page, hole.Number, m.Score, $"hole {hole.Number}, {100.0 * inked / alpha.Length:0.0} % of the sheet sketched", Saved: true));
+            int firm = traced.Count(t => !t.Construction), faint = traced.Count - firm;
+            results.Add(new ScanResult(p.File, p.Page, hole.Number, m.Score,
+                $"hole {hole.Number}, {firm} line{(firm == 1 ? "" : "s")}" + (faint > 0 ? $" and {faint} construction mark{(faint == 1 ? "" : "s")} (shot lines, aim points, hatching)" : ""), Saved: true));
         }
         foreach (var (p, rect, _) in pages) rect.Dispose();
         Save(folder, set);
@@ -228,6 +246,26 @@ public static class HoleSketches
                 new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear), null);
         var norm = SheetScan.PaperNormalised(frame);
         return (norm, SheetScan.Thumbnail(norm, size.Width, size.Height));
+    }
+
+    public static SketchLines? LoadLines(string path)
+    {
+        if (!File.Exists(path)) return null;
+        try { return JsonSerializer.Deserialize<SketchLines>(File.ReadAllText(path), Json); }
+        catch (JsonException) { return null; }
+    }
+
+    /// <summary>Traced lines from straightened-frame pixels to world X/Z through the frame's corners.</summary>
+    static void SaveLines(string path, List<TracedLine> traced, double? faintBelow, Vec2[] corners, SKSizeI size)
+    {
+        Vec2 c0 = corners[0], ex = corners[1] - corners[0], ey = corners[3] - corners[0];
+        var lines = traced.Select(t => new SketchLine(t.Construction, t.Points.SelectMany(p =>
+        {
+            var w = c0 + ex * (p.X / size.Width) + ey * (p.Y / size.Height);
+            return new[] { Math.Round(w.X, 2), Math.Round(w.Z, 2) };
+        }).ToArray())).ToList();
+        var compact = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        File.WriteAllText(path, JsonSerializer.Serialize(new SketchLines { FaintBelow = faintBelow, Lines = lines }, compact));
     }
 
     static SKBitmap Rotate180(SKBitmap b)

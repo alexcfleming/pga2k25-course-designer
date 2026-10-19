@@ -32,6 +32,10 @@ public sealed class TerrainSettings
     public double SketchOpacity { get; set; } = 0.9;
     /// <summary>The selected hole's whole scanned sheet instead of just its pencil.</summary>
     public bool SketchScan { get; set; }
+    /// <summary>Also the traced construction lines: shot lines through the lettered aim points, aim dots, hatching.</summary>
+    public bool SketchConstruction { get; set; }
+    /// <summary>The scanned pencil as it is instead of the traced lines.</summary>
+    public bool SketchRawPencil { get; set; }
     public bool ShowNotes { get; set; } = true;
 
     public TerrainMapOptions ToOptions(string credit, double? pixelsPerMetre = null) => new()
