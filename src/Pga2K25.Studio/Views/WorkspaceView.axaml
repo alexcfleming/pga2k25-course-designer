@@ -633,6 +633,192 @@
           </StackPanel>
         </Border>
       </ScrollViewer>
+
+      <!-- Estimate inputs -->
+      <ScrollViewer Grid.Row="1" Grid.ColumnSpan="2" IsVisible="{Binding IsEstimateInputs}">
+        <StackPanel Spacing="16" MaxWidth="1320" HorizontalAlignment="Left" DataContext="{Binding EstimateInputs}" x:DataType="vm:EstimateInputsViewModel"
+                    IsVisible="{Binding $self.DataContext, Converter={x:Static ObjectConverters.IsNotNull}}">
+
+          <!-- Save bar -->
+          <Border Classes="card" Padding="16">
+            <DockPanel>
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                <Button Content="Save" Command="{Binding SaveInputsCommand}" IsEnabled="{Binding !Busy}"/>
+                <Button Classes="primary" Content="Save and rebuild estimate" Command="{Binding SaveAndRebuildCommand}" IsEnabled="{Binding !Busy}"/>
+              </StackPanel>
+              <StackPanel Spacing="4">
+                <TextBlock Classes="h2" Text="Estimate inputs"/>
+                <TextBlock Classes="muted" TextWrapping="Wrap" Text="Leave a box blank to use the default. Course choices are saved for this course; prices are saved for every course."/>
+                <TextBlock Text="{Binding Message}" Foreground="{Binding MessageBrush}" TextWrapping="Wrap"
+                           IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+              </StackPanel>
+            </DockPanel>
+          </Border>
+
+          <!-- Land -->
+          <Border Classes="card" Padding="16">
+            <StackPanel Spacing="12">
+              <TextBlock Classes="h2" Text="Land"/>
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Ground inside the play splines is built; everything else is natural. Each hole's zone class sets how much of the finished relief counts as given. Fidelity shifts every class: more fidelity, more ground treated as natural, less earthwork."/>
+              <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="Fidelity offset" VerticalAlignment="Center" Width="110"/>
+                <Slider Minimum="-0.5" Maximum="0.5" TickFrequency="0.05" IsSnapToTickEnabled="True" Value="{Binding FidelityOffset}" Width="320"/>
+                <TextBlock Text="{Binding FidelityText}" Classes="mono" VerticalAlignment="Center" Width="50"/>
+                <Button Content="Reset" Command="{Binding ResetFidelityCommand}" MinHeight="28" Padding="10,0"/>
+              </StackPanel>
+              <TextBlock Text="{Binding DefaultClassText}" Classes="muted small"/>
+              <ItemsControl ItemsSource="{Binding Holes}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="10" LineSpacing="8"/></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:HoleZoneRowViewModel">
+                    <StackPanel Spacing="2" Width="190">
+                      <TextBlock Text="{Binding Title}" Classes="muted small"/>
+                      <ComboBox ItemsSource="{Binding $parent[ItemsControl].((vm:EstimateInputsViewModel)DataContext).ZoneChoices}"
+                                SelectedItem="{Binding ZoneClass}" HorizontalAlignment="Stretch"/>
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Classes="muted small" TextWrapping="Wrap">
+                <Run Text="Drawn zones in Estimate.json: "/>
+                <Run Text="{Binding DrawnZones}"/>
+                <Run Text=" (kept as they are)."/>
+              </TextBlock>
+              <Expander Header="Zone classes" Padding="8">
+                <StackPanel Spacing="2">
+                  <Grid ColumnDefinitions="170,70,80,60,70,70,*">
+                    <TextBlock Text="Class" Classes="muted small"/>
+                    <TextBlock Grid.Column="1" Text="Fidelity" Classes="muted small"/>
+                    <TextBlock Grid.Column="2" Text="Wavelength" Classes="muted small"/>
+                    <TextBlock Grid.Column="3" Text="Rock" Classes="muted small"/>
+                    <TextBlock Grid.Column="4" Text="Drainage" Classes="muted small"/>
+                    <TextBlock Grid.Column="5" Text="Clearing" Classes="muted small"/>
+                    <TextBlock Grid.Column="6" Text="Notes" Classes="muted small"/>
+                  </Grid>
+                  <ItemsControl ItemsSource="{Binding Presets}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:PresetRowViewModel">
+                        <Grid ColumnDefinitions="170,70,80,60,70,70,*">
+                          <TextBlock Text="{Binding Name}"/>
+                          <TextBlock Grid.Column="1" Text="{Binding Fidelity}" Classes="mono"/>
+                          <TextBlock Grid.Column="2" Text="{Binding Wavelength}" Classes="mono"/>
+                          <TextBlock Grid.Column="3" Text="{Binding Rock}" Classes="mono"/>
+                          <TextBlock Grid.Column="4" Text="{Binding Drainage}" Classes="mono"/>
+                          <TextBlock Grid.Column="5" Text="{Binding Clearing}" Classes="mono"/>
+                          <TextBlock Grid.Column="6" Text="{Binding Notes}" Classes="muted small" TextWrapping="Wrap"/>
+                        </Grid>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <TextBlock Classes="muted small" Text="All zone values are placeholders (zone-presets.json)."/>
+                </StackPanel>
+              </Expander>
+            </StackPanel>
+          </Border>
+
+          <!-- Project and course-wide -->
+          <Grid ColumnDefinitions="*,16,*">
+            <Border Classes="card" Padding="16">
+              <StackPanel Spacing="6">
+                <TextBlock Classes="h2" Text="Project"/>
+                <TextBlock Classes="muted small" TextWrapping="Wrap" Text="Fractions, not percents (0.10 = 10 %). For this course only."/>
+                <Grid ColumnDefinitions="*,90,100" Margin="0,4,0,0">
+                  <TextBlock Text="Value" Classes="muted small"/>
+                  <TextBlock Grid.Column="1" Text="Default" Classes="muted small" TextAlignment="Right"/>
+                  <TextBlock Grid.Column="2" Text="This course" Classes="muted small" Margin="10,0,0,0"/>
+                </Grid>
+                <ItemsControl ItemsSource="{Binding Project}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ValueRowViewModel">
+                      <Grid ColumnDefinitions="*,90,100" Margin="0,2">
+                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding DefaultText}" Classes="mono" TextAlignment="Right" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="2" Text="{Binding Value}" PlaceholderText="default" Margin="10,0,0,0"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+            <Border Grid.Column="2" Classes="card" Padding="16" VerticalAlignment="Top">
+              <StackPanel Spacing="6">
+                <TextBlock Classes="h2" Text="Course-wide items"/>
+                <TextBlock Classes="muted small" TextWrapping="Wrap" Text="How many of each this course needs: 0 for none (no practice range, no pond), 2 for two."/>
+                <Grid ColumnDefinitions="*,90,100" Margin="0,4,0,0">
+                  <TextBlock Text="Item" Classes="muted small"/>
+                  <TextBlock Grid.Column="1" Text="Default" Classes="muted small" TextAlignment="Right"/>
+                  <TextBlock Grid.Column="2" Text="This course" Classes="muted small" Margin="10,0,0,0"/>
+                </Grid>
+                <ItemsControl ItemsSource="{Binding CourseWide}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ValueRowViewModel">
+                      <Grid ColumnDefinitions="*,90,100" Margin="0,2">
+                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        <TextBlock Grid.Column="1" Text="{Binding DefaultText}" Classes="mono" TextAlignment="Right" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="2" Text="{Binding Value}" PlaceholderText="default" Margin="10,0,0,0"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+          </Grid>
+
+          <!-- Unit prices -->
+          <Border Classes="card" Padding="16">
+            <StackPanel Spacing="6">
+              <TextBlock Classes="h2" Text="Unit prices (all courses)"/>
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Replace placeholders with quotes or a costing guide, and record where each came from. Your values are kept separately from the app's, so updates don't overwrite them; Reset goes back to the shipped price."/>
+              <Grid ColumnDefinitions="210,60,130,80,80,80,64,130,*,64" Margin="0,6,0,0">
+                <TextBlock Text="Item" Classes="muted small"/>
+                <TextBlock Grid.Column="1" Text="Unit" Classes="muted small"/>
+                <TextBlock Grid.Column="2" Text="Shipped" Classes="muted small"/>
+                <TextBlock Grid.Column="3" Text="Likely" Classes="muted small"/>
+                <TextBlock Grid.Column="4" Text="Low" Classes="muted small"/>
+                <TextBlock Grid.Column="5" Text="High" Classes="muted small"/>
+                <TextBlock Grid.Column="6" Text="Year" Classes="muted small"/>
+                <TextBlock Grid.Column="7" Text="Status" Classes="muted small"/>
+                <TextBlock Grid.Column="8" Text="Source" Classes="muted small"/>
+              </Grid>
+              <ItemsControl ItemsSource="{Binding Prices}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:PriceRowViewModel">
+                    <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,4">
+                      <Grid ColumnDefinitions="210,60,130,80,80,80,64,130,*,64">
+                        <StackPanel VerticalAlignment="Center">
+                          <TextBlock Text="{Binding Label}" TextWrapping="Wrap"/>
+                          <TextBlock Text="{Binding OriginText}" Classes="muted small"/>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="{Binding Unit}" Classes="muted small" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="2" Text="{Binding ShippedText}" Classes="muted small" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        <TextBox Grid.Column="3" Text="{Binding Price}" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="4" Text="{Binding Low}" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="5" Text="{Binding High}" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="6" Text="{Binding Year}" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="7" ItemsSource="{Binding StatusChoices}" SelectedItem="{Binding Status}" HorizontalAlignment="Stretch" Margin="0,0,4,0" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="8" Text="{Binding Source}" TextWrapping="Wrap" AcceptsReturn="False"/>
+                        <Button Grid.Column="9" Content="Reset" Command="{Binding ResetCommand}" MinHeight="28" Padding="8,0" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card" Padding="16">
+            <StackPanel Spacing="4">
+              <TextBlock Text="Files" Classes="h2"/>
+              <TextBlock Text="This course's choices" Classes="muted small"/>
+              <TextBlock Text="{Binding InputPath}" Classes="mono small" TextWrapping="Wrap"/>
+              <TextBlock Text="Your prices (all courses)" Classes="muted small" Margin="0,6,0,0"/>
+              <TextBlock Text="{Binding PricesPath}" Classes="mono small" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+        </StackPanel>
+      </ScrollViewer>
     </Grid>
   </DockPanel>
 </UserControl>

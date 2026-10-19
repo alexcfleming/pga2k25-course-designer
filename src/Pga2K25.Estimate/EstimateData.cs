@@ -165,8 +165,53 @@ public static class EstimateData
     public static ZonePresetFile LoadPresets(string? path = null) =>
         Load<ZonePresetFile>(path ?? Path.Combine(DataDir, "zone-presets.json"));
 
-    public static UnitCostFile LoadUnitCosts(string? path = null) =>
-        Load<UnitCostFile>(path ?? Path.Combine(DataDir, "unit-costs.json"));
+    /// <summary>
+    /// Where Alex's own values live, so they survive app updates: unit-price overrides shared by all courses
+    /// (<c>unit-costs.json</c>). Settable so tests can point it elsewhere.
+    /// </summary>
+    public static string UserDir { get; set; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CourseDesignerStudio", "estimate");
+
+    public static string UserCostsPath => Path.Combine(UserDir, "unit-costs.json");
+
+    /// <summary>
+    /// Shipped unit costs, with the user's overrides from <paramref name="userDir"/> laid over them item by item when
+    /// one is given (label and unit always come from the shipped file, so an override can't change what is priced).
+    /// </summary>
+    public static UnitCostFile LoadUnitCosts(string? path = null, string? userDir = null)
+    {
+        var shipped = Load<UnitCostFile>(path ?? Path.Combine(DataDir, "unit-costs.json"));
+        if (userDir is null) return shipped;
+        var overrides = LoadUserCosts(Path.Combine(userDir, "unit-costs.json"));
+        var items = new Dictionary<string, UnitCost>(shipped.Items);
+        foreach (var (key, mine) in overrides)
+            if (items.TryGetValue(key, out var baseCost))
+                items[key] = mine with { Label = baseCost.Label, Unit = baseCost.Unit };
+        return shipped with { Items = items };
+    }
+
+    /// <summary>The user's unit-cost overrides by key (empty when there are none).</summary>
+    public static Dictionary<string, UnitCost> LoadUserCosts(string? path = null)
+    {
+        path ??= UserCostsPath;
+        return File.Exists(path) ? Load<Dictionary<string, UnitCost>>(path) : new();
+    }
+
+    /// <summary>Writes the user's overrides; an empty set deletes the file so the shipped prices apply again.</summary>
+    public static void SaveUserCosts(IReadOnlyDictionary<string, UnitCost> overrides, string? path = null)
+    {
+        path ??= UserCostsPath;
+        if (overrides.Count == 0) { if (File.Exists(path)) File.Delete(path); return; }
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, JsonSerializer.Serialize(overrides, Json));
+    }
+
+    /// <summary>Writes a course's Estimate.json (drawn zones and anything else in it are kept as given).</summary>
+    public static void SaveInput(string path, EstimateInput input)
+    {
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, JsonSerializer.Serialize(input, Json));
+    }
 
     /// <summary>Project defaults with a course's overrides applied (an override's status becomes "Estimate.json").</summary>
     public static Dictionary<string, Setting> LoadProject(EstimateInput? input = null, string? path = null)
