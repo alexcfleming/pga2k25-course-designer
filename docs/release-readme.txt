@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 1.2.0
+COURSE DESIGNER STUDIO - release 1.3.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -8,12 +8,15 @@ Reads your .course files and makes printable products from them:
   - Hole sheets: a terrain sketch sheet per hole (PNG and PDF)
   - Greens book: slope and fall of every green
   - Yardage book, scorecard map and course cards
+  - Construction estimate: what the course might cost to build as a real
+    course, with a low / likely / high range (illustrative, not a bid)
 It is read only. It never changes or writes a course file.
 
 INSTALL
 1. Unzip this folder anywhere (for example Documents\Course Designer Studio).
 2. Run CourseDesignerStudio.exe. Nothing else needs installing.
-   Keep the "fonts" folder next to the exe; the course cards use it.
+   Keep the "fonts" and "estimate" folders next to the exe; the course
+  cards and the construction estimate use them.
 3. Windows may show "Windows protected your PC" because the app is not
    signed. Click "More info", then "Run anyway".
 Needs 64-bit Windows 10 or 11.
@@ -46,6 +49,19 @@ USING IT
   turns the map.
 - Notes: "+ Add note", then click the map to pin a build, planting or
   concept note. Notes are saved in Notes.json beside the products.
+- Construction estimate: build it from its page under Products. The
+  report covers the summary and range, a table per hole, scenarios,
+  every assumption and price source, and a cut/fill map per hole. Ground
+  inside the play splines counts as built; everything else is natural.
+  Many prices are placeholders and are marked as such.
+- Estimate inputs (left menu): set a zone class per hole (how much of
+  the ground is natural), the fidelity offset, regional factor,
+  contingency and fees, and which course-wide items the course needs
+  (0 for no practice range, for example). These are saved for that
+  course in Estimate.json beside its products. Unit prices can be
+  replaced with quotes (with source and year); those apply to every
+  course and are kept in %APPDATA%\CourseDesignerStudio\estimate.
+  "Save and rebuild estimate" rebuilds the report and opens it.
 - Measurements: type in-game measure-tool readings (for example +13'6")
   to check the terrain model against the game.
 
