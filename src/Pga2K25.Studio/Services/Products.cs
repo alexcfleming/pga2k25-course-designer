@@ -1,4 +1,5 @@
 using Pga2K25.CourseCard;
+using Pga2K25.Estimate;
 using Pga2K25.GreensBook;
 using Pga2K25.Maps;
 using Pga2K25.TerrainMap;
@@ -74,6 +75,11 @@ public static class Products
         {
             Pages = ["{0} - Course Data Card.png", "{0} - Hole Data Card.png", "{0} - Compass Rose.png"],
             Pdfs = ["{0} - Course Data Card.pdf", "{0} - Hole Data Card.pdf", "{0} - Compass Rose.pdf"],
+        },
+        // Reads Estimate.json from the course's output folder for per-course choices (zones, overrides).
+        new("Construction estimate", " - Estimate.pdf", c => EstimateBuilder.Build(c.CoursePath, c.OutputDir, log: c.Log).PdfPath)
+        {
+            Pages = ["{0} - Estimate/*.png"], Pdfs = ["{0} - Estimate.pdf"],
         },
     ];
 

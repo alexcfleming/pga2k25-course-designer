@@ -13,6 +13,8 @@
   <ItemGroup>
     <!-- Zone presets and unit prices are data, not code: every price carries its source, year and status. -->
     <None Include="..\..\assets\estimate\*.json" Link="estimate\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <!-- Lora (SIL OFL 1.1), the portfolio's brand face, shipped as the course cards ship it. -->
+    <None Include="..\..\assets\fonts\lora\*" Link="fonts\lora\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <PropertyGroup>

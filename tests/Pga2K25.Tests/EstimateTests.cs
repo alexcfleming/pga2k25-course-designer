@@ -386,6 +386,52 @@ public class EstimateTests
     }
 
     [Fact]
+    public void Build_WritesReportPdfPagesAndData()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "pga2k25-estimate-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var result = EstimateBuilder.Build(Path.Combine(TestPaths.SamplesDir, "sagan-khushun.course"), dir, [1]);
+            Assert.True(result.Partial);
+            Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(File.ReadAllBytes(result.PdfPath), 0, 4));
+            var names = result.Pngs.Select(Path.GetFileNameWithoutExtension).ToList();
+            Assert.Equal(["01 Summary", "02 Holes", "03 Scenarios"], names.Take(3));
+            Assert.Contains("04 Assumptions", names);
+            Assert.Equal("Hole_01", names[^1]);
+            Assert.All(result.Pngs, p => Assert.True(new FileInfo(p).Length > 10_000));
+            Assert.Equal(["high", "likely", "low"], result.Scenarios.Keys.Order());
+            Assert.Equal(EstimateData.LoadScenarios().FidelitySweep.Count, result.Sweep.Count);
+
+            using var json = System.Text.Json.JsonDocument.Parse(File.ReadAllText(result.JsonPath));
+            Assert.True(json.RootElement.GetProperty("summary").GetProperty("partial").GetBoolean());
+            Assert.Equal(3, json.RootElement.GetProperty("scenarios").EnumerateObject().Count());
+
+            // Rebuilding with fewer pages leaves no stale page images.
+            File.WriteAllText(Path.Combine(dir, "Sagan-Khushun - Estimate", "Hole_09.png"), "stale");
+            EstimateBuilder.Build(Path.Combine(TestPaths.SamplesDir, "sagan-khushun.course"), dir, [1]);
+            Assert.False(File.Exists(Path.Combine(dir, "Sagan-Khushun - Estimate", "Hole_09.png")));
+        }
+        finally { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
+    }
+
+    [Fact]
+    public void Studio_ListsTheEstimateAsAProduct()
+    {
+        var p = Pga2K25.Studio.Services.Products.All.Single(x => x.Name == "Construction estimate");
+        Assert.Equal(" - Estimate.pdf", p.FileSuffix);
+        Assert.Contains("{0} - Estimate/*.png", p.Pages);
+    }
+
+    [Fact]
+    public void Money_RoundsForDisplay()
+    {
+        Assert.Equal("$11.8M", ReportStyle.Money(11_836_302));
+        Assert.Equal("$565k", ReportStyle.Money(565_101));
+        Assert.Equal("$2.4k", ReportStyle.Money(2400));
+        Assert.Equal("$6", ReportStyle.Money(6));
+    }
+
+    [Fact]
     public void ShippedData_LabelsEveryPrice()
     {
         var costs = EstimateData.LoadUnitCosts();
