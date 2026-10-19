@@ -22,6 +22,7 @@ public static class EstimateBuilder
         var course = CourseFile.Load(coursePath).ReadModel();
         var presets = EstimateData.LoadPresets();
         var costs = EstimateData.LoadUnitCosts();
+        var rules = EstimateData.LoadRules();
         var input = EstimateData.LoadInput(InputPath(outputDir));
         Directory.CreateDirectory(outputDir);
 
@@ -30,14 +31,14 @@ public static class EstimateBuilder
         var pngs = new List<string>();
         foreach (int n in numbers)
         {
-            log?.Report($"Hole {n}: earthwork");
-            var e = HoleEarthwork.Build(course, n, presets, costs, input, options);
+            log?.Report($"Hole {n}: quantities");
+            var e = HoleEstimator.Build(course, n, presets, costs, rules, input, options);
             results.Add(e);
             string png = Path.Combine(outputDir, $"{course.Name} - Earthwork Hole {n:00}.png");
             EarthworkRenderer.RenderPng(e, course.Name, png);
             pngs.Add(png);
-            log?.Report(string.Format(CultureInfo.InvariantCulture, "  cut {0:N0} cu yd, fill {1:N0} cu yd, {2}",
-                e.Earthwork.CutCuYd, e.Earthwork.FillCuYd, Path.GetFileName(png)));
+            log?.Report(string.Format(CultureInfo.InvariantCulture, "  cut {0:N0} cu yd, fill {1:N0} cu yd, priced ${2:N0} ({3:P0} on placeholder prices), {4}",
+                e.Earthwork.CutCuYd, e.Earthwork.FillCuYd, e.Total, e.PlaceholderShare, Path.GetFileName(png)));
         }
 
         string json = Path.Combine(outputDir, $"{course.Name} - Estimate.json");
@@ -56,8 +57,13 @@ public static class EstimateBuilder
                     item = l.Quantity.Item, qty = l.Quantity.Qty, unit = l.Quantity.Unit, unit_price = l.UnitPrice, cost = l.Cost,
                     price_status = l.PriceStatus, price_source = l.PriceSource,
                 }),
+                total = e.Total,
+                placeholder_share = e.PlaceholderShare,
+                share_by_provenance = e.ShareByProvenance,
+                unpriced = e.UnpricedLines.Select(l => l.Quantity.Item),
                 assumptions = e.Assumptions,
             }),
+            total = results.Sum(e => e.Total),
         }, EstimateData.Json));
 
         string csv = Path.Combine(outputDir, $"{course.Name} - Estimate.csv");

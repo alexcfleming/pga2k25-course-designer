@@ -95,6 +95,22 @@ public sealed record UnitCostFile
         Items.TryGetValue(key, out var c) ? c : throw new KeyNotFoundException($"Unknown cost item '{key}'.");
 }
 
+public sealed record Rule
+{
+    public double Value { get; init; }
+    public string Source { get; init; } = "PLACEHOLDER";
+}
+
+/// <summary>Rates for quantities the course file can't measure (quantity-rules.json); all are assumptions.</summary>
+public sealed record QuantityRules
+{
+    public string Note { get; init; } = "";
+    public Rule GreenSurroundSodYd { get; init; } = new() { Value = 4 };
+    public Rule DrainageLfPerAcre { get; init; } = new() { Value = 140 };
+    public Rule HeadsPerAcre { get; init; } = new() { Value = 8 };
+    public Rule PathFtPerRouteFt { get; init; } = new() { Value = 1 };
+}
+
 /// <summary>A drawn area with its own class; later zones win where they overlap, and all win over the spline default.</summary>
 public sealed record ZonePolygon
 {
@@ -145,6 +161,9 @@ public static class EstimateData
 
     public static UnitCostFile LoadUnitCosts(string? path = null) =>
         Load<UnitCostFile>(path ?? Path.Combine(DataDir, "unit-costs.json"));
+
+    public static QuantityRules LoadRules(string? path = null) =>
+        Load<QuantityRules>(path ?? Path.Combine(DataDir, "quantity-rules.json"));
 
     public static EstimateInput LoadInput(string? path) =>
         path is not null && File.Exists(path) ? Load<EstimateInput>(path) : new EstimateInput();
