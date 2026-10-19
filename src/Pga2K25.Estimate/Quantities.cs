@@ -9,9 +9,9 @@ public sealed record LineItem(QuantityRow Quantity, string CostKey, double? Unit
 {
     public bool IsPlaceholder => PriceStatus.Equals("placeholder", StringComparison.OrdinalIgnoreCase);
 
-    public static LineItem Price(QuantityRow q, string key, UnitCost c, double priceFactor = 1)
+    public static LineItem Price(QuantityRow q, string key, UnitCost c, double priceFactor = 1, Scenario? scenario = null)
     {
-        double? unit = c.Price * priceFactor;
+        double? unit = (scenario is null ? c.Price : scenario.PriceOf(c)) * priceFactor;
         return new LineItem(q, key, unit, unit * q.Qty, c.Status, c.Source);
     }
 }

@@ -6,7 +6,7 @@ using Pga2K25.CourseFormat;
 namespace Pga2K25.Estimate;
 
 public sealed record EstimateOutputs(string JsonPath, string CsvPath, IReadOnlyList<string> Pngs, IReadOnlyList<HoleEstimate> Holes,
-    CourseSummary Summary, bool Partial);
+    CourseSummary Summary, bool Partial, IReadOnlyDictionary<string, CourseRun> Scenarios, IReadOnlyList<SweepPoint> Sweep);
 
 /// <summary>
 /// Construction estimate: <c>&lt;course&gt; - Estimate.json</c> and <c>.csv</c> (hole and course-wide line items, quantities
@@ -27,30 +27,35 @@ public static class EstimateBuilder
         var rules = EstimateData.LoadRules();
         var input = EstimateData.LoadInput(InputPath(outputDir));
         var project = EstimateData.LoadProject(input);
+        var scenarioFile = EstimateData.LoadScenarios();
         Directory.CreateDirectory(outputDir);
 
         var numbers = holes ?? course.Holes.Select(h => h.Number).ToList();
-        var results = new List<HoleEstimate>();
-        var pngs = new List<string>();
+        var sites = new List<HoleSite>();
         foreach (int n in numbers)
         {
-            log?.Report($"Hole {n}: quantities");
-            var e = HoleEstimator.Build(course, n, presets, costs, rules, input, options);
-            results.Add(e);
-            string png = Path.Combine(outputDir, $"{course.Name} - Earthwork Hole {n:00}.png");
+            log?.Report($"Hole {n}: terrain and features");
+            sites.Add(HoleEstimator.Prepare(course, n, presets, rules, input, options));
+        }
+        var estimator = new CourseEstimator(sites, presets, costs, rules, input, project);
+        var runs = scenarioFile.Scenarios.Keys.ToDictionary(k => k, k => estimator.Run(scenarioFile.Get(k)));
+        var likely = runs.TryGetValue("likely", out var lk) ? lk : estimator.Run(Scenario.Likely);
+        log?.Report("Fidelity sweep");
+        var sweep = estimator.Sweep(scenarioFile.FidelitySweep);
+
+        var results = likely.Holes;
+        var courseWide = likely.CourseWide;
+        var summary = likely.Summary;
+        bool partial = results.Count < course.Holes.Count;
+        var pngs = new List<string>();
+        foreach (var e in results)
+        {
+            string png = Path.Combine(outputDir, $"{course.Name} - Earthwork Hole {e.Hole.Number:00}.png");
             EarthworkRenderer.RenderPng(e, course.Name, png);
             pngs.Add(png);
-            log?.Report(string.Format(CultureInfo.InvariantCulture, "  cut {0:N0} cu yd, fill {1:N0} cu yd, priced ${2:N0} ({3:P0} on placeholder prices), {4}",
-                e.Earthwork.CutCuYd, e.Earthwork.FillCuYd, e.Total, e.PlaceholderShare, Path.GetFileName(png)));
+            log?.Report(string.Format(CultureInfo.InvariantCulture, "Hole {0}: cut {1:N0} cu yd, fill {2:N0} cu yd, priced ${3:N0} ({4:P0} on placeholder prices), {5}",
+                e.Hole.Number, e.Earthwork.CutCuYd, e.Earthwork.FillCuYd, e.Total, e.PlaceholderShare, Path.GetFileName(png)));
         }
-
-        var holeLines = results.SelectMany(e => e.Lines).ToList();
-        double holeDirect = holeLines.Sum(l => l.Cost ?? 0);
-        var courseWide = RollUp.CourseWideLines(holeDirect, results.Sum(e => e.ClearingAcres),
-            "manufactured acres × each hole class's clearing share", costs, project, input.CourseWide);
-        var summary = RollUp.Summarize(holeLines, courseWide, project, results.Count, results.Sum(e => e.ManufacturedAcres),
-            "manufactured ground (play splines, paths, tee pads)");
-        bool partial = results.Count < course.Holes.Count;
 
         string json = Path.Combine(outputDir, $"{course.Name} - Estimate.json");
         File.WriteAllText(json, JsonSerializer.Serialize(new
@@ -97,12 +102,24 @@ public static class EstimateBuilder
                 settings = summary.Settings,
                 excludes = "land, clubhouse, maintenance building, equipment, financing, pre-opening costs",
             },
+            scenarios = runs.ToDictionary(r => r.Key, r => new
+            {
+                settings = scenarioFile.Get(r.Key),
+                cut_cu_yd = r.Value.CutCuYd, fill_cu_yd = r.Value.FillCuYd,
+                hole_direct = r.Value.Summary.HoleDirect, course_wide = r.Value.Summary.CourseWide,
+                construction = r.Value.Summary.Construction, soft = r.Value.Summary.Soft, total = r.Value.Summary.Total,
+                construction_per_hole = r.Value.Summary.ConstructionPerHole,
+            }),
+            fidelity_sweep = sweep.Select(p => new
+            {
+                fidelity_offset = p.FidelityOffset, cut_cu_yd = p.CutCuYd, fill_cu_yd = p.FillCuYd, earthwork = p.Earthwork, total = p.Total,
+            }),
         }, EstimateData.Json));
 
         string csv = Path.Combine(outputDir, $"{course.Name} - Estimate.csv");
         File.WriteAllText(csv, Csv(results, courseWide), new UTF8Encoding(true));
         log?.Report($"Wrote {Path.GetFileName(json)}, {Path.GetFileName(csv)}");
-        return new EstimateOutputs(json, csv, pngs, results, summary, partial);
+        return new EstimateOutputs(json, csv, pngs, results, summary, partial, runs, sweep);
     }
 
     static string Csv(IEnumerable<HoleEstimate> holes, IEnumerable<LineItem> courseWide)

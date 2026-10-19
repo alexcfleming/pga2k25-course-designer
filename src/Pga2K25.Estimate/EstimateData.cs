@@ -185,6 +185,9 @@ public static class EstimateData
         return result;
     }
 
+    public static ScenarioFile LoadScenarios(string? path = null) =>
+        Load<ScenarioFile>(path ?? Path.Combine(DataDir, "scenarios.json"));
+
     public static QuantityRules LoadRules(string? path = null) =>
         Load<QuantityRules>(path ?? Path.Combine(DataDir, "quantity-rules.json"));
 
