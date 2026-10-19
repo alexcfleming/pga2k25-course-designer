@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 1.1.1
+COURSE DESIGNER STUDIO - release 1.2.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -37,6 +37,10 @@ USING IT
   panel. Each page is matched to its hole and your pencil is laid on the
   map where you drew it. Show one hole or all holes (a colour per hole)
   to spot overlaps between holes.
+  Your sketch is traced into clean lines (tee, fairway, hazard and green
+  edges). Straight shot lines through lettered aim points are set aside;
+  tick "Shot lines and aim points" to show them dashed. Scans imported
+  with an earlier version show the old pencil image until imported again.
 - Hole view: turns and zooms the map to the selected hole's sheet, tee
   at the bottom. "Whole map" backs out. Mouse wheel zooms, right-drag
   turns the map.
