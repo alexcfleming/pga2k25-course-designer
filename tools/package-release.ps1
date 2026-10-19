@@ -1,5 +1,5 @@
 # Packages Course Designer Studio as a stand-alone Windows zip: a self-contained single-file exe (no .NET install
-# needed), the bundled Lora fonts beside it, and the testers' read-me. The version comes from the Studio project.
+# needed), the bundled Lora fonts and the estimate's data files beside it, and the testers' read-me. The version comes from the Studio project.
 #
 #   powershell -ExecutionPolicy Bypass -File tools\package-release.ps1 [-OutDir <folder>]
 
@@ -25,6 +25,10 @@ if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
 $fonts = Join-Path $staging "fonts\lora"
 New-Item -ItemType Directory -Force $fonts | Out-Null
 Get-ChildItem -LiteralPath (Join-Path $repo "assets\fonts\lora") -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $fonts }
+# The construction estimate reads its zone presets, prices and rules from estimate\*.json next to the exe.
+$estimate = Join-Path $staging "estimate"
+New-Item -ItemType Directory -Force $estimate | Out-Null
+Get-ChildItem -LiteralPath (Join-Path $repo "assets\estimate") -Filter *.json -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $estimate }
 Get-ChildItem -LiteralPath $staging -Filter *.pdb | Remove-Item -Force
 Copy-Item (Join-Path $repo "docs\release-readme.txt") (Join-Path $staging "README.txt")
 
