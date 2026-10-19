@@ -1,6 +1,7 @@
 using System.Globalization;
 using Pga2K25.CourseCard;
 using Pga2K25.CourseFormat;
+using Pga2K25.Estimate;
 using Pga2K25.GreensBook;
 using Pga2K25.Maps;
 using Pga2K25.TerrainMap;
@@ -34,6 +35,10 @@ const string Usage = """
       compass rose, hole data card and course data card from the course file; a workbook only
       adds tee names, hazard tags and green notes (its yardages/bearings are checked, not used);
       ERRORs stop the build unless --force (drafts only; errors are still reported)
+    pga2k25 estimate <file.course> [-o <dir>] [--holes 3,7|all] [--cell 1.0]
+      construction-estimate slice: cut/fill against an assumed starting ground (play splines
+      are manufactured, everything else natural), a cut/fill PNG per hole and line items
+      ("<course> - Estimate.json/.csv"); per-course choices from <dir>/Estimate.json
     pga2k25 calibrate <file.course> <captures.json> [--hardness 0.85] [--blur 1.0]
     pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|both] [--landscape|--portrait]
                       [--north-up] [--data holes.xlsx|.csv] [--waste] [--raw-bunkers] [--no-paths]
@@ -62,6 +67,7 @@ try
         case "terrain": return Terrain(args[1], args[2..]);
         case "cards": return Cards(args[1], args[2..]);
         case "sketches": return Sketches(args[1], args[2..]);
+        case "estimate": return Estimate(args[1], args[2..]);
         case "calibrate" when args.Length >= 3: return Calibrate(args[1], args[2], args[3..]);
         default: Console.Error.WriteLine(Usage); return 2;
     }
@@ -70,6 +76,38 @@ catch (Exception ex)
 {
     Console.Error.WriteLine(Environment.GetEnvironmentVariable("PGA2K25_DEBUG") is null ? $"error: {ex.Message}" : ex.ToString());
     return 1;
+}
+
+static int Estimate(string path, string[] rest)
+{
+    var options = new EstimateOptions();
+    List<int>? holes = null;
+    string outDir = Path.GetDirectoryName(Path.GetFullPath(path))!;
+    for (int i = 0; i < rest.Length; i++)
+    {
+        string Next() => i + 1 < rest.Length ? rest[++i] : throw new ArgumentException($"{rest[i]} needs a value");
+        switch (rest[i])
+        {
+            case "-o": case "--out": outDir = Next(); break;
+            case "--holes":
+                var h = Next();
+                holes = h.Equals("all", StringComparison.OrdinalIgnoreCase) ? null : h.Split(',').Select(int.Parse).ToList();
+                break;
+            case "--cell": options = options with { Terrain = options.Terrain with { CellMetres = double.Parse(Next(), CultureInfo.InvariantCulture) } }; break;
+            default: throw new ArgumentException($"unknown option {rest[i]}");
+        }
+    }
+    var result = EstimateBuilder.Build(path, outDir, holes, options, new SyncProgress(Console.WriteLine));
+    foreach (var e in result.Holes)
+    {
+        Console.WriteLine($"Hole {e.Hole.Number} (par {e.Hole.Par})");
+        foreach (var q in e.Quantities)
+            Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  {0,-28} {1,12:N1} {2,-6} {3,-9} {4}", q.Item, q.Qty, q.Unit, q.Provenance, q.Basis));
+        foreach (var l in e.Lines)
+            Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  ${0,-27} {1,12} {2}", l.Quantity.Item,
+                l.Cost is { } c ? c.ToString("N0", CultureInfo.InvariantCulture) : "not priced", l.IsPlaceholder ? "PLACEHOLDER" : l.PriceStatus));
+    }
+    return 0;
 }
 
 static int Info(string path)
