@@ -1,0 +1,9 @@
+{
+  "note": "Low / likely / high scenarios. Every value is a PLACEHOLDER set by judgement. fidelity_offset is added to every zone's natural fidelity (more natural ground = less earthwork). prices picks each unit cost's low, price or high; items with no range use price × (1 + no_range_spread). assumed_quantity_factor scales hole quantities tagged assumed (tee pads, drainage, irrigation heads, undrawn paths). contingency replaces the project value when set (5-15% is the commonly cited range).",
+  "scenarios": {
+    "low":    { "fidelity_offset": 0.15,  "prices": "low",    "no_range_spread": -0.20, "assumed_quantity_factor": 0.85, "contingency": 0.05 },
+    "likely": { "fidelity_offset": 0.0,   "prices": "likely", "no_range_spread": 0.0,   "assumed_quantity_factor": 1.0,  "contingency": null },
+    "high":   { "fidelity_offset": -0.15, "prices": "high",   "no_range_spread": 0.30,  "assumed_quantity_factor": 1.2,  "contingency": 0.15 }
+  },
+  "fidelity_sweep": [-0.4, -0.2, 0.0, 0.2, 0.4]
+}

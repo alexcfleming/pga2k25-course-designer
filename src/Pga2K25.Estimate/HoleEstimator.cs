@@ -24,6 +24,7 @@ public sealed class HoleEstimate
     public required IReadOnlyList<Assumption> Assumptions { get; init; }
     /// <summary>Per cell: true where the ground is inside a play spline, tee pad or path (manufactured).</summary>
     public required bool[] Manufactured { get; init; }
+    public required string Scenario { get; init; }
     public required double ManufacturedAcres { get; init; }
     /// <summary>Manufactured acres × the hole class's clearing share (drawn zones use the hole class too, for now).</summary>
     public required double ClearingAcres { get; init; }
@@ -46,10 +47,34 @@ public sealed class HoleEstimate
 /// ground with no earthwork, unless a drawn zone in Estimate.json says otherwise. Areas and path lengths are read off
 /// the course file; drainage, irrigation heads, sod and tee pads come from the rules in quantity-rules.json.
 /// </summary>
+/// <summary>
+/// The scenario-independent part of a hole: terrain, zones and measured areas. Built once, then estimated for each
+/// scenario and fidelity offset (only the earthwork and the prices change).
+/// </summary>
+public sealed class HoleSite
+{
+    public required Hole Hole { get; init; }
+    public required ZoneRaster Raster { get; init; }
+    public required bool[] Manufactured { get; init; }
+    public required string HoleClassName { get; init; }
+    public required double FeatherMetres { get; init; }
+    public required double MadeSqFt { get; init; }
+    public required double GreenSqFt { get; init; }
+    public required double BunkerSqFt { get; init; }
+    public required double TeeSqFt { get; init; }
+    public required double GrassedSqFt { get; init; }
+    public required double SodSqFt { get; init; }
+    public required QuantityRow CartPath { get; init; }
+}
+
 public static class HoleEstimator
 {
     public static HoleEstimate Build(CourseModel course, int holeNumber, ZonePresetFile presets, UnitCostFile costs,
-        QuantityRules rules, EstimateInput input, EstimateOptions? options = null)
+        QuantityRules rules, EstimateInput input, EstimateOptions? options = null) =>
+        Estimate(Prepare(course, holeNumber, presets, rules, input, options), presets, costs, rules, input, Scenario.Likely);
+
+    public static HoleSite Prepare(CourseModel course, int holeNumber, ZonePresetFile presets, QuantityRules rules,
+        EstimateInput input, EstimateOptions? options = null)
     {
         options ??= new EstimateOptions();
         var hole = course.Holes.FirstOrDefault(h => h.Number == holeNumber)
@@ -93,7 +118,7 @@ public static class HoleEstimator
         int ClassIndex(string name)
         {
             var p = presets.Get(name);
-            if (p.NaturalFidelity + input.FidelityOffset >= 1) return -1;   // fully natural: no earthwork
+            if (p.NaturalFidelity >= 1) return -1;   // natural class: never any earthwork, whatever the offset
             int i = classes.FindIndex(c => c.Name == name);
             if (i >= 0) return i;
             classes.Add(new ZoneParams(name, p.NaturalFidelity, p.BaselineWavelengthYd / Units.YardsPerMetre, p.RockFactor));
@@ -111,8 +136,6 @@ public static class HoleEstimator
         }
 
         var raster = new ZoneRaster { Finished = field, Zone = zone, Counted = counted, Classes = classes };
-        var ew = Earthwork.Compute(raster, feather, input.FidelityOffset);
-        var bal = Earthwork.Balance(ew.CutCuM, ew.FillCuM, defaults.Shrink, defaults.Swell);
 
         // Areas inside this hole's cells. Grassed = manufactured ground that isn't sand, waste or path; sod goes on a
         // band round each green, the rest is seeded. Greens' grassing is in the seeded area.
@@ -130,15 +153,36 @@ public static class HoleEstimator
         double teeSqFt = SqFt(k => tees.Cells[k] && !greens.Cells[k]);
         double grassedSqFt = SqFt(Grassed);
         double sodSqFt = SqFt(Sod);
+
+        return new HoleSite
+        {
+            Hole = hole, Raster = raster, Manufactured = made.Cells, HoleClassName = holeClassName, FeatherMetres = feather,
+            MadeSqFt = madeSqFt, GreenSqFt = greenSqFt, BunkerSqFt = bunkerSqFt, TeeSqFt = teeSqFt,
+            GrassedSqFt = grassedSqFt, SodSqFt = sodSqFt, CartPath = CartPath(holeNumber, layers, field, counted, hole, rules),
+        };
+    }
+
+    /// <summary>Earthwork, quantities and priced lines for one scenario on a prepared hole.</summary>
+    public static HoleEstimate Estimate(HoleSite site, ZonePresetFile presets, UnitCostFile costs, QuantityRules rules,
+        EstimateInput input, Scenario scenario)
+    {
+        var defaults = presets.Defaults;
+        var hole = site.Hole;
+        string holeClassName = site.HoleClassName;
+        double offset = input.FidelityOffset + scenario.FidelityOffset;
+        var ew = Earthwork.Compute(site.Raster, site.FeatherMetres, offset);
+        var bal = Earthwork.Balance(ew.CutCuM, ew.FillCuM, defaults.Shrink, defaults.Swell);
+        double madeSqFt = site.MadeSqFt, greenSqFt = site.GreenSqFt, bunkerSqFt = site.BunkerSqFt, teeSqFt = site.TeeSqFt,
+            grassedSqFt = site.GrassedSqFt, sodSqFt = site.SodSqFt;
         double turfAcres = (grassedSqFt - greenSqFt) / 43560;   // greens drain through their own profile
         double irrigatedAcres = grassedSqFt / 43560;
 
         var cls = presets.Get(holeClassName);
         string shape = cls.BaselineWavelengthYd > 0 ? FormattableString.Invariant($"wavelength {cls.BaselineWavelengthYd:0} yd") : "best-fit plane";
         string basis = FormattableString.Invariant(
-            $"finished surface vs {holeClassName} baseline, g={Math.Clamp(cls.NaturalFidelity + input.FidelityOffset, 0, 1):0.##}, {shape}, {defaults.FeatherYd:0} yd feather");
+            $"finished surface vs {holeClassName} baseline, g={Math.Clamp(cls.NaturalFidelity + offset, 0, 1):0.##}, {shape}, {defaults.FeatherYd:0} yd feather");
         var cy = Units.CubicYardsPerCubicMetre;
-        int n = holeNumber;
+        int n = hole.Number;
         string I(FormattableString s) => FormattableString.Invariant(s);
 
         var cut = new QuantityRow(n, "Cut", ew.CutCuM * cy, "cu yd", Provenance.Computed, Confidence.Low, basis);
@@ -160,15 +204,16 @@ public static class HoleEstimator
             "fairway, rough, greens and tee pads, less sod");
         var drainRow = new QuantityRow(n, "Drainage", turfAcres * rules.DrainageLfPerAcre.Value * cls.DrainageNeed, "lin ft", Provenance.Assumed, Confidence.Low,
             I($"{turfAcres:0.0} turf acres × {rules.DrainageLfPerAcre.Value:0} LF/acre × drainage need {cls.DrainageNeed:0.##}"));
-        var pathRow = CartPath(n, layers, field, counted, hole, rules);
+        var pathRow = site.CartPath;
         var headsRow = new QuantityRow(n, "Irrigation", Math.Ceiling(irrigatedAcres * rules.HeadsPerAcre.Value), "head", Provenance.Assumed, Confidence.Low,
             I($"{irrigatedAcres:0.0} grassed acres × {rules.HeadsPerAcre.Value:0} heads/acre"));
 
+        (teeRow, drainRow, pathRow, headsRow) = (scenario.Scale(teeRow), scenario.Scale(drainRow), scenario.Scale(pathRow), scenario.Scale(headsRow));
         var rows = new List<QuantityRow> { cut, fill, balanced, import, export, shaping, grading, greenRow, teeRow, bunkerRow, sodRow, seedRow, drainRow, pathRow, headsRow };
 
         // The cut's rock factor scales the earthwork price (1 unless a rock or cliff class is used).
         double rock = ew.CutCuM > 0 ? ew.RockWeightedCutCuM / ew.CutCuM : 1;
-        LineItem P(QuantityRow q, string key, double factor = 1) => LineItem.Price(q, key, costs.Get(key), factor);
+        LineItem P(QuantityRow q, string key, double factor = 1) => LineItem.Price(q, key, costs.Get(key), factor, scenario);
         var lines = new List<LineItem>
         {
             P(balanced, "earthwork_onsite", rock), P(import, "earthwork_import"), P(export, "earthwork_export"),
@@ -195,13 +240,15 @@ public static class HoleEstimator
             assumptions.Add(new("Cart path", I($"no path drawn on this hole: route length × {rules.PathFtPerRouteFt.Value:0.##}"), rules.PathFtPerRouteFt.Source, Confidence.Low));
         if (input.FidelityOffset != 0)
             assumptions.Add(new("All zones", I($"fidelity offset {input.FidelityOffset:+0.##;-0.##}"), "Estimate.json", Confidence.Low));
+        if (scenario.FidelityOffset != 0)
+            assumptions.Add(new("All zones", I($"fidelity offset {scenario.FidelityOffset:+0.##;-0.##} ({scenario.Name} case)"), "scenarios.json", Confidence.Low));
         foreach (var z in input.Zones)
             assumptions.Add(new($"Drawn zone{(z.Note.Length > 0 ? $" ({z.Note})" : "")}", z.Class, "Estimate.json", Confidence.Low));
 
         return new HoleEstimate
         {
-            Hole = hole, Raster = raster, Earthwork = ew, Balance = bal, Quantities = rows, Lines = lines,
-            Assumptions = assumptions, Manufactured = made.Cells,
+            Hole = hole, Raster = site.Raster, Earthwork = ew, Balance = bal, Quantities = rows, Lines = lines,
+            Assumptions = assumptions, Manufactured = site.Manufactured, Scenario = scenario.Name,
             ManufacturedAcres = madeSqFt / 43560, ClearingAcres = madeSqFt / 43560 * cls.ClearingPct,
             ClearingBasis = I($"{holeClassName} clearing {cls.ClearingPct:P0} of manufactured ground"),
         };

@@ -18,6 +18,10 @@ public sealed class ZoneRaster
     public required int[] Zone { get; init; }
     public required bool[] Counted { get; init; }
     public required IReadOnlyList<ZoneParams> Classes { get; init; }
+
+    // Smoothed surfaces and edge distances don't depend on fidelity, so scenarios on one raster share them.
+    internal Dictionary<int, double[]?> SmoothCache { get; } = new();
+    internal double[]? InsideCache { get; set; }
 }
 
 public sealed record ZoneVolumes(string Name, double AreaSqM, double CutCuM, double FillCuM);
@@ -67,9 +71,9 @@ public static class Earthwork
 
         var smooth = new double[]?[raster.Classes.Count];
         for (int c = 0; c < raster.Classes.Count; c++)
-            smooth[c] = Low(f, raster, c);
+            smooth[c] = raster.SmoothCache.TryGetValue(c, out var cached) ? cached : raster.SmoothCache[c] = Low(f, raster, c);
 
-        var inside = DistanceInside(raster.Zone, f.Width, f.Height, f.Cell);
+        var inside = raster.InsideCache ??= DistanceInside(raster.Zone, f.Width, f.Height, f.Cell);
         var dz = new double[n];
         var baseline = (double[])f.Values.Clone();
         double cellArea = f.Cell * f.Cell, cut = 0, fill = 0, rockCut = 0, worked = 0;

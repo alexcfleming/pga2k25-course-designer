@@ -129,6 +129,15 @@ static int Estimate(string path, string[] rest)
         s.ConstructionPerHole, s.BenchmarkCheck, s.BenchmarkLow, s.BenchmarkHigh, s.ConstructionPerAcre, s.Acres, s.AcresBasis));
     Console.WriteLine(string.Format(inv, "  Hard cost on placeholder prices {0:P0}; by quantity {1}", s.PlaceholderShare,
         string.Join(", ", s.ShareByProvenance.Select(p => $"{p.Key.ToString().ToLowerInvariant()} {p.Value:P0}"))));
+    Console.WriteLine();
+    Console.WriteLine("Scenarios (total project budget)");
+    foreach (var (name, run) in result.Scenarios)
+        Console.WriteLine(string.Format(inv, "  {0,-8} {1,14:N0}   construction {2,14:N0}   cut {3,9:N0} / fill {4,9:N0} cu yd",
+            name, run.Summary.Total, run.Summary.Construction, run.CutCuYd, run.FillCuYd));
+    Console.WriteLine("Fidelity sweep (likely prices; offset added to every zone's natural fidelity)");
+    foreach (var p in result.Sweep)
+        Console.WriteLine(string.Format(inv, "  {0,6:+0.00;-0.00;0.00}   total {1,14:N0}   earthwork {2,10:N0}   cut {3,9:N0} / fill {4,9:N0} cu yd",
+            p.FidelityOffset, p.Total, p.Earthwork, p.CutCuYd, p.FillCuYd));
     return 0;
 }
 

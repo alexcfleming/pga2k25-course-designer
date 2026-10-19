@@ -307,6 +307,85 @@ public class EstimateTests
     }
 
     [Fact]
+    public void Scenario_PicksRangeOrSpreadsThePrice()
+    {
+        var ranged = new UnitCost { Price = 9, Low = 4, High = 18 };
+        var bare = new UnitCost { Price = 100 };
+        var low = new Scenario { Name = "low", Prices = PriceCase.Low, NoRangeSpread = -0.2 };
+        var high = new Scenario { Name = "high", Prices = PriceCase.High, NoRangeSpread = 0.3 };
+        Assert.Equal(4, low.PriceOf(ranged));
+        Assert.Equal(18, high.PriceOf(ranged));
+        Assert.Equal(80, low.PriceOf(bare)!.Value, 9);
+        Assert.Equal(130, high.PriceOf(bare)!.Value, 9);
+        Assert.Equal(9, Scenario.Likely.PriceOf(ranged));
+        Assert.Null(high.PriceOf(new UnitCost { Price = null }));
+
+        var scaler = new Scenario { Name = "high", AssumedQuantityFactor = 1.2 };
+        Assert.Equal(120, scaler.Scale(new QuantityRow(1, "x", 100, "lin ft", Provenance.Assumed, Confidence.Low, "")).Qty, 9);
+        Assert.Equal(100, scaler.Scale(new QuantityRow(1, "x", 100, "sq ft", Provenance.Measured, null, "")).Qty);
+    }
+
+    // The flat synthetic hole with a 3 m raise stamp (unknown brush type → round disc) on the fairway.
+    static CourseModel MoundHole() => new()
+    {
+        Name = "Mound", Version = GameVersion.PGA2K25, SchemaVersion = 49,
+        Holes = FlatHole(true).Holes, SurfaceSplines = FlatHole(true).SurfaceSplines,
+        HeightStamps = [new HeightStamp(0, 1, 999, new Vec2(0, 150), 30, 0, 3)],
+        SurfaceBrushes = [], PlacedObjects = [],
+    };
+
+    static CourseEstimator MoundEstimator()
+    {
+        var presets = EstimateData.LoadPresets();
+        var rules = EstimateData.LoadRules();
+        var input = new EstimateInput();
+        var site = HoleEstimator.Prepare(MoundHole(), 1, presets, rules, input);
+        return new CourseEstimator([site], presets, EstimateData.LoadUnitCosts(), rules, input, EstimateData.LoadProject(input));
+    }
+
+    [Fact]
+    public void Scenarios_OrderLowLikelyHigh()
+    {
+        var est = MoundEstimator();
+        var file = EstimateData.LoadScenarios();
+        var low = est.Run(file.Get("low"));
+        var likely = est.Run(file.Get("likely"));
+        var high = est.Run(file.Get("high"));
+        Assert.True(likely.CutCuYd + likely.FillCuYd > 0);
+        Assert.True(low.Summary.Total < likely.Summary.Total, $"{low.Summary.Total:N0} < {likely.Summary.Total:N0}");
+        Assert.True(likely.Summary.Total < high.Summary.Total, $"{likely.Summary.Total:N0} < {high.Summary.Total:N0}");
+        Assert.True(low.FillCuYd < likely.FillCuYd && likely.FillCuYd < high.FillCuYd);
+        Assert.Equal(0.15, high.Summary.Settings["contingency"].Value);
+
+        // The likely case is exactly the plain estimate.
+        var plain = HoleEstimator.Build(MoundHole(), 1, EstimateData.LoadPresets(), EstimateData.LoadUnitCosts(),
+            EstimateData.LoadRules(), new EstimateInput());
+        Assert.Equal(plain.Total, likely.Holes[0].Total, 6);
+    }
+
+    [Fact]
+    public void FidelitySweep_LessEarthworkAsMoreGroundIsGiven()
+    {
+        var points = MoundEstimator().Sweep([-0.4, -0.2, 0, 0.2, 0.4, 0.5]);
+        for (int i = 1; i < points.Count; i++)
+        {
+            Assert.True(points[i].FillCuYd < points[i - 1].FillCuYd || points[i].FillCuYd == 0);
+            Assert.True(points[i].Total <= points[i - 1].Total);
+        }
+        // moderate_earthmoving has g = 0.5, so +0.5 makes all of it natural.
+        Assert.Equal(0, points[^1].CutCuYd + points[^1].FillCuYd, 9);
+    }
+
+    [Fact]
+    public void NegativeOffset_NeverTurnsNaturalGroundIntoEarthwork()
+    {
+        var run = MoundEstimator().Run(Scenario.Likely with { FidelityOffset = -0.4 });
+        var h = run.Holes[0];
+        for (int k = 0; k < h.Earthwork.Dz.Length; k++)
+            if (h.Raster.Zone[k] < 0) Assert.Equal(0, h.Earthwork.Dz[k]);
+    }
+
+    [Fact]
     public void ShippedData_LabelsEveryPrice()
     {
         var costs = EstimateData.LoadUnitCosts();

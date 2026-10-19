@@ -52,7 +52,8 @@ public static class RollUp
     /// Estimate.json says otherwise, and mobilization as a share of hole-direct cost.
     /// </summary>
     public static List<LineItem> CourseWideLines(double holeDirect, double clearingAcres, string clearingBasis,
-        UnitCostFile costs, IReadOnlyDictionary<string, Setting> project, IReadOnlyDictionary<string, double>? overrides = null)
+        UnitCostFile costs, IReadOnlyDictionary<string, Setting> project, IReadOnlyDictionary<string, double>? overrides = null,
+        Scenario? scenario = null)
     {
         overrides ??= new Dictionary<string, double>();
         var lines = new List<LineItem>();
@@ -60,14 +61,14 @@ public static class RollUp
             overrides.TryGetValue("clearing", out var ca) ? ca : clearingAcres, "acre",
             overrides.ContainsKey("clearing") ? Provenance.Assumed : Provenance.Computed, Confidence.Low,
             overrides.ContainsKey("clearing") ? "set in Estimate.json" : clearingBasis);
-        lines.Add(LineItem.Price(clearing, "clearing", costs.Get("clearing")));
+        lines.Add(LineItem.Price(clearing, "clearing", costs.Get("clearing"), scenario: scenario));
         foreach (var key in new[] { "pump_station", "pond_liner", "central_control", "practice_area", "specialty", "grow_in" })
         {
             var c = costs.Get(key);
             bool set = overrides.TryGetValue(key, out var q);
             var row = new QuantityRow(null, c.Label, set ? q : 1, c.Unit, Provenance.Assumed, Confidence.Low,
                 set ? "set in Estimate.json" : "one per course (default)");
-            lines.Add(LineItem.Price(row, key, c));
+            lines.Add(LineItem.Price(row, key, c, scenario: scenario));
         }
         var mob = project["mobilization"];
         var mobRow = new QuantityRow(null, "Mobilization and general conditions", holeDirect, "$ hole-direct", Provenance.Computed, null,
