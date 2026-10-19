@@ -18,6 +18,14 @@ public sealed class CellMask
 
     public int Count => Cells.Count(c => c);
 
+    public static CellMask Union(Heightfield field, params CellMask[] masks)
+    {
+        var u = new CellMask(field);
+        foreach (var m in masks)
+            for (int k = 0; k < u.Cells.Length; k++) u.Cells[k] |= m.Cells[k];
+        return u;
+    }
+
     /// <summary>Scanline fill of a closed polygon.</summary>
     public void Polygon(IReadOnlyList<Vec2> poly)
     {

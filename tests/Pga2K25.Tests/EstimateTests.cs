@@ -138,6 +138,93 @@ public class EstimateTests
         Assert.Equal(3, d[5 * 10 + 7], 6);
     }
 
+    // A flat synthetic par 4: one tee at the origin, green centred 300 m north (+Z), fairway 40 m wide over both,
+    // a 10 m square bunker and (optionally) a 300 m cart path beside the hole.
+    static SurfaceSpline Square(int index, int surface, double x0, double z0, double x1, double z1) =>
+        new(index, surface, true, 0, new[] { new Vec2(x0, z0), new Vec2(x1, z0), new Vec2(x1, z1), new Vec2(x0, z1) }
+            .Select(p => new SplinePoint(p, p, p, 0)).ToList());
+
+    static CourseModel FlatHole(bool path)
+    {
+        var splines = new List<SurfaceSpline>
+        {
+            Square(0, Surfaces.Fairway, -20, -10, 20, 320),
+            Square(1, Surfaces.Green, -10, 290, 10, 310),
+            Square(2, Surfaces.Bunker, 12, 150, 22, 160),
+        };
+        if (path)
+            splines.Add(new SurfaceSpline(3, Surfaces.CartPath, false, 2,
+                [new(new(30, 0), new(30, 0), new(30, 0), 2), new(new(30, 300), new(30, 300), new(30, 300), 2)]));
+        return new CourseModel
+        {
+            Name = "Synthetic", Version = GameVersion.PGA2K25, SchemaVersion = 49,
+            Holes = [new Hole(1, 4, [new(0, 0), new(0, 300)], [new(0, 0)], [new(0, 300)])],
+            SurfaceSplines = splines, HeightStamps = [], SurfaceBrushes = [], PlacedObjects = [],
+        };
+    }
+
+    static HoleEstimate Estimate(bool path) => HoleEstimator.Build(FlatHole(path), 1, EstimateData.LoadPresets(),
+        EstimateData.LoadUnitCosts(), EstimateData.LoadRules(), new EstimateInput());
+
+    static QuantityRow Row(HoleEstimate e, string item) => e.Quantities.Single(q => q.Item == item);
+
+    const double SqFtPerSqM = Units.SquareFeetPerSquareMetre;
+
+    [Fact]
+    public void HoleQuantities_MeasureAreasFromTheSplines()
+    {
+        var e = Estimate(path: true);
+        Assert.InRange(Row(e, "Greens").Qty, 400 * SqFtPerSqM * 0.95, 400 * SqFtPerSqM * 1.05);
+        Assert.InRange(Row(e, "Bunkers").Qty, 100 * SqFtPerSqM * 0.9, 100 * SqFtPerSqM * 1.1);
+        Assert.Equal(Provenance.Measured, Row(e, "Greens").Provenance);
+        // Flat ground: nothing to cut or fill.
+        Assert.Equal(0, Row(e, "Cut").Qty + Row(e, "Fill").Qty, 6);
+        // Drawn path: 300 m = 984.25 ft, measured.
+        Assert.Equal(300 * Units.FeetPerMetre, Row(e, "Cart path").Qty, 3);
+        Assert.Equal(Provenance.Measured, Row(e, "Cart path").Provenance);
+    }
+
+    [Fact]
+    public void HoleQuantities_RuleBasedItemsFollowTheRules()
+    {
+        var e = Estimate(path: true);
+        var rules = EstimateData.LoadRules();
+        double sod = Row(e, "Grassing, sod").Qty, seed = Row(e, "Grassing, seed or sprigs").Qty;
+        double grassed = sod + seed;
+        // Fairway 40 × 330 m less the bunker; the tee pad sits inside the fairway.
+        Assert.InRange(grassed * Units.SquareMetresPerAcre, (40 * 330 - 100) * 0.97, (40 * 330 - 100) * 1.03);
+        // Sod: a band about 4 yd (3.66 m) round a 20 m square green ≈ 80 × 3.66 + π × 3.66² ≈ 335 m².
+        Assert.InRange(sod * Units.SquareMetresPerAcre, 335 * 0.85, 335 * 1.15);
+        Assert.Equal(Math.Ceiling(grassed * rules.HeadsPerAcre.Value), Row(e, "Irrigation").Qty);
+        double turf = grassed - Row(e, "Greens").Qty / 43560;
+        Assert.Equal(turf * rules.DrainageLfPerAcre.Value, Row(e, "Drainage").Qty, 3);
+        Assert.Equal(Provenance.Assumed, Row(e, "Irrigation").Provenance);
+        Assert.Equal(Provenance.Assumed, Row(e, "Tees").Provenance);
+    }
+
+    [Fact]
+    public void HoleWithoutPath_AssumesRouteLength()
+    {
+        var e = Estimate(path: false);
+        var path = Row(e, "Cart path");
+        Assert.Equal(Provenance.Assumed, path.Provenance);
+        Assert.Equal(300 * Units.FeetPerMetre * EstimateData.LoadRules().PathFtPerRouteFt.Value, path.Qty, 3);
+        Assert.Contains(e.Assumptions, a => a.Scope == "Cart path");
+    }
+
+    [Fact]
+    public void HoleLines_PriceQuantitiesAndReportShares()
+    {
+        var e = Estimate(path: true);
+        var costs = EstimateData.LoadUnitCosts();
+        var greens = e.Lines.Single(l => l.CostKey == "greens");
+        Assert.Equal(greens.Quantity.Qty * costs.Get("greens").Price!.Value, greens.Cost!.Value, 6);
+        Assert.Equal(e.Lines.Sum(l => l.Cost ?? 0), e.Total, 6);
+        Assert.InRange(e.PlaceholderShare, 0.01, 0.99);
+        Assert.Equal(1, e.ShareByProvenance.Values.Sum(), 6);
+        Assert.All(e.Lines, l => Assert.Equal(costs.Get(l.CostKey).Unit, l.Quantity.Unit));
+    }
+
     [Fact]
     public void ShippedData_LabelsEveryPrice()
     {

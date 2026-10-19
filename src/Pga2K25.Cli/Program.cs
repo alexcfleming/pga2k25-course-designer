@@ -106,6 +106,8 @@ static int Estimate(string path, string[] rest)
         foreach (var l in e.Lines)
             Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  ${0,-27} {1,12} {2}", l.Quantity.Item,
                 l.Cost is { } c ? c.ToString("N0", CultureInfo.InvariantCulture) : "not priced", l.IsPlaceholder ? "PLACEHOLDER" : l.PriceStatus));
+        Console.WriteLine(string.Format(CultureInfo.InvariantCulture, "  Hole-direct total ${0:N0}: {1:P0} on placeholder prices; by quantity {2}",
+            e.Total, e.PlaceholderShare, string.Join(", ", e.ShareByProvenance.Select(p => $"{p.Key.ToString().ToLowerInvariant()} {p.Value:P0}"))));
     }
     return 0;
 }
