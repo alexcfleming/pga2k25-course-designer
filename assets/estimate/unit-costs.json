@@ -15,9 +15,11 @@
     "cart_path":          { "label": "Cart path, concrete",                       "unit": "lin ft", "price": 70,   "low": 35,    "high": 90,    "year": 2024, "status": "researched",  "grade": "A", "source": "Irving TX 2024 award: $1,716,310 for ~19,200 LF steel-reinforced concrete incl. demolition, widening and curbs (~$89/LF). Likely $70 is a judgement for new path without demolition." },
     "irrigation":         { "label": "Irrigation (per head, incl. pipe, wire, controller)", "unit": "head", "price": 2400, "low": 2300, "high": 2500, "year": 2026, "status": "researched", "grade": "B", "source": "Westview IL 2023 consultant ($2,300/head); NGCOA Golf Business Weekly 2026 (~$2,500/head)." },
     "pump_station":       { "label": "Irrigation pump station",                   "unit": "lump",  "price": 450000, "low": null, "high": null,  "year": null, "status": "placeholder", "grade": null, "source": "Workbook template placeholder." },
-    "clearing":           { "label": "Clearing and grubbing",                     "unit": "acre",  "price": 5000,  "low": null,  "high": null,  "year": null, "status": "placeholder", "grade": null, "source": "Workbook template placeholder." }
-  },
-  "percentages": {
-    "contingency":        { "value": 0.10, "status": "researched", "source": "Duluth MN 2018 (Herfort Norby) uses 10%." }
+    "clearing":           { "label": "Clearing and grubbing",                     "unit": "acre",  "price": 5000,  "low": null,  "high": null,  "year": null, "status": "placeholder", "grade": null, "source": "Workbook template placeholder." },
+    "pond_liner":         { "label": "Irrigation pond and liner",                 "unit": "lump",  "price": 250000, "low": null, "high": null,  "year": null, "status": "placeholder", "grade": null, "source": "Workbook template placeholder." },
+    "central_control":    { "label": "Central control and weather station",       "unit": "lump",  "price": 120000, "low": null, "high": null,  "year": null, "status": "placeholder", "grade": null, "source": "Workbook template placeholder." },
+    "practice_area":      { "label": "Practice range and short-game area",        "unit": "lump",  "price": 300000, "low": null, "high": null,  "year": null, "status": "placeholder", "grade": null, "source": "Workbook template placeholder." },
+    "specialty":          { "label": "Bridges, walls and specialty features",     "unit": "allowance", "price": 250000, "low": null, "high": null, "year": null, "status": "placeholder", "grade": null, "source": "Workbook template placeholder." },
+    "grow_in":            { "label": "Grow-in (labour, fertilizer, mowing)",      "unit": "course", "price": 600000, "low": null, "high": null, "year": null, "status": "placeholder", "grade": null, "source": "Workbook template placeholder." }
   }
 }

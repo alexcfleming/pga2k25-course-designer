@@ -1,0 +1,14 @@
+{
+  "note": "Project-level settings for the roll-up, mirroring the workbook's Assumptions and Summary sheets. Fractions, not percents. A course's Estimate.json can override any value under \"project\".",
+  "regional_factor":      { "value": 1.0,     "status": "placeholder", "source": "Workbook template: 1.00 = base pricing." },
+  "escalation_per_yr":    { "value": 0.04,    "status": "placeholder", "source": "Workbook template placeholder; no index researched yet." },
+  "years_to_midpoint":    { "value": 1,       "status": "placeholder", "source": "Workbook template: price date to middle of construction." },
+  "mobilization":         { "value": 0.04,    "status": "placeholder", "source": "Workbook template: share of hole-direct cost." },
+  "contingency":          { "value": 0.10,    "status": "researched",  "source": "Duluth MN 2018 (Herfort Norby) uses 10%; workbook template agrees." },
+  "design_fee":           { "value": 0.08,    "status": "placeholder", "source": "Workbook template placeholder; fees may be a lump sum instead." },
+  "field_rep":            { "value": 0.05,    "status": "placeholder", "source": "Workbook template; one architect forum post cited 5-7%." },
+  "permits":              { "value": 0.03,    "status": "placeholder", "source": "Workbook template placeholder (permits, engineering, surveys)." },
+  "owner_costs":          { "value": 0.02,    "status": "placeholder", "source": "Workbook template placeholder (legal, insurance)." },
+  "benchmark_low_per_hole":  { "value": 400000,  "status": "placeholder", "source": "Workbook template sanity band; online ranges conflict widely." },
+  "benchmark_high_per_hole": { "value": 1500000, "status": "placeholder", "source": "Workbook template sanity band; online ranges conflict widely." }
+}

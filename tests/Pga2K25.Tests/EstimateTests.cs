@@ -225,6 +225,87 @@ public class EstimateTests
         Assert.All(e.Lines, l => Assert.Equal(costs.Get(l.CostKey).Unit, l.Quantity.Unit));
     }
 
+    // golf_course_estimating_model_template.xlsx (2026-10-18): typical quantity per hole by par (3, 4, 5) and the
+    // template's unit price, then each hole's par and terrain multiplier from Hole_Qty.
+    static readonly (string Item, string Unit, double P3, double P4, double P5, double Price)[] WorkbookTypicals =
+    [
+        ("Earthwork", "cu yd", 4000, 9000, 14000, 6),
+        ("Shaping", "acre", 3, 7, 10, 9000),
+        ("Finish grading", "acre", 3, 7, 10, 3500),
+        ("Greens", "sq ft", 6000, 6000, 6500, 9),
+        ("Tees", "sq ft", 4500, 6000, 7000, 4.5),
+        ("Bunkers", "each", 4, 6, 8, 4500),
+        ("Grassing", "acre", 4, 9, 13, 6000),
+        ("Drainage", "lin ft", 600, 1200, 1800, 18),
+        ("Cart path", "lin ft", 500, 900, 1300, 35),
+        ("Irrigation", "lin ft", 1800, 3200, 4500, 22),
+    ];
+
+    static readonly (int Par, double Multiplier)[] WorkbookHoles =
+    [
+        (4, 1), (4, 1), (5, 1.1), (3, 1), (4, 1), (4, 1.05), (3, 1), (4, 1), (5, 1.1),
+        (4, 1), (3, 1), (4, 1), (5, 1.15), (4, 1), (4, 1), (3, 1.05), (4, 1), (5, 1),
+    ];
+
+    [Fact]
+    public void RollUp_ReproducesTheWorkbookExample()
+    {
+        // Hole-direct lines priced exactly as Hole_Cost does: multiplier × typical quantity for the par × unit price.
+        var holeLines = new List<LineItem>();
+        for (int i = 0; i < WorkbookHoles.Length; i++)
+        {
+            var (par, mult) = WorkbookHoles[i];
+            foreach (var t in WorkbookTypicals)
+            {
+                double typical = par == 3 ? t.P3 : par == 4 ? t.P4 : t.P5;
+                var row = new QuantityRow(i + 1, t.Item, mult * typical, t.Unit, Provenance.Assumed, Confidence.Low, "workbook typical");
+                holeLines.Add(LineItem.Price(row, t.Item, new UnitCost { Price = t.Price, Unit = t.Unit }));
+            }
+        }
+        // Course-wide items and project settings come from the shipped data, which keep the workbook's placeholders.
+        var project = EstimateData.LoadProject();
+        double holeDirect = holeLines.Sum(l => l.Cost!.Value);
+        var courseWide = RollUp.CourseWideLines(holeDirect, 40, "workbook", EstimateData.LoadUnitCosts(), project);
+        var s = RollUp.Summarize(holeLines, courseWide, project, 18, 150, "workbook");
+
+        // Values cached in the workbook's Summary sheet.
+        Assert.Equal(7852297.5, s.HoleDirect, 4);
+        Assert.Equal(2484091.9, s.CourseWide, 4);
+        Assert.Equal(10336389.4, s.Hard, 4);
+        Assert.Equal(11824829.4736, s.Construction, 3);
+        Assert.Equal(1934972.09568, s.Soft, 3);
+        Assert.Equal(13759801.56928, s.Total, 3);
+        Assert.Equal(656934.970755556, s.ConstructionPerHole, 3);
+        Assert.Equal(11824829.4736 / 150, s.ConstructionPerAcre, 3);
+        Assert.Equal("Within band", s.BenchmarkCheck);
+    }
+
+    [Fact]
+    public void RollUp_AppliesRegionalFactorBeforeEscalation()
+    {
+        var project = EstimateData.LoadProject(new EstimateInput
+        {
+            Project = new() { ["regional_factor"] = 1.2, ["escalation_per_yr"] = 0.05, ["years_to_midpoint"] = 2, ["contingency"] = 0 },
+        });
+        var line = LineItem.Price(new QuantityRow(1, "x", 1000, "lump", Provenance.Measured, null, ""), "x", new UnitCost { Price = 1000 });
+        var s = RollUp.Summarize([line], [], project, 1, 1, "test");
+        Assert.Equal(1_000_000 * 1.2 * 1.05 * 1.05, s.Escalated, 6);
+        Assert.Equal(0, s.Contingency);
+        Assert.Equal("Estimate.json", s.Settings["regional_factor"].Status);
+        Assert.Throws<KeyNotFoundException>(() => EstimateData.LoadProject(new EstimateInput { Project = new() { ["nope"] = 1 } }));
+    }
+
+    [Fact]
+    public void CourseWide_OverridesQuantities()
+    {
+        var project = EstimateData.LoadProject();
+        var lines = RollUp.CourseWideLines(100_000, 10, "test", EstimateData.LoadUnitCosts(), project,
+            new Dictionary<string, double> { ["practice_area"] = 0 });
+        Assert.Equal(0, lines.Single(l => l.CostKey == "practice_area").Cost);
+        Assert.Equal(10 * 5000, lines.Single(l => l.CostKey == "clearing").Cost);
+        Assert.Equal(4000, lines.Single(l => l.CostKey == "mobilization").Cost!.Value, 6);
+    }
+
     [Fact]
     public void ShippedData_LabelsEveryPrice()
     {
