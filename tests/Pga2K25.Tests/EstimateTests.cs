@@ -203,6 +203,30 @@ public class EstimateTests
     }
 
     [Fact]
+    public void PaintedSandAndPracticeGreens_AreKeptOutOfBunkersAndGreens()
+    {
+        // The flat hole plus a 10 m painted bunker dab on the fairway and a practice green 200 m off to the side.
+        var basic = FlatHole(path: true);
+        var course = new CourseModel
+        {
+            Name = "Sand", Version = GameVersion.PGA2K25, SchemaVersion = 49, Holes = basic.Holes,
+            SurfaceSplines = [.. basic.SurfaceSplines, Square(9, Surfaces.Green, 190, 140, 210, 160), Square(10, Surfaces.Fairway, 180, 130, 220, 170)],
+            SurfaceBrushes = [new SurfaceBrush(0, Surfaces.Bunker, 0, new Vec2(-5, 80), 10, 0, 1)],
+            HeightStamps = [], PlacedObjects = [],
+        };
+        var e = HoleEstimator.Build(course, 1, EstimateData.LoadPresets(), EstimateData.LoadUnitCosts(), EstimateData.LoadRules(),
+            new EstimateInput(), new EstimateOptions { ReachMetres = 250 });
+        // Greens: only the hole's own 20 m green, not the practice green.
+        Assert.InRange(Row(e, "Greens").Qty, 400 * SqFtPerSqM * 0.95, 400 * SqFtPerSqM * 1.05);
+        // Bunkers: only the drawn 10 m square; the painted dab (π × 5² ≈ 78.5 m²) is sand / waste area.
+        Assert.InRange(Row(e, "Bunkers").Qty, 100 * SqFtPerSqM * 0.9, 100 * SqFtPerSqM * 1.1);
+        Assert.InRange(Row(e, "Sand and waste areas").Qty, 78.5 * SqFtPerSqM * 0.85, 78.5 * SqFtPerSqM * 1.15);
+        var sand = e.Lines.Single(l => l.CostKey == "sand_waste");
+        Assert.Equal(sand.Quantity.Qty * EstimateData.LoadUnitCosts().Get("sand_waste").Price!.Value, sand.Cost!.Value, 6);
+        Assert.Contains(e.Assumptions, a => a.Scope == "Practice greens");
+    }
+
+    [Fact]
     public void HoleWithoutPath_AssumesRouteLength()
     {
         var e = Estimate(path: false);

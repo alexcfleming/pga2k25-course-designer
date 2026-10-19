@@ -61,6 +61,8 @@ public sealed class HoleSite
     public required double MadeSqFt { get; init; }
     public required double GreenSqFt { get; init; }
     public required double BunkerSqFt { get; init; }
+    /// <summary>Painted bunker sand (outside drawn bunkers) and waste surfaces: priced as sand / waste area.</summary>
+    public required double SandWasteSqFt { get; init; }
     public required double TeeSqFt { get; init; }
     public required double GrassedSqFt { get; init; }
     public required double SodSqFt { get; init; }
@@ -97,15 +99,26 @@ public static class HoleEstimator
 
         // Feature masks. Manufactured ground is all of them plus a round pad at each tee.
         var grass = new CellMask(field); foreach (var g in layers.Grass) grass.Polygon(g);
-        var greens = new CellMask(field); foreach (var g in layers.Greens) greens.Polygon(g);
+        // Greens far from every hole's green are practice greens: left out here, covered by the practice-area lump.
+        var greenAnchors = course.Holes.Select(h => h.Route[^1]).ToList();
+        double practiceReach = rules.PracticeGreenYd.Value / Units.YardsPerMetre;
+        var greens = new CellMask(field);
+        foreach (var g in layers.Greens)
+        {
+            var c = new Vec2(g.Average(p => p.X), g.Average(p => p.Z));
+            if (greenAnchors.Count == 0 || greenAnchors.Min(a => Vec2.Distance(a, c)) <= practiceReach) greens.Polygon(g);
+        }
+        // Drawn bunkers (splines and ribbons) are built bunkers; painted bunker sand outside them counts with waste
+        // surfaces as sand / waste area at its own, lower rate.
         var bunkers = new CellMask(field);
         foreach (var b in layers.BunkerAreas) bunkers.Polygon(b);
         foreach (var r in layers.BunkerRibbons) bunkers.Ribbon(r);
-        foreach (var d in layers.BunkerBrushes) bunkers.Disc(d.Centre, d.Radius);
         var waste = new CellMask(field);
+        foreach (var d in layers.BunkerBrushes) waste.Disc(d.Centre, d.Radius);
         foreach (var w in layers.WasteAreas) waste.Polygon(w);
         foreach (var r in layers.WasteRibbons) waste.Ribbon(r);
         foreach (var d in layers.WasteBrushes) waste.Disc(d.Centre, d.Radius);
+        for (int k = 0; k < waste.Cells.Length; k++) waste.Cells[k] &= !bunkers.Cells[k];
         var paths = new CellMask(field); foreach (var r in layers.Paths) paths.Ribbon(r);
         var tees = new CellMask(field); foreach (var h in course.Holes) foreach (var t in h.Tees) tees.Disc(t, teeRadius);
         var made = CellMask.Union(field, grass, greens, bunkers, waste, paths, tees);
@@ -150,6 +163,7 @@ public static class HoleEstimator
         double madeSqFt = SqFt(k => made.Cells[k]);
         double greenSqFt = SqFt(k => greens.Cells[k]);
         double bunkerSqFt = SqFt(k => bunkers.Cells[k]);
+        double sandWasteSqFt = SqFt(k => waste.Cells[k]);
         double teeSqFt = SqFt(k => tees.Cells[k] && !greens.Cells[k]);
         double grassedSqFt = SqFt(Grassed);
         double sodSqFt = SqFt(Sod);
@@ -157,7 +171,7 @@ public static class HoleEstimator
         return new HoleSite
         {
             Hole = hole, Raster = raster, Manufactured = made.Cells, HoleClassName = holeClassName, FeatherMetres = feather,
-            MadeSqFt = madeSqFt, GreenSqFt = greenSqFt, BunkerSqFt = bunkerSqFt, TeeSqFt = teeSqFt,
+            MadeSqFt = madeSqFt, GreenSqFt = greenSqFt, BunkerSqFt = bunkerSqFt, SandWasteSqFt = sandWasteSqFt, TeeSqFt = teeSqFt,
             GrassedSqFt = grassedSqFt, SodSqFt = sodSqFt, CartPath = CartPath(holeNumber, layers, field, counted, hole, rules),
         };
     }
@@ -197,7 +211,9 @@ public static class HoleEstimator
         var greenRow = new QuantityRow(n, "Greens", greenSqFt, "sq ft", Provenance.Measured, null, "green splines");
         var teeRow = new QuantityRow(n, "Tees", teeSqFt, "sq ft", Provenance.Assumed, Confidence.Low,
             I($"{hole.Tees.Count} tees as {defaults.TeePadRadiusYd:0} yd radius pads, overlaps counted once (tees are points in the file)"));
-        var bunkerRow = new QuantityRow(n, "Bunkers", bunkerSqFt, "sq ft", Provenance.Measured, null, "bunker splines, ribbons and painted bunker");
+        var bunkerRow = new QuantityRow(n, "Bunkers", bunkerSqFt, "sq ft", Provenance.Measured, null, "drawn bunker splines and ribbons");
+        var sandRow = new QuantityRow(n, "Sand and waste areas", site.SandWasteSqFt, "sq ft", Provenance.Measured, null,
+            "painted bunker sand outside drawn bunkers, and waste surfaces");
         var sodRow = new QuantityRow(n, "Grassing, sod", sodSqFt / 43560, "acre", Provenance.Computed, Confidence.Low,
             I($"{rules.GreenSurroundSodYd.Value:0} yd band round greens"));
         var seedRow = new QuantityRow(n, "Grassing, seed or sprigs", (grassedSqFt - sodSqFt) / 43560, "acre", Provenance.Measured, null,
@@ -209,7 +225,7 @@ public static class HoleEstimator
             I($"{irrigatedAcres:0.0} grassed acres × {rules.HeadsPerAcre.Value:0} heads/acre"));
 
         (teeRow, drainRow, pathRow, headsRow) = (scenario.Scale(teeRow), scenario.Scale(drainRow), scenario.Scale(pathRow), scenario.Scale(headsRow));
-        var rows = new List<QuantityRow> { cut, fill, balanced, import, export, shaping, grading, greenRow, teeRow, bunkerRow, sodRow, seedRow, drainRow, pathRow, headsRow };
+        var rows = new List<QuantityRow> { cut, fill, balanced, import, export, shaping, grading, greenRow, teeRow, bunkerRow, sandRow, sodRow, seedRow, drainRow, pathRow, headsRow };
 
         // The cut's rock factor scales the earthwork price (1 unless a rock or cliff class is used).
         double rock = ew.CutCuM > 0 ? ew.RockWeightedCutCuM / ew.CutCuM : 1;
@@ -218,7 +234,7 @@ public static class HoleEstimator
         {
             P(balanced, "earthwork_onsite", rock), P(import, "earthwork_import"), P(export, "earthwork_export"),
             P(shaping, "shaping"), P(grading, "finish_grading"),
-            P(greenRow, "greens"), P(teeRow, "tees"), P(bunkerRow, "bunkers"),
+            P(greenRow, "greens"), P(teeRow, "tees"), P(bunkerRow, "bunkers"), P(sandRow, "sand_waste"),
             P(sodRow, "grassing_sod"), P(seedRow, "grassing_seed"),
             P(drainRow, "drainage"), P(pathRow, "cart_path"), P(headsRow, "irrigation"),
         };
@@ -230,6 +246,10 @@ public static class HoleEstimator
             new("Outside play splines", "natural ground, no earthwork", "Alex, 2026-10-19", Confidence.Medium),
             new("Tees", I($"round pads of {defaults.TeePadRadiusYd:0} yd radius"), defaults.Source, Confidence.Low),
             new("Shrink / swell", I($"{defaults.Shrink:P0} / {defaults.Swell:P0}"), defaults.Source, Confidence.Low),
+            new("Sand", "drawn bunkers are built bunkers; painted bunker sand and waste surfaces are sand / waste area at a lower rate",
+                "Alex, 2026-10-19", Confidence.Medium),
+            new("Practice greens", I($"greens more than {rules.PracticeGreenYd.Value:0} yd from every hole's green are left to the practice-area item"),
+                rules.PracticeGreenYd.Source, Confidence.Medium),
             new("Feature footprints", "greens, tees and bunkers are included in bulk cut/fill; their unit prices cover the construction profile only",
                 "estimate module design", Confidence.Medium),
             new("Sod", I($"{rules.GreenSurroundSodYd.Value:0} yd band round each green; all other turf seeded or sprigged"), rules.GreenSurroundSodYd.Source, Confidence.Low),

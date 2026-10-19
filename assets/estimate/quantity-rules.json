@@ -3,5 +3,6 @@
   "green_surround_sod_yd": { "value": 4,   "source": "PLACEHOLDER: judgement. Sod band around each green (collar and surround); the rest of the grassed ground is seeded or sprigged." },
   "drainage_lf_per_acre":  { "value": 140, "source": "PLACEHOLDER: workbook template ratio (drainage LF ÷ grassing acres ≈ 133-150 by par). Scaled by the zone's drainage_need. Greens' own drainage is in the green price." },
   "heads_per_acre":        { "value": 8,   "source": "DERIVED: Westview IL 2023 (1,166 heads / 27 holes ≈ 43 heads per hole) ÷ an assumed ~5.5 irrigated acres per hole." },
+  "practice_green_yd":     { "value": 45,  "source": "PLACEHOLDER: a green whose centre is further than this from every hole's green (last route point) is a practice green, covered by the practice-area lump (Alex, 2026-10-19)." },
   "path_ft_per_route_ft":  { "value": 1.0, "source": "PLACEHOLDER: used only where a hole has no cart path drawn; path length = tee-to-green route length × this." }
 }
