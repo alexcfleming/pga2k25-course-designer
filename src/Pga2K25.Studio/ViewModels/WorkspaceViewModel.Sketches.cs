@@ -41,6 +41,9 @@ public partial class WorkspaceViewModel
     [ObservableProperty] private bool _sketchColours = true;
     [ObservableProperty] private double _sketchOpacity = 0.9;
     [ObservableProperty] private bool _sketchScan;
+    [ObservableProperty] private bool _sketchConstruction;
+    [ObservableProperty] private bool _sketchRawPencil;
+    [ObservableProperty] private bool _hasTracedLines;
     [ObservableProperty] private bool _showNotes = true;
     [ObservableProperty] private bool _placingNote;
     [ObservableProperty] private bool _holeView;
@@ -72,9 +75,13 @@ public partial class WorkspaceViewModel
     string _lastKind = CourseNotes.Build;
     bool _loadingLayerSettings;
 
-    sealed class LoadedSketch(HoleSketch meta, byte[] alpha, int width, int height)
+    sealed class LoadedSketch(HoleSketch meta, byte[] alpha, int width, int height, SketchLines? traced)
     {
         public HoleSketch Meta { get; } = meta;
+        /// <summary>The traced lines in world X/Z; null for sketches imported before tracing (shown as pencil).</summary>
+        public SketchLines? Traced { get; } = traced;
+        /// <summary>The traced lines as map-pixel geometry for one projection (edges, construction).</summary>
+        public (object Projection, Avalonia.Media.Geometry Edges, Avalonia.Media.Geometry Construction)? Geometry { get; set; }
         public byte[] Alpha { get; } = alpha;
         public int Width { get; } = width;
         public int Height { get; } = height;
@@ -95,6 +102,8 @@ public partial class WorkspaceViewModel
         SketchColours = t.SketchColours;
         SketchOpacity = Math.Clamp(t.SketchOpacity, 0.1, 1);
         SketchScan = t.SketchScan;
+        SketchConstruction = t.SketchConstruction;
+        SketchRawPencil = t.SketchRawPencil;
         ShowNotes = t.ShowNotes;
         _loadingLayerSettings = false;
     }
@@ -107,6 +116,8 @@ public partial class WorkspaceViewModel
         t.SketchColours = SketchColours;
         t.SketchOpacity = Math.Round(SketchOpacity, 2);
         t.SketchScan = SketchScan;
+        t.SketchConstruction = SketchConstruction;
+        t.SketchRawPencil = SketchRawPencil;
         t.ShowNotes = ShowNotes;
         Settings.Save();
         LayersChanged?.Invoke();
@@ -116,6 +127,8 @@ public partial class WorkspaceViewModel
     partial void OnSketchColoursChanged(bool value) => SaveLayerSettings();
     partial void OnSketchOpacityChanged(double value) => SaveLayerSettings();
     partial void OnSketchScanChanged(bool value) => SaveLayerSettings();
+    partial void OnSketchConstructionChanged(bool value) => SaveLayerSettings();
+    partial void OnSketchRawPencilChanged(bool value) => SaveLayerSettings();
     partial void OnShowNotesChanged(bool value) => SaveLayerSettings();
 
     partial void OnPlacingNoteChanged(bool value)
@@ -172,11 +185,49 @@ public partial class WorkspaceViewModel
                 layers.Add(new SketchLayer(scan, SketchMatrix(s.Meta, scan.PixelSize.Width, scan.PixelSize.Height), SketchOpacity * 0.8));
                 continue;
             }
+            // Traced lines replace the pencil image unless the raw pencil is asked for.
+            if (s.Traced is not null && !SketchRawPencil) continue;
             var colour = SketchColours ? ToSk(HoleColour(s.Meta.Hole)) : Graphite;
             if (s.Tinted is not { } t || t.Colour != colour) s.Tinted = (colour, Tint(s, colour));
             layers.Add(new SketchLayer(s.Tinted.Value.Image, SketchMatrix(s.Meta, s.Width, s.Height), SketchOpacity));
         }
         return layers;
+    }
+
+    /// <summary>The traced lines to draw: edges always, construction (shot lines, aim points) when asked for.</summary>
+    public IReadOnlyList<LineLayer> CurrentLineLayers()
+    {
+        if (_projection is null || SketchMode == TerrainSettings.SketchesOff || SketchRawPencil) return [];
+        var layers = new List<LineLayer>();
+        foreach (var s in _sketches.OrderBy(s => s.Meta.Hole == _selectedHole))
+        {
+            bool selected = s.Meta.Hole == _selectedHole;
+            if (s.Traced is null || (SketchMode == TerrainSettings.SketchesThisHole && !selected)) continue;
+            if (selected && SketchScan) continue;   // the scan itself is showing
+            if (s.Geometry is not { } g || !ReferenceEquals(g.Projection, _projection))
+            {
+                s.Geometry = (_projection, LineGeometry(s.Traced, construction: false), LineGeometry(s.Traced, construction: true));
+                g = s.Geometry.Value;
+            }
+            var colour = SketchColours ? HoleColour(s.Meta.Hole) : Color.FromRgb(Graphite.Red, Graphite.Green, Graphite.Blue);
+            if (SketchConstruction) layers.Add(new LineLayer(g.Construction, colour, SketchOpacity * 0.8, Construction: true));
+            layers.Add(new LineLayer(g.Edges, colour, SketchOpacity, Construction: false));
+        }
+        return layers;
+    }
+
+    Avalonia.Media.Geometry LineGeometry(SketchLines traced, bool construction)
+    {
+        var geometry = new StreamGeometry();
+        using var ctx = geometry.Open();
+        foreach (var line in traced.Lines)
+        {
+            if (line.Construction != construction || line.Xz.Length < 4) continue;
+            ctx.BeginFigure(MapPx(new Vec2(line.Xz[0], line.Xz[1])), false);
+            for (int i = 2; i + 1 < line.Xz.Length; i += 2) ctx.LineTo(MapPx(new Vec2(line.Xz[i], line.Xz[i + 1])));
+            ctx.EndFigure(false);
+        }
+        return geometry;
     }
 
     public IReadOnlyList<MapPin> CurrentPins()
@@ -242,7 +293,8 @@ public partial class WorkspaceViewModel
                 if (decoded is null) continue;
                 using var alpha = decoded.Copy(SKColorType.Alpha8);
                 if (alpha is null) continue;
-                loaded.Add(new LoadedSketch(meta, alpha.GetPixelSpan().ToArray(), alpha.Width, alpha.Height));
+                var traced = meta.Lines.Length > 0 ? HoleSketches.LoadLines(Path.Combine(folder, meta.Lines)) : null;
+                loaded.Add(new LoadedSketch(meta, alpha.GetPixelSpan().ToArray(), alpha.Width, alpha.Height, traced));
             }
             Dispatcher.UIThread.Post(() =>
             {
@@ -252,6 +304,7 @@ public partial class WorkspaceViewModel
                 foreach (var s in loaded.OrderBy(s => s.Meta.Hole))
                     SketchRows.Add(new SketchRowViewModel(s.Meta, HoleColour(s.Meta.Hole), RemoveSketch));
                 HasSketches = loaded.Count > 0;
+                HasTracedLines = loaded.Any(s => s.Traced is not null);
                 var sources = loaded.Select(s => s.Meta.Source).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
                 SketchSummary = loaded.Count == 0
                     ? "No sketches yet. Scan your marked-up hole sheets (PDF or photos) and import them."

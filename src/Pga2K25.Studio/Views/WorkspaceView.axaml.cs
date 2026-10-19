@@ -74,6 +74,7 @@ public partial class WorkspaceView : UserControl
     {
         if (_vm is null) return;
         _map.Sketches = _vm.CurrentSketchLayers();
+        _map.Lines = _vm.CurrentLineLayers();
         _map.Pins = _vm.CurrentPins();
         _map.SelectedPin = _vm.SelectedPinId;
     }

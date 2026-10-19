@@ -292,28 +292,40 @@ public static class SheetScan
     /// <see cref="PaperNormalised"/>), so printed lines, labels and the route drop out even where the frame fit
     /// is a pixel or two off. Specks smaller than <paramref name="minSpeck"/> pixels are dropped.
     /// </summary>
-    public static byte[] PencilAlpha(SKBitmap scanRgba, byte[] scanNormalised, byte[] referenceNormalised, int minSpeck = 25)
+    public static byte[] PencilAlpha(SKBitmap scanRgba, byte[] scanNormalised, byte[] referenceNormalised, int minSpeck = 25) =>
+        PencilAlpha(PencilScore(scanRgba, scanNormalised, referenceNormalised), scanRgba.Width, scanRgba.Height, minSpeck);
+
+    public static byte[] PencilAlpha(float[] score, int w, int h, int minSpeck = 25)
+    {
+        var alpha = new byte[w * h];
+        for (int i = 0; i < alpha.Length; i++)
+        {
+            int v = (int)(score[i] * 255);
+            alpha[i] = v < 60 ? (byte)0 : (byte)v;
+        }
+        RemoveSpecks(alpha, w, h, minSpeck);
+        return alpha;
+    }
+
+    /// <summary>How strongly each pixel is pencil, 0–1 (see <see cref="PencilAlpha(SKBitmap, byte[], byte[], int)"/>).</summary>
+    public static float[] PencilScore(SKBitmap scanRgba, byte[] scanNormalised, byte[] referenceNormalised)
     {
         int w = scanRgba.Width, h = scanRgba.Height;
         var refF = new float[referenceNormalised.Length];
         for (int i = 0; i < refF.Length; i++) refF[i] = referenceNormalised[i];
         var darkestPrinted = MinFilter(refF, w, h, 3);
         var px = scanRgba.GetPixelSpan();
-
-        var alpha = new byte[w * h];
-        for (int i = 0; i < alpha.Length; i++)
+        var score = new float[w * h];
+        for (int i = 0; i < score.Length; i++)
         {
             byte r = px[4 * i], g = px[4 * i + 1], b = px[4 * i + 2];
             int chroma = Math.Max(r, Math.Max(g, b)) - Math.Min(r, Math.Min(g, b));
             double excess = darkestPrinted[i] - scanNormalised[i];
             // Graphite is neutral; the sea and painted water scan as a faded blue that is otherwise nearly grey.
             int blue = b - r;
-            double s = Math.Clamp((excess - 16) / 24, 0, 1) * Math.Clamp((48 - chroma) / 20.0, 0, 1) * Math.Clamp((14 - blue) / 8.0, 0, 1);
-            int v = (int)(s * 255);
-            alpha[i] = v < 60 ? (byte)0 : (byte)v;
+            score[i] = (float)(Math.Clamp((excess - 16) / 24, 0, 1) * Math.Clamp((48 - chroma) / 20.0, 0, 1) * Math.Clamp((14 - blue) / 8.0, 0, 1));
         }
-        RemoveSpecks(alpha, w, h, minSpeck);
-        return alpha;
+        return score;
     }
 
     /// <summary>Zeroes 8-connected groups of non-zero pixels smaller than <paramref name="minPixels"/>.</summary>

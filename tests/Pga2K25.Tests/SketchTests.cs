@@ -70,6 +70,7 @@ public class SketchTests
             var route = sheet.Routing.Route;
             var mid = (route[0] + route[^1]) * 0.5;
             Vec2 a = mid - sheet.Side * 40, b = mid + sheet.Side * 40;
+            var bunkerCentre = mid - sheet.Forward * 50 + sheet.Side * 25;
             var proj = sheet.Projection(HoleSheet.MapRectPoints);
             SKPoint Page(Vec2 w) { var q = proj.Map(w); return new SKPoint(q.X * u, q.Y * u); }
 
@@ -85,6 +86,16 @@ public class SketchTests
                 using var pencil = new SKPaint { Color = new SKColor(80, 80, 80), StrokeWidth = 3, IsAntialias = true, Style = SKPaintStyle.Stroke };
                 var pa = Page(a); var pb = Page(b);
                 c.DrawLine(pa.X + pad, pa.Y + pad, pb.X + pad, pb.Y + pad, pencil);
+                // A bunker: a closed wobbly loop 12 m across, 50 m short of the midpoint and 25 m right of the route.
+                var bunker = Page(bunkerCentre);
+                using var path = new SKPath();
+                for (int k = 0; k <= 72; k++)
+                {
+                    double ang = k * Math.PI / 36, rad = (12 + 1.5 * Math.Sin(3 * ang)) * proj.PointsPerMetre * u;
+                    var q = new SKPoint(bunker.X + pad + (float)(rad * Math.Cos(ang)), bunker.Y + pad + (float)(rad * Math.Sin(ang)));
+                    if (k == 0) path.MoveTo(q); else path.LineTo(q);
+                }
+                c.DrawPath(path, pencil);
                 c.Restore();
                 // A phone scanner crops to the paper, give or take.
                 using var cropped = new SKBitmap(page.Width + 10, page.Height + 10);
@@ -128,6 +139,21 @@ public class SketchTests
                 Assert.True(Near(a + (b - a) * t, 3) > 100, $"pencil missing at t = {t}");
             Assert.True(Near(mid + sheet.Forward * 60, 3) == 0, "pencil where none was drawn");
             Assert.True(px.Count(v => v > 0) < 0.01 * px.Length, "print left in the pencil layer");
+
+            // Traced: the bunker is an edge on the ground where it was drawn; the straight line is a shot line.
+            var lines = HoleSketches.LoadLines(Path.Combine(folder, saved.Lines))!;
+            static IEnumerable<Vec2> Points(SketchLine l) { for (int i = 0; i + 1 < l.Xz.Length; i += 2) yield return new Vec2(l.Xz[i], l.Xz[i + 1]); }
+            var ring = lines.Lines.Where(l => !l.Construction && Points(l).Any(q => Math.Abs(Vec2.Distance(q, bunkerCentre) - 12) < 3)).ToList();
+            Assert.NotEmpty(ring);
+            var onRing = ring.SelectMany(Points).ToList();
+            Assert.True(onRing.Count(q => Math.Abs(Vec2.Distance(q, bunkerCentre) - 12) < 3) > 0.9 * onRing.Count, "bunker edge off the ground");
+            // Most of the loop is traced (the route's ink may cut it).
+            double traced = ring.Sum(l => Points(l).Zip(Points(l).Skip(1)).Sum(s => Vec2.Distance(s.First, s.Second)));
+            Assert.True(traced > 0.7 * 2 * Math.PI * 12, $"only {traced:0} m of the bunker traced");
+            var shot = lines.Lines.Where(l => Points(l).Any(q => Math.Abs((q - mid).X * sheet.Forward.X + (q - mid).Z * sheet.Forward.Z) < 2
+                                                                 && Math.Abs((q - mid).X * sheet.Side.X + (q - mid).Z * sheet.Side.Z) is > 10 and < 35)).ToList();
+            Assert.NotEmpty(shot);
+            Assert.All(shot, l => Assert.True(l.Construction, "a straight line was taken for an edge"));
         }
         finally
         {
