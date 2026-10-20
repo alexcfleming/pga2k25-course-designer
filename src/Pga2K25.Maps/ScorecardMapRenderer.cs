@@ -147,6 +147,14 @@ public sealed class ScorecardMapRenderer : IDisposable
         {
             canvas.SaveLayer();
             foreach (var a in l.WaterAreas) { using var path = p.Path(a, true); canvas.DrawPath(path, fill); }
+            foreach (var body in l.WaterBodies)
+            {
+                // One even-odd path per pond so its islands stay dry.
+                using var b = new SKPathBuilder { FillType = SKPathFillType.EvenOdd };
+                foreach (var shore in body) p.AddPolyline(b, shore, true);
+                using var path = b.Detach();
+                canvas.DrawPath(path, fill);
+            }
             using var stroke = Stroke(_t.WaterFill, 1);
             foreach (var r in l.WaterRibbons) { stroke.StrokeWidth = (float)(r.Width * k); using var path = p.Path(r.Points, false); canvas.DrawPath(path, stroke); }
             if (_t.WaterHatch is { } hatch) Hatch(canvas, canvas.DeviceClipBounds, hatch);
@@ -290,15 +298,28 @@ public sealed class ScorecardMapRenderer : IDisposable
 
     float DrawTitle(SKCanvas canvas, string name, float x, float y, float width)
     {
-        if (_t.Kind == MapThemeKind.Vintage)
+        bool vintage = _t.Kind == MapThemeKind.Vintage;
+        string title = vintage ? name.ToUpperInvariant() : name;
+        float size = vintage ? 26 : 28;
+        // Long names break onto a second line at the space nearest the middle, then shrink if still too wide.
+        var lines = new List<string> { title };
+        if (Measure(title, size, _title) > width && title.Contains(' '))
         {
-            Text(canvas, name.ToUpperInvariant(), x, y, 26, _title, _t.Ink);
+            int mid = title.Length / 2;
+            int cut = Enumerable.Range(0, title.Length).Where(i => title[i] == ' ').MinBy(i => Math.Abs(i - mid));
+            lines = [title[..cut], title[(cut + 1)..]];
+        }
+        size = Math.Max(14, Math.Min(size, lines.Min(l => size * width / Math.Max(1, Measure(l, size, _title)))));
+        for (int i = 0; i < lines.Count; i++) Text(canvas, lines[i], x, y + i * size * 1.12f, size, _title, _t.Ink);
+        y += (lines.Count - 1) * size * 1.12f;
+
+        if (vintage)
+        {
             using var rule = Stroke(_t.Ink, 1.2f);
-            canvas.DrawLine(x, y + 8, x + Math.Min(width, Measure(name.ToUpperInvariant(), 26, _title) + 6), y + 8, rule);
+            canvas.DrawLine(x, y + 8, x + Math.Min(width, lines.Max(l => Measure(l, size, _title)) + 6), y + 8, rule);
             Text(canvas, _o.Subtitle.ToUpperInvariant(), x, y + 28, 12, _body, _t.MutedInk, tracking: 1.6f);
             return y + 34;
         }
-        Text(canvas, name, x, y, 28, _title, _t.Ink);
         Text(canvas, _o.Subtitle, x, y + 22, 12, _body, _t.MutedInk);
         return y + 30;
     }
