@@ -18,7 +18,7 @@ const string Usage = """
     pga2k25 terrain <file.course> [-o <dir>] [--full-plot|--buildable] [--margin 150] [--interval 5] [--index 5]
                     [--shading relief|slope|none] [--ppm 4] [--cell 1.0] [--grid 100] [--no-features]
                     [--hardness 0.85] [--large-hardness 0.3] [--smooth 0] [--sea-level <m>] [--no-water]
-                    [--holes 7,12|all [--sheet-grid 50] [--no-pdf] [--no-png]]
+                    [--water-footprints] [--holes 7,12|all [--sheet-grid 50] [--no-pdf] [--no-png]]
       --holes     instead, one 8.5 x 11 in terrain sketch sheet per hole, oriented like the
                   yardage book (PNGs at 300 dpi + one PDF)
                     [--no-summits] [--credit "NAME"]
@@ -317,6 +317,7 @@ static int Terrain(string path, string[] rest)
             case "--no-summits": options = options with { ShowSummits = false }; break;
             case "--sea-level": options = options with { SeaLevelMetres = NextDouble() }; break;
             case "--no-water": options = options with { ShowWater = false }; break;
+            case "--water-footprints": options = options with { ShowWaterFootprints = true }; break;
             case "--credit": options = options with { Credit = Next() }; break;
             default: throw new ArgumentException($"unknown option {rest[i]}");
         }

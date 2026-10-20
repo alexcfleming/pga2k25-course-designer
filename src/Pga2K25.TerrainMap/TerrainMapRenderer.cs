@@ -304,14 +304,27 @@ public sealed class TerrainMapRenderer : TerrainInk
                 using var e = Stroke(Shore, 0.9f * u);
                 canvas.DrawLine(sx + 2 * u, cy - 5 * u, sx + sw - 2 * u, cy - 5 * u, e);
             }, "Sea, with shoreline at 0 ft");
-        if (s.PaintedWater.Length > 0)
+        if (s.InlandWater is { } water)
+        {
             Row(cy =>
             {
-                using var f = Fill(Sea);
-                canvas.DrawRect(sx + 2 * u, cy - 4 * u, sw - 4 * u, 8 * u, f);
+                var box = new SKRect(sx + 2 * u, cy - 4 * u, sx + sw - 2 * u, cy + 4 * u);
+                using var shader = SKShader.CreateLinearGradient(new SKPoint(box.Left, 0), new SKPoint(box.Right, 0),
+                    [Sea, DeepWater], SKShaderTileMode.Clamp);
+                using var f = new SKPaint { Shader = shader };
+                canvas.DrawRect(box, f);
                 using var e = Stroke(Shore, 0.6f * u);
-                canvas.DrawRect(sx + 2 * u, cy - 4 * u, sw - 4 * u, 8 * u, e);
-            }, "Streams and ponds painted in the designer");
+                canvas.DrawRect(box, e);
+            }, "Ponds and streams, level in ft (darker is deeper)");
+            if (_o.ShowWaterFootprints && water.Strokes.Any(k => k.Kind == GreensBook.WaterKind.Plane))
+                Row(cy =>
+                {
+                    using var e = Stroke(Shore.WithAlpha(170), 0.5f * u);
+                    using var dash = SKPathEffect.CreateDash([3 * u, 2.5f * u], 0);
+                    e.PathEffect = dash;
+                    canvas.DrawRect(sx + 2 * u, cy - 5 * u, sw - 4 * u, 10 * u, e);
+                }, "Water plane: lower ground inside floods");
+        }
         if (_o.ShowFeatures && (s.Layers.Grass.Count + s.Layers.Greens.Count + s.Layers.BunkerAreas.Count + s.Layers.WaterAreas.Count) > 0)
             Row(cy =>
             {

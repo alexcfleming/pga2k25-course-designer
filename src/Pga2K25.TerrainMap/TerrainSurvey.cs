@@ -84,6 +84,9 @@ public sealed record TerrainMapOptions
     public double? SeaLevelMetres { get; init; }
     public bool ShowWater { get; init; } = true;
 
+    /// <summary>Dashed outlines of the water planes' rectangles: where lowering the ground would flood.</summary>
+    public bool ShowWaterFootprints { get; init; }
+
     /// <summary>Spot heights on hilltops.</summary>
     public bool ShowSummits { get; init; } = true;
 
@@ -165,14 +168,17 @@ public sealed class TerrainSurvey
     public bool IsWater(double elevationMetres) => SeaLevelMetres is { } sea && elevationMetres <= sea + ShoreToleranceMetres;
 
     /// <summary>
-    /// Painted water (streams and ponds from the course's water brushes), one flag per <see cref="Field"/> cell;
-    /// empty when there is none. The game cuts the channel to the water level, so the whole stroke is water
-    /// (Berwick Coast's stream is continuous in game). Sea is separate (<see cref="IsWater(double)"/>).
+    /// Inland water from the course's <c>water[]</c> entries (painted streams and water planes, see
+    /// <see cref="WaterTracer"/>), traced over <see cref="Field"/>; null when there is none on the sheet.
+    /// Sea is separate (<see cref="IsWater(double)"/>).
     /// </summary>
-    public bool[] PaintedWater { get; init; } = [];
+    public WaterMap? InlandWater { get; init; }
 
-    /// <summary>Edges of the painted water (world coordinates).</summary>
-    public List<List<Vec2>> PaintedWaterEdges { get; init; } = [];
+    /// <summary>Inland water, one flag per <see cref="Field"/> cell; empty when there is none.</summary>
+    public bool[] PaintedWater => InlandWater?.Wet ?? [];
+
+    /// <summary>Shorelines of the inland water (world coordinates).</summary>
+    public List<List<Vec2>> PaintedWaterEdges => InlandWater?.Outlines ?? [];
 
     /// <summary>Sea or painted water at a world point.</summary>
     public bool IsWet(Vec2 p)
@@ -363,13 +369,13 @@ public sealed class TerrainSurvey
         double minFragment = o.MinContourSpacingPixels > 0 ? 6 * o.MinContourSpacingPixels / o.PixelsPerMetre : 0;
         var contours = TraceContours(field, datum, minFeet, maxFeet, interval, indexEvery, maxMinorSlope)
             .Where(c => c.Index || Length(c.Points) >= minFragment).ToList();
-        var painted = o.ShowWater ? PaintWater(course, field) : [];
+        var inland = o.ShowWater && course.Water.Count > 0 ? WaterTracer.Trace(course, field) : null;
         var survey = new TerrainSurvey
         {
             Course = course, Layers = layers, Min = min, Max = max, Field = field, DatumMetres = datum, MaxFeet = maxFeet,
             CorridorFeet = corridorFeet, SeaLevelMetres = sea,
             Shoreline = sea is { } shore ? Trace(field, shore + ShoreToleranceMetres) : [],
-            PaintedWater = painted, PaintedWaterEdges = painted.Length == 0 ? [] : TraceMask(field, painted),
+            InlandWater = inland is { Any: true } ? inland : null,
             IntervalFeet = interval, IndexEvery = indexEvery, Contours = contours, Summits = [], Holes = [],
         };
         if (o.ShowSummits) survey.Summits.AddRange(FindSummits(survey, interval));
@@ -409,59 +415,6 @@ public sealed class TerrainSurvey
             .Where(p => p.Height is not null && p.AssetPath.Contains("Ocean", StringComparison.OrdinalIgnoreCase))
             .Select(p => p.Height!.Value).Order().ToList();
         return heights.Count == 0 ? null : heights[heights.Count / 2];
-    }
-
-    /// <summary>
-    /// Cells under the course's water brushes. The file stores a stroke as separate dabs (about one brush width
-    /// apart, sometimes more), so consecutive dabs at the same level closer than twice their width are joined
-    /// into one stroke. Empty when there is none on the sheet.
-    /// </summary>
-    static bool[] PaintWater(CourseModel course, Heightfield field)
-    {
-        var brushes = course.WaterBrushes.Where(b => b.Scale > 0 && double.IsFinite(b.Value)).ToList();
-        if (brushes.Count == 0) return [];
-        var wet = new bool[field.Values.Length];
-        bool any = false;
-        void Stroke(Vec2 a, Vec2 b, double r)
-        {
-            int x0 = Math.Max(0, (int)Math.Floor((Math.Min(a.X, b.X) - r - field.Origin.X) / field.Cell));
-            int x1 = Math.Min(field.Width - 1, (int)Math.Ceiling((Math.Max(a.X, b.X) + r - field.Origin.X) / field.Cell));
-            int z0 = Math.Max(0, (int)Math.Floor((Math.Min(a.Z, b.Z) - r - field.Origin.Z) / field.Cell));
-            int z1 = Math.Min(field.Height - 1, (int)Math.Ceiling((Math.Max(a.Z, b.Z) + r - field.Origin.Z) / field.Cell));
-            var ab = b - a;
-            double len2 = ab.X * ab.X + ab.Z * ab.Z;
-            for (int iz = z0; iz <= z1; iz++)
-                for (int ix = x0; ix <= x1; ix++)
-                {
-                    var c = field.CellCentre(ix, iz);
-                    double t = len2 > 0 ? Math.Clamp(((c.X - a.X) * ab.X + (c.Z - a.Z) * ab.Z) / len2, 0, 1) : 0;
-                    if (Vec2.Distance(c, a + ab * t) > r) continue;
-                    wet[iz * field.Width + ix] = true;
-                    any = true;
-                }
-        }
-        for (int i = 0; i < brushes.Count; i++)
-        {
-            var b = brushes[i];
-            Stroke(b.Position, b.Position, b.Scale / 2);
-            if (i + 1 < brushes.Count)
-            {
-                var n = brushes[i + 1];
-                double width = Math.Min(b.Scale, n.Scale);
-                if (Vec2.Distance(b.Position, n.Position) <= 2 * Math.Max(b.Scale, n.Scale) && Math.Abs(b.Value - n.Value) < 0.01)
-                    Stroke(b.Position, n.Position, width / 2);
-            }
-        }
-        return any ? wet : [];
-    }
-
-    static List<List<Vec2>> TraceMask(Heightfield field, bool[] mask)
-    {
-        var values = new double[mask.Length];
-        for (int i = 0; i < mask.Length; i++) values[i] = mask[i] ? 1 : 0;
-        var all = new bool[mask.Length];
-        Array.Fill(all, true);
-        return MarchingSquares.Trace(field, values, all, 0.5).Where(l => l.Count >= 2).ToList();
     }
 
     static List<List<Vec2>> Trace(Heightfield field, double level)
