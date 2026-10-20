@@ -143,3 +143,43 @@ public class WaterScorecardTests
         Assert.All(layers.WaterBodies, b => Assert.Contains(b[0][0], extent));     // ponds are fitted whole, not sliced
     }
 }
+
+/// <summary>The hole inspector's "water in play" list on Luke Muscat's course.</summary>
+public class HoleWaterTests
+{
+    static readonly Lazy<TerrainMap.TerrainSurvey> Survey = new(() => TerrainMap.TerrainSurvey.Build(
+        CourseFile.Load(Path.Combine(TestPaths.SamplesDir, "luke-normal-golf-course.course")).ReadModel(),
+        new TerrainMap.TerrainMapOptions { Terrain = new TerrainMap.TerrainMapOptions().Terrain with { CellMetres = 1 } }));
+
+    static List<TerrainMap.HoleWaterRow> Along(int hole) =>
+        TerrainMap.HoleWater.Along(Survey.Value, Survey.Value.Holes.Single(h => h.Hole.Number == hole));
+
+    [Fact]
+    public void Hole1_CarriesTheCreek()
+    {
+        var creek = Assert.Single(Along(1), r => r.Crosses);
+        Assert.InRange(creek.FrontYards, 40, 60);
+        Assert.InRange(creek.CarryYards - creek.FrontYards, 2, 15);              // a narrow creek, not the old 60-yd lozenge
+        Assert.InRange(creek.LevelFeet, 12, 16);                                 // 14 ft on the map
+        var row = new Pga2K25.Studio.ViewModels.WaterRowViewModel(creek);
+        Assert.StartsWith("Carry over water · 14 ft", row.Label);
+        Assert.Contains("to green", row.Detail);
+    }
+
+    [Fact]
+    public void Hole6_CarriesThePond_FrontToFarBank()
+    {
+        var pond = Assert.Single(Along(6), r => r.Crosses);
+        Assert.InRange(pond.FrontYards, 230, 290);
+        Assert.InRange(pond.CarryYards, 300, 360);
+    }
+
+    [Fact]
+    public void WaterBesideTheLine_IsListedWithItsSide()
+    {
+        var beside = Survey.Value.Holes.SelectMany(h => Along(h.Hole.Number)).Where(r => !r.Crosses).ToList();
+        Assert.NotEmpty(beside);
+        Assert.All(beside, r => Assert.Contains(r.Side, new[] { "left", "right" }));
+        Assert.All(beside, r => Assert.InRange(r.OffsetYards, 0, (int)Math.Ceiling(TerrainMap.HoleWater.AlongsideMetres * 1.0936)));
+    }
+}

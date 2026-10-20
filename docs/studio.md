@@ -31,13 +31,16 @@ The left-hand menu has the course's sections, its products with page counts, and
   - **Hole sketches:** scanned hole sheets with pencil on them, laid on the ground, one hole or all at once, coloured per hole. See [Hole sketches and notes](hole-sketches.md).
   - **Notes:** pinned to the ground (Build, Planting, Concept, Note), saved in `Notes.json` beside the products.
   - Hovering shows the ground height, slope and grid square.
-  - Picking a hole centres on it. The hole panel then shows tee and green heights, the change between them, the green site's tilt and ±ft as it lies, and any in-game measurements for its legs against the model.
+  - Picking a hole centres on it. The hole panel then shows tee and green heights, the change between them, the green site's tilt and ±ft as it lies, and any in-game measurements for its legs against the model. **Water in play** lists the ponds and creeks the hole plays over and those within 30 m of its line (`TerrainMap.HoleWater`):
+    - **Over the line:** the front and carry yards where the line of play enters and leaves the water, plus the yards from there to the green.
+    - **Beside the line:** which side the water is on, how far off, and at what yardage.
+    - Yards are measured on the line itself, so a carry can read a few yards shorter than the yardage book. The book takes the farthest bank within 15 m of the line, which matters where a creek crosses at an angle.
   - The model check above the map is the RMS difference over every measured leg.
   - **Map options** (top of the right-hand panel):
     - **Area:** the routing plus a margin, the whole plot, or the buildable ground.
     - **Contours:** the interval (blank for Auto) and how often an index line is drawn.
     - **Grid:** the grid square size.
-    - **Water:** whether to show the sea and painted water.
+    - **Water:** whether to show the sea, ponds and streams. **Water-plane outlines** dashes each plane's rectangle (where lowering the ground would flood). It is off by default and only redraws, without re-surveying.
     - **Printed resolution:** px per metre of the built PNG.
     - **Saving:** Apply saves the options with the course and redraws the map; it re-surveys when the area, contours or water change. Reset to defaults restores the standard options.
     - **Toolbar:** shading and layer choices are also saved per course.
