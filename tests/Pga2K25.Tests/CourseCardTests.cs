@@ -71,7 +71,7 @@ public class CourseCardTests
             Assert.Throws<InvalidDataException>(() => CourseCardBuilder.Build(CassimboPath, dir, config));
             Assert.Empty(Directory.GetFiles(dir, "*.png"));
             var forced = CourseCardBuilder.Build(CassimboPath, dir, config, force: true);
-            Assert.Equal(3, forced.Files.Count);
+            Assert.Equal(4, forced.Files.Count);   // compass rose, hole data, course data and green size cards
             var sagan = CourseCardBuilder.Build(SaganPath, dir, config);
             Assert.Equal("WEST", sagan.OceanSide);
         }

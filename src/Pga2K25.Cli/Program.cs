@@ -32,7 +32,8 @@ const string Usage = """
       scan and sketches.json, tied to world coordinates) for the Studio's terrain map
     pga2k25 cards <file.course> [-o <dir>] [--config course-card.json] [--data holes.xlsx]
                   [--formats png,pdf,svg] [--dpi 300] [--wind 225] [--ocean WEST|none] [--force]
-      compass rose, hole data card and course data card from the course file; a workbook only
+      compass rose, hole data card, course data card and green size card (when the course has
+      drawn greens) from the course file; a workbook only
       adds tee names, hazard tags and green notes (its yardages/bearings are checked, not used);
       ERRORs stop the build unless --force (drafts only; errors are still reported)
     pga2k25 estimate <file.course> [-o <dir>] [--holes 3,7|all] [--cell 1.0]

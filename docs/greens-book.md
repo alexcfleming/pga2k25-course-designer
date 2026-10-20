@@ -2,14 +2,19 @@
 
 The tool generates greens-book graphics straight from a Course Designer `.course` file.
 
-**Default output: one PNG with every green** (`<Course> - Greens Book.png`, 4800 × 3000 px). Each green is shown in a 6 × 3 grid with:
+**Default output: one PNG with every green** (`<Course> - Greens Book.png`, 4800 × 3000 px). Every green is drawn **at one scale**, the largest that lets each green fit its cell, so the greens compare by their real size; a 20 yd bar on the legend line gives the scale. Each green is shown in a 6 × 3 grid with:
 
 - a slope-colour heat map (0–8 %+ on a dark green → yellow → red ramp, the same scale the reference Course Finisher uses)
-- half-foot contours, slope arrows, pin dots, and a "falls X in. · median Y %" caption
+- half-foot contours, slope arrows, pin dots, and a "N sq ft · falls X in. · median Y %" caption ("est. outline" for an estimated green)
+- slope arrows re-laid on a lattice at least 24 sheet units apart, so each green carries arrows in proportion to its area and the small greens aren't crowded
 
 **Optional outputs:**
 
-- `--studies`: one high-resolution study PNG per green (`<Course> - Green Studies/Hole_NN.png`, 3300 × 2550 px = 11 × 8.5 in at 300 dpi). Each has the heat map, 2-inch hairline and 6-inch labelled contours, arrows, pins with ft/in spot elevations, a stats panel, a scale bar and a legend.
+- `--studies`: one high-resolution study PNG per green (`<Course> - Green Studies/Hole_NN.png`, 3300 × 2550 px = 11 × 8.5 in at 300 dpi). Each has the heat map, 2-inch hairline and 6-inch labelled contours, arrows, pins with ft/in spot elevations, a stats panel, a scale bar and a legend. The stats panel has two size blocks:
+  - **Green size:** difference from the course mean and median (sq ft and %), the size rank among the drawn greens (1 = largest), and a strip of every drawn green with this one marked.
+  - **Perimeter:** the length of the outline as drawn, against the **100–120 yd target**: on target, or how many yards short or over, with a gauge.
+
+  Both compare against every drawn green on the course, even when `--holes` builds only some. An estimated green (no spline in the file) says it is not ranked or compared and has no perimeter block.
 - `--pdf`: the sheet as page 1, followed by one study page per green.
 - `--mono`: black-and-white linework only (the original plate style, no colour).
 

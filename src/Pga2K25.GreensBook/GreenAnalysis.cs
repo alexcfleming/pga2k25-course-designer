@@ -43,6 +43,8 @@ public sealed record GreenAnalysis
     public required IReadOnlyList<ContourLine> Contours { get; init; }
     public required IReadOnlyList<PinSpot> Pins { get; init; }
     public required double AreaSquareMetres { get; init; }
+    /// <summary>Length of the outline as drawn (smoothed spline).</summary>
+    public required double PerimeterMetres { get; init; }
     public required double FallInches { get; init; }
     public required double HighInches { get; init; }
     public required double LowInches { get; init; }
@@ -65,9 +67,10 @@ public static class GreenAnalyzer
     {
         var warnings = new List<string>();
         var anchor = hole.GreenAnchor;
-        var forward = hole.Route.Count >= 2 ? (anchor - hole.Route[^2]).Normalized() : new Vec2(0, 1);
+        var forward = GreenOutline.Approach(hole);
 
-        var (outline, estimated) = ResolveOutline(course, hole, forward, options);
+        var resolved = GreenOutline.Resolve(course, hole, options.OutlineHarmonics, options.EstimatedSemiMajorMetres, options.EstimatedSemiMinorMetres);
+        var (outline, estimated) = (resolved.Points, resolved.Estimated);
         if (estimated) warnings.Add("Green outline estimated (game-generated green, no spline in file).");
 
         double minX = outline.Min(p => p.X), maxX = outline.Max(p => p.X);
@@ -100,10 +103,11 @@ public static class GreenAnalyzer
             Outline = outline,
             OutlineEstimated = estimated,
             Forward = forward,
-            Arrows = BuildArrows(field, outline, forward, options),
+            Arrows = BuildArrows(field, outline, forward, options.ArrowSpacingMetres, options),
             Contours = BuildContours(field, outline, reference, options),
             Pins = hole.Pins.Select((p, i) => new PinSpot(i + 1, p, Inches(p))).ToList(),
             AreaSquareMetres = Geometry.Area(outline),
+            PerimeterMetres = Geometry.Perimeter(outline),
             HighInches = elevations.Max(),
             LowInches = elevations.Min(),
             FallInches = elevations.Max() - elevations.Min(),
@@ -115,39 +119,16 @@ public static class GreenAnalyzer
         };
     }
 
-    static (List<Vec2> Outline, bool Estimated) ResolveOutline(CourseModel course, Hole hole, Vec2 forward, GreensBookOptions options)
-    {
-        var probes = new List<Vec2> { hole.GreenAnchor };
-        probes.AddRange(hole.Pins);
-        var best = course.SurfaceSplines
-            .Where(s => s.Surface == Surfaces.Green && s.Closed && s.Points.Count >= 3)
-            .Select(s => Geometry.SampleSpline(s, 24))
-            .Where(poly => probes.Any(p => Geometry.Contains(poly, p)))
-            .OrderBy(Geometry.Area)
-            .FirstOrDefault();
-        if (best is not null)
-            return (Geometry.FourierSmooth(best, Math.Max(options.OutlineHarmonics * 2, 12)), false);
+    /// <summary>The slope arrows again on a coarser lattice (the one-scale sheet thins them so they keep a readable spacing).</summary>
+    public static IReadOnlyList<SlopeArrow> ArrowsAt(GreenAnalysis a, double spacingMetres, GreensBookOptions options) =>
+        spacingMetres <= options.ArrowSpacingMetres ? a.Arrows : BuildArrows(a.Field, a.Outline, a.Forward, spacingMetres, options);
 
-        // No stored outline: an approach-aligned ellipse, grown until every pin sits 3 m inside.
-        double a = options.EstimatedSemiMajorMetres, b = options.EstimatedSemiMinorMetres, grow = 1;
-        var side = new Vec2(-forward.Z, forward.X);
-        foreach (var pin in hole.Pins)
-        {
-            var d = pin - hole.GreenAnchor;
-            double u = Math.Abs(d.X * forward.X + d.Z * forward.Z) + 3;
-            double v = Math.Abs(d.X * side.X + d.Z * side.Z) + 3;
-            grow = Math.Max(grow, Math.Sqrt(u * u / (a * a) + v * v / (b * b)));
-        }
-        return (Geometry.Ellipse(hole.GreenAnchor, forward, a * grow, b * grow), true);
-    }
-
-    static List<SlopeArrow> BuildArrows(Heightfield field, IReadOnlyList<Vec2> outline, Vec2 forward, GreensBookOptions options)
+    static List<SlopeArrow> BuildArrows(Heightfield field, IReadOnlyList<Vec2> outline, Vec2 forward, double step, GreensBookOptions options)
     {
         double steepPct = Math.Tan(options.SteepThresholdDegrees * Math.PI / 180) * 100;
         var side = new Vec2(-forward.Z, forward.X);
         var centre = new Vec2(outline.Average(p => p.X), outline.Average(p => p.Z));
         double reach = outline.Max(p => Vec2.Distance(p, centre));
-        double step = options.ArrowSpacingMetres;
         var arrows = new List<SlopeArrow>();
 
         // Lattice aligned with the approach so rows read straight on the rotated page.

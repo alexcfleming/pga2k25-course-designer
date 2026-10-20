@@ -47,7 +47,8 @@ public sealed class GreensBookRenderer : IDisposable
     // ───────────────────────────── pages ─────────────────────────────
 
     /// <summary>One green, full detail: 2"/6" contours with labels, pins, stats panel, legend.</summary>
-    public void DrawHolePage(SKCanvas canvas, string courseName, GreenAnalysis a)
+    /// <param name="sizes">Green sizes across the whole course, for the size and perimeter blocks; null leaves them off.</param>
+    public void DrawHolePage(SKCanvas canvas, string courseName, GreenAnalysis a, GreenSizes? sizes = null)
     {
         canvas.Clear(SKColors.White);
         const float margin = 36;
@@ -56,14 +57,17 @@ public sealed class GreensBookRenderer : IDisposable
 
         Text(canvas, $"HOLE {a.Hole.Number}", margin, 52, 30, _bold, Ink);
         Text(canvas, $"{courseName}  ·  Par {a.Hole.Par}", margin, 72, 12, _italic, Grey);
-        Header(canvas, PageWidth - margin, 40, 1);
+        // The credit and terrain note sit right of the title, the note on two short lines so it clears "HOLE 18".
+        Text(canvas, _options.Credit, PageWidth - margin, 40, 11.5f, _regular, Grey, SKTextAlign.Right, tracking: 1.5f);
+        Text(canvas, "Terrain rebuilt from the brush stamps with the designer's brush shapes", PageWidth - margin, 56, 8, _italic, Grey, SKTextAlign.Right);
+        Text(canvas, "checked on 4 in-game greens (spot RMS ≤ 12 %)", PageWidth - margin, 67, 8, _italic, Grey, SKTextAlign.Right);
 
         var view = new GreenView(a, greenRect);
         DrawGreen(canvas, a, view, detail: true, scale: 1);
         DrawScaleBar(canvas, view, new SKPoint(greenRect.Left, greenRect.Bottom + 18));
         DrawApproachMark(canvas, new SKPoint(greenRect.MidX, greenRect.Bottom + 18), 1);
 
-        DrawStatsPanel(canvas, a, panel);
+        DrawStatsPanel(canvas, a, panel, sizes);
         DrawLegend(canvas, new SKRect(margin, PageHeight - 40, PageWidth - margin, PageHeight - 20), overview: false, u: 1);
     }
 
@@ -72,6 +76,11 @@ public sealed class GreensBookRenderer : IDisposable
     /// arrows, pin dots, per-hole caption. <paramref name="width"/>/<paramref name="height"/>
     /// are logical units; type scales with width so the same layout works as a PDF page.
     /// </summary>
+    /// <remarks>
+    /// Every green is drawn at one scale (the largest that lets each green fit its cell), so the greens compare by
+    /// their real size. Arrows are re-laid on a lattice at least <see cref="SheetArrowSpacingPoints"/> apart on the
+    /// page, so a green carries arrows in proportion to its area and small greens are not crowded.
+    /// </remarks>
     public void DrawSheet(SKCanvas canvas, string courseName, IReadOnlyList<GreenAnalysis> greens,
         float width = SheetWidth, float height = SheetHeight)
     {
@@ -79,7 +88,7 @@ public sealed class GreensBookRenderer : IDisposable
         float u = width / SheetWidth;          // typographic unit
         float margin = 44 * u;
         Text(canvas, courseName.ToUpperInvariant(), margin, 62 * u, 38 * u, _bold, Ink);
-        Text(canvas, "Greens book  ·  slope colour, half-foot contours  ·  approach from bottom of each green",
+        Text(canvas, "Greens book  ·  all greens to one scale  ·  slope colour, half-foot contours  ·  approach from bottom of each green",
             margin, 90 * u, 15 * u, _italic, Grey);
         Header(canvas, width - margin, 52 * u, u);
 
@@ -87,18 +96,46 @@ public sealed class GreensBookRenderer : IDisposable
         int rows = (int)Math.Ceiling(greens.Count / (double)cols);
         float top = 112 * u, bottom = height - 74 * u;
         float cw = (width - 2 * margin) / cols, ch = (bottom - top) / rows;
+        SKRect Cell(int i)
+        {
+            float x = margin + (i % cols) * cw, y = top + (i / cols) * ch;
+            return new SKRect(x + 10 * u, y + 30 * u, x + cw - 10 * u, y + ch - 26 * u);
+        }
+        float k = greens.Select((g, i) => new GreenView(g, Cell(i)).PointsPerMetre).DefaultIfEmpty(1).Min();
+        double spacing = Math.Max(_options.ArrowSpacingMetres, SheetArrowSpacingPoints * u / k);
+
         for (int i = 0; i < greens.Count; i++)
         {
             var g = greens[i];
             float x = margin + (i % cols) * cw, y = top + (i / cols) * ch;
             Text(canvas, g.Hole.Number.ToString(), x + 8 * u, y + 24 * u, 22 * u, _bold, Ink);
             Text(canvas, $"PAR {g.Hole.Par}", x + 8 * u, y + 40 * u, 10 * u, _regular, Grey, tracking: 1.2f * u);
-            var cell = new SKRect(x + 10 * u, y + 30 * u, x + cw - 10 * u, y + ch - 26 * u);
-            DrawGreen(canvas, g, new GreenView(g, cell), detail: false, scale: u);
-            Text(canvas, $"falls {g.FallInches:0} in.  ·  median {g.MedianSlopePct:0.0}%",
+            DrawGreen(canvas, g, new GreenView(g, Cell(i), k), detail: false, scale: u,
+                arrows: GreenAnalyzer.ArrowsAt(g, spacing, _options), arrowSpacing: spacing);
+            double sqFt = g.AreaSquareMetres * GreenSizes.SquareFeetPerSquareMetre;
+            string size = g.OutlineEstimated ? "est. outline" : $"{sqFt:N0} sq ft";
+            Text(canvas, $"{size}  ·  falls {g.FallInches:0} in.  ·  median {g.MedianSlopePct:0.0}%",
                 x + cw / 2, y + ch - 8 * u, 11 * u, _italic, Grey, SKTextAlign.Center);
         }
-        DrawLegend(canvas, new SKRect(margin, height - 44 * u, width - margin, height - 20 * u), overview: true, u: u);
+        var legend = new SKRect(margin, height - 44 * u, width - margin, height - 20 * u);
+        DrawLegend(canvas, legend, overview: true, u: u);
+        DrawSheetScaleBar(canvas, k, new SKPoint(legend.Right, legend.MidY + 3 * u), u);
+    }
+
+    /// <summary>Least page distance (logical sheet units) between slope arrows on the one-scale sheet.</summary>
+    public const float SheetArrowSpacingPoints = 24;
+
+    /// <summary>A 20 yd bar at the sheet's common scale, right-aligned on the legend line.</summary>
+    void DrawSheetScaleBar(SKCanvas canvas, float pointsPerMetre, SKPoint rightBaseline, float u)
+    {
+        const double yards = 20, yard = 0.9144;
+        string label = $"{yards:0} yd  ·  every green at this scale";
+        float size = 12 * u, bar = (float)(yards * yard * pointsPerMetre);
+        float right = rightBaseline.X - Measure(label, size) - 8 * u, left = right - bar, y = rightBaseline.Y - 4 * u;
+        using var p = Stroke(Ink, 1.1f * u);
+        canvas.DrawLine(left, y, right, y, p);
+        for (int i = 0; i <= 2; i++) canvas.DrawLine(left + bar * i / 2, y - 4 * u, left + bar * i / 2, y + 4 * u, p);
+        Text(canvas, label, rightBaseline.X, rightBaseline.Y, size, _regular, Ink, SKTextAlign.Right);
     }
 
     void Header(SKCanvas canvas, float right, float y, float u)
@@ -110,7 +147,8 @@ public sealed class GreensBookRenderer : IDisposable
 
     // ───────────────────────────── green ─────────────────────────────
 
-    void DrawGreen(SKCanvas canvas, GreenAnalysis a, GreenView view, bool detail, float scale)
+    void DrawGreen(SKCanvas canvas, GreenAnalysis a, GreenView view, bool detail, float scale,
+        IReadOnlyList<SlopeArrow>? arrows = null, double? arrowSpacing = null)
     {
         using var outlinePath = view.Path(a.Outline, close: true);
         float k = view.PointsPerMetre;
@@ -137,7 +175,8 @@ public sealed class GreensBookRenderer : IDisposable
             canvas.DrawPath(outlinePath, edge);
         }
 
-        foreach (var arrow in a.Arrows) DrawArrow(canvas, view, arrow, (detail ? 1f : 0.62f) * scale, halo: colour);
+        foreach (var arrow in arrows ?? a.Arrows)
+            DrawArrow(canvas, view, arrow, (detail ? 1f : 0.62f) * scale, halo: colour, arrowSpacing ?? _options.ArrowSpacingMetres);
 
         using var dot = new SKPaint { Color = Ink, IsAntialias = true };
         using var ring = new SKPaint { Color = SKColors.White, IsAntialias = true };
@@ -200,9 +239,8 @@ public sealed class GreensBookRenderer : IDisposable
         return SKImage.FromBitmap(bitmap);
     }
 
-    void DrawArrow(SKCanvas canvas, GreenView view, SlopeArrow arrow, float scale, bool halo)
+    void DrawArrow(SKCanvas canvas, GreenView view, SlopeArrow arrow, float scale, bool halo, double spacing)
     {
-        double spacing = _options.ArrowSpacingMetres;
         // Length grows with slope (capped) so direction reads at a glance; weight encodes class.
         double lengthM = spacing * Math.Clamp(0.4 + arrow.SlopePct / 12.0, 0.4, 0.85);
         var tail = view.Map(arrow.Position - arrow.Downhill * (lengthM / 2));
@@ -252,37 +290,143 @@ public sealed class GreensBookRenderer : IDisposable
 
     // ───────────────────────────── furniture ─────────────────────────────
 
-    void DrawStatsPanel(SKCanvas canvas, GreenAnalysis a, SKRect r)
+    void DrawStatsPanel(SKCanvas canvas, GreenAnalysis a, SKRect r, GreenSizes? sizes)
     {
         float y = r.Top + 6;
-        void Row(string label, string value)
+        void Row(string label, string value, SKColor? colour = null)
         {
             Text(canvas, label, r.Left, y, 9, _regular, Grey);
-            Text(canvas, value, r.Right, y, 9, _bold, Ink, SKTextAlign.Right);
-            y += 16;
+            Text(canvas, value, r.Right, y, 9, _bold, colour ?? Ink, SKTextAlign.Right);
+            y += 15;
         }
-        const double sqFt = 10.7639;
-        Row("Green area", $"{a.AreaSquareMetres * sqFt:N0} sq ft");
+        void Heading(string title) { Text(canvas, title, r.Left, y, 8, _bold, Grey, tracking: 1.2f); y += 14; }
+        void Note(string text) { Text(canvas, text, r.Left, y, 7.5f, _italic, Grey); y += 11; }
+
+        double sqFt = a.AreaSquareMetres * GreenSizes.SquareFeetPerSquareMetre;
+        Row("Green area", a.OutlineEstimated ? $"~{sqFt:N0} sq ft (est.)" : $"{sqFt:N0} sq ft");
         Row("Total fall", $"{a.FallInches:0.#} in.");
         Row("High / low vs centre", $"{GreenAnalyzer.FormatFeetInches(a.HighInches)} / {GreenAnalyzer.FormatFeetInches(a.LowInches)}");
         Row("Median slope", $"{a.MedianSlopePct:0.0}%");
         Row("95th pct slope", $"{a.P95SlopePct:0.0}%");
         Row("Arrows steep / gentle", $"{a.Arrows.Count(x => x.Steep)} / {a.Arrows.Count(x => !x.Steep)}");
-        y += 8;
+        y += 7;
+
+        if (sizes is not null)
+        {
+            Heading("GREEN SIZE");
+            if (a.OutlineEstimated || sizes.Built.Count == 0)
+            {
+                Note(a.OutlineEstimated ? "Outline estimated (no green spline in the file)," : "No drawn greens on the course to compare with.");
+                if (a.OutlineEstimated) Note("so it is not ranked or compared.");
+                y += 7;
+            }
+            else
+            {
+                double mean = sizes.MeanSquareFeet, median = sizes.MedianSquareFeet;
+                string Diff(double d, double of) => $"{Signed(d)}  ({(d < 0 ? "−" : "+")}{Math.Abs(Math.Round(d / of * 100)):0}%)";
+                Row($"vs mean ({mean:N0})", Diff(sqFt - mean, mean));
+                Row($"vs median ({median:N0})", Diff(sqFt - median, median));
+                Row("Size rank", $"{Ordinal(sizes.Rank(a.Hole.Number) ?? 0)} of {sizes.Built.Count}  (1 = largest)");
+                y += 2;
+                DrawSizeStrip(canvas, sizes, a.Hole.Number, new SKRect(r.Left, y, r.Right, y + 10));
+                y += 33;
+                Note("sq ft  ·  dashed = mean  ·  dotted = median");
+                y += 7;
+
+                Heading("PERIMETER");
+                double yd = Math.Round(a.PerimeterMetres * GreenSizes.YardsPerMetre, 1), off = GreenSizes.PerimeterOffTarget(yd);
+                Row("Outline length", $"{yd:0.0} yd");
+                Row("Target", $"{GreenSizes.TargetMinYards:0}–{GreenSizes.TargetMaxYards:0} yd");
+                if (off < 0) Row("Below target", $"{-off:0.0} yd short of {GreenSizes.TargetMinYards:0}", Short);
+                else if (off > 0) Row("Above target", $"{off:0.0} yd over {GreenSizes.TargetMaxYards:0}", Over);
+                else Row("On target", "inside the band", OnTarget);
+                y += 2;
+                DrawPerimeterGauge(canvas, yd, new SKRect(r.Left, y, r.Right, y + 8));
+                y += 40;
+            }
+        }
+
         if (a.Pins.Count > 0)
         {
-            Text(canvas, "PIN POSITIONS", r.Left, y, 8, _bold, Grey, tracking: 1.2f); y += 14;
+            Heading("PIN POSITIONS");
             foreach (var pin in a.Pins) Row($"Pin {pin.Number}", GreenAnalyzer.FormatFeetInches(pin.Inches));
-            y += 8;
+            y += 7;
         }
-        Text(canvas, "Elevations relative to green centre (0).", r.Left, y, 7.5f, _italic, Grey); y += 11;
-        Text(canvas, $"Stats exclude the outer {_options.EdgeExclusionMetres:0.#} m of the green.", r.Left, y, 7.5f, _italic, Grey); y += 14;
+        Note("Elevations relative to green centre (0).");
+        Note($"Stats exclude the outer {_options.EdgeExclusionMetres:0.#} m of the green.");
+        y += 3;
         foreach (var w in a.Warnings)
         {
             foreach (var line in Wrap(w, 44)) { Text(canvas, line, r.Left, y, 7.5f, _italic, Grey); y += 10; }
             y += 4;
         }
     }
+
+    static readonly SKColor Short = SKColor.Parse("#5f7d8c"), Over = SKColor.Parse("#9e3b28"), OnTarget = SKColor.Parse("#2f6b3a");
+
+    /// <summary>Every drawn green's area on one line: this green as a large dot, the rest small; mean dashed, median dotted.</summary>
+    void DrawSizeStrip(SKCanvas canvas, GreenSizes sizes, int hole, SKRect r)
+    {
+        double lo = Math.Floor(sizes.Built.Min(g => g.SquareFeet) / 1000) * 1000;
+        double hi = Math.Ceiling(sizes.Built.Max(g => g.SquareFeet) / 1000) * 1000;
+        if (hi - lo < 2000) { lo -= 1000; hi += 1000; }
+        float inset = 6;
+        float X(double v) => r.Left + inset + (float)((v - lo) / (hi - lo)) * (r.Width - 2 * inset);
+        float cy = r.MidY;
+        using (var axis = Stroke(Faint, 0.6f)) canvas.DrawLine(r.Left, cy, r.Right, cy, axis);
+        using (var mean = Stroke(Ink, 0.7f))
+        {
+            mean.PathEffect = SKPathEffect.CreateDash([2.5f, 2f], 0);
+            canvas.DrawLine(X(sizes.MeanSquareFeet), cy - 7, X(sizes.MeanSquareFeet), cy + 7, mean);
+            mean.PathEffect = SKPathEffect.CreateDash([0.8f, 1.5f], 0);
+            canvas.DrawLine(X(sizes.MedianSquareFeet), cy - 7, X(sizes.MedianSquareFeet), cy + 7, mean);
+        }
+        using var other = new SKPaint { Color = Faint, IsAntialias = true };
+        foreach (var g in sizes.Built.Where(g => g.Hole != hole)) canvas.DrawCircle(X(g.SquareFeet), cy, 2.3f, other);
+        if (sizes.For(hole) is { } me)
+        {
+            using var fill = new SKPaint { Color = SlopePalette.Stops[1].Colour, IsAntialias = true };
+            canvas.DrawCircle(X(me.SquareFeet), cy, 4.2f, fill);
+            using var edge = Stroke(Ink, 0.8f);
+            canvas.DrawCircle(X(me.SquareFeet), cy, 4.2f, edge);
+        }
+        Text(canvas, $"{lo:N0}", X(lo), cy + 15, 6.5f, _regular, Grey, SKTextAlign.Center);
+        Text(canvas, $"{hi:N0}", X(hi), cy + 15, 6.5f, _regular, Grey, SKTextAlign.Center);
+    }
+
+    /// <summary>Outline length on a yard scale with the target band shaded; the marker clamps to the ends of the scale.</summary>
+    void DrawPerimeterGauge(SKCanvas canvas, double yards, SKRect r)
+    {
+        double lo = Math.Min(60, Math.Floor((yards - 5) / 10) * 10), hi = Math.Max(160, Math.Ceiling((yards + 5) / 10) * 10);
+        float X(double v) => r.Left + (float)((Math.Clamp(v, lo, hi) - lo) / (hi - lo)) * r.Width;
+        using (var track = new SKPaint { Color = SKColor.Parse("#ece9e2"), IsAntialias = true }) canvas.DrawRect(r, track);
+        using (var band = new SKPaint { Color = OnTarget.WithAlpha(80), IsAntialias = true })
+            canvas.DrawRect(new SKRect(X(GreenSizes.TargetMinYards), r.Top, X(GreenSizes.TargetMaxYards), r.Bottom), band);
+        using (var edge = Stroke(OnTarget, 0.8f))
+            foreach (var v in new[] { GreenSizes.TargetMinYards, GreenSizes.TargetMaxYards })
+                canvas.DrawLine(X(v), r.Top - 2, X(v), r.Bottom + 2, edge);
+        double off = GreenSizes.PerimeterOffTarget(yards);
+        var colour = off < 0 ? Short : off > 0 ? Over : OnTarget;
+        float mx = X(yards);
+        using (var mark = Stroke(colour, 1.8f)) canvas.DrawLine(mx, r.Top - 3, mx, r.Bottom, mark);
+        using (var builder = new SKPathBuilder())
+        {
+            builder.MoveTo(mx, r.Bottom);
+            builder.LineTo(mx - 3.5f, r.Bottom + 6);
+            builder.LineTo(mx + 3.5f, r.Bottom + 6);
+            builder.Close();
+            using var tri = builder.Detach();
+            using var fill = new SKPaint { Color = colour, IsAntialias = true };
+            canvas.DrawPath(tri, fill);
+        }
+        foreach (var v in new[] { lo, GreenSizes.TargetMinYards, GreenSizes.TargetMaxYards, hi })
+            Text(canvas, $"{v:0}", X(v), r.Bottom + 15, 6.5f, _regular, Grey,
+                v == lo ? SKTextAlign.Left : v == hi ? SKTextAlign.Right : SKTextAlign.Center);
+    }
+
+    static string Signed(double v) => (v < 0 ? "−" : "+") + Math.Abs(Math.Round(v)).ToString("N0");
+
+    static string Ordinal(int n) => n + ((n % 100) is 11 or 12 or 13 ? "th" : (n % 10) switch { 1 => "st", 2 => "nd", 3 => "rd", _ => "th" });
 
     void DrawLegend(SKCanvas canvas, SKRect r, bool overview, float u)
     {
@@ -316,7 +460,7 @@ public sealed class GreensBookRenderer : IDisposable
             float s = overview ? 0.62f * u * 1.5f : 1f;
             canvas.Save();
             canvas.Translate(x + 14 * s, y - 4 * (overview ? u : 1));
-            DrawArrow(canvas, new GreenView.Fixed(28f * s / (float)(_options.ArrowSpacingMetres * 0.85)), a, s, halo: false);
+            DrawArrow(canvas, new GreenView.Fixed(28f * s / (float)(_options.ArrowSpacingMetres * 0.85)), a, s, halo: false, _options.ArrowSpacingMetres);
             canvas.Restore();
             Text(canvas, label, x + 32 * s, y, size, _regular, Ink);
             x += 32 * s + Measure(label, size) + gap;
@@ -467,7 +611,8 @@ public class GreenView
 
     protected GreenView() { _forward = new Vec2(0, 1); _right = new Vec2(1, 0); }
 
-    public GreenView(GreenAnalysis a, SKRect rect)
+    /// <param name="pointsPerMetre">A fixed scale (the one-scale sheet); null fits the green to <paramref name="rect"/>.</param>
+    public GreenView(GreenAnalysis a, SKRect rect, float? pointsPerMetre = null)
     {
         _forward = a.Forward;
         _right = new Vec2(a.Forward.Z, -a.Forward.X);
@@ -481,7 +626,7 @@ public class GreenView
         double midU = (minU + maxU) / 2, midV = (minV + maxV) / 2;
         _centre = _right * midU + _forward * midV;
         const double pad = 1.08;
-        PointsPerMetre = (float)Math.Min(rect.Width / ((maxU - minU) * pad), rect.Height / ((maxV - minV) * pad));
+        PointsPerMetre = pointsPerMetre ?? (float)Math.Min(rect.Width / ((maxU - minU) * pad), rect.Height / ((maxV - minV) * pad));
         _pageCentre = new SKPoint(rect.MidX, rect.MidY);
     }
 

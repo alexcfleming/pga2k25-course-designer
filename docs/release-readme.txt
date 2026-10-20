@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 1.3.0
+COURSE DESIGNER STUDIO - release 1.4.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -62,6 +62,12 @@ USING IT
   replaced with quotes (with source and year); those apply to every
   course and are kept in %APPDATA%\CourseDesignerStudio\estimate.
   "Save and rebuild estimate" rebuilds the report and opens it.
+- Green sizes (new in 1.4.0): the greens book sheet draws every green
+  at one scale, so their sizes compare at a glance, with the square
+  footage under each. Each green study page shows how the green differs
+  from the course mean and median, its size rank, and its outline length
+  against a 100-120 yd target. The course cards add a Green Size Card.
+  Only drawn greens count; greens the game generates are left out.
 - Measurements: type in-game measure-tool readings (for example +13'6")
   to check the terrain model against the game.
 
