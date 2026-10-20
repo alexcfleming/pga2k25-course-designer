@@ -1,3 +1,4 @@
+using Pga2K25.CourseFormat;
 using SkiaSharp;
 
 namespace Pga2K25.CourseCard;
@@ -169,6 +170,241 @@ public sealed class CourseCardRenderer : IDisposable
             lx += 28 + Measure($"Par {par}", 10.5f, _serif) + 26;
         }
     }
+
+    /// <summary>
+    /// Green size card: each green's area in hole order against the course mean, median and ±1 SD band; each green's
+    /// difference from the mean; and the spread of sizes with an average per par. Only drawn greens are counted;
+    /// estimated greens (no spline in the file) are hatched and left out of every figure.
+    /// </summary>
+    public void DrawGreenSizePage(SKCanvas canvas)
+    {
+        var (w, h) = (CardPage.Width, CardPage.Height);
+        var g = _d.Greens;
+        canvas.Clear(_salt);
+        float x0 = (_logo is null ? 0.030f : 0.082f) * w;
+        Text(canvas, Title, x0, (1 - 0.955f) * h, 30, _bold, _ink, tracking: 0.32f * 30);
+        Text(canvas, "Green size card  ·  putting-surface area by hole  ·  sq ft", x0, (1 - 0.925f) * h, 12.5f, _italic, Muted);
+        var estimated = g.Greens.Where(x => x.Estimated).Select(x => x.Hole).ToList();
+        string drawn = $"{g.Built.Count} drawn green{(g.Built.Count == 1 ? "" : "s")}";
+        string note = estimated.Count == 0
+            ? $"{drawn}  ·  area inside each green spline as drawn in the greens book"
+            : $"{drawn}  ·  {(estimated.Count > 6 ? $"the other {estimated.Count}" : Join(estimated))} " +
+              $"{(estimated.Count == 1 ? "has an estimated outline" : "have estimated outlines")} (hatched), left out of every figure";
+        Text(canvas, note, x0, (1 - 0.902f) * h, 9, _serif, Faint);
+        var areas = g.Built.Select(x => x.SquareFeet).OrderBy(a => a).ToList();
+        double mean = g.MeanSquareFeet, median = g.MedianSquareFeet, sd = g.StdDevSquareFeet;
+        Text(canvas, $"MEAN  {mean:N0} sq ft", 0.970f * w, (1 - 0.955f) * h, 14, _bold, _ink, SKTextAlign.Right);
+        Text(canvas, $"median {median:N0}  ·  SD {sd:N0}  ·  CV {sd / mean * 100:0} %", 0.970f * w, (1 - 0.925f) * h, 10.5f, _serif, Muted, SKTextAlign.Right);
+        Text(canvas, $"range {areas[0]:N0} – {areas[^1]:N0}  ({areas[^1] / areas[0]:0.0}×)", 0.970f * w, (1 - 0.902f) * h, 10.5f, _serif, Muted, SKTextAlign.Right);
+        using (var rule = Stroke(_fog, 1.3f)) canvas.DrawLine(0.024f * w, (1 - 0.884f) * h, 0.970f * w, (1 - 0.884f) * h, rule);
+        if (_logo is not null) DrawLogo(canvas, FigRect(0.024f, 0.898f, 0.046f, 0.0674f, CardPage));
+
+        // Legend above the charts.
+        float lx = 0.055f * w, ly = (1 - 0.872f) * h + 16;
+        foreach (int par in new[] { 3, 4, 5 })
+        {
+            using (var f = Fill(ParColour(par))) canvas.DrawRect(lx, ly - 9, 22, 7, f);
+            Text(canvas, $"Par {par}", lx + 28, ly, 10.5f, _serif, _ink);
+            lx += 28 + Measure($"Par {par}", 10.5f, _serif) + 26;
+        }
+        if (estimated.Count > 0)
+        {
+            Hatch(canvas, new SKRect(lx, ly - 10, lx + 22, ly - 1));
+            Text(canvas, "estimated", lx + 28, ly, 10.5f, _serif, _ink);
+            lx += 28 + Measure("estimated", 10.5f, _serif) + 26;
+        }
+        foreach (var (label, dash) in new[] { ("mean", new[] { 5f, 3f }), ("median", new[] { 1.2f, 2.2f }) })
+        {
+            using var line = Stroke(_ink, label == "mean" ? 1.3f : 1.1f);
+            line.PathEffect = SKPathEffect.CreateDash(dash, 0);
+            canvas.DrawLine(lx, ly - 5, lx + 24, ly - 5, line);
+            Text(canvas, label, lx + 30, ly, 10.5f, _serif, _ink);
+            lx += 30 + Measure(label, 10.5f, _serif) + 26;
+        }
+        using (var band = Fill(_fog.WithAlpha(110))) canvas.DrawRect(lx, ly - 11, 22, 10, band);
+        Text(canvas, "±1 SD", lx + 28, ly, 10.5f, _serif, _ink);
+
+        DrawGreenBars(canvas, FigRect(0.055f, 0.505f, 0.60f, 0.290f, CardPage));
+        DrawGreenDifferences(canvas, FigRect(0.055f, 0.085f, 0.60f, 0.290f, CardPage));
+        DrawGreenSpread(canvas, FigRect(0.705f, 0.085f, 0.265f, 0.710f, CardPage));
+    }
+
+    void DrawGreenBars(SKCanvas canvas, SKRect r)
+    {
+        var g = _d.Greens;
+        int n = g.Greens.Count;
+        double top = Math.Ceiling(g.Greens.Max(x => x.SquareFeet) / 2000) * 2000, yMax = top * 1.06;
+        float slot = r.Width / (n + 0.6f), bw = slot * 0.68f;
+        float X(int i) => r.Left + (i + 0.8f) * slot;
+        float Yv(double v) => r.Bottom - (float)(v / yMax) * r.Height;
+
+        using (var bg = Fill(SKColors.White)) canvas.DrawRect(r, bg);
+        using (var band = Fill(_fog.WithAlpha(90)))
+            canvas.DrawRect(new SKRect(r.Left, Yv(g.MeanSquareFeet + g.StdDevSquareFeet), r.Right, Yv(Math.Max(0, g.MeanSquareFeet - g.StdDevSquareFeet))), band);
+        using (var grid = Stroke(_fog.WithAlpha((byte)(.65 * 255)), .6f))
+            for (double v = 0; v <= top; v += 2000)
+            {
+                canvas.DrawLine(r.Left, Yv(v), r.Right, Yv(v), grid);
+                Text(canvas, v.ToString("N0"), r.Left - 5, Yv(v) + 2.8f, 8, _serif, Faint, SKTextAlign.Right);
+            }
+        for (int i = 0; i < n; i++)
+        {
+            var green = g.Greens[i];
+            var bar = new SKRect(X(i) - bw / 2, Yv(green.SquareFeet), X(i) + bw / 2, r.Bottom);
+            if (green.Estimated)
+            {
+                Hatch(canvas, bar);
+                Text(canvas, "est.", X(i), bar.Top - 4, 7.2f, _italic, Muted, SKTextAlign.Center);
+            }
+            else
+            {
+                using (var f = Fill(ParColour(green.Par))) canvas.DrawRect(bar, f);
+                string label = $"{green.SquareFeet / 1000:0.0}k";
+                if (bar.Height > 16) Text(canvas, label, X(i), bar.Top + 11, 7.6f, _bold, OnPar(green.Par), SKTextAlign.Center);
+                else Text(canvas, label, X(i), bar.Top - 4, 7.2f, _serif, Muted, SKTextAlign.Center);
+            }
+            Text(canvas, green.Hole.ToString(), X(i), r.Bottom + 13, 9, _serif, _ink, SKTextAlign.Center);
+        }
+        StatLine(canvas, r.Left, r.Right, Yv(g.MeanSquareFeet), mean: true);
+        StatLine(canvas, r.Left, r.Right, Yv(g.MedianSquareFeet), mean: false);
+        using (var axis = Stroke(_fog, 1)) canvas.DrawLine(r.Left, r.Bottom, r.Right, r.Bottom, axis);
+        Text(canvas, "Sequential  ·  holes 1–" + n, r.Left, r.Top - 9, 12.5f, _bold, _ink);
+        Text(canvas, "hole", r.MidX, r.Bottom + 25, 8.6f, _serif, Faint, SKTextAlign.Center);
+        if (n == 18 && g.Greens[8].Hole == 9)
+        {
+            float x = (X(8) + X(9)) / 2;
+            using var line = Stroke(_ink, .9f);
+            line.PathEffect = SKPathEffect.CreateDash([3.6f, 2.7f], 0);
+            canvas.DrawLine(x, r.Top, x, r.Bottom, line);
+            Text(canvas, "OUT", x - 4, r.Top + 11, 8.2f, _italic, _ink, SKTextAlign.Right);
+            Text(canvas, "IN", x + 4, r.Top + 11, 8.2f, _italic, _ink);
+        }
+    }
+
+    void DrawGreenDifferences(SKCanvas canvas, SKRect r)
+    {
+        var g = _d.Greens;
+        int n = g.Greens.Count;
+        double mean = g.MeanSquareFeet;
+        double reach = Math.Max(2000, Math.Ceiling(g.Built.Max(x => Math.Abs(x.SquareFeet - mean)) / 2000) * 2000) * 1.12;
+        float slot = r.Width / (n + 0.6f), bw = slot * 0.68f;
+        float X(int i) => r.Left + (i + 0.8f) * slot;
+        float Yv(double d) => r.MidY - (float)(d / reach) * (r.Height / 2);
+
+        using (var bg = Fill(SKColors.White)) canvas.DrawRect(r, bg);
+        using (var band = Fill(_fog.WithAlpha(90))) canvas.DrawRect(new SKRect(r.Left, Yv(g.StdDevSquareFeet), r.Right, Yv(-g.StdDevSquareFeet)), band);
+        using (var grid = Stroke(_fog.WithAlpha((byte)(.65 * 255)), .6f))
+            for (double v = -Math.Floor(reach / 2000) * 2000; v <= reach; v += 2000)
+            {
+                if (v != 0) canvas.DrawLine(r.Left, Yv(v), r.Right, Yv(v), grid);
+                Text(canvas, v == 0 ? "mean" : (v > 0 ? "+" : "−") + Math.Abs(v).ToString("N0"), r.Left - 5, Yv(v) + 2.8f, 8, _serif, Faint, SKTextAlign.Right);
+            }
+        for (int i = 0; i < n; i++)
+        {
+            var green = g.Greens[i];
+            if (green.Estimated) Text(canvas, "–", X(i), r.MidY + 3, 9, _serif, Faint, SKTextAlign.Center);
+            else
+            {
+                double d = green.SquareFeet - mean;
+                float y = Yv(d);
+                using (var f = Fill(ParColour(green.Par))) canvas.DrawRect(new SKRect(X(i) - bw / 2, Math.Min(y, r.MidY), X(i) + bw / 2, Math.Max(y, r.MidY)), f);
+                string pct = $"{(d < 0 ? "−" : "+")}{Math.Abs(Math.Round(d / mean * 100)):0}%";
+                Text(canvas, pct, X(i), d >= 0 ? y - 4 : y + 10, 7.2f, _serif, Muted, SKTextAlign.Center);
+            }
+            Text(canvas, green.Hole.ToString(), X(i), r.Bottom + 13, 9, _serif, _ink, SKTextAlign.Center);
+        }
+        using (var zero = Stroke(_ink, .9f)) canvas.DrawLine(r.Left, r.MidY, r.Right, r.MidY, zero);
+        Text(canvas, "Difference from mean  ·  sq ft", r.Left, r.Top - 9, 12.5f, _bold, _ink);
+        Text(canvas, "hole  ·  % labels are the difference from the mean", r.MidX, r.Bottom + 25, 8.6f, _serif, Faint, SKTextAlign.Center);
+    }
+
+    void DrawGreenSpread(SKCanvas canvas, SKRect r)
+    {
+        var g = _d.Greens;
+        var built = g.Built.OrderBy(x => x.SquareFeet).ToList();
+        var areas = built.Select(x => x.SquareFeet).ToList();
+        double lo = Math.Floor(areas[0] / 1000) * 1000 - 1000, hi = Math.Ceiling(areas[^1] / 1000) * 1000 + 1000;
+        float left = r.Left + 18, right = r.Right - 18;
+        float X(double v) => left + (float)((v - lo) / (hi - lo)) * (right - left);
+        double Quantile(double p) { double i = (areas.Count - 1) * p; int a = (int)Math.Floor(i); int b = (int)Math.Ceiling(i); return areas[a] + (areas[b] - areas[a]) * (i - a); }
+
+        using (var bg = Fill(SKColors.White)) canvas.DrawRect(r, bg);
+        Text(canvas, "Spread", r.Left, r.Top - 9, 12.5f, _bold, _ink);
+
+        // Strip: dots stacked where sizes are close, over the IQR box, median bar, mean line and ±1σ band.
+        float axisY = r.Top + r.Height * 0.46f, boxY = axisY - 34;
+        double mean = g.MeanSquareFeet, sd = g.StdDevSquareFeet;
+        using (var band = Fill(_fog.WithAlpha(90))) canvas.DrawRect(new SKRect(X(Math.Max(lo, mean - sd)), boxY - 22, X(Math.Min(hi, mean + sd)), boxY + 22), band);
+        using (var whisker = Stroke(_ink, .8f)) canvas.DrawLine(X(areas[0]), boxY, X(areas[^1]), boxY, whisker);
+        using (var boxFill = Fill(SKColors.White)) canvas.DrawRect(new SKRect(X(Quantile(.25)), boxY - 11, X(Quantile(.75)), boxY + 11), boxFill);
+        using (var box = Stroke(_ink, 1f)) canvas.DrawRect(new SKRect(X(Quantile(.25)), boxY - 11, X(Quantile(.75)), boxY + 11), box);
+        using (var med = Stroke(_ink, 2f)) canvas.DrawLine(X(g.MedianSquareFeet), boxY - 11, X(g.MedianSquareFeet), boxY + 11, med);
+        StatLine(canvas, X(mean), X(mean), boxY - 22, mean: true, y2: boxY + 22);
+
+        var placed = new List<(float X, int Row)>();
+        float rad = 7.2f;
+        foreach (var green in built)
+        {
+            float x = X(green.SquareFeet);
+            int row = 0;
+            while (placed.Any(p => p.Row == row && Math.Abs(p.X - x) < 2 * rad + 1)) row++;
+            placed.Add((x, row));
+            float y = boxY - 22 - rad - 3 - row * (2 * rad + 2);
+            using (var f = Fill(ParColour(green.Par))) canvas.DrawCircle(x, y, rad, f);
+            using (var e = Stroke(_salt, 1.2f)) canvas.DrawCircle(x, y, rad, e);
+            Text(canvas, green.Hole.ToString(), x, y + 2.9f, 8, _bold, OnPar(green.Par), SKTextAlign.Center);
+        }
+        using (var axis = Stroke(_ink, .8f)) canvas.DrawLine(left, axisY, right, axisY, axis);
+        double step = hi - lo > 8000 ? 2000 : 1000;
+        for (double v = Math.Ceiling(lo / step) * step; v <= hi; v += step)
+        {
+            using (var tick = Stroke(_ink, .8f)) canvas.DrawLine(X(v), axisY, X(v), axisY + 4, tick);
+            Text(canvas, v.ToString("N0"), X(v), axisY + 15, 8, _serif, Faint, SKTextAlign.Center);
+        }
+        Text(canvas, "sq ft  ·  box = middle half of the greens  ·  bar = median", (left + right) / 2, axisY + 30, 8.2f, _serif, Faint, SKTextAlign.Center);
+
+        // By par: range line and average dot per par, on the same scale.
+        float y0 = axisY + 66;
+        Text(canvas, "By par  ·  average and range", r.Left + 18, y0, 11, _serif, _ink);
+        y0 += 26;
+        foreach (int par in new[] { 3, 4, 5 })
+        {
+            var v = built.Where(x => x.Par == par).Select(x => x.SquareFeet).ToList();
+            if (v.Count == 0) continue;
+            Text(canvas, $"Par {par}", left, y0 + 3, 9.5f, _serif, _ink);
+            using (var line = Stroke(ParColour(par), 2.4f)) canvas.DrawLine(X(v.Min()), y0, X(v.Max()), y0, line);
+            using (var dot = Fill(ParColour(par))) canvas.DrawCircle(X(v.Average()), y0, 5.5f, dot);
+            Text(canvas, $"{v.Average():N0} avg  ·  {v.Count} green{(v.Count == 1 ? "" : "s")}", right, y0 + 17, 8.2f, _serif, Faint, SKTextAlign.Right);
+            y0 += 40;
+        }
+        var big = built[^1]; var small = built[0];
+        Text(canvas, $"Largest: hole {big.Hole} (par {big.Par}, {big.SquareFeet:N0})  ·  smallest: hole {small.Hole} (par {small.Par}, {small.SquareFeet:N0})",
+            (left + right) / 2, r.Bottom - 14, 8.2f, _italic, Faint, SKTextAlign.Center);
+    }
+
+    /// <summary>Mean (dashed) or median (dotted) reference line, horizontal unless <paramref name="y2"/> is given.</summary>
+    void StatLine(SKCanvas canvas, float xA, float xB, float y, bool mean, float? y2 = null)
+    {
+        using var line = Stroke(_ink, mean ? 1.3f : 1.1f);
+        line.PathEffect = SKPathEffect.CreateDash(mean ? [5f, 3f] : [1.2f, 2.2f], 0);
+        canvas.DrawLine(xA, y, xB, y2 ?? y, line);
+    }
+
+    /// <summary>Diagonal hatching for an estimated green (no spline in the file).</summary>
+    void Hatch(SKCanvas canvas, SKRect r)
+    {
+        using (var bg = Fill(_salt)) canvas.DrawRect(r, bg);
+        canvas.Save();
+        canvas.ClipRect(r);
+        using (var line = Stroke(Faint, .8f))
+            for (float x = r.Left - r.Height; x < r.Right; x += 5) canvas.DrawLine(x, r.Bottom, x + r.Height, r.Top, line);
+        canvas.Restore();
+        using var edge = Stroke(Faint, .8f);
+        canvas.DrawRect(r, edge);
+    }
+
+    static string Join(IReadOnlyList<int> holes) =>
+        holes.Count == 1 ? $"hole {holes[0]}" : $"holes {string.Join(", ", holes.Take(holes.Count - 1))} and {holes[^1]}";
 
     public void DrawTablePage(SKCanvas canvas)
     {

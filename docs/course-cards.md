@@ -1,12 +1,13 @@
 # Course cards
 
-Three print pages that describe a course's orientation and lengths, built from a `.course` file:
+Four print pages that describe a course's orientation, lengths and green sizes, built from a `.course` file:
 
 | Page | File | Shows |
 |---|---|---|
 | Compass rose | `<course> - Compass Rose.png/.pdf` (13 × 14 in) | Every hole as a path from a common origin, by bearing, scaled to the longest tee set |
 | Hole data card | `<course> - Hole Data Card` (16 × 11.6 in) | Every hole × every tee set, tee and approach bearings, hazards, OUT / IN / TOTAL |
 | Course data card | `<course> - Course Data Card` (17 × 11.6 in) | Rose + bar chart in hole order + bar chart sorted by length, with live header totals |
+| Green size card | `<course> - Green Size Card` (17 × 11.6 in) | Green area by hole against the mean, median and ±1 SD; difference from the mean; spread and average by par. Only when the course has drawn greens |
 
 The layouts follow the reference matplotlib build from the Cassimbo card handoff, which was approved. The fonts, sizes and figure fractions carry over.
 
@@ -17,6 +18,15 @@ dotnet run --project src/Pga2K25.Cli -- cards "<file.course>" -o out --config sa
 [Course Designer Studio](studio.md) builds them from the course's card settings file and hole-data workbook, set on its Course settings page.
 
 Options: `--data holes.xlsx`, `--formats png,pdf,svg`, `--dpi 300`, `--wind 225`, `--ocean WEST|none` and `--force`.
+
+## Green size card
+
+- **Area** is the area inside each green's outline, the same smoothed spline the greens book draws (`GreenOutline` / `GreenSizes` in the course format library), so the card, the sheet captions and the study pages always agree.
+- **Only drawn greens count.** A green the game generates has no spline in the file, so the greens book uses a stand-in ellipse. Those greens are hatched on the sequential chart, shown as "–" on the difference chart, and left out of the mean, median, SD, CV, range and ranks. The header says which holes they are.
+- **Statistics:** mean, median, population SD and CV of the drawn greens. The spread panel draws every drawn green as a numbered dot, over a box for the middle half and the median, and lists each par's average and range.
+- A course with no drawn greens gets no green size card; the validation file says so (INFO).
+
+On Sagan-Khushun (16 drawn greens; 16 and 17 estimated) the mean is 6,831 sq ft, the median 6,157 and the SD 2,200 (CV 32 %), from 3,939 (hole 2) to 12,007 (hole 8, a par 3).
 
 ## Where the numbers come from
 

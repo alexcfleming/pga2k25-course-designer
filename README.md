@@ -2,7 +2,7 @@
 
 A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer `.course` files and produces print-style companion material. It only reads course files; it never edits or writes them.
 
-> Status: **Greens books** (one-page PNG of all greens with slope colour, per-green studies, PDF; terrain calibrated against in-game spot elevations) **scorecard maps** (vintage and modern themes) **yardage books** (an 18-page portrait PDF workbook, optional PNG per hole) and **terrain maps** (one large contour sheet of a routed plot, plus a Letter-size sketch sheet per hole) and **course cards** (compass rose, hole data card and course data card) are working.
+> Status: **Greens books** (one-page PNG of all greens with slope colour, per-green studies, PDF; terrain calibrated against in-game spot elevations) **scorecard maps** (vintage and modern themes) **yardage books** (an 18-page portrait PDF workbook, optional PNG per hole) and **terrain maps** (one large contour sheet of a routed plot, plus a Letter-size sketch sheet per hole) and **course cards** (compass rose, hole data card, course data card and green size card) are working.
 
 ## Documentation
 
@@ -13,7 +13,7 @@ A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer
 - [Yardage book](docs/yardage-book.md): page contents, hazard numbering, rock footprint estimation, and PDF output.
 - [Terrain map](docs/terrain-map.md): contour planning sheet of the plot with the routing as sticks and dots; terrain model notes and options.
 - [Course Designer Studio](docs/studio.md): the desktop app, with a course library, a live terrain map, measurements, product viewers and builds.
-- [Course cards](docs/course-cards.md): compass rose, hole data card and course data card from the course file; validation rules, settings, the 180° blind spot.
+- [Course cards](docs/course-cards.md): compass rose, hole data card, course data card and green size card from the course file; validation rules, settings, the 180° blind spot.
 
 ## Solution layout
 

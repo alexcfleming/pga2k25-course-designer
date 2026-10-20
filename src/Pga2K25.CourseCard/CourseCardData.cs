@@ -40,6 +40,9 @@ public sealed class CourseCardData
     public required CardTotals In { get; init; }
     public required CardTotals Total { get; init; }
 
+    /// <summary>Green areas and perimeters from the course file's green splines (estimated greens are listed, never counted).</summary>
+    public required GreenSizes Greens { get; init; }
+
     /// <summary>The longest tee set, which the rose and bar charts use.</summary>
     public int RoseTee => TeeNames.Count - 1;
 
@@ -67,6 +70,7 @@ public sealed class CourseCardData
             Out = Sum(holes.Where(h => h.Number <= 9)),
             In = Sum(holes.Where(h => h.Number >= 10)),
             Total = Sum(holes),
+            Greens = GreenSizes.From(course),
         };
     }
 

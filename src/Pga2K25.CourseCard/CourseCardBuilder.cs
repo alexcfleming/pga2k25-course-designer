@@ -9,7 +9,8 @@ public sealed record CourseCardResult(CourseCardData Data, IReadOnlyList<CardIss
 public static class CourseCardBuilder
 {
     /// <summary>
-    /// Validates, then writes the compass rose, hole data card and course data card in each configured format,
+    /// Validates, then writes the compass rose, hole data card, course data card and (when the course has drawn greens)
+    /// the green size card in each configured format,
     /// plus "&lt;course&gt; - Card Validation.txt". ERRORs abort before anything is drawn; nothing is ever corrected.
     /// </summary>
     /// <param name="force">Draw even with ERRORs (drafts only): the errors are still reported and written to the validation file.</param>
@@ -30,6 +31,12 @@ public static class CourseCardBuilder
         };
         if (config.OceanSide is null)
             issues.Add(new(Severity.Info, ocean is null ? "No sea found on the plot; no ocean label." : $"Ocean side detected from the surf props: {ocean}."));
+        bool greenCard = data.Greens.Built.Count > 0;
+        if (!greenCard)
+            issues.Add(new(Severity.Info, "No drawn green splines on the course; the Green Size Card is not drawn."));
+        else if (data.Greens.Built.Count < data.Greens.Greens.Count)
+            issues.Add(new(Severity.Info, $"Green Size Card: holes {string.Join(", ", data.Greens.Greens.Where(g => g.Estimated).Select(g => g.Hole))} " +
+                                          "have no green spline (estimated outline); left out of the green size figures."));
         if (config.WindFromDegrees is null)
             issues.Add(new(Severity.Info, "No prevailing wind set (the course file has none); no wind arrow drawn."));
 
@@ -43,12 +50,13 @@ public static class CourseCardBuilder
 
         var files = new List<string>();
         using var renderer = new CourseCardRenderer(data, config, ocean);
-        var pages = new (string Name, SKSize Size, Action<SKCanvas> Draw)[]
+        var pages = new List<(string Name, SKSize Size, Action<SKCanvas> Draw)>
         {
             ("Compass Rose", CourseCardRenderer.RosePage, renderer.DrawRosePage),
             ("Hole Data Card", CourseCardRenderer.TablePage, renderer.DrawTablePage),
             ("Course Data Card", CourseCardRenderer.CardPage, renderer.DrawCoursePage),
         };
+        if (greenCard) pages.Add(("Green Size Card", CourseCardRenderer.CardPage, renderer.DrawGreenSizePage));
         var formats = config.Formats.Select(f => f.ToLowerInvariant()).ToHashSet();
         foreach (var (name, size, draw) in pages)
         {

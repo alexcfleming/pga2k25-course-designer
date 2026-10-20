@@ -49,6 +49,14 @@ public static class Geometry
         return Math.Abs(s) / 2;
     }
 
+    /// <summary>Length of the closed outline.</summary>
+    public static double Perimeter(IReadOnlyList<Vec2> poly)
+    {
+        double s = 0;
+        for (int i = 0, j = poly.Count - 1; i < poly.Count; j = i++) s += Vec2.Distance(poly[j], poly[i]);
+        return s;
+    }
+
     public static double DistanceToEdge(IReadOnlyList<Vec2> poly, Vec2 p)
     {
         double best = double.MaxValue;

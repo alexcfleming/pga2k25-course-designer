@@ -22,7 +22,8 @@ public sealed record GreensBookOutputs
     public bool Pdf { get; init; }
 }
 
-public sealed record GreensBookResult(string? SheetPath, IReadOnlyList<string> StudyPaths, string? PdfPath, IReadOnlyList<GreenAnalysis> Greens);
+public sealed record GreensBookResult(string? SheetPath, IReadOnlyList<string> StudyPaths, string? PdfPath, IReadOnlyList<GreenAnalysis> Greens,
+    GreenSizes Sizes);
 
 public static class GreensBookBuilder
 {
@@ -49,6 +50,14 @@ public static class GreensBookBuilder
                         (g.Warnings.Any(w => w.StartsWith("Implausibly")) ? "  ⚠ implausibly steep" : ""));
         }
 
+        // Size figures always compare against every drawn green on the course, even when only some holes are built.
+        var sizes = GreenSizes.From(course, options.OutlineHarmonics, options.EstimatedSemiMajorMetres, options.EstimatedSemiMinorMetres);
+        log?.Report(sizes.Built.Count == 0
+            ? "Green sizes: no drawn greens, so no size comparison."
+            : $"Green sizes ({sizes.Built.Count} drawn greens): mean {sizes.MeanSquareFeet:N0} sq ft, median {sizes.MedianSquareFeet:N0}, " +
+              $"SD {sizes.StdDevSquareFeet:N0}; perimeter in {GreenSizes.TargetMinYards:0}–{GreenSizes.TargetMaxYards:0} yd on " +
+              $"{sizes.Built.Count(g => GreenSizes.PerimeterOffTarget(g.PerimeterYards) == 0)}.");
+
         Directory.CreateDirectory(outputDir);
         string baseName = SafeFileName(string.IsNullOrWhiteSpace(course.Name) ? Path.GetFileNameWithoutExtension(coursePath) : course.Name);
         using var renderer = new GreensBookRenderer(options);
@@ -72,7 +81,7 @@ public static class GreensBookBuilder
             {
                 string path = Path.Combine(dir, $"Hole_{g.Hole.Number:00}.png");
                 WritePng(path, GreensBookRenderer.PageWidth, GreensBookRenderer.PageHeight, outputs.StudyScale,
-                    c => renderer.DrawHolePage(c, course.Name, g));
+                    c => renderer.DrawHolePage(c, course.Name, g, sizes));
                 studies.Add(path);
             }
             log?.Report($"Green studies: {dir}");
@@ -95,14 +104,14 @@ public static class GreensBookBuilder
             doc.EndPage();
             foreach (var g in greens)
             {
-                renderer.DrawHolePage(doc.BeginPage(GreensBookRenderer.PageWidth, GreensBookRenderer.PageHeight), course.Name, g);
+                renderer.DrawHolePage(doc.BeginPage(GreensBookRenderer.PageWidth, GreensBookRenderer.PageHeight), course.Name, g, sizes);
                 doc.EndPage();
             }
             doc.Close();
             log?.Report($"PDF: {pdfPath}");
         }
 
-        return new GreensBookResult(sheetPath, studies, pdfPath, greens);
+        return new GreensBookResult(sheetPath, studies, pdfPath, greens, sizes);
     }
 
     static void WritePng(string path, float width, float height, float scale, Action<SKCanvas> draw)
