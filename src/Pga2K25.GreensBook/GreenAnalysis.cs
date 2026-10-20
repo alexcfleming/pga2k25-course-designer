@@ -19,7 +19,7 @@ public sealed record GreensBookOptions
     public double EstimatedSemiMinorMetres { get; init; } = 12;
 
     public int OutlineHarmonics { get; init; } = 8;
-    public string Credit { get; init; } = "ALEX C. FLEMING";
+    public string Credit { get; init; } = "";
 
     /// <summary>Statistics ignore the band this close to the green edge (collar roll-off).</summary>
     public double EdgeExclusionMetres { get; init; } = 1.0;

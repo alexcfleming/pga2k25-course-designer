@@ -32,7 +32,7 @@ public sealed record ScorecardMapOptions
     /// file is always treated as the most correct source for pars and yardages.
     /// </summary>
     public HoleData? Data { get; init; }
-    public string Credit { get; init; } = "ALEX C. FLEMING";
+    public string Credit { get; init; } = "";
     public string Subtitle { get; init; } = "PGA TOUR 2K25";
 }
 
@@ -421,7 +421,8 @@ public sealed class ScorecardMapRenderer : IDisposable
         int total = course.Holes.Sum(h => yards(h, longest));
         float y = r.Top + 12;
         Text(canvas, $"Par {course.Holes.Sum(h => h.Par)}  ·  {total:N0} yards ({names[longest]})", r.Left, y, 10.5f, _body, _t.Ink); y += 16;
-        Text(canvas, $"Designed by {_o.Credit}", r.Left, y, 10.5f, _italic, _t.MutedInk); y += 22;
+        if (!string.IsNullOrWhiteSpace(_o.Credit)) { Text(canvas, $"Designed by {_o.Credit}", r.Left, y, 10.5f, _italic, _t.MutedInk); y += 22; }
+        else y += 6;
 
         // Legend.
         void Swatch(Action<SKRect> draw, string label)
