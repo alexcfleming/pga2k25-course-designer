@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 1.4.0
+COURSE DESIGNER STUDIO - release 1.5.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -27,6 +27,9 @@ The library lists every .course file in
 Products are saved to
   Documents\PGA 2K25 Greens Books\<course name>
 Change either folder in Settings (top right of the library).
+Also in Settings: "Designer credit". Type your name there to print it on
+the products as the course designer. It is blank to start with, and a
+blank credit prints nothing.
 
 USING IT
 - Open a course from the library to see its live terrain map. Hover for
@@ -68,6 +71,17 @@ USING IT
   from the course mean and median, its size rank, and its outline length
   against a 100-120 yd target. The course cards add a Green Size Card.
   Only drawn greens count; greens the game generates are left out.
+- Ponds and water planes (new in 1.5.0): water planes show only where
+  the ground dips below the plane, as in the game, so islands stay dry
+  and creeks keep their shape. Shallow creeks dug with lower brushes stay
+  joined up. Ponds are tinted by depth and labelled with their level on
+  the terrain map and hole sheets. They are also drawn in the yardage
+  book and on the scorecard maps.
+  The yardage book numbers water like other hazards (front edge and
+  carry), including short forced carries off the tee. The hole panel
+  lists the water each hole plays over or beside. "Water-plane outlines"
+  in Map options shows where lowering the ground would flood. Narrow
+  blue paths drawn with the water surface now show as walking paths.
 - Measurements: type in-game measure-tool readings (for example +13'6")
   to check the terrain model against the game.
 
