@@ -71,6 +71,7 @@ public sealed class CourseLayers
             else if (!s.Closed)
             {
                 var ribbon = new Ribbon(pts, Math.Max(s.Width, 0.5));
+                if (Surfaces.IsWalkingPath(s)) { layers.Paths.Add(ribbon); continue; }
                 switch (s.Surface)
                 {
                     case Surfaces.Bunker: layers.BunkerRibbons.Add(ribbon); break;

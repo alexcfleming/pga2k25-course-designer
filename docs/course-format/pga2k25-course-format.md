@@ -281,7 +281,7 @@ Surface ids (Confirmed from the reference tool's classifier, with sample counts)
 | 4 | **Heavy rough** | closed or open | Also the `surfaceCategory` used for heavy-rough paint brushes |
 | 7 | **Cart path** | open (`state 0`) | Classified as a cart path when `width >= 1.9` and not filled |
 | 8, 16, 17 | Unknown (path/waste-area variants) | open/closed | Observed in Jungle Plot 2 and Delta Test |
-| 10 | **Water** | closed = pond/lake (`width <= 0.25`); open = stream (`width >= 1.0`) | |
+| 10 | **Water** | closed = pond/lake (`width <= 0.25`); open = stream (`width >= 4`) | Open ones narrower than 4 m are **walking paths**: Luke Muscat's course has twenty, 1.7–3.6 m wide, and they are the gravel footpaths in game (`Surfaces.IsWalkingPath`) |
 
 #### 4.9.2 `surfaceBrushes2[]` — painted surface stamps
 
@@ -311,6 +311,10 @@ Each layer is `{ "brushes": [Brush], "splines": [Spline], "IsEmpty": bool }`:
 `costMap[]`, `distanceMarkers[]` and `walkingDestinations[]` are empty in all samples.
 
 `water[]` holds painted water: Brushes (§3.2) with `surfaceCategory` 9, `type` 72, `value` = water level (m, also in `position.y`) and an extra `options: {flowOrientation, flowSpeed}`. Berwick Coast has 55, all at 8.507 m: one stream stroke stored as dabs of a 10 m brush, 10–17 m apart, rotated along the flow. In game the stroke is continuous water with cut banks, so the terrain map draws the whole joined stroke as water.
+
+The same records also hold **water planes**: Luke Muscat's Normal Golf Course (`samples/courses/luke-normal-golf-course.course`) has nine, 35–99 m on their longer half-size. A plane is a flat rectangle of ±`scale.x` × ±`scale.z` around `position`, turned by `rotation.y` like the brushes. The game leaves the ground alone, and water shows only where the land inside the rectangle lies below `value`. Luke's in-game shots matched that, ring pond island and all, with rounded shorelines everywhere. A half-size rectangle would cut the ponds square, and a double-size one adds ponds the game doesn't show. Nothing in a record marks which kind it is, and the ground doesn't separate them either, so `WaterTracer` goes by size: a stroke whose entries have a median longer half-size of 30 m or more is a plane. `CourseModel.Water` keeps both scale axes; `WaterBrushes` keeps only `scale.x`.
+
+Narrow channels between planes are often dug with chains of small lower brushes (tool 1, negative value). The replay can leave their bed a metre or more above the water where the game shows a continuous shallow creek. `WaterTracer` joins two bodies along the lowest route over that dug ground when its high point is within 2 m of the level (Luke's hole 1 creek, +1.65 m), and draws a 4 m channel.
 
 ### 4.11 Placed objects — `placedObjects4[]` (Confirmed)
 
