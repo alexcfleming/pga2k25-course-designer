@@ -9,7 +9,7 @@ public sealed class StudioSettings
 
     public string CoursesFolder { get; set; } = Path.Combine(Documents, "My Games", "PGA TOUR 2K25", "Courses");
     public string OutputRoot { get; set; } = Path.Combine(Documents, "PGA 2K25 Greens Books");
-    public string Credit { get; set; } = "ALEX C. FLEMING";
+    public string Credit { get; set; } = "";
 
     /// <summary>Course files opened most recently first (at most <see cref="MaxRecent"/>).</summary>
     public List<string> Recent { get; set; } = [];

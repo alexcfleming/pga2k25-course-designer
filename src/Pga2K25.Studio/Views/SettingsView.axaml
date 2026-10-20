@@ -39,9 +39,9 @@
               </DockPanel>
             </StackPanel>
             <StackPanel Spacing="4">
-              <TextBlock Classes="h2" Text="Credit"/>
-              <TextBlock Classes="muted" TextWrapping="Wrap" Text="The name printed on the greens book, maps, yardage book and cards."/>
-              <TextBox Text="{Binding Credit}" Margin="0,6,0,0" MaxWidth="420" HorizontalAlignment="Left" MinWidth="320"/>
+              <TextBlock Classes="h2" Text="Designer credit"/>
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Your name as the course designer, printed on the terrain map, hole sheets, greens book, yardage book and scorecard maps. Leave it blank for no credit."/>
+              <TextBox Text="{Binding Credit}" Watermark="Your name" Margin="0,6,0,0" MaxWidth="420" HorizontalAlignment="Left" MinWidth="320"/>
             </StackPanel>
             <TextBlock Text="{Binding Error}" Foreground="#A32D2D" IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
           </StackPanel>

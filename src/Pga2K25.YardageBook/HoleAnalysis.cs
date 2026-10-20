@@ -43,7 +43,7 @@ public sealed record YardageOptions
     /// <summary>In-play hazards smaller than this (m²) are drawn but not given carry numbers.</summary>
     public double MinLabelledHazardArea { get; init; } = 30;
     public TerrainModelOptions Terrain { get; init; } = new() { CellMetres = 0.5 };
-    public string Credit { get; init; } = "ALEX C. FLEMING";
+    public string Credit { get; init; } = "";
 }
 
 public sealed record TeeSet(string Name, int Yards, Vec2 Tee, double ElevationFt);

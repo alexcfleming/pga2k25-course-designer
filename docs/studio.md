@@ -18,7 +18,7 @@ Pass a `.course` path on the command line to open straight into that course.
   - when it was last saved
   - which products are already built
 - **Finding a course:** filter by status, or search by name.
-- **Settings:** the courses folder, the output folder (default `Documents\PGA 2K25 Greens Books`) and the credit line. They're saved in `%AppData%\CourseDesignerStudio\settings.json`.
+- **Settings:** the courses folder, the output folder (default `Documents\PGA 2K25 Greens Books`) and the **designer credit**. The credit is the user's own name, printed on the terrain map, hole sheets, greens book, yardage book and scorecard maps. It is blank by default, and a blank credit prints nothing. They're saved in `%AppData%\CourseDesignerStudio\settings.json`.
 
 ## Course workspace
 
