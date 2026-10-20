@@ -392,6 +392,7 @@ public sealed class YardagePageRenderer : IDisposable
         }
         Label(canvas, $"Green {a.GreenDepthYards} deep  ·  front {a.GreenFrontYards}  ·  back {a.GreenBackYards}", x0, top + 66, 8, _regular, Muted);
         Label(canvas, "Black = yds from back tee · green = yds to green centre · spot heights ft vs green", x0, top + 79, 7, _regular, Muted);
+        Label(canvas, Attribution.Text, PageWidth - 16, top + 66, 6, _regular, Muted, SKTextAlign.Right);
 
         // Hole number.
         var hn = new SKPoint(PageWidth - 34, top + 32);

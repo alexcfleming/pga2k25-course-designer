@@ -323,8 +323,10 @@ public sealed class HoleSheetRenderer : TerrainInk
 
         Text(canvas, $"Terrain from {s.Course.HeightStamps.Count:N0} height stamps; check critical grades in the game.",
             cols[2], y0 + 3 * rowH, 5.8f * u, _sansItalic, Grey);
-        if (!string.IsNullOrWhiteSpace(_o.Credit))
+        bool credit = !string.IsNullOrWhiteSpace(_o.Credit);
+        if (credit)
             Text(canvas, _o.Credit.ToUpperInvariant(), cols[2], y0 + 4 * rowH, 6.2f * u, _serif, Grey, tracking: 1f * u);
+        Text(canvas, Attribution.Text, cols[2], y0 + (credit ? 5 : 4) * rowH, 5.4f * u, _sans, Grey);
     }
 
     void DrawNorthArrow(SKCanvas canvas, SKPoint c, SKPoint dir)

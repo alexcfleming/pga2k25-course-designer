@@ -421,8 +421,8 @@ public sealed class ScorecardMapRenderer : IDisposable
         int total = course.Holes.Sum(h => yards(h, longest));
         float y = r.Top + 12;
         Text(canvas, $"Par {course.Holes.Sum(h => h.Par)}  ·  {total:N0} yards ({names[longest]})", r.Left, y, 10.5f, _body, _t.Ink); y += 16;
-        if (!string.IsNullOrWhiteSpace(_o.Credit)) { Text(canvas, $"Designed by {_o.Credit}", r.Left, y, 10.5f, _italic, _t.MutedInk); y += 22; }
-        else y += 6;
+        if (!string.IsNullOrWhiteSpace(_o.Credit)) { Text(canvas, $"Designed by {_o.Credit}", r.Left, y, 10.5f, _italic, _t.MutedInk); y += 14; }
+        Text(canvas, Attribution.Text, r.Left, y, 7.5f, _body, _t.MutedInk); y += 20;
 
         // Legend.
         void Swatch(Action<SKRect> draw, string label)

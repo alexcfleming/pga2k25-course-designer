@@ -91,6 +91,9 @@ public static class ReportRenderer
         using var f = Font(7.5f);
         using var p = Paint(Gray);
         c.DrawText($"{n} / {total}", W - M, H - 18, SKTextAlign.Right, f, p);
+        // Above the footer rule, clear of the disclaimer lines below it and the page content above (ends at H − 58).
+        using var small = Font(6.5f);
+        c.DrawText(CourseFormat.Attribution.Text, W - M, H - 45, SKTextAlign.Right, small, p);
     }
 
     static float Heading(SKCanvas c, string text, float x, float y)

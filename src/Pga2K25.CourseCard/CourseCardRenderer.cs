@@ -105,6 +105,10 @@ public sealed class CourseCardRenderer : IDisposable
 
     // ───────────────────────────── pages ─────────────────────────────
 
+    /// <summary>The small "created using" note in the bottom-right corner of a card.</summary>
+    public void DrawAttribution(SKCanvas canvas, SKSize page) =>
+        Text(canvas, CourseFormat.Attribution.Text, page.Width - 0.02f * page.Width, page.Height - 10, 7.5f, _serif, Faint, SKTextAlign.Right);
+
     public void DrawRosePage(SKCanvas canvas)
     {
         var (w, h) = (RosePage.Width, RosePage.Height);
