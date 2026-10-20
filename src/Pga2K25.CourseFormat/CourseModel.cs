@@ -51,6 +51,28 @@ public sealed record HeightStamp(int Index, int Tool, int Type, Vec2 Position, d
 /// <param name="Value">Paint opacity 0–1.</param>
 public sealed record SurfaceBrush(int Index, int Category, int Type, Vec2 Position, double Scale, double RotationY, double Value);
 
+/// <summary>
+/// One <c>water[]</c> entry: a flat water surface at <paramref name="Level"/> (world m) over a rectangle of
+/// ±<paramref name="HalfX"/> × ±<paramref name="HalfZ"/> (scale.x, scale.z) around the centre, turned by
+/// <paramref name="RotationY"/> like the brushes. Large ones are the designer's water planes; small ones are
+/// dabs of a painted stream (see GreensBook <c>WaterTracer</c> for how the two are told apart).
+/// </summary>
+public sealed record WaterPlane(int Index, Vec2 Position, double HalfX, double HalfZ, double RotationY, double Level)
+{
+    /// <summary>Offset of a world point in the plane's own axes (same convention as the brush stamps).</summary>
+    public Vec2 Local(Vec2 p)
+    {
+        double th = RotationY * Math.PI / 180, cos = Math.Cos(th), sin = Math.Sin(th);
+        double dx = p.X - Position.X, dz = p.Z - Position.Z;
+        return new Vec2(dx * cos - dz * sin, dx * sin + dz * cos);
+    }
+
+    public bool Contains(Vec2 p) => Local(p) is var l && Math.Abs(l.X) <= HalfX && Math.Abs(l.Z) <= HalfZ;
+
+    /// <summary>Radius of the circle that holds the whole rectangle.</summary>
+    public double Reach => Math.Sqrt(HalfX * HalfX + HalfZ * HalfZ);
+}
+
 /// <summary>One placed asset instance (tree, bush, rock, prop) from placedObjects4.</summary>
 /// <param name="AssetPath">Prefab path, e.g. "Assets/Foliage/SpeedTree/Bushes/...".</param>
 /// <param name="Height">Explicit elevation (position.y); null when the object snaps to terrain ("-Infinity").</param>
@@ -74,6 +96,15 @@ public static class Surfaces
     /// <summary>Inner fairway cut drawn inside Fairway shapes (splines). As a brush category the
     /// reference tool uses 18 for terrain weathering, so 18 brushes are not treated as fairway.</summary>
     public const int FairwayCut = 18;
+
+    /// <summary>
+    /// Open surface-10 splines narrower than this (m) are walking paths, not streams: on Luke Muscat's course
+    /// twenty 1.7–3.6 m ones are the gravel footpaths in game (one crosses the hole 1 creek on a bridge).
+    /// </summary>
+    public const double MaxWalkingPathWidth = 4.0;
+
+    /// <summary>True for an open spline drawn as a walking path rather than as water.</summary>
+    public static bool IsWalkingPath(SurfaceSpline s) => s.Surface == Water && !s.Closed && s.Width < MaxWalkingPathWidth;
 }
 
 /// <summary>Read-only typed view over a CourseDescription JSON document.</summary>
@@ -89,10 +120,13 @@ public sealed class CourseModel
     public required IReadOnlyList<PlacedObject> PlacedObjects { get; init; }
 
     /// <summary>
-    /// Painted water (<c>water[]</c>): brushes whose <see cref="SurfaceBrush.Value"/> is the water level (m).
-    /// Water shows where the ground inside a brush lies below that level.
+    /// Painted water and water planes (<c>water[]</c>): brushes whose <see cref="SurfaceBrush.Value"/> is the
+    /// water level (m). See <see cref="Water"/> for the full footprints.
     /// </summary>
     public IReadOnlyList<SurfaceBrush> WaterBrushes { get; init; } = [];
+
+    /// <summary>The same <c>water[]</c> entries with both footprint axes (<see cref="WaterBrushes"/> keeps scale.x only).</summary>
+    public IReadOnlyList<WaterPlane> Water { get; init; } = [];
     public bool FlattenGreens { get; init; }
     public bool BlurHeight { get; init; }
     public double GreenSpeed { get; init; }
@@ -122,6 +156,7 @@ public sealed class CourseModel
             SurfaceBrushes = ReadBrushes(desc["surfaceBrushes2"] as JsonArray),
             PlacedObjects = ReadObjects(desc["placedObjects4"] as JsonArray),
             WaterBrushes = ReadBrushes(desc["water"] as JsonArray),
+            Water = ReadWater(desc["water"] as JsonArray),
             FlattenGreens = desc["flattenGreens"]?.GetValue<bool>() ?? false,
             BlurHeight = desc["blurHeight"]?.GetValue<bool>() ?? false,
             GreenSpeed = Num(desc["greenSpeed"], -1),
@@ -184,6 +219,20 @@ public sealed class CourseModel
             var b = brushes[i]!.AsObject();
             result.Add(new SurfaceBrush(i, (int)Num(b["surfaceCategory"], -1), (int)Num(b["type"]), ReadVec(b["position"]),
                 Num(b["scale"]?["x"]), Num(b["rotation"]?["y"]), Num(b["value"], 1)));
+        }
+        return result;
+    }
+
+    static List<WaterPlane> ReadWater(JsonArray? water)
+    {
+        var result = new List<WaterPlane>();
+        if (water is null) return result;
+        for (int i = 0; i < water.Count; i++)
+        {
+            var w = water[i]!.AsObject();
+            double sx = Num(w["scale"]?["x"]);
+            result.Add(new WaterPlane(i, ReadVec(w["position"]), sx, Num(w["scale"]?["z"], sx),
+                Num(w["rotation"]?["y"]), Num(w["value"], double.NaN)));
         }
         return result;
     }
