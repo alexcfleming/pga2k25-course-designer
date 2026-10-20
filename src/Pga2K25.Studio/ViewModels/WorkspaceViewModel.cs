@@ -60,6 +60,10 @@ public partial class WorkspaceViewModel : ObservableObject
 
     public ObservableCollection<HoleButtonViewModel> Holes { get; } = [];
     public ObservableCollection<LegRowViewModel> Legs { get; } = [];
+
+    /// <summary>Ponds and creeks the selected hole plays over or beside.</summary>
+    public ObservableCollection<WaterRowViewModel> WaterRows { get; } = [];
+    [ObservableProperty] private bool _hasWater;
     public ObservableCollection<ProductRowViewModel> ProductRows { get; } = [];
     public ObservableCollection<string> Log { get; } = [];
     public IReadOnlyList<string> Shadings { get; } = ["Relief", "Slope", "Plain"];
@@ -193,6 +197,10 @@ public partial class WorkspaceViewModel : ObservableObject
         }
         HasLegs = Legs.Count > 0;
 
+        WaterRows.Clear();
+        foreach (var w in HoleWater.Along(_survey, h)) WaterRows.Add(new WaterRowViewModel(w));
+        HasWater = WaterRows.Count > 0;
+
         LayersChanged?.Invoke();
         if (centre && HoleView) RequestFrame(number);
         else if (centre && _projection is not null)
@@ -277,6 +285,15 @@ public partial class HoleButtonViewModel(int number, Action<int> select) : Obser
 }
 
 /// <summary>A measured leg against the model: game, model and how far apart they are.</summary>
+/// <summary>One pond or creek in the hole inspector: what the line of play does with it, and where.</summary>
+public sealed class WaterRowViewModel(HoleWaterRow w)
+{
+    public string Label { get; } = (w.Crosses ? "Carry over water" : $"Water {w.Side}") + $" · {w.LevelFeet:0} ft";
+    public string Detail { get; } = w.Crosses
+        ? (w.CarryYards - w.FrontYards < 3 ? $"{w.FrontYards}" : $"{w.FrontYards}–{w.CarryYards}") + $" yd · {w.ToGreenYards} to green"
+        : $"{w.OffsetYards} yd off at {w.FrontYards} yd";
+}
+
 public sealed class LegRowViewModel(string label, double game, double model)
 {
     static string Signed(double v) => (v > 0.05 ? "+" : v < -0.05 ? "−" : "") + Math.Abs(v).ToString("0.0");

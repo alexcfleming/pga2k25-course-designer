@@ -96,6 +96,10 @@ public class StudioTests
         Assert.Equal(2, t.ToOptions("", pixelsPerMetre: 2).PixelsPerMetre);   // the live view's resolution
         t.ShowGrid = false;
         Assert.Equal(0, t.ToOptions("").GridYards);                              // grid off draws no grid
+        Assert.False(t.ToOptions("").ShowWaterFootprints);                       // plane outlines are off by default
+        t.ShowWaterFootprints = true;
+        Assert.True(t.ToOptions("").ShowWaterFootprints);
+        Assert.Equal(new TerrainSettings().SurveyKey, new TerrainSettings { ShowWaterFootprints = true }.SurveyKey);   // a redraw, not a resurvey
 
         // Defaults match the command line's.
         var d = new TerrainSettings().ToOptions("");

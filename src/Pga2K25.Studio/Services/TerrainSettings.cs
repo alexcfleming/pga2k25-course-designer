@@ -22,6 +22,8 @@ public sealed class TerrainSettings
     public bool ShowGrid { get; set; } = true;
     public bool ShowHilltops { get; set; } = true;
     public bool ShowWater { get; set; } = true;
+    /// <summary>Dashed water-plane rectangles: where lowering the ground would flood.</summary>
+    public bool ShowWaterFootprints { get; set; }
     /// <summary>Pixels per metre of the built PNG.</summary>
     public double PrintPixelsPerMetre { get; set; } = 4;
 
@@ -49,6 +51,7 @@ public sealed class TerrainSettings
         ShowFeatures = ShowSurfaces,
         ShowSummits = ShowHilltops,
         ShowWater = ShowWater,
+        ShowWaterFootprints = ShowWaterFootprints,
         PixelsPerMetre = pixelsPerMetre ?? PrintPixelsPerMetre,
         Credit = credit,
     };

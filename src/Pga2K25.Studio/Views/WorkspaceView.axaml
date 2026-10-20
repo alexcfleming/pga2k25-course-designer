@@ -251,7 +251,9 @@
                     <TextBox Text="{Binding OptGrid}" AutomationProperties.Name="Grid square in yards"/>
                   </StackPanel>
                 </Grid>
-                <CheckBox Content="Sea and painted water" IsChecked="{Binding OptWater}"/>
+                <CheckBox Content="Sea, ponds and streams" IsChecked="{Binding OptWater}"/>
+                <CheckBox Content="Water-plane outlines (where lower ground floods)" IsChecked="{Binding OptWaterFootprints}"
+                          IsEnabled="{Binding OptWater}" Margin="22,0,0,0"/>
                 <StackPanel Spacing="4">
                   <TextBlock Text="Printed resolution (px per metre)" Classes="muted small"/>
                   <TextBox Text="{Binding OptPrintPpm}" Width="120" HorizontalAlignment="Left" AutomationProperties.Name="Printed resolution in pixels per metre"/>
@@ -292,6 +294,20 @@
                   <Border Width="{Binding TiltBarWidth}" Background="{Binding TiltBarBrush}" HorizontalAlignment="Left"/>
                 </Border>
                 <TextBlock Text="Before shaping; greens are levelled when built in game." Classes="muted small" TextWrapping="Wrap"/>
+              </StackPanel>
+              <StackPanel Spacing="6" IsVisible="{Binding HasWater}">
+                <TextBlock Text="Water in play" FontWeight="Medium"/>
+                <ItemsControl ItemsSource="{Binding WaterRows}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:WaterRowViewModel">
+                      <StackPanel Margin="0,2" Spacing="1">
+                        <TextBlock Text="{Binding Label}" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="{Binding Detail}" Classes="mono small" TextWrapping="Wrap"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="Yards along the line of play from the back tee; level above the map's 0 ft." Classes="muted small" TextWrapping="Wrap"/>
               </StackPanel>
               <StackPanel Spacing="6" IsVisible="{Binding HasLegs}">
                 <TextBlock Text="Measured in game vs model" FontWeight="Medium"/>
