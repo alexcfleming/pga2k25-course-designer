@@ -24,6 +24,19 @@ public abstract class TerrainInk : IDisposable
     protected static readonly SKColor Sea = SKColor.Parse("#b7d5e8");
     protected static readonly SKColor Shore = SKColor.Parse("#3f7fae");
 
+    /// <summary>Water-plane tint at <see cref="DeepWaterMetres"/> and below; shallower water fades to <see cref="Sea"/>.</summary>
+    protected static readonly SKColor DeepWater = SKColor.Parse("#7eaacd");
+    const double DeepWaterMetres = 3;
+
+    /// <summary>Inland water colour for a depth (m): pale at the margins and in shallow channels, deeper in the middle.</summary>
+    protected static uint WaterPixel(double depthMetres)
+    {
+        double k = Math.Clamp(depthMetres / DeepWaterMetres, 0, 1);
+        byte r = (byte)(Sea.Red + (DeepWater.Red - Sea.Red) * k), g = (byte)(Sea.Green + (DeepWater.Green - Sea.Green) * k),
+            b = (byte)(Sea.Blue + (DeepWater.Blue - Sea.Blue) * k);
+        return 0xFF000000u | (uint)r << 16 | (uint)g << 8 | b;
+    }
+
     /// <summary>Relief tint, low → high: pale meadow green to pale tan.</summary>
     protected static readonly (double T, SKColor C)[] Hypsometric =
     [
@@ -102,7 +115,8 @@ public abstract class TerrainInk : IDisposable
             int zm = Math.Max(0, iz - 1), zp = Math.Min(h - 1, iz + 1);
             for (int ix = 0; ix < w; ix++)
             {
-                if (s.IsWater(f[ix, iz]) || s.PaintedWater.Length > 0 && s.PaintedWater[iz * w + ix]) { pixels[iz * w + ix] = unchecked((int)sea); continue; }
+                if (s.IsWater(f[ix, iz])) { pixels[iz * w + ix] = unchecked((int)sea); continue; }
+                if (s.InlandWater is { } water && water.Wet[iz * w + ix]) { pixels[iz * w + ix] = unchecked((int)WaterPixel(water.Depth[iz * w + ix])); continue; }
                 int xm = Math.Max(0, ix - 1), xp = Math.Min(w - 1, ix + 1);
                 double gx = (f[xp, iz] - f[xm, iz]) / ((xp - xm) * cell);   // dh/dX
                 double gz = (f[ix, zp] - f[ix, zm]) / ((zp - zm) * cell);   // dh/dZ
@@ -143,21 +157,61 @@ public abstract class TerrainInk : IDisposable
     }
 
     /// <summary>
-    /// Painted streams and ponds, laid over the contours (the bed under the water isn't contoured), with their edges.
+    /// Inland water (painted streams and water planes), laid over the contours (the bed under the water isn't
+    /// contoured): planes tinted by depth, each body's shoreline, and its level in feet. Optionally the planes'
+    /// rectangles, dashed.
     /// </summary>
     protected void DrawPaintedWater(SKCanvas canvas, TerrainSurvey s, MapProjection p)
     {
-        if (s.PaintedWater.Length == 0) return;
-        // Premultiplied sea colour; the cubic resampling softens the cell edges.
-        uint wet = 0xFF000000u | (uint)Sea.Red << 16 | (uint)Sea.Green << 8 | Sea.Blue;
-        var pixels = new int[s.PaintedWater.Length];
-        for (int i = 0; i < pixels.Length; i++) if (s.PaintedWater[i]) pixels[i] = unchecked((int)wet);
+        if (s.InlandWater is not { } water) return;
+        // Premultiplied water colours; the cubic resampling softens the cell edges.
+        var pixels = new int[water.Wet.Length];
+        for (int i = 0; i < pixels.Length; i++) if (water.Wet[i]) pixels[i] = unchecked((int)WaterPixel(water.Depth[i]));
         DrawRaster(canvas, s.Field, p, pixels, SKAlphaType.Premul);
         using var edge = Stroke(Shore, 0.6f * _u);
-        using var b = new SKPathBuilder();
-        foreach (var line in s.PaintedWaterEdges) p.AddPolyline(b, line, close: false, tolerance: 0.35f);
-        using var path = b.Detach();
-        canvas.DrawPath(path, edge);
+        using (var b = new SKPathBuilder())
+        {
+            foreach (var line in water.Outlines) p.AddPolyline(b, line, close: false, tolerance: 0.35f);
+            using var path = b.Detach();
+            canvas.DrawPath(path, edge);
+        }
+
+        if (_o.ShowWaterFootprints)
+        {
+            using var dash = Stroke(Shore.WithAlpha(170), 0.5f * _u);
+            using var effect = SKPathEffect.CreateDash([3 * _u, 2.5f * _u], 0);
+            dash.PathEffect = effect;
+            foreach (var plane in water.Strokes.Where(k => k.Kind == GreensBook.WaterKind.Plane).SelectMany(k => k.Members))
+            {
+                var corners = new[] { (-1, -1), (1, -1), (1, 1), (-1, 1) }.Select(c => Corner(plane, c.Item1, c.Item2)).ToList();
+                using var b = new SKPathBuilder();
+                p.AddPolyline(b, corners, close: true);
+                using var path = b.Detach();
+                canvas.DrawPath(path, dash);
+            }
+        }
+
+        // Level labels on the bodies big enough to carry one, at their deepest point.
+        foreach (var body in water.Bodies.Where(b => b.AreaM2 >= MinLabelledWaterM2))
+        {
+            var at = p.Map(body.LabelPoint);
+            float size = 6.4f * _u;
+            Text(canvas, $"{(body.Level - s.DatumMetres) * TerrainSurvey.FeetPerMetre:0} ft", at.X, at.Y + size * 0.35f, size,
+                _serifItalic, Shore, SKTextAlign.Center, halo: WaterHalo);
+        }
+    }
+
+    /// <summary>Water smaller than this (m²) carries no level label.</summary>
+    protected const double MinLabelledWaterM2 = 400;
+    static readonly SKColor WaterHalo = SKColor.Parse("#dbe9f2");
+
+    /// <summary>A corner of a water plane's rectangle in world coordinates (signs pick the corner).</summary>
+    static Vec2 Corner(WaterPlane w, int sx, int sz)
+    {
+        // Inverse of WaterPlane.Local: local +X = (cos, −sin), local +Z = (sin, cos) in world axes.
+        double th = w.RotationY * Math.PI / 180, cos = Math.Cos(th), sin = Math.Sin(th);
+        double u = sx * w.HalfX, v = sz * w.HalfZ;
+        return w.Position + new Vec2(u * cos + v * sin, -u * sin + v * cos);
     }
 
     protected void DrawShoreline(SKCanvas canvas, TerrainSurvey s, MapProjection p)

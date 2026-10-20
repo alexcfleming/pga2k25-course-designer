@@ -1,4 +1,5 @@
 using Pga2K25.CourseFormat;
+using Pga2K25.GreensBook;
 using SkiaSharp;
 
 namespace Pga2K25.TerrainMap;
@@ -20,7 +21,7 @@ public static class TerrainMapBuilder
         log?.Report(survey.SeaLevelMetres is { } sea
             ? $"Sea level {sea:0.##} m ({(TerrainSurvey.OceanPropLevel(course) is null ? "the game's sea plane" : "ocean props")}); shoreline traced in {survey.Shoreline.Count} piece(s){ShoreCheck(survey)}; elevations above sea level."
             : "No sea on the sheet; elevations above the lowest point.");
-        if (course.WaterBrushes.Count > 0) log?.Report(PaintedWaterNote(survey));
+        if (course.Water.Count > 0 && options.ShowWater) log?.Report(PaintedWaterNote(survey));
         if (survey.Holes.Count == 0)
             log?.Report($"No holes routed: whole plot mapped; landmarks: {string.Join(", ", survey.Landmarks.Where(l => !l.Minor).Select(l => l.Name).DefaultIfEmpty("none"))}.");
         foreach (var h in survey.Holes)
@@ -50,13 +51,27 @@ public static class TerrainMapBuilder
     internal static string SiteNote(HoleRouting h) =>
         $"{(h.GreenSiteIsDrawn ? "drawn green" : "green site")} {h.GreenSiteGradePct:0.0}% tilt, ±{h.GreenSiteReliefFeet:0.0} ft";
 
-    /// <summary>The painted water's level(s) and area.</summary>
+    /// <summary>The inland water: how the entries were read, then each body's level, area, depth and any joining channel.</summary>
     static string PaintedWaterNote(TerrainSurvey s)
     {
-        var levels = s.Course.WaterBrushes.Select(b => Math.Round((b.Value - s.DatumMetres) * TerrainSurvey.FeetPerMetre)).Distinct().Order().ToList();
-        double area = s.PaintedWater.Count(w => w) * s.Field.Cell * s.Field.Cell;
-        string at = $"{s.Course.WaterBrushes.Count} water brush(es) at {string.Join(", ", levels.Select(l => $"{l:0}"))} ft";
-        return area > 0 ? $"Painted water: {at}; {area:N0} m² on the sheet." : $"Painted water: {at}, none on the sheet.";
+        double Feet(double m) => (m - s.DatumMetres) * TerrainSurvey.FeetPerMetre;
+        if (s.InlandWater is not { } water)
+        {
+            var levels = s.Course.Water.Select(w => Math.Round(Feet(w.Level))).Distinct().Order();
+            return $"Water: {s.Course.Water.Count} entr{(s.Course.Water.Count == 1 ? "y" : "ies")} at {string.Join(", ", levels)} ft, none on the sheet.";
+        }
+        int planes = water.Strokes.Where(k => k.Kind == WaterKind.Plane).Sum(k => k.Members.Count);
+        int strokes = water.Strokes.Count(k => k.Kind == WaterKind.CutStroke);
+        string kinds = string.Join(", ", new[]
+        {
+            planes > 0 ? $"{planes} water plane{(planes == 1 ? "" : "s")}" : null,
+            strokes > 0 ? $"{strokes} painted stroke{(strokes == 1 ? "" : "s")}" : null,
+        }.Where(t => t is not null));
+        var bodies = water.Bodies.OrderByDescending(b => b.AreaM2).Select(b =>
+            $"{Feet(b.Level):0} ft {b.AreaM2:N0} m²" +
+            (b.MaxDepthMetres > 0 ? $" ({b.MaxDepthMetres * TerrainSurvey.FeetPerMetre:0} ft deep)" : "") +
+            (b.ChannelMetres > 0 ? $" + {b.ChannelMetres:0} m shallow channel" : ""));
+        return $"Water: {kinds}; {water.Bodies.Count} bod{(water.Bodies.Count == 1 ? "y" : "ies")} on the sheet: {string.Join("; ", bodies)}.";
     }
 
     /// <summary>How far the on-sheet surf props sit from the modelled shoreline: a check on the terrain replay.</summary>

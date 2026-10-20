@@ -267,9 +267,11 @@ public sealed class HoleSheetRenderer : TerrainInk
         if (s.SeaLevelMetres is not null || painted)
             Row(0, 3, (x, y) =>
             {
-                using var f = Fill(Sea); canvas.DrawRect(x, y - 3.5f * u, sw, 7 * u, f);
+                using var shader = SKShader.CreateLinearGradient(new SKPoint(x, 0), new SKPoint(x + sw, 0),
+                    painted ? [Sea, DeepWater] : [Sea, Sea], SKShaderTileMode.Clamp);
+                using var f = new SKPaint { Shader = shader }; canvas.DrawRect(x, y - 3.5f * u, sw, 7 * u, f);
                 using var e = Stroke(Shore, 0.9f * u); canvas.DrawLine(x, y - 3.5f * u, x + sw, y - 3.5f * u, e);
-            }, s.SeaLevelMetres is null ? "Painted water" : painted ? "Sea, shoreline and painted water" : "Sea and shoreline");
+            }, s.SeaLevelMetres is null ? "Ponds and streams, level in ft" : painted ? "Sea, ponds and streams" : "Sea and shoreline");
 
         Row(1, 0, (x, y) =>
         {

@@ -1,4 +1,5 @@
 using Pga2K25.CourseFormat;
+using Pga2K25.GreensBook;
 using Pga2K25.TerrainMap;
 using SkiaSharp;
 
@@ -131,6 +132,20 @@ public class WaterAndGreenSiteTests
         int wet = s.PaintedWater.Count(w => w);
         // About 700 m long and 10 m wide: the dabs are joined into one stroke, not a string of beads.
         Assert.InRange(wet * s.Field.Cell * s.Field.Cell, 6000, 9000);
+    }
+
+    [Fact]
+    public void WaterPlanes_AreClippedToTheGround_OnTheTerrainMap()
+    {
+        var s = TerrainSurvey.Build(CourseFile.Load(Path.Combine(TestPaths.SamplesDir, "luke-normal-golf-course.course")).ReadModel(),
+            new TerrainMapOptions { Terrain = new TerrainMapOptions().Terrain with { CellMetres = 1 } });
+        var water = Assert.IsType<WaterMap>(s.InlandWater);
+        Assert.All(water.Strokes, k => Assert.Equal(WaterKind.Plane, k.Kind));
+        Assert.Equal(7, water.Bodies.Count);
+        Assert.Single(water.Bodies, b => b.ChannelMetres > 0);                 // the hole 1 creek, joined up
+        Assert.False(s.IsWet(s.Course.Water[0].Position));                     // the ring pond's island
+        Assert.Null(s.SeaLevelMetres);                                         // inland water doesn't set the datum
+        Assert.Empty(s.Layers.WaterRibbons);                                   // the narrow blue lines are paths
     }
 
     [Fact]
