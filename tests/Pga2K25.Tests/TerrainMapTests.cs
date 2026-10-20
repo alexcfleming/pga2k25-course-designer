@@ -134,10 +134,10 @@ public class WaterAndGreenSiteTests
         Assert.InRange(wet * s.Field.Cell * s.Field.Cell, 6000, 9000);
     }
 
-    [Fact]
+    [PrivateSampleFact(WaterTests.LukeFile)]
     public void WaterPlanes_AreClippedToTheGround_OnTheTerrainMap()
     {
-        var s = TerrainSurvey.Build(CourseFile.Load(Path.Combine(TestPaths.SamplesDir, "luke-normal-golf-course.course")).ReadModel(),
+        var s = TerrainSurvey.Build(WaterTests.LoadLuke(),
             new TerrainMapOptions { Terrain = new TerrainMapOptions().Terrain with { CellMetres = 1 } });
         var water = Assert.IsType<WaterMap>(s.InlandWater);
         Assert.All(water.Strokes, k => Assert.Equal(WaterKind.Plane, k.Kind));
