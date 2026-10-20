@@ -72,6 +72,9 @@ public sealed class HoleAnalysis
     public required List<Vec2>? GreenOutline { get; init; }
     public required IReadOnlyList<List<Vec2>> Bunkers { get; init; }
     public required IReadOnlyList<List<Vec2>> Water { get; init; }
+
+    /// <summary>Ponds and creeks from water planes and painted streams: each body's shores (outer first, then islands; fill even-odd).</summary>
+    public required IReadOnlyList<IReadOnlyList<List<Vec2>>> WaterBodies { get; init; }
     public required IReadOnlyList<Ribbon> Paths { get; init; }
     public required IReadOnlyList<PlacedObject> Scrub { get; init; }
     public required IReadOnlyList<PlacedObject> Trees { get; init; }
@@ -104,9 +107,10 @@ public sealed class HoleAnalysis
     public int LengthYards => TeeSets.Count > 0 ? TeeSets[^1].Yards : (int)Math.Round(Hole.RouteLength / Yard);
 
     public static HoleAnalysis Analyze(CourseModel course, CourseLayers layers, Hole hole, YardageOptions o, double pageAspect,
-        RockFootprints? rockSizes = null)
+        RockFootprints? rockSizes = null, WaterMap? inlandWater = null)
     {
         rockSizes ??= new RockFootprints(course);
+        inlandWater ??= course.Water.Count > 0 ? WaterTracer.Trace(course, o.Terrain) : null;
         var back = hole.Tees.Count > 0 ? hole.Tees[^1] : hole.Route[0];
         var green = hole.GreenAnchor;
         var route = new List<Vec2> { back };
@@ -138,6 +142,8 @@ public sealed class HoleAnalysis
         var rough = Closed(Surfaces.Rough, Surfaces.HeavyRough);
         var greens = Closed(Surfaces.Green);
         var water = Closed(Surfaces.Water);
+        var waterBodies = (inlandWater?.Bodies ?? []).Where(b => AnyInView(b.Outline)).ToList();
+        var waterShapes = new HashSet<List<Vec2>>(water.Concat(waterBodies.Select(b => b.Outline)), ReferenceEqualityComparer.Instance);
         var greenOutline = greens.Where(g => Geometry.Contains(g, green)).OrderBy(Geometry.Area).FirstOrDefault();
         var bunkers = layers.MergedBunkers(o.BunkerMergeMetres).Where(AnyInView).ToList();
         var paths = layers.TrimToPlay(layers.Paths.Concat(layers.Roads), 45).Where(r => AnyInView(r.Points)).ToList();
@@ -192,7 +198,7 @@ public sealed class HoleAnalysis
             return false;
         }
         var foreign = new HashSet<List<Vec2>>(ReferenceEqualityComparer.Instance);
-        foreach (var shape in fairways.Concat(rough).Concat(greens).Concat(bunkers))
+        foreach (var shape in fairways.Concat(rough).Concat(greens).Concat(bunkers).Concat(waterShapes))
             if (!NearOwnPlay(shape) && Owner(shape) != hole.Number) foreign.Add(shape);
         var ownFairways = fairways.Where(f => !foreign.Contains(f)).ToList();
 
@@ -230,13 +236,16 @@ public sealed class HoleAnalysis
         }).ToList();
         double holeYards = teeSets[^1].Yards;
 
-        // Fairway hazards (own bunkers + in-play vegetation/outcrops): label the carry point
+        // Fairway hazards (own bunkers, water, in-play vegetation/outcrops): label the carry point
         // (farthest from the back tee) with from-tee / to-green yards.
         var labels = new List<BunkerLabel>();
         var diagnostics = new List<string>();
-        foreach (var b in bunkers.Concat(inPlay.Where(h => Geometry.Area(h) >= o.MinLabelledHazardArea)))
+        foreach (var b in bunkers.Concat(waterShapes).Concat(inPlay.Where(h => Geometry.Area(h) >= o.MinLabelledHazardArea)))
         {
-            string what = inPlay.Contains(b) ? "in-play hazard" : "bunker";
+            bool isWater = waterShapes.Contains(b);
+            string what = inPlay.Contains(b) ? "in-play hazard" : isWater ? "water" : "bunker";
+            // A forced carry over water off the tee always gets its numbers; bunkers that close are forward-tee clutter.
+            int minCarry = isWater ? 0 : 120, minFront = isWater ? 0 : 100;
             // Only the part of the hazard near the line of play counts (a waste area can sprawl far off-line)...
             // Prefer the part that actually crosses (or hugs) the line of play; fall back to the wider reach.
             var near = b.Where(p => DistanceToPolyline(p, route) <= o.CrossingReachMetres).ToList();
@@ -255,6 +264,8 @@ public sealed class HoleAnalysis
             }
             // In-play islands are compact: label the whole island once rather than per stretch.
             if (inPlay.Contains(b)) stretches = [b];
+            // Water is one sheet between its banks: the near and far shores are one crossing, not two stretches.
+            if (isWater) stretches = [along.Select(t => t.Point).ToList()];
             foreach (var part in stretches)
             {
                 var carry = part.MaxBy(p => Vec2.Distance(p, back));
@@ -266,8 +277,8 @@ public sealed class HoleAnalysis
                 bool isLong = fromTee - frontTee >= o.FrontLabelMinLengthYards;
 
                 // Carry: skip forward-tee clutter, greenside stretches, and anything past the green.
-                if (fromTee < 120 || toGreen < 40 || fromTee > holeYards - 25)
-                    diagnostics.Add($"{what} {Geometry.Area(b):0} m² stretch: carry {fromTee}/{toGreen} filtered (needs tee ≥120, green ≥40, tee ≤ {holeYards - 25})");
+                if (fromTee < minCarry || toGreen < 40 || fromTee > holeYards - 25)
+                    diagnostics.Add($"{what} {Geometry.Area(b):0} m² stretch: carry {fromTee}/{toGreen} filtered (needs tee ≥{minCarry}, green ≥40, tee ≤ {holeYards - 25})");
                 else
                 {
                     diagnostics.Add($"{what} {Geometry.Area(b):0} m² stretch: carry {fromTee}/{toGreen} labelled");
@@ -276,7 +287,7 @@ public sealed class HoleAnalysis
 
                 // Long stretches: also the front edge (how far is safe short of it). Kept even when the carry
                 // runs up to the green, since the lay-up number is still what a golfer needs.
-                if (isLong && frontTee >= 100 && frontGreen >= 40 && frontTee <= holeYards - 25)
+                if (isLong && frontTee >= minFront && frontGreen >= 40 && frontTee <= holeYards - 25)
                 {
                     diagnostics.Add($"{what} {Geometry.Area(b):0} m² stretch: front {frontTee}/{frontGreen} labelled");
                     labels.Add(new BunkerLabel(frontPt, frontTee, frontGreen, IsFront: true));
@@ -325,6 +336,7 @@ public sealed class HoleAnalysis
             Hole = hole, Route = route, BackTee = back, Green = green, Forward = fwd, RotationDegrees = rotation,
             Window = window, TeeSets = teeSets, Fairways = fairways, Rough = rough, Greens = greens,
             GreenOutline = greenOutline, Bunkers = bunkers, Water = water, Paths = paths,
+            WaterBodies = waterBodies.Select(b => b.Shores).ToList(),
             Scrub = scrub, Trees = trees, Rocks = rocks, Vegetation = vegetation, Outcrops = outcrops,
             InPlay = inPlay, Foreign = foreign, AimPoints = aims, BunkerLabels = labels, Diagnostics = diagnostics, Widths = widths, Spots = spots,
             GreenDepthYards = depth, GreenFrontYards = front, GreenBackYards = backYards,
