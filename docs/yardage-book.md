@@ -33,15 +33,16 @@ CLI options:
 - **Surfaces:**
   - Drawing order: rough, paths, water, fairways, bunkers, vegetation and rock masses, in-play hazards, tee pads, greens.
   - Shapes owned by another hole are faded. Ownership is decided by a majority vote of nearby hole routes, and any shape within 15 m of this hole's line of play always belongs to this hole.
+  - Water includes drawn water shapes and the course's `water[]` entries: painted streams and water planes, traced once per course by `WaterTracer` (see [terrain-map.md](terrain-map.md)). Islands stay dry.
 - **Vegetation and rocks:**
   - Bushes and trees are fused into smooth masses. So are rocks: their radius is estimated from the course itself (see below). Both use the same merge as the scorecard bunkers: rasterise, close, smooth, trace.
   - Background masses are clipped away from this hole's fairways, greens and tees.
   - Masses sitting in the fairway are **in-play hazards**. They are drawn strongly and given numbers.
 - **Hazard numbers:** black is yards from the back tee and green is yards to the green centre.
   - The carry point is the part of the hazard nearest the line of play: within 15 m, falling back to 40 m.
-  - A hazard crossing the line in several places is split into stretches, with each stretch labelled separately.
+  - A hazard crossing the line in several places is split into stretches, with each stretch labelled separately. Water is never split: its near and far banks are one crossing.
   - Long stretches (25 yd or more) also get a front number (a dot marks the point).
-  - Carries under 120 yds, within 40 yds of the green, or past the green are left out.
+  - Carries within 40 yds of the green, or past the green, are left out. Bunker and in-play carries under 120 yds (fronts under 100) are left out too, but water carries are always numbered: a forced carry off the tee is the number a golfer needs (Luke Muscat's hole 1 creek, 54 yds).
 - **Arcs:** green-centred distance arcs every 25 yds are labelled on the right. Back-tee arcs (dashed) are labelled on the left.
 - **Widths:** fairway width at 200, 250 and 300 yds, measured across the page. Bunkers and in-play hazards are excluded.
 - **Spot heights:** feet relative to the green centre, every 50 yds from 125 yds. The calibrated greens-book terrain is used: hardness 0.85, blur 1 m. A spot height is skipped where it would collide with a number.

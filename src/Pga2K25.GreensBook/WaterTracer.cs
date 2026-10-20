@@ -16,7 +16,13 @@ public sealed record WaterStroke(WaterKind Kind, double Level, IReadOnlyList<Wat
 
 /// <summary>One connected body of water on the raster.</summary>
 /// <param name="ChannelMetres">Length of shallow channel added to join it up (0 when none).</param>
-public sealed record WaterBody(double Level, double AreaM2, double MaxDepthMetres, Vec2 LabelPoint, double ChannelMetres);
+/// <param name="Shores">Closed shorelines: the outer one first, then any islands. Fill even-odd.</param>
+public sealed record WaterBody(double Level, double AreaM2, double MaxDepthMetres, Vec2 LabelPoint, double ChannelMetres,
+    IReadOnlyList<List<Vec2>> Shores)
+{
+    /// <summary>The outer shoreline (empty if none could be traced).</summary>
+    public List<Vec2> Outline => Shores.Count > 0 ? Shores[0] : [];
+}
 
 public sealed record WaterOptions
 {
@@ -144,20 +150,21 @@ public static class WaterTracer
             double area = sizes[id] * cellArea;
             if (area < o.MinBodyM2) continue;
             bodyOf[id] = bodies.Count;
-            double deepest = 0, lvl = double.NaN, sx = 0, sz = 0;
-            int best = -1, channelCells = 0;
+            double deepest = 0, lvl = double.NaN;
+            int best = -1, channelCells = 0, x0 = w, x1 = -1, z0 = h, z1 = -1;
             for (int k = 0; k < n; k++)
             {
                 if (comp[k] != id) continue;
-                var c = ground.CellCentre(k % w, k / w);
-                sx += c.X; sz += c.Z;
+                int ix = k % w, iz = k / w;
+                x0 = Math.Min(x0, ix); x1 = Math.Max(x1, ix); z0 = Math.Min(z0, iz); z1 = Math.Max(z1, iz);
                 if (channel[k]) channelCells++;
                 if (!double.IsNaN(level[k]) && (double.IsNaN(lvl) || level[k] > lvl)) lvl = level[k];
                 if (best < 0 || depth[k] > deepest) { deepest = depth[k]; best = k; }
             }
             if (double.IsNaN(lvl)) lvl = StrokeLevelAt(strokes, ground.CellCentre(best % w, best / w));
             // Label at the deepest water, which is well inside the shoreline even for rings and bends.
-            bodies.Add(new WaterBody(lvl, area, deepest, ground.CellCentre(best % w, best / w), channelCells * cellArea / o.ChannelWidthMetres));
+            bodies.Add(new WaterBody(lvl, area, deepest, ground.CellCentre(best % w, best / w), channelCells * cellArea / o.ChannelWidthMetres,
+                Shores(ground, comp, id, x0, x1, z0, z1)));
         }
         var bodyIndex = new int[n];
         for (int k = 0; k < n; k++)
@@ -171,6 +178,23 @@ public static class WaterTracer
             Field = ground, Wet = wet, Depth = depth, Strokes = strokes, Bodies = bodies, BodyIndex = bodyIndex,
             Outlines = bodies.Count == 0 ? [] : TraceMask(ground, wet),
         };
+    }
+
+    /// <summary>
+    /// One body's shorelines, traced on its own box with a dry border so every loop closes (even where the body
+    /// runs off the raster). Largest loop first: that is the outer shore, the rest are islands.
+    /// </summary>
+    static List<List<Vec2>> Shores(Heightfield ground, int[] comp, int id, int x0, int x1, int z0, int z1)
+    {
+        int bw = x1 - x0 + 3, bh = z1 - z0 + 3;
+        var box = new Heightfield(ground.CellCentre(x0 - 1, z0 - 1) - new Vec2(ground.Cell / 2, ground.Cell / 2), ground.Cell, bw, bh);
+        for (int iz = z0; iz <= z1; iz++)
+            for (int ix = x0; ix <= x1; ix++)
+                if (comp[iz * ground.Width + ix] == id) box[ix - x0 + 1, iz - z0 + 1] = 1;
+        var all = new bool[bw * bh];
+        Array.Fill(all, true);
+        return MarchingSquares.Trace(box, box.Values, all, 0.5).Where(l => l.Count >= 3)
+            .OrderByDescending(l => Math.Abs(Geometry.Area(l))).ToList();
     }
 
     static List<WaterPlane> Usable(CourseModel course) =>

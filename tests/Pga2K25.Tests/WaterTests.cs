@@ -95,3 +95,36 @@ public class WaterTests
         Assert.True(layers.Paths.Count >= 20);
     }
 }
+
+/// <summary>Yardage pages on Luke Muscat's course: water planes drawn and given carry numbers.</summary>
+public class WaterYardageTests
+{
+    static readonly Lazy<CourseModel> Course = new(() =>
+        CourseFile.Load(Path.Combine(TestPaths.SamplesDir, "luke-normal-golf-course.course")).ReadModel());
+    static readonly Lazy<WaterMap> Water = new(() => WaterTracer.Trace(Course.Value, new YardageBook.YardageOptions().Terrain));
+
+    static YardageBook.HoleAnalysis Analyze(int number) =>
+        YardageBook.HoleAnalysis.Analyze(Course.Value, CourseLayers.From(Course.Value), Course.Value.Holes.Single(h => h.Number == number),
+            new YardageBook.YardageOptions(), YardageBook.YardagePageRenderer.MapRect.Width / YardageBook.YardagePageRenderer.MapRect.Height,
+            inlandWater: Water.Value);
+
+    [Fact]
+    public void Hole1_CreekCarryOffTheTee_IsNumbered()
+    {
+        // 54 yds is well short of the 120-yd bunker filter; a forced carry over water still gets its number.
+        var a = Analyze(1);
+        Assert.NotEmpty(a.WaterBodies);
+        Assert.Contains(a.WaterBodies, b => b.Count > 1);                      // the ring pond keeps its island
+        Assert.Contains(a.BunkerLabels, l => !l.IsFront && l.FromTeeYards is >= 45 and <= 65);
+    }
+
+    [Fact]
+    public void Hole6_PondAcrossTheFairway_IsOneCrossing()
+    {
+        // Near bank and far bank of one pond: a front (lay-up) number and a carry, not two separate stretches.
+        var a = Analyze(6);
+        var front = Assert.Single(a.BunkerLabels, l => l.IsFront && l.FromTeeYards is > 230 and < 290);
+        var carry = Assert.Single(a.BunkerLabels, l => !l.IsFront && l.FromTeeYards is > 300 and < 360);
+        Assert.True(carry.FromTeeYards - front.FromTeeYards >= 50);
+    }
+}

@@ -66,6 +66,15 @@ public sealed class YardagePageRenderer : IDisposable
         FillAll(canvas, proj, a.Rough, RoughFill, null, a.Foreign);
         foreach (var r in a.Paths) { using var s = Stroke(PathColour, Math.Max(0.8f, (float)(r.Width * k))); using var path = proj.Path(r.Points, false); canvas.DrawPath(path, s); }
         FillAll(canvas, proj, a.Water, WaterFill, null);
+        foreach (var body in a.WaterBodies)
+        {
+            // One path per body, even-odd, so islands stay dry.
+            using var b = new SKPathBuilder { FillType = SKPathFillType.EvenOdd };
+            foreach (var shore in body) proj.AddPolyline(b, shore, true);
+            using var path = b.Detach();
+            using var f = Fill(WaterFill);
+            canvas.DrawPath(path, f);
+        }
         FillAll(canvas, proj, a.Fairways, FairwayFill, FairwayEdge, a.Foreign);
         FillAll(canvas, proj, a.Bunkers, BunkerFill, BunkerEdge, a.Foreign);
 
