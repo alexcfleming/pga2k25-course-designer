@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Pga2K25.CourseFormat\Pga2K25.CourseFormat.csproj" />
+    <ProjectReference Include="..\Pga2K25.GreensBook\Pga2K25.GreensBook.csproj" />
   </ItemGroup>
 
   <ItemGroup>

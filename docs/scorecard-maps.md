@@ -52,7 +52,7 @@ Options:
 | Greens | Closed surface-1 splines |
 | Bunkers | Closed surface-0 splines, open surface-0 splines (ribbons) and surface-0 paint brushes, **merged**: rasterised at 0.35 m, morphologically closed (grow by R, fuse, shrink by R; R = half the merge distance) so gaps and pinholes under about 10 m fill, lightly rounded, and traced back to smooth outlines. The closing may not bridge across fairways or greens, except within 1 m of a real bunker piece |
 | Waste areas | Surface-15 splines, ribbons and brushes (drawn only with `--waste`) |
-| Water | Surface-10 splines and ribbons (none on Cassimbo) |
+| Water | Closed surface-10 splines and open ones at least 4 m wide (narrower ones are walking paths). Also ponds and creeks from `water[]` (water planes and painted streams, traced by `WaterTracer`): those reaching within 60 m of play are drawn whole with dry islands and count towards the page extent, and ponds out in the scenery are left off. Cassimbo has none. |
 | Cart paths / roads | Open surface-7 / surface-8 splines |
 | Tee pads | A 5 × 9 m pad at each tee marker, aligned with the hole |
 | Ball flight | Back tee → `holes3[].waypoints[1..]` |
