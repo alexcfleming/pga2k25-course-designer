@@ -2,6 +2,11 @@
 reference/*
 !reference/.gitkeep
 
+# Other designers' course files, shared for testing but not for publishing (the repo is public).
+# Tests that need them use [PrivateSampleFact] and skip when they're missing.
+samples/private/*
+!samples/private/README.md
+
 # .NET / Visual Studio
 bin/
 obj/

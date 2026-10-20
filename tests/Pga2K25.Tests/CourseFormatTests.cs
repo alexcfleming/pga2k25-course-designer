@@ -5,14 +5,17 @@ namespace Pga2K25.Tests;
 
 public class CourseFormatTests
 {
+    /// <summary>Every sample course, plus any private samples on this checkout, as paths under samples/.</summary>
     public static IEnumerable<object[]> SampleCourses() =>
-        Directory.GetFiles(TestPaths.SamplesDir, "*.course").Select(p => new object[] { Path.GetFileName(p) });
+        Directory.GetFiles(TestPaths.SamplesDir, "*.course")
+            .Concat(Directory.Exists(TestPaths.PrivateDir) ? Directory.GetFiles(TestPaths.PrivateDir, "*.course") : [])
+            .Select(p => new object[] { Path.GetRelativePath(Path.Combine(TestPaths.RepoRoot, "samples"), p).Replace('\\', '/') });
 
     [Theory]
     [MemberData(nameof(SampleCourses))]
     public void Load_DecodesEveryDocument(string fileName)
     {
-        var file = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, fileName));
+        var file = CourseFile.Load(Path.Combine(TestPaths.RepoRoot, "samples", fileName));
 
         Assert.Contains(file.Blobs, b => b.Key == CourseFile.DescriptionKey);
         Assert.Contains(file.Blobs, b => b.Key == CourseFile.MetadataKey);
@@ -24,7 +27,7 @@ public class CourseFormatTests
     [MemberData(nameof(SampleCourses))]
     public void Load_KeepsNegativeInfinitySentinelAsString(string fileName)
     {
-        var file = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, fileName));
+        var file = CourseFile.Load(Path.Combine(TestPaths.RepoRoot, "samples", fileName));
         var y = file.Description["height"]![0]!["position"]!["y"]!;
         Assert.Equal("-Infinity", y.GetValue<string>());
     }
@@ -33,7 +36,7 @@ public class CourseFormatTests
     [MemberData(nameof(SampleCourses))]
     public void Model_MatchesMetadataDerivations(string fileName)
     {
-        var file = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, fileName));
+        var file = CourseFile.Load(Path.Combine(TestPaths.RepoRoot, "samples", fileName));
         var model = file.ReadModel();
         var meta = file.Metadata!;
 
@@ -74,10 +77,23 @@ static class TestPaths
     public static string RepoRoot { get; } = FindRoot();
     public static string SamplesDir => Path.Combine(RepoRoot, "samples", "courses");
 
+    /// <summary>Git-ignored course files other designers shared for testing (see samples/private/README.md).</summary>
+    public static string PrivateDir => Path.Combine(RepoRoot, "samples", "private");
+
     static string FindRoot()
     {
         var dir = new DirectoryInfo(AppContext.BaseDirectory);
         while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "Pga2K25.sln"))) dir = dir.Parent;
         return dir?.FullName ?? throw new InvalidOperationException("Could not locate Pga2K25.sln above the test output.");
+    }
+}
+
+/// <summary>A test on a private sample (samples/private): skipped, not failed, on a checkout without the file.</summary>
+public sealed class PrivateSampleFactAttribute : FactAttribute
+{
+    public PrivateSampleFactAttribute(string file)
+    {
+        if (!File.Exists(Path.Combine(TestPaths.PrivateDir, file)))
+            Skip = $"Private sample samples/private/{file} isn't here (it's git-ignored; see samples/private/README.md).";
     }
 }
