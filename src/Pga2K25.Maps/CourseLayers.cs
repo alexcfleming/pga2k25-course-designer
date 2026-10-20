@@ -22,6 +22,24 @@ public sealed class CourseLayers
     public required List<Disc> BunkerBrushes { get; init; }
     public required List<List<Vec2>> WaterAreas { get; init; }
     public required List<Ribbon> WaterRibbons { get; init; }
+
+    /// <summary>
+    /// Ponds and creeks from the course's <c>water[]</c> entries (water planes and painted streams): each body's
+    /// shores, outer first then islands (fill even-odd). Empty until <see cref="AddInlandWater"/>, since tracing
+    /// replays the terrain and most products that use these layers trace water their own way.
+    /// </summary>
+    public List<IReadOnlyList<List<Vec2>>> WaterBodies { get; } = [];
+
+    /// <summary>
+    /// Adds the course's traced ponds and creeks to <see cref="WaterBodies"/>: those reaching within
+    /// <paramref name="reach"/> m of play, kept whole (they count towards the page extent). Ponds out in
+    /// the scenery would otherwise be sliced by the page edge.
+    /// </summary>
+    public CourseLayers AddInlandWater(GreensBook.WaterMap water, double reach = 60)
+    {
+        WaterBodies.AddRange(water.Bodies.Where(b => b.Shores.Count > 0 && b.Outline.Any(p => DistanceToPlay(p) <= reach)).Select(b => b.Shores));
+        return this;
+    }
     public required List<List<Vec2>> WasteAreas { get; init; }
     public required List<Ribbon> WasteRibbons { get; init; }
     public required List<Disc> WasteBrushes { get; init; }
@@ -116,6 +134,8 @@ public sealed class CourseLayers
         foreach (var poly in Grass.Concat(Greens).Concat(BunkerAreas).Concat(WaterAreas))
             foreach (var p in poly)
                 if (DistanceToPlay(p) <= reach) yield return p;
+        foreach (var body in WaterBodies)
+            foreach (var p in body[0]) yield return p;
     }
 
     /// <summary>Distance (m) from a point to the nearest hole route (back tee → aim points → green).</summary>

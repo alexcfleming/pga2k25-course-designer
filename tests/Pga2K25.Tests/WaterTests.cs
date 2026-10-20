@@ -128,3 +128,18 @@ public class WaterYardageTests
         Assert.True(carry.FromTeeYards - front.FromTeeYards >= 50);
     }
 }
+
+public class WaterScorecardTests
+{
+    [Fact]
+    public void ScorecardLayers_KeepPondsNearPlay_Whole()
+    {
+        var course = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, "luke-normal-golf-course.course")).ReadModel();
+        var water = WaterTracer.Trace(course, new TerrainModelOptions { CellMetres = 0.5 });
+        var layers = CourseLayers.From(course).AddInlandWater(water);
+        Assert.InRange(layers.WaterBodies.Count, 1, water.Bodies.Count - 1);       // the pond out in the scenery is left off
+        Assert.Contains(layers.WaterBodies, b => b.Count > 1);                     // islands kept as separate shores
+        var extent = layers.ExtentPoints().ToList();
+        Assert.All(layers.WaterBodies, b => Assert.Contains(b[0][0], extent));     // ponds are fitted whole, not sliced
+    }
+}

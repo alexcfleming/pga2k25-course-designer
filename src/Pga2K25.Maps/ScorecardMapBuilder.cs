@@ -16,10 +16,13 @@ public static class ScorecardMapBuilder
     {
         var course = CourseFile.Load(coursePath).ReadModel();
         var layers = CourseLayers.From(course);
+        if (course.Water.Count > 0)
+            layers.AddInlandWater(GreensBook.WaterTracer.Trace(course, new GreensBook.TerrainModelOptions { CellMetres = 0.5 }));
         log?.Report($"{course.Name}: {layers.Grass.Count} grass areas, {layers.Greens.Count} greens, " +
                     $"{layers.BunkerAreas.Count + layers.BunkerRibbons.Count} bunker shapes + {layers.BunkerBrushes.Count} bunker brushes, " +
                     $"{layers.WasteAreas.Count + layers.WasteRibbons.Count} waste shapes + {layers.WasteBrushes.Count} waste brushes, " +
-                    $"{layers.WaterAreas.Count + layers.WaterRibbons.Count} water shapes, {layers.Paths.Count + layers.Roads.Count} paths/roads.");
+                    $"{layers.WaterAreas.Count + layers.WaterRibbons.Count} water shapes + {layers.WaterBodies.Count} ponds/creeks from water entries, " +
+                    $"{layers.Paths.Count + layers.Roads.Count} paths/roads.");
 
         if (options.Data is { } holeData)
         {
