@@ -381,6 +381,7 @@ public sealed class TerrainMapRenderer : TerrainInk
             $"Sheet covers {(s.Max.X - s.Min.X) * TerrainSurvey.YardsPerMetre:N0} × {(s.Max.Z - s.Min.Z) * TerrainSurvey.YardsPerMetre:N0} yds.",
         ];
         foreach (var n in notes) { Text(canvas, n, r.Left, y + 4 * u, 6.8f * u, _sansItalic, Grey); y += 10 * u; }
+        Text(canvas, Attribution.Text, r.Left, y + 10 * u, 6 * u, _sans, Grey);
     }
 
     void DrawNorthArrow(SKCanvas canvas, SKPoint c)

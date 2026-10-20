@@ -61,6 +61,7 @@ public sealed class GreensBookRenderer : IDisposable
         Text(canvas, _options.Credit, PageWidth - margin, 40, 11.5f, _regular, Grey, SKTextAlign.Right, tracking: 1.5f);
         Text(canvas, "Terrain rebuilt from the brush stamps with the designer's brush shapes", PageWidth - margin, 56, 8, _italic, Grey, SKTextAlign.Right);
         Text(canvas, "checked on 4 in-game greens (spot RMS ≤ 12 %)", PageWidth - margin, 67, 8, _italic, Grey, SKTextAlign.Right);
+        Text(canvas, CourseFormat.Attribution.Text, PageWidth - margin, 78, 7, _regular, Grey, SKTextAlign.Right);
 
         var view = new GreenView(a, greenRect);
         DrawGreen(canvas, a, view, detail: true, scale: 1);
@@ -143,6 +144,7 @@ public sealed class GreensBookRenderer : IDisposable
         Text(canvas, _options.Credit, right, y, 9 * u * (u < 1 ? 1 : 1.3f), _regular, Grey, SKTextAlign.Right, tracking: 1.5f * u);
         Text(canvas, "Terrain rebuilt from the brush stamps with the designer's brush shapes  ·  checked on 4 in-game greens (spot RMS ≤ 12 %)",
             right, y + 16 * u * (u < 1 ? 1 : 1.2f), 8 * u * (u < 1 ? 1 : 1.4f), _italic, Grey, SKTextAlign.Right);
+        Text(canvas, CourseFormat.Attribution.Text, right, y + 28 * u * (u < 1 ? 1 : 1.2f), 7 * u * (u < 1 ? 1 : 1.4f), _regular, Grey, SKTextAlign.Right);
     }
 
     // ───────────────────────────── green ─────────────────────────────

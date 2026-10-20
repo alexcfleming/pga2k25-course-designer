@@ -57,6 +57,7 @@ public static class CourseCardBuilder
             ("Course Data Card", CourseCardRenderer.CardPage, renderer.DrawCoursePage),
         };
         if (greenCard) pages.Add(("Green Size Card", CourseCardRenderer.CardPage, renderer.DrawGreenSizePage));
+        pages = pages.Select(p => (p.Name, p.Size, (Action<SKCanvas>)(c => { p.Draw(c); renderer.DrawAttribution(c, p.Size); }))).ToList();
         var formats = config.Formats.Select(f => f.ToLowerInvariant()).ToHashSet();
         foreach (var (name, size, draw) in pages)
         {

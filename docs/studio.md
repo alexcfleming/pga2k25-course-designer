@@ -18,7 +18,7 @@ Pass a `.course` path on the command line to open straight into that course.
   - when it was last saved
   - which products are already built
 - **Finding a course:** filter by status, or search by name.
-- **Settings:** the courses folder, the output folder (default `Documents\PGA 2K25 Greens Books`) and the **designer credit**. The credit is the user's own name, printed on the terrain map, hole sheets, greens book, yardage book and scorecard maps. It is blank by default, and a blank credit prints nothing. They're saved in `%AppData%\CourseDesignerStudio\settings.json`.
+- **Settings:** the courses folder, the output folder (default `Documents\PGA 2K25 Greens Books`) and the **designer credit**. The credit is the user's own name, printed on the terrain map, hole sheets, greens book, yardage book and scorecard maps. It is blank by default, and a blank credit prints nothing. Whatever the credit, every product also carries a small note: "Created using Alex Fleming's Course Designer Studio" (`CourseFormat.Attribution`). It goes in the terrain map's notes, the hole sheet, greens book, yardage book and scorecard footers, the course cards' bottom-right corner and above the estimate's footer rule. They're saved in `%AppData%\CourseDesignerStudio\settings.json`.
 
 ## Course workspace
 
