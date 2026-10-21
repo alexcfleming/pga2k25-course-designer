@@ -264,16 +264,17 @@ public sealed class TerrainMapRenderer : TerrainInk
             using var t = Stroke(Ink, 0.8f * u);
             for (int k = 0; k < 3; k++) { float x = sx + 6 * u + k * 11 * u; float len = (k == 1 ? 3.6f : 2.4f) * u; canvas.DrawLine(x, cy - len, x, cy + len, t); }
         }, $"Ticks every {_o.TickYards} yds from the back tee, numbered every {2 * _o.TickYards}");
-        Row(cy =>
-        {
-            float rad = 4.5f * u;
-            var at = new SKPoint(sx + sw / 2, cy + 1 * u);
-            using var f = Fill(GreenFill.WithAlpha(150));
-            using var e = Stroke(GreenEdge, 0.9f * u);
-            canvas.DrawCircle(at, rad, f); canvas.DrawCircle(at, rad, e);
-            using var a = Stroke(GreenEdge, 0.8f * u);
-            canvas.DrawLine(at.X - rad * 0.7f, at.Y, at.X + rad * 0.7f, at.Y, a);
-        }, $"Green site ({_o.GreenSiteRadiusMetres * TerrainSurvey.YardsPerMetre:0} yd radius), arrow shows fall");
+        if (s.Holes.Any(_o.ShowsGreenSite))
+            Row(cy =>
+            {
+                float rad = 4.5f * u;
+                var at = new SKPoint(sx + sw / 2, cy + 1 * u);
+                using var f = Fill(GreenFill.WithAlpha(150));
+                using var e = Stroke(GreenEdge, 0.9f * u);
+                canvas.DrawCircle(at, rad, f); canvas.DrawCircle(at, rad, e);
+                using var a = Stroke(GreenEdge, 0.8f * u);
+                canvas.DrawLine(at.X - rad * 0.7f, at.Y, at.X + rad * 0.7f, at.Y, a);
+            }, $"Green site ({_o.GreenSiteRadiusMetres * TerrainSurvey.YardsPerMetre:0} yd radius), arrow shows fall");
         Row(cy =>
         {
             var c = new SKPoint(sx + sw / 2, cy + 1 * u);

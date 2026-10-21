@@ -318,6 +318,7 @@ static int Terrain(string path, string[] rest)
             case "--sea-level": options = options with { SeaLevelMetres = NextDouble() }; break;
             case "--no-water": options = options with { ShowWater = false }; break;
             case "--water-footprints": options = options with { ShowWaterFootprints = true }; break;
+            case "--no-drawn-green-sites": options = options with { ShowDrawnGreenSites = false }; break;
             case "--credit": options = options with { Credit = Next() }; break;
             default: throw new ArgumentException($"unknown option {rest[i]}");
         }

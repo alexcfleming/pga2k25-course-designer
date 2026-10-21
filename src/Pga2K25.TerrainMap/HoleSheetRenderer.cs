@@ -287,12 +287,14 @@ public sealed class HoleSheetRenderer : TerrainInk
         }, $"Ticks every {_sheet.TickYards} yds, numbered every {2 * _sheet.TickYards}");
         Row(1, 2, (x, y) => Text(canvas, "48′", x + sw / 2, y + 2 * u, 5.4f * u, _sansItalic, IndexContour, SKTextAlign.Center),
             "Ground height at numbered ticks");
-        Row(1, 3, (x, y) =>
-        {
-            using var e = Stroke(GreenEdge, 0.9f * u);
-            canvas.DrawCircle(x + sw / 2, y, 4 * u, e);
-        }, $"Green site ({_o.GreenSiteRadiusMetres * TerrainSurvey.YardsPerMetre:0} yd), arrow shows fall");
-        Row(1, 4, (x, y) =>
+        bool site = _o.ShowsGreenSite(sheet.Routing);
+        if (site)
+            Row(1, 3, (x, y) =>
+            {
+                using var e = Stroke(GreenEdge, 0.9f * u);
+                canvas.DrawCircle(x + sw / 2, y, 4 * u, e);
+            }, $"Green site ({_o.GreenSiteRadiusMetres * TerrainSurvey.YardsPerMetre:0} yd), arrow shows fall");
+        Row(1, site ? 4 : 3, (x, y) =>
         {
             using var l = Stroke(Neighbour, 0.9f * u);
             using var dash = SKPathEffect.CreateDash([4 * u, 2.5f * u], 0);

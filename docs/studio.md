@@ -40,7 +40,7 @@ The left-hand menu has the course's sections, its products with page counts, and
     - **Area:** the routing plus a margin, the whole plot, or the buildable ground.
     - **Contours:** the interval (blank for Auto) and how often an index line is drawn.
     - **Grid:** the grid square size.
-    - **Water:** whether to show the sea, ponds and streams. **Water-plane outlines** dashes each plane's rectangle (where lowering the ground would flood). It is off by default and only redraws, without re-surveying.
+    - **Water:** whether to show the sea, ponds and streams. **Water-plane outlines** dashes each plane's rectangle (where lowering the ground would flood). It is off by default and only redraws, without re-surveying. **Green-site circles on drawn greens** (on by default) can be turned off to drop the 15-yd circle and fall arrow wherever a green spline is drawn; greens not yet drawn keep theirs. It also only redraws.
     - **Printed resolution:** px per metre of the built PNG.
     - **Saving:** Apply saves the options with the course and redraws the map; it re-surveys when the area, contours or water change. Reset to defaults restores the standard options.
     - **Toolbar:** shading and layer choices are also saved per course.
