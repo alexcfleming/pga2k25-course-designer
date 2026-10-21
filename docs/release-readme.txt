@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 1.5.0
+COURSE DESIGNER STUDIO - release 1.6.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -84,12 +84,37 @@ USING IT
   blue paths drawn with the water surface now show as walking paths.
 - Measurements: type in-game measure-tool readings (for example +13'6")
   to check the terrain model against the game.
+- Publish readiness (new in 1.6.0, left menu): the course QA and tour
+  checklist in the Studio. The course file answers what it can:
+  scorecard and tee totals, same-par runs, drivable par 4s and the par-5
+  test (enter your test drive in Limits), green size and landing width
+  against the course median, elevation, green relief, lines of play near
+  other greens, green speed (as Stimp), fringe and lighting. Mark a flag
+  "deliberate" with your reason, or fix it and press "Re-read course
+  file". Tick the judgement calls by hole and by stage, set pin
+  difficulty, and track playtest winds, tees and pins. Progress saves as
+  you go in Readiness.json beside the products. "Import checklist
+  backup..." brings in the HTML checklist's Export backup. "Sign off this
+  version" ties the sign-off to the course file, and "Export record"
+  writes a dated, printable record of the whole checklist when the course
+  is done. Every limit can be changed per course.
+- Not water in game (new in 1.6.0): if the map shows water somewhere
+  that is dry in the game, click "Not water..." on the map toolbar, then
+  click that piece. It's marked with a cross, saved in NotWater.json
+  beside the products, and left out of every product you build after
+  that. Remove marks under Map options.
+- Green-site circles (new in 1.6.0): untick "Green-site circles on drawn
+  greens" in Map options to hide the 15-yd circle and fall arrow once a
+  hole's green is drawn.
 
 GOOD TO KNOW
 - Terrain is rebuilt from the course's brush strokes, so check critical
   grades in the game. Plots with pre-made terrain (set before any
   brushes) will not map correctly; set it to zero and flatten first.
 - Green sites are shown as the ground lies before shaping.
+- Brushes dragged past the edge of the plot are left out of the terrain
+  (new in 1.6.0): the game doesn't apply them, and on one tester's course
+  they had sunk the ground and flooded a pond's whole rectangle.
 
 FEEDBACK
 Please send Alex any problems, with the course file and a screenshot if
