@@ -457,6 +457,23 @@ public abstract class TerrainInk : IDisposable
     protected void DrawGreen(SKCanvas canvas, HoleRouting h, SKPoint at, MapProjection p)
     {
         float u = _u;
+        if (_o.ShowsGreenSite(h)) DrawGreenSite(canvas, h, p);
+
+        // Flag: stick from the anchor, pennant to the right.
+        using var stick = Stroke(Ink, 0.7f * u);
+        canvas.DrawLine(at.X, at.Y, at.X, at.Y - 11 * u, stick);
+        using var fb = new SKPathBuilder();
+        fb.MoveTo(at.X, at.Y - 11 * u); fb.LineTo(at.X + 6 * u, at.Y - 9 * u); fb.LineTo(at.X, at.Y - 7 * u); fb.Close();
+        using var flagPath = fb.Detach();
+        using var flag = Fill(Flag);
+        canvas.DrawPath(flagPath, flag);
+        using var cup = Fill(Ink);
+        canvas.DrawCircle(at, 1.2f * u, cup);
+    }
+
+    void DrawGreenSite(SKCanvas canvas, HoleRouting h, MapProjection p)
+    {
+        float u = _u;
         float radius = Math.Max(3.5f * u, (float)(_o.GreenSiteRadiusMetres * p.PointsPerMetre));
         // The site circle sits on the drawn green when there is one; the flag stays on the route's end.
         var site = p.Map(h.GreenSiteCentre);
@@ -484,17 +501,6 @@ public abstract class TerrainInk : IDisposable
             using var headFill = Fill(GreenEdge);
             canvas.DrawPath(headPath, headFill);
         }
-
-        // Flag: stick from the anchor, pennant to the right.
-        using var stick = Stroke(Ink, 0.7f * u);
-        canvas.DrawLine(at.X, at.Y, at.X, at.Y - 11 * u, stick);
-        using var fb = new SKPathBuilder();
-        fb.MoveTo(at.X, at.Y - 11 * u); fb.LineTo(at.X + 6 * u, at.Y - 9 * u); fb.LineTo(at.X, at.Y - 7 * u); fb.Close();
-        using var flagPath = fb.Detach();
-        using var flag = Fill(Flag);
-        canvas.DrawPath(flagPath, flag);
-        using var cup = Fill(Ink);
-        canvas.DrawCircle(at, 1.2f * u, cup);
     }
 
     protected void DrawAimPoint(SKCanvas canvas, SKPoint at)

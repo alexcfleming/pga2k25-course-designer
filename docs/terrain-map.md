@@ -81,6 +81,7 @@ Green sites are shaped and levelled in the game when the green is built. The fig
 - **Tilt** is the grade of the plane that best fits the ground over the site, and the fall arrow points down it. A steep, even hillside has a high tilt.
 - **±ft** is the furthest the ground departs from that plane: how lumpy the site is. A site among dunes can be nearly level overall but uneven (Berwick Coast 11: 3 % tilt, ±18 ft).
 - **Green ft** is the ground at the site's centre.
+- **Hiding circles on drawn greens.** Once a hole's green spline is drawn, the spline shows the green, so its 15-yd circle and fall arrow only add clutter. `--no-drawn-green-sites` (Studio: **Green-site circles on drawn greens**, under the map options) hides them on those holes. Greens not yet drawn keep theirs, the flag stays, and the figures in the holes table and on the hole sheet header are unchanged. The legend drops the green-site row when no circle is left.
 
 ## Terrain model
 
@@ -128,6 +129,7 @@ The images come from screenshots of the palette icons, so fine detail is approxi
 | `--no-pdf`, `--no-png` | both | Hole sheet outputs |
 | `--sea-level`, `--no-water` | from ocean props | Sea level (world m), or no sea |
 | `--water-footprints` | off | Dash the water planes' rectangles |
+| `--no-drawn-green-sites` | shown | Hide the green-site circle and fall arrow on holes whose green spline is drawn |
 
 ## Code
 

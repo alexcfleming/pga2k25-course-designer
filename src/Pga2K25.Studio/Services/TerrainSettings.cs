@@ -24,6 +24,8 @@ public sealed class TerrainSettings
     public bool ShowWater { get; set; } = true;
     /// <summary>Dashed water-plane rectangles: where lowering the ground would flood.</summary>
     public bool ShowWaterFootprints { get; set; }
+    /// <summary>Green-site circles on holes whose green spline is drawn (off: only greens not yet drawn keep theirs).</summary>
+    public bool ShowDrawnGreenSites { get; set; } = true;
     /// <summary>Pixels per metre of the built PNG.</summary>
     public double PrintPixelsPerMetre { get; set; } = 4;
 
@@ -52,6 +54,7 @@ public sealed class TerrainSettings
         ShowSummits = ShowHilltops,
         ShowWater = ShowWater,
         ShowWaterFootprints = ShowWaterFootprints,
+        ShowDrawnGreenSites = ShowDrawnGreenSites,
         PixelsPerMetre = pixelsPerMetre ?? PrintPixelsPerMetre,
         Credit = credit,
     };

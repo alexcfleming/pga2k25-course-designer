@@ -254,6 +254,8 @@
                 <CheckBox Content="Sea, ponds and streams" IsChecked="{Binding OptWater}"/>
                 <CheckBox Content="Water-plane outlines (where lower ground floods)" IsChecked="{Binding OptWaterFootprints}"
                           IsEnabled="{Binding OptWater}" Margin="22,0,0,0"/>
+                <CheckBox Content="Green-site circles on drawn greens" IsChecked="{Binding OptDrawnGreenSites}"
+                          ToolTip.Tip="Off: only greens not yet drawn keep the circle and fall arrow"/>
                 <StackPanel Spacing="4">
                   <TextBlock Text="Printed resolution (px per metre)" Classes="muted small"/>
                   <TextBox Text="{Binding OptPrintPpm}" Width="120" HorizontalAlignment="Left" AutomationProperties.Name="Printed resolution in pixels per metre"/>

@@ -23,6 +23,7 @@ public partial class WorkspaceViewModel
     [ObservableProperty] private string _optGrid = "";
     [ObservableProperty] private bool _optWater = true;
     [ObservableProperty] private bool _optWaterFootprints;
+    [ObservableProperty] private bool _optDrawnGreenSites;
     [ObservableProperty] private string _optPrintPpm = "";
     [ObservableProperty] private string _optError = "";
     [ObservableProperty] private string _optSummary = "";
@@ -51,6 +52,7 @@ public partial class WorkspaceViewModel
         OptGrid = t.GridYards.ToString("0.##", Inv);
         OptWater = t.ShowWater;
         OptWaterFootprints = t.ShowWaterFootprints;
+        OptDrawnGreenSites = t.ShowDrawnGreenSites;
         OptPrintPpm = t.PrintPixelsPerMetre.ToString("0.##", Inv);
         OptError = "";
         UpdateOptSummary();
@@ -99,6 +101,7 @@ public partial class WorkspaceViewModel
         t.GridYards = grid;
         t.ShowWater = OptWater;
         t.ShowWaterFootprints = OptWaterFootprints;   // drawing only: a redraw, not a resurvey
+        t.ShowDrawnGreenSites = OptDrawnGreenSites;
         t.PrintPixelsPerMetre = ppm;
         Settings.Save();
         UpdateOptSummary();

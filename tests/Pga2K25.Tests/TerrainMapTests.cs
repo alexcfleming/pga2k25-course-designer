@@ -351,4 +351,42 @@ public class MapReadBackTests
         Assert.True(map.Contains(px));
         Assert.Equal(s.Feet(tee), s.Feet(projection.Unmap(px)), 1);
     }
+
+    [Fact]
+    public void DrawnGreenSites_CanBeHidden()
+    {
+        // Murray Estate 1 has a drawn green; the rest are still circles. Hiding drawn sites changes the map only there.
+        var course = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, "murray-estate.course")).ReadModel();
+        var shown = new TerrainMapOptions { PixelsPerMetre = 1, Terrain = new TerrainMapOptions().Terrain with { CellMetres = 4 } };
+        var hidden = shown with { ShowDrawnGreenSites = false };
+        var s = TerrainSurvey.Build(course, shown);
+        Assert.Contains(s.Holes, h => h.GreenSiteIsDrawn);
+        Assert.Contains(s.Holes, h => !h.GreenSiteIsDrawn);
+
+        SKBitmap Draw(TerrainMapOptions o)
+        {
+            using var r = new TerrainMapRenderer(o);
+            var size = r.PageSize(s);
+            var bmp = new SKBitmap(size.Width, size.Height);
+            using var canvas = new SKCanvas(bmp);
+            r.Draw(canvas, s);
+            return bmp;
+        }
+        using var a = Draw(shown);
+        using var b = Draw(hidden);
+        using var r0 = new TerrainMapRenderer(shown);
+        var (_, projection) = r0.MapFrame(s);
+        float reach = (float)(shown.GreenSiteRadiusMetres * projection.PointsPerMetre) + 6;
+        var drawnSites = s.Holes.Where(h => h.GreenSiteIsDrawn).Select(h => projection.Map(h.GreenSiteCentre)).ToList();
+
+        int changed = 0;
+        for (int y = 0; y < a.Height; y++)
+            for (int x = 0; x < a.Width; x++)
+            {
+                if (a.GetPixel(x, y) == b.GetPixel(x, y)) continue;
+                changed++;
+                Assert.Contains(drawnSites, c => SKPoint.Distance(c, new SKPoint(x, y)) <= reach);
+            }
+        Assert.True(changed > 0);
+    }
 }

@@ -96,6 +96,15 @@ public sealed record TerrainMapOptions
     /// <summary>Radius (m) of the green-site circle drawn at each green and used for its slope figure.</summary>
     public double GreenSiteRadiusMetres { get; init; } = 14;
 
+    /// <summary>
+    /// Draw the green-site circle and fall arrow on holes whose green spline is drawn. False keeps them only on
+    /// greens not yet drawn: the spline shows the green itself, and the game levels it when it's built.
+    /// </summary>
+    public bool ShowDrawnGreenSites { get; init; } = true;
+
+    /// <summary>Whether a hole's green-site circle is drawn (see <see cref="ShowDrawnGreenSites"/>).</summary>
+    public bool ShowsGreenSite(HoleRouting h) => ShowDrawnGreenSites || !h.GreenSiteIsDrawn;
+
     public string Credit { get; init; } = "";
 }
 
