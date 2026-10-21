@@ -308,7 +308,9 @@ Each layer is `{ "brushes": [Brush], "splines": [Spline], "IsEmpty": bool }`:
 | `crowdMap2` | Gallery/crowd zones |
 | `AllMapEdits[4]` | Array of the same layer shape. Contents mirror `clearDetail` / `clearTrees` (likely an aggregate the game rebuilds) |
 
-`costMap[]`, `distanceMarkers[]` and `walkingDestinations[]` are empty in all samples.
+`costMap[]` and `walkingDestinations[]` are empty in all samples. `distanceMarkers[]` is empty except in Sangoma (a private sample), which has 2,290 entries of `{ "position": Vec3, "adjacentMarkers": [Vec3] }`, linked in chains. `position.y` is the game's own ground height at the marker, the only in-game elevation a course file stores, so `CourseModel.DistanceMarkers` keeps the markers to check the terrain replay against.
+
+Height stamp centres are clamped to the plot, ±1000 m. A stamp sitting exactly on that edge is one the designer dragged past it, and the game doesn't apply it (see [terrain-map.md](../terrain-map.md), "Terrain model").
 
 `water[]` holds painted water: Brushes (§3.2) with `surfaceCategory` 9, `type` 72, `value` = water level (m, also in `position.y`) and an extra `options: {flowOrientation, flowSpeed}`. Berwick Coast has 55, all at 8.507 m: one stream stroke stored as dabs of a 10 m brush, 10–17 m apart, rotated along the flow. In game the stroke is continuous water with cut banks, so the terrain map draws the whole joined stroke as water.
 

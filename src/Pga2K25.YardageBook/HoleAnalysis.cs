@@ -246,6 +246,9 @@ public sealed class HoleAnalysis
             string what = inPlay.Contains(b) ? "in-play hazard" : isWater ? "water" : "bunker";
             // A forced carry over water off the tee always gets its numbers; bunkers that close are forward-tee clutter.
             int minCarry = isWater ? 0 : 120, minFront = isWater ? 0 : 100;
+            // On a par 3 the tee shot is the approach: water in front of the green keeps its carry number
+            // (Sangoma's hole 11 clears its pond 39 yds short of the green).
+            int minCarryToGreen = isWater && hole.Par == 3 ? 0 : 40;
             // Only the part of the hazard near the line of play counts (a waste area can sprawl far off-line)...
             // Prefer the part that actually crosses (or hugs) the line of play; fall back to the wider reach.
             var near = b.Where(p => DistanceToPolyline(p, route) <= o.CrossingReachMetres).ToList();
@@ -277,8 +280,8 @@ public sealed class HoleAnalysis
                 bool isLong = fromTee - frontTee >= o.FrontLabelMinLengthYards;
 
                 // Carry: skip forward-tee clutter, greenside stretches, and anything past the green.
-                if (fromTee < minCarry || toGreen < 40 || fromTee > holeYards - 25)
-                    diagnostics.Add($"{what} {Geometry.Area(b):0} m² stretch: carry {fromTee}/{toGreen} filtered (needs tee ≥{minCarry}, green ≥40, tee ≤ {holeYards - 25})");
+                if (fromTee < minCarry || toGreen < minCarryToGreen || fromTee > holeYards - 25)
+                    diagnostics.Add($"{what} {Geometry.Area(b):0} m² stretch: carry {fromTee}/{toGreen} filtered (needs tee ≥{minCarry}, green ≥{minCarryToGreen}, tee ≤ {holeYards - 25})");
                 else
                 {
                     diagnostics.Add($"{what} {Geometry.Area(b):0} m² stretch: carry {fromTee}/{toGreen} labelled");
