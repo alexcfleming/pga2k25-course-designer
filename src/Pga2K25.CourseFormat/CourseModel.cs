@@ -52,6 +52,12 @@ public sealed record HeightStamp(int Index, int Tool, int Type, Vec2 Position, d
 public sealed record SurfaceBrush(int Index, int Category, int Type, Vec2 Position, double Scale, double RotationY, double Value);
 
 /// <summary>
+/// One <c>distanceMarkers[]</c> point: where the game set a marker, with <paramref name="Height"/> its own ground
+/// height there (m). The only in-game elevations a course file holds, so they check the terrain replay.
+/// </summary>
+public sealed record DistanceMarker(Vec2 Position, double Height);
+
+/// <summary>
 /// One <c>water[]</c> entry: a flat water surface at <paramref name="Level"/> (world m) over a rectangle of
 /// ±<paramref name="HalfX"/> × ±<paramref name="HalfZ"/> (scale.x, scale.z) around the centre, turned by
 /// <paramref name="RotationY"/> like the brushes. Large ones are the designer's water planes; small ones are
@@ -127,6 +133,9 @@ public sealed class CourseModel
 
     /// <summary>The same <c>water[]</c> entries with both footprint axes (<see cref="WaterBrushes"/> keeps scale.x only).</summary>
     public IReadOnlyList<WaterPlane> Water { get; init; } = [];
+
+    /// <summary>Distance markers with the game's ground height under each (empty in most files).</summary>
+    public IReadOnlyList<DistanceMarker> DistanceMarkers { get; init; } = [];
     public bool FlattenGreens { get; init; }
     public bool BlurHeight { get; init; }
     public double GreenSpeed { get; init; }
@@ -157,6 +166,9 @@ public sealed class CourseModel
             PlacedObjects = ReadObjects(desc["placedObjects4"] as JsonArray),
             WaterBrushes = ReadBrushes(desc["water"] as JsonArray),
             Water = ReadWater(desc["water"] as JsonArray),
+            DistanceMarkers = Array(desc["distanceMarkers"]).Select(m => m?["position"])
+                .Where(p => p is not null && double.IsFinite(Num(p["y"], double.NaN)))
+                .Select(p => new DistanceMarker(ReadVec(p), Num(p!["y"]))).ToList(),
             FlattenGreens = desc["flattenGreens"]?.GetValue<bool>() ?? false,
             BlurHeight = desc["blurHeight"]?.GetValue<bool>() ?? false,
             GreenSpeed = Num(desc["greenSpeed"], -1),

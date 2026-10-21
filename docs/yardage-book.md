@@ -42,7 +42,7 @@ CLI options:
   - The carry point is the part of the hazard nearest the line of play: within 15 m, falling back to 40 m.
   - A hazard crossing the line in several places is split into stretches, with each stretch labelled separately. Water is never split: its near and far banks are one crossing.
   - Long stretches (25 yd or more) also get a front number (a dot marks the point).
-  - Carries within 40 yds of the green, or past the green, are left out. Bunker and in-play carries under 120 yds (fronts under 100) are left out too, but water carries are always numbered: a forced carry off the tee is the number a golfer needs (Luke Muscat's hole 1 creek, 54 yds).
+  - Carries within 40 yds of the green, or past the green, are left out. Bunker and in-play carries under 120 yds (fronts under 100) are left out too, but water carries are always numbered: a forced carry off the tee is the number a golfer needs (Luke Muscat's hole 1 creek, 54 yds). On a par 3, a water carry is numbered even within 40 yds of the green, because the tee shot is the approach: Sangoma's hole 11 clears its pond 39 yds short of the green.
 - **Arcs:** green-centred distance arcs every 25 yds are labelled on the right. Back-tee arcs (dashed) are labelled on the left.
 - **Widths:** fairway width at 200, 250 and 300 yds, measured across the page. Bunkers and in-play hazards are excluded.
 - **Spot heights:** feet relative to the green centre, every 50 yds from 125 yds. The calibrated greens-book terrain is used: hardness 0.85, blur 1 m. A spot height is skipped where it would collide with a number.

@@ -165,9 +165,12 @@ public class HoleWaterTests
         var creek = Assert.Single(Along(1), r => r.Crosses);
         Assert.InRange(creek.FrontYards, 40, 60);
         Assert.InRange(creek.CarryYards - creek.FrontYards, 2, 15);              // a narrow creek, not the old 60-yd lozenge
-        Assert.InRange(creek.LevelFeet, 12, 16);                                 // 14 ft on the map
+        // The level is in feet above the sheet's lowest point. That point moved 6.7 m down when stamps centred on the
+        // plot edge were left out (34 ft now, 14 ft before), so check against the datum, not a fixed figure.
+        double expected = (Survey.Value.Course.Water[1].Level - Survey.Value.DatumMetres) * 3.2808399;
+        Assert.InRange(creek.LevelFeet, expected - 1, expected + 1);
         var row = new Pga2K25.Studio.ViewModels.WaterRowViewModel(creek);
-        Assert.StartsWith("Carry over water · 14 ft", row.Label);
+        Assert.StartsWith($"Carry over water · {creek.LevelFeet:0} ft", row.Label);
         Assert.Contains("to green", row.Detail);
     }
 

@@ -34,6 +34,17 @@ public sealed record TerrainModelOptions
     /// </summary>
     public bool BrushShapes { get; init; } = true;
 
+    /// <summary>
+    /// Leave out stamps whose centre sits on the plot edge (±<see cref="PlotHalfMetres"/>). The designer clamps the
+    /// centre of a brush dragged past the edge to the edge, and the game doesn't apply those stamps to the plot:
+    /// Sangoma's six 1000 m lower squares centred on z = ±1000 would sink the ground 35–100 m below its 2,290
+    /// in-game distance markers (RMS 5.7 m with them, 2.3 m without).
+    /// </summary>
+    public bool SkipEdgeStamps { get; init; } = true;
+
+    /// <summary>Half the plot's width: stamp centres are clamped to ±this.</summary>
+    public double PlotHalfMetres { get; init; } = 1000;
+
     /// <summary>Raster cell size in metres.</summary>
     public double CellMetres { get; init; } = 0.25;
 }
@@ -107,6 +118,7 @@ public static class TerrainReplay
         foreach (var s in course.HeightStamps)
         {
             if (s.Scale <= 0 || !double.IsFinite(s.Value)) continue;
+            if (options.SkipEdgeStamps && IsOnPlotEdge(s, options.PlotHalfMetres)) continue;
             if (options.BrushShapes && BrushShape.ForType(s.Type) is { } shape)
             {
                 StampShape(field, s, shape);
@@ -139,6 +151,10 @@ public static class TerrainReplay
         if (sigma > 0) GaussianBlur(field, sigma / cell);
         return field;
     }
+
+    /// <summary>True when a stamp's centre was clamped to the plot edge (see <see cref="TerrainModelOptions.SkipEdgeStamps"/>).</summary>
+    public static bool IsOnPlotEdge(HeightStamp s, double plotHalfMetres = 1000) =>
+        Math.Max(Math.Abs(s.Position.X), Math.Abs(s.Position.Z)) >= plotHalfMetres - 0.1;
 
     /// <summary>
     /// One stamp with its brush image: weight = image brightness at the cell, the image spanning ±scale around
