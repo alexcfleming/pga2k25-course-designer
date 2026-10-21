@@ -168,6 +168,8 @@
                             ToolTip.Tip="Show the pinned notes"/>
               <ToggleButton Classes="pill" Content="+ Add note" IsChecked="{Binding PlacingNote}" VerticalAlignment="Center"
                             ToolTip.Tip="Then click the map where the note belongs"/>
+              <ToggleButton Classes="pill" Content="Not water…" IsChecked="{Binding MarkingNotWater}" VerticalAlignment="Center" IsVisible="{Binding HasInlandWater}"
+                            ToolTip.Tip="Then click a piece of modelled water that is dry in game: every product leaves it out"/>
               <Border Width="1" Height="22" Background="{StaticResource Hairline}" VerticalAlignment="Center" Margin="2,0"/>
               <Button Content="Hole view" Command="{Binding ShowHoleViewCommand}" IsEnabled="{Binding HasHole}" MinHeight="30" Padding="10,0"
                       VerticalAlignment="Center" ToolTip.Tip="Turn and zoom the map to the selected hole's sheet: tee at the bottom, green at the top"/>
@@ -279,6 +281,19 @@
                           IsEnabled="{Binding OptWater}" Margin="22,0,0,0"/>
                 <CheckBox Content="Green-site circles on drawn greens" IsChecked="{Binding OptDrawnGreenSites}"
                           ToolTip.Tip="Off: only greens not yet drawn keep the circle and fall arrow"/>
+                <StackPanel Spacing="4" IsVisible="{Binding !!NotWaterRows.Count}">
+                  <TextBlock Text="Marked not water in game" Classes="muted small"/>
+                  <ItemsControl ItemsSource="{Binding NotWaterRows}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:NotWaterRowViewModel">
+                        <DockPanel Margin="0,2">
+                          <Button DockPanel.Dock="Right" Content="Remove" Command="{Binding RemoveCommand}" MinHeight="26" Padding="8,0"/>
+                          <TextBlock Text="{Binding Label}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        </DockPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
                 <StackPanel Spacing="4">
                   <TextBlock Text="Printed resolution (px per metre)" Classes="muted small"/>
                   <TextBox Text="{Binding OptPrintPpm}" Width="120" HorizontalAlignment="Left" AutomationProperties.Name="Printed resolution in pixels per metre"/>

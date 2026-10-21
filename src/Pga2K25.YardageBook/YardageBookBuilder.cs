@@ -29,6 +29,7 @@ public static class YardageBookBuilder
     {
         outputs ??= new YardageBookOutputs();
         var course = CourseFile.Load(coursePath).ReadModel();
+        course.NotWater = NotWaterMarks.Points(outputDir);
         var layers = CourseLayers.From(course);
         var selected = holeNumbers?.ToHashSet();
         var holes = course.Holes.Where(h => selected is null || selected.Contains(h.Number)).ToList();

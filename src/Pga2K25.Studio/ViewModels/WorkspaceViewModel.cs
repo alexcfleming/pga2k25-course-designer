@@ -83,6 +83,7 @@ public partial class WorkspaceViewModel : ObservableObject
         LoadTerrainOptions();
         LoadLayerSettings();
         LoadNotes();
+        LoadNotWater();
         LoadSketches();
         Task.Run(LoadSurvey);
     }
@@ -95,12 +96,15 @@ public partial class WorkspaceViewModel : ObservableObject
         try
         {
             var course = CourseFile.Load(Entry.Path).ReadModel();
+            course.NotWater = NotWaterMarks.Points(OutputFolder);
             // Hilltops are always surveyed; the layer toggle only decides whether they are drawn.
             var survey = TerrainSurvey.Build(course, ViewerOptions() with { ShowSummits = true });
             _measured = Measurements.Load(Measurements.PathFor(Settings, Entry.Name));
             Dispatcher.UIThread.Post(() =>
             {
                 _survey = survey;
+                HasInlandWater = survey.InlandWater is not null || _notWater.Count > 0;
+                RebuildNotWaterRows();
                 SetSheetLayouts(survey);
                 SeaText = survey.SeaLevelMetres is null ? "No sea on the sheet" : "Elevations above sea level";
                 Holes.Clear();

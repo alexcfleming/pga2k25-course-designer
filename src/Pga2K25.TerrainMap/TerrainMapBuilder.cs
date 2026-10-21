@@ -12,6 +12,7 @@ public static class TerrainMapBuilder
     public static TerrainMapResult Build(string coursePath, string outputDir, TerrainMapOptions options, IProgress<string>? log = null)
     {
         var course = CourseFile.Load(coursePath).ReadModel();
+        course.NotWater = NotWaterMarks.Points(outputDir);
 
         var survey = TerrainSurvey.Build(course, options);
         log?.Report($"Terrain: {course.HeightStamps.Count:N0} stamps replayed over {(survey.Max.X - survey.Min.X):0} × {(survey.Max.Z - survey.Min.Z):0} m " +
@@ -114,6 +115,7 @@ public static class HoleSheetBuilder
         IEnumerable<int>? holeNumbers = null, IProgress<string>? log = null)
     {
         var course = CourseFile.Load(coursePath).ReadModel();
+        course.NotWater = NotWaterMarks.Points(outputDir);
         var selected = holeNumbers?.ToHashSet();
         var holes = course.Holes.Where(h => selected is null || selected.Contains(h.Number)).ToList();
         if (holes.Count == 0) throw new InvalidOperationException("No matching holes found in the course.");

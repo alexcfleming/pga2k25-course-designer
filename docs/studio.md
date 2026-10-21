@@ -30,6 +30,7 @@ The left-hand menu has the course's sections, its products with page counts, and
   - **Hole view** turns and zooms to the selected hole's sheet, tee at the bottom.
   - **Hole sketches:** scanned hole sheets with pencil on them, laid on the ground, one hole or all at once, coloured per hole. See [Hole sketches and notes](hole-sketches.md).
   - **Notes:** pinned to the ground (Build, Planting, Concept, Note), saved in `Notes.json` beside the products.
+  - **Not water…:** shown when the course has modelled ponds or creeks. Turn it on, then click a piece of water that is dry in game. It's marked with a ✕ pin, saved to `NotWater.json` beside the products, and the map re-surveys without it. Rebuild the products to update them. The marks are listed under Map options, each with Remove.
   - Hovering shows the ground height, slope and grid square.
   - Picking a hole centres on it. The hole panel then shows tee and green heights, the change between them, the green site's tilt and ±ft as it lies, and any in-game measurements for its legs against the model. **Water in play** lists the ponds and creeks the hole plays over and those within 30 m of its line (`TerrainMap.HoleWater`):
     - **Over the line:** the front and carry yards where the line of play enters and leaves the water, plus the yards from there to the green.
