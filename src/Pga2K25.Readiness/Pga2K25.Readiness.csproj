@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pga2K25.CourseFormat\Pga2K25.CourseFormat.csproj" />
+    <ProjectReference Include="..\Pga2K25.Maps\Pga2K25.Maps.csproj" />
+    <ProjectReference Include="..\Pga2K25.GreensBook\Pga2K25.GreensBook.csproj" />
+    <ProjectReference Include="..\Pga2K25.TerrainMap\Pga2K25.TerrainMap.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>
