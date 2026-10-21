@@ -13,7 +13,7 @@ public class ReadinessTests
     static CourseModel Load(string file) => CourseFile.Load(Path.Combine(TestPaths.SamplesDir, file)).ReadModel();
 
     static readonly Lazy<CourseModel> Cassimbo = new(() => Load("cassimbo.course"));
-    static readonly Lazy<ReadinessReport> Report = new(() =>
+    internal static readonly Lazy<ReadinessReport> Report = new(() =>
         ReadinessChecker.Run(Cassimbo.Value, new ReadinessLimits { TestDriveYards = 360 }));
 
     static ReadinessCheck Check(string id) => Report.Value.Check(id) ?? throw new Xunit.Sdk.XunitException($"no check {id}");

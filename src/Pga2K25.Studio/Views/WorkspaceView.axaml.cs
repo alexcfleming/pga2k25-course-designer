@@ -121,6 +121,11 @@ public partial class WorkspaceView : UserControl
         if (await PickFile("Choose course card settings", "Card settings", ["*.json"]) is { } path) _vm?.SetCardConfig(path);
     }
 
+    async void ImportReadiness_Click(object? sender, RoutedEventArgs e)
+    {
+        if (await PickFile("Choose the course QA checklist backup", "Checklist backup", ["*.json"]) is { } path) _vm?.Readiness?.ImportBackup(path);
+    }
+
     async Task<string?> PickFile(string title, string kind, IReadOnlyList<string> patterns)
     {
         if (TopLevel.GetTopLevel(this) is not { } top) return null;

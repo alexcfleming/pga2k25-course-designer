@@ -8,7 +8,20 @@ The work splits three ways:
 - **Partly from the file:** green speed and fringe work from the file now, mapped from in-game readings. Trees in the play area and playtest coverage come later.
 - **Judgement calls:** waypoints and default club, whether every route works, sand and surface edges, realism, cameras, concept drift, and the per-hole and planting passes. These will be tracked in Studio (phase 2) with a status (Open, Done, Deliberate, N/A) and notes.
 
-Phase 1 is the library (`src/Pga2K25.Readiness`) and the `readiness` command. The Studio section, saved progress (`<course> - Readiness.json` beside the products), import of the HTML checklist's backup, a final export and a readiness report PDF come next. The mockup is at https://claude.ai/artifact/S4JeBUYFRV3ZBmnvWWs9J3.
+The library is `src/Pga2K25.Readiness`; the Studio's **Publish readiness** section uses it (see [studio.md](studio.md)), and so does the `readiness` command. The mockup it was built from is at https://claude.ai/artifact/S4JeBUYFRV3ZBmnvWWs9J3.
+
+## Saved progress, import and the record
+
+- **`Readiness.json`** beside the products holds everything the designer decides:
+  - item statuses (Open, Done, Deliberate, N/A) and notes
+  - deliberate marks on course-file checks, for the whole check (`green-scale`) or one hole (`green-scale@2`), each with its reason
+  - pin difficulties and playtest coverage
+  - the course's limits, added checks, designer, version and tee names
+  - the sign-off with the course file's fingerprint (the first 16 hex digits of its SHA-256)
+- **Item keys** are the HTML checklist's own (`pre.score`, `b.fringe`, `hc.3.sightTee`, `tr.12.aim`, `pl.5.g360`), so its backup imports straight across (`ChecklistImport`). An import fills only what's still open or empty and never undoes a decision. "Size is deliberate" on a hole becomes deliberate marks on that hole's green size and landing width. Typed pars, yardages, green areas and widths are left out, because the file supplies them. The lighting values typed into the checklist are kept for the record.
+- **Items the file answers** (for example the scorecard, Section 7, scale, variety, corridors, speed, fringe, elevation and green relief) count as done while their checks pass or are marked deliberate, unless the designer sets them otherwise.
+- **The gate** opens when every course-file check is cleared, every item, hole cell, pin difficulty and playtest square is closed, and the sign-off is complete and matches the current file.
+- **The record** (`ReadinessRecord`) is a dated JSON of the report and state, plus a printable HTML page of the same. It's written when the work on a course is done, replacing the HTML checklist's final export.
 
 ## Command
 

@@ -12,13 +12,17 @@ namespace Pga2K25.Studio.ViewModels;
 public partial class WorkspaceViewModel
 {
     public const string TerrainSection = "Terrain map", MeasurementsSection = "Measurements", SettingsSection = "Course settings",
-        EstimateInputsSection = "Estimate inputs", EstimateProduct = "Construction estimate";
+        EstimateInputsSection = "Estimate inputs", EstimateProduct = "Construction estimate", ReadinessSection = "Publish readiness";
 
     [ObservableProperty] private string _section = TerrainSection;
     public bool IsTerrain => Section == TerrainSection;
     public bool IsMeasurements => Section == MeasurementsSection;
     public bool IsCourseSettings => Section == SettingsSection;
     public bool IsEstimateInputs => Section == EstimateInputsSection;
+    public bool IsReadiness => Section == ReadinessSection;
+
+    /// <summary>Publish readiness, made when the section first opens and kept (its checks re-run on Re-read).</summary>
+    [ObservableProperty] private ReadinessViewModel? _readiness;
 
     /// <summary>The estimate's inputs, read fresh from Estimate.json and the price overrides each time the section opens.</summary>
     [ObservableProperty] private EstimateInputsViewModel? _estimateInputs;
@@ -41,7 +45,14 @@ public partial class WorkspaceViewModel
         OnPropertyChanged(nameof(IsMeasurements));
         OnPropertyChanged(nameof(IsCourseSettings));
         OnPropertyChanged(nameof(IsEstimateInputs));
+        OnPropertyChanged(nameof(IsReadiness));
         if (value == EstimateInputsSection) OpenEstimateInputs();
+        if (value == ReadinessSection)
+            Readiness ??= new ReadinessViewModel(Entry.Path, OutputFolder, Entry.Name, hole =>
+            {
+                Section = TerrainSection;
+                SelectHole(hole, centre: true);
+            });
         foreach (var s in Sections.Concat(ProductSections)) s.IsSelected = s.Label == value;
         ProductViewer = Products.All.FirstOrDefault(p => p.Name == value && p.Name != TerrainSection) is { } product
             ? new ProductViewerViewModel(product, Settings, Entry.Name, () => BuildAsync([product]))
@@ -67,7 +78,7 @@ public partial class WorkspaceViewModel
         {
             try { CourseThumbnail = Bitmap.DecodeToWidth(new MemoryStream(bytes), 96); } catch (Exception) { CourseThumbnail = null; }
         }
-        foreach (var label in new[] { TerrainSection, MeasurementsSection, SettingsSection, EstimateInputsSection })
+        foreach (var label in new[] { TerrainSection, MeasurementsSection, SettingsSection, EstimateInputsSection, ReadinessSection })
             Sections.Add(new NavItemViewModel(label, label == Section, () => Section = label));
         foreach (var p in Products.All.Where(p => p.Name != TerrainSection))
             ProductSections.Add(new NavItemViewModel(p.Name, false, () => Section = p.Name));
