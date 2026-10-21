@@ -4,6 +4,7 @@ using Pga2K25.CourseFormat;
 using Pga2K25.Estimate;
 using Pga2K25.GreensBook;
 using Pga2K25.Maps;
+using Pga2K25.Readiness;
 using Pga2K25.TerrainMap;
 using Pga2K25.YardageBook;
 
@@ -42,6 +43,12 @@ const string Usage = """
       the roll-up to a total budget, low/likely/high and a fidelity sweep. Writes the report
       ("<course> - Estimate.pdf" + page PNGs) and line items ("<course> - Estimate.json/.csv");
       per-course choices from <dir>/Estimate.json
+    pga2k25 readiness <file.course> [--drive 360] [--limits limits.json] [--holes] [--json report.json]
+      publish-readiness checks the course file can answer: scorecard and same-par runs, drivable
+      par 4s and the par-5 test (needs --drive, the power-profile test drive in yds), green size
+      and landing width against the median, elevation and green relief, corridors, green speed,
+      fringe and lighting. Yardages from the back tees. --limits overrides any ReadinessLimits
+      value; --holes adds the per-hole table; --json writes the whole report
     pga2k25 calibrate <file.course> <captures.json> [--hardness 0.85] [--blur 1.0]
     pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|both] [--landscape|--portrait]
                       [--north-up] [--data holes.xlsx|.csv] [--waste] [--raw-bunkers] [--no-paths]
@@ -71,6 +78,7 @@ try
         case "cards": return Cards(args[1], args[2..]);
         case "sketches": return Sketches(args[1], args[2..]);
         case "estimate": return Estimate(args[1], args[2..]);
+        case "readiness": return Readiness(args[1], args[2..]);
         case "calibrate" when args.Length >= 3: return Calibrate(args[1], args[2], args[3..]);
         default: Console.Error.WriteLine(Usage); return 2;
     }
@@ -79,6 +87,71 @@ catch (Exception ex)
 {
     Console.Error.WriteLine(Environment.GetEnvironmentVariable("PGA2K25_DEBUG") is null ? $"error: {ex.Message}" : ex.ToString());
     return 1;
+}
+
+static int Readiness(string path, string[] rest)
+{
+    var inv = CultureInfo.InvariantCulture;
+    var limits = new ReadinessLimits();
+    double? drive = null;
+    string? json = null;
+    bool table = false;
+    var jsonOptions = new System.Text.Json.JsonSerializerOptions
+    {
+        WriteIndented = true, PropertyNameCaseInsensitive = true,
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() },
+    };
+    for (int i = 0; i < rest.Length; i++)
+    {
+        string Next() => i + 1 < rest.Length ? rest[++i] : throw new ArgumentException($"{rest[i]} needs a value");
+        switch (rest[i])
+        {
+            case "--drive": drive = double.Parse(Next(), inv); break;
+            case "--limits": limits = System.Text.Json.JsonSerializer.Deserialize<ReadinessLimits>(File.ReadAllText(Next()), jsonOptions) ?? limits; break;
+            case "--json": json = Next(); break;
+            case "--holes": table = true; break;
+            default: throw new ArgumentException($"unknown option {rest[i]}");
+        }
+    }
+    if (drive is not null) limits = limits with { TestDriveYards = drive };
+
+    var course = CourseFile.Load(path).ReadModel();
+    var report = ReadinessChecker.Run(course, limits);
+    Console.WriteLine($"{report.CourseName}: publish readiness from the course file (back tees" +
+        (limits.TestDriveYards is double d ? $", {d:0}-yd test drive)" : ", no test drive entered)"));
+    foreach (var c in report.Checks.OrderByDescending(c => c.Severity))
+    {
+        Console.WriteLine($"  {c.Severity.ToString().ToUpperInvariant(),-8} {c.Title}");
+        Console.WriteLine($"           {c.Detail}");
+        Console.WriteLine($"           {c.Rule}");
+    }
+    int open = report.Open.Count();
+    Console.WriteLine($"{report.Checks.Count - open} of {report.Checks.Count} checks pass; {open} to fix, mark deliberate or confirm in game.");
+
+    if (table)
+    {
+        Console.WriteLine();
+        Console.WriteLine("Hole Par  Yds  Drive          Green sq ft      Landing yd      Tee>green  Relief  Nearest other green  Pins");
+        foreach (var h in report.Holes)
+        {
+            string drv = h.DriveClass ?? (h.LeftAfterDrive is int left ? $"{left} left" : "");
+            string green = h.GreenEstimated ? "not drawn" : string.Format(inv, "{0,6:N0} {1,5:0.00}x", h.GreenSquareFeet, h.GreenRatio ?? 0);
+            string width = h.LandingWidthYards is double w ? string.Format(inv, "{0,4:0}{1} {2,5:0.00}x", w, h.LandingOffFairway ? "*" : " ", h.WidthRatio ?? 0) : "";
+            string near = h.NearGreenYards is double ny ? string.Format(inv, "{0,4:0} yds ({1})", ny, h.NearGreenOf == 0 ? "practice" : $"hole {h.NearGreenOf}") : "";
+            string relief = h.GreenReliefFeet is double r ? string.Format(inv, "{0:0.0} ft", r) : "";
+            string pins = string.Join(" ", h.Pins.Select(p => $"{p.Depth}{p.Side}"));
+            Console.WriteLine(string.Format(inv, "{0,4} {1,3} {2,4}  {3,-14} {4,-16} {5,-15} {6,7:+0;-0;0} ft {7,7}  {8,-20} {9}",
+                h.Number, h.Par, h.Yards, drv, green, width, h.ChangeFeet, relief, near, pins));
+        }
+        Console.WriteLine("  * the tee shot lands off the fairway; the nearest fairway's width is shown");
+    }
+
+    if (json is not null)
+    {
+        File.WriteAllText(json, System.Text.Json.JsonSerializer.Serialize(report, jsonOptions));
+        Console.WriteLine($"Report: {json}");
+    }
+    return report.Checks.Any(c => c.Severity == Pga2K25.Readiness.Severity.High) ? 1 : 0;
 }
 
 static int Estimate(string path, string[] rest)

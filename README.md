@@ -14,6 +14,7 @@ A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer
 - [Terrain map](docs/terrain-map.md): contour planning sheet of the plot with the routing as sticks and dots; terrain model notes and options.
 - [Course Designer Studio](docs/studio.md): the desktop app, with a course library, a live terrain map, measurements, product viewers and builds.
 - [Course cards](docs/course-cards.md): compass rose, hole data card, course data card and green size card from the course file; validation rules, settings, the 180° blind spot.
+- [Publish readiness](docs/readiness.md): QA and tour-readiness checks from the course file (drive tests, scale, corridors, elevation, green relief, speed, fringe, lighting) with editable limits.
 
 ## Solution layout
 
@@ -25,7 +26,8 @@ A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer
 | `src/Pga2K25.YardageBook` | Per-hole analysis (hazard numbers, widths, spot heights, rock footprints) and the yardage page / PDF workbook renderer |
 | `src/Pga2K25.TerrainMap` | Plot-scale terrain survey (contours, summits, per-hole elevations and green-site slope) and the terrain planning map renderer |
 | `src/Pga2K25.CourseCard` | Course cards: data from the course file (bearings, scorecard yards), validation, rose / table / composite renderer (bundled Lora font) |
-| `src/Pga2K25.Cli` | `pga2k25 info` / `greensbook` / `scorecard` / `yardage` / `terrain` / `cards` / `calibrate` command line |
+| `src/Pga2K25.Readiness` | Publish-readiness checks from the course file against editable limits (see [docs/readiness.md](docs/readiness.md)) |
+| `src/Pga2K25.Cli` | `pga2k25 info` / `greensbook` / `scorecard` / `yardage` / `terrain` / `cards` / `estimate` / `readiness` / `calibrate` command line |
 | `src/Pga2K25.Studio` | **Course Designer Studio**, the desktop app (Avalonia; see [docs/studio.md](docs/studio.md)): a course library read from the game's Courses folder, app settings, and a per-course workspace. The workspace has a section menu (terrain map, measurements, course settings) and recent courses, a live terrain map, a hole inspector with in-game measurements against the model, a measurements page to add and remove readings, in-app viewers for every built product (page thumbnails, zoom and pan, open the PDF), and one-click product builds |
 | `tests/Pga2K25.Tests` | xUnit: course decoding, metadata derivations, contouring, calibration regression, map projection, output builds |
 | `tools/course_codec.py` | Python CLI to inspect / unpack `.course` files (read only) |

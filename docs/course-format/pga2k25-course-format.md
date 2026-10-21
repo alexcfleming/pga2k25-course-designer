@@ -170,7 +170,7 @@ These are booleans that switch the game between legacy and current generator beh
 
 ### 4.4 Playing conditions
 
-`greenSpeed`, `greenFirmness`, `fairwaySpeed`, `fairwayFirmness`, `roughSpeed`, `roughFirmness`, `heavyRoughSpeed`, `heavyRoughFirmness`, `bunkerSpeed`, `bunkerFirmness`, `terrainFirmness`. All are normalized floats; **`-1.0` means "use the game default"**.
+`greenSpeed`, `greenFirmness`, `fairwaySpeed`, `fairwayFirmness`, `roughSpeed`, `roughFirmness`, `heavyRoughSpeed`, `heavyRoughFirmness`, `bunkerSpeed`, `bunkerFirmness`, `terrainFirmness`. All are normalized floats; **`-1.0` means "use the game default"**. `greenSpeed` reads as a Stimp value in game: 0.97 shows 10.9 (Cassimbo) and 0.905 shows 10.1 (Sagan-Khushun). `greenFringeRadius` 0.5 shows no visible fringe on both. `CourseModel` reads `greenSpeed`, `greenFringeRadius` and the lighting (`Atmosphere`: time of day, sun, both cloud layers, fog, haze, rain) for the publish-readiness checks.
 
 ### 4.5 Procedural generator parameters
 

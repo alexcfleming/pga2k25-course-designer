@@ -57,6 +57,21 @@ public sealed record SurfaceBrush(int Index, int Category, int Type, Vec2 Positi
 /// </summary>
 public sealed record DistanceMarker(Vec2 Position, double Height);
 
+/// <summary>One cloud layer of <c>weather3</c>: the game's cloud type and its sliders (0–1).</summary>
+public sealed record CloudLayer(string Type, double Cloudiness, double Scale, double Definition);
+
+/// <summary>
+/// Lighting and weather as the designer sets them (<c>timeOfDay</c>, <c>sunOrientation</c>, <c>sunInclination</c>,
+/// <c>weather3</c>): what a course's QA record notes so the published version can be matched later.
+/// </summary>
+/// <param name="TimeOfDay">Fraction of the day, 0–1 (0.5 = noon).</param>
+public sealed record Atmosphere(double TimeOfDay, double SunOrientation, double SunInclination, double CloudHeight,
+    CloudLayer? Cloud1, CloudLayer? Cloud2, double FogCeiling, double FogDensity, double Haze, bool Rain)
+{
+    /// <summary>Time of day as a 24-hour clock reading.</summary>
+    public string Clock => TimeSpan.FromHours(Math.Clamp(TimeOfDay, 0, 1) * 24).ToString(@"hh\:mm");
+}
+
 /// <summary>
 /// One <c>water[]</c> entry: a flat water surface at <paramref name="Level"/> (world m) over a rectangle of
 /// ±<paramref name="HalfX"/> × ±<paramref name="HalfZ"/> (scale.x, scale.z) around the centre, turned by
@@ -140,6 +155,11 @@ public sealed class CourseModel
     public bool BlurHeight { get; init; }
     public double GreenSpeed { get; init; }
 
+    /// <summary><c>greenFringeRadius</c>: −1 is the game's default; 0.5 shows no visible fringe (Cassimbo, Sagan-Khushun).</summary>
+    public double GreenFringeRadius { get; init; } = -1;
+
+    public Atmosphere? Atmosphere { get; init; }
+
     public static GameVersion DetectVersion(JsonObject desc)
     {
         if (desc.ContainsKey("useV43AltSurfaceSplineScale") && desc.ContainsKey("holes3")) return GameVersion.PGA2K25;
@@ -172,7 +192,20 @@ public sealed class CourseModel
             FlattenGreens = desc["flattenGreens"]?.GetValue<bool>() ?? false,
             BlurHeight = desc["blurHeight"]?.GetValue<bool>() ?? false,
             GreenSpeed = Num(desc["greenSpeed"], -1),
+            GreenFringeRadius = Num(desc["greenFringeRadius"], -1),
+            Atmosphere = ReadAtmosphere(desc),
         };
+    }
+
+    static Atmosphere? ReadAtmosphere(JsonObject desc)
+    {
+        if (desc["timeOfDay"] is null) return null;
+        var w = desc["weather3"];
+        static CloudLayer? Cloud(JsonNode? c) => c?["typeName"]?.GetValue<string>() is { Length: > 0 } type
+            ? new CloudLayer(type, Num(c["cloudiness"]), Num(c["scale"]), Num(c["definition"])) : null;
+        return new Atmosphere(Num(desc["timeOfDay"]), Num(desc["sunOrientation"]), Num(desc["sunInclination"]),
+            Num(w?["cloudHeight"]), Cloud(w?["cloudLayer1"]), Cloud(w?["cloudLayer2"]),
+            Num(w?["fogCeiling"]), Num(w?["fogDensity"]), Num(w?["haze"]), w?["rain"]?.GetValue<bool>() ?? false);
     }
 
     static List<Hole> ReadHoles(JsonArray? holes)
