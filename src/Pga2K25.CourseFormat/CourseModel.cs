@@ -149,6 +149,12 @@ public sealed class CourseModel
     /// <summary>The same <c>water[]</c> entries with both footprint axes (<see cref="WaterBrushes"/> keeps scale.x only).</summary>
     public IReadOnlyList<WaterPlane> Water { get; init; } = [];
 
+    /// <summary>
+    /// Spots the designer marked as dry in game though the model shows water (<see cref="NotWaterMarks"/>). Not in the
+    /// course file: products set it from NotWater.json in the output folder, and the water tracer drops those pieces.
+    /// </summary>
+    public IReadOnlyList<Vec2> NotWater { get; set; } = [];
+
     /// <summary>Distance markers with the game's ground height under each (empty in most files).</summary>
     public IReadOnlyList<DistanceMarker> DistanceMarkers { get; init; } = [];
     public bool FlattenGreens { get; init; }

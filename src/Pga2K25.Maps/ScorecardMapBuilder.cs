@@ -15,6 +15,7 @@ public static class ScorecardMapBuilder
         IEnumerable<MapThemeKind>? themes = null, bool pdf = false, float scale = 3, IProgress<string>? log = null)
     {
         var course = CourseFile.Load(coursePath).ReadModel();
+        course.NotWater = NotWaterMarks.Points(outputDir);
         var layers = CourseLayers.From(course);
         if (course.Water.Count > 0)
             layers.AddInlandWater(GreensBook.WaterTracer.Trace(course, new GreensBook.TerrainModelOptions { CellMetres = 0.5 }));

@@ -133,7 +133,7 @@ public partial class WorkspaceViewModel
 
     partial void OnPlacingNoteChanged(bool value)
     {
-        if (value) { ShowNotes = true; HoverText = "Click the map where the note belongs"; }
+        if (value) { MarkingNotWater = false; ShowNotes = true; HoverText = "Click the map where the note belongs"; }
     }
 
     partial void OnSelectedNoteChanged(NoteViewModel? oldValue, NoteViewModel? newValue)
@@ -232,9 +232,11 @@ public partial class WorkspaceViewModel
 
     public IReadOnlyList<MapPin> CurrentPins()
     {
-        if (_projection is null || !ShowNotes) return [];
-        return Notes.Select(n => new MapPin(n.Id, MapPx(new Vec2(n.Model.X, n.Model.Z)), n.Number.ToString(),
+        if (_projection is null) return [];
+        var pins = !ShowNotes ? [] : Notes.Select(n => new MapPin(n.Id, MapPx(new Vec2(n.Model.X, n.Model.Z)), n.Number.ToString(),
             Color.Parse(CourseNotes.ColourOf(n.Kind)), n.Callout)).ToList();
+        pins.AddRange(_notWater.Select((m, i) => new MapPin($"{NotWaterPin}{i}", MapPx(m.Point), "✕", Color.Parse("#1E4A70"), "Not water in game")));
+        return pins;
     }
 
     public string? SelectedPinId => SelectedNote?.Id;
@@ -468,6 +470,7 @@ public partial class WorkspaceViewModel
     /// <summary>A click on the map: drops a note while placing, otherwise clears the selection.</summary>
     public void MapClicked(Point px)
     {
+        if (MarkingNotWater) { MarkNotWater(px); return; }
         if (!PlacingNote) { SelectedNote = null; return; }
         if (_projection is null || !_mapRect.Contains(new SKPoint((float)px.X, (float)px.Y))) return;
         var w = _projection.Unmap(new SKPoint((float)px.X, (float)px.Y));
@@ -481,7 +484,11 @@ public partial class WorkspaceViewModel
         NoteEditorFocusRequested?.Invoke();
     }
 
-    public void PinClicked(string id) => SelectedNote = Notes.FirstOrDefault(n => n.Id == id);
+    public void PinClicked(string id)
+    {
+        if (id.StartsWith(NotWaterPin, StringComparison.Ordinal)) return;
+        SelectedNote = Notes.FirstOrDefault(n => n.Id == id);
+    }
 
     public void PinMoved(string id, Point px)
     {

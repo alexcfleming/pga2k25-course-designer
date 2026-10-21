@@ -138,6 +138,8 @@ public static class WaterTracer
         var comp = Label(ground, wet, out var sizes);
         DropSlivers(ground, planes, level, wet, depth, comp, sizes, o);
         comp = Label(ground, wet, out sizes);
+        // Pieces the designer marked dry in game go before any joining, so a marked piece can't pull a channel in either.
+        if (DropMarked(ground, course.NotWater, wet, depth, comp)) comp = Label(ground, wet, out sizes);
         var channel = JoinChannels(course, ground, level, wet, comp, sizes, o);
         comp = Label(ground, wet, out sizes);
 
@@ -327,6 +329,37 @@ public static class WaterTracer
     static (int, int)[] Neighbours(int ix, int iz) => [(ix + 1, iz), (ix - 1, iz), (ix, iz + 1), (ix, iz - 1)];
 
     /// <summary>4-connected components of the wet cells; -1 for dry.</summary>
+    /// <summary>
+    /// Dries every piece of water a "not water in game" mark falls in (<see cref="CourseModel.NotWater"/>). A mark
+    /// just off a shoreline still counts: the nearest wet cell within 3 m takes it.
+    /// </summary>
+    static bool DropMarked(Heightfield ground, IReadOnlyList<Vec2> marks, bool[] wet, double[] depth, int[] comp)
+    {
+        if (marks.Count == 0) return false;
+        int w = ground.Width, h = ground.Height;
+        int reach = Math.Max(1, (int)Math.Ceiling(3 / ground.Cell));
+        var drop = new HashSet<int>();
+        foreach (var m in marks)
+        {
+            int cx = (int)Math.Floor((m.X - ground.Origin.X) / ground.Cell), cz = (int)Math.Floor((m.Z - ground.Origin.Z) / ground.Cell);
+            int best = -1;
+            double bestD = double.MaxValue;
+            for (int dz = -reach; dz <= reach; dz++)
+                for (int dx = -reach; dx <= reach; dx++)
+                {
+                    int x = cx + dx, z = cz + dz;
+                    if (x < 0 || z < 0 || x >= w || z >= h || comp[z * w + x] < 0) continue;
+                    double d = dx * dx + dz * dz;
+                    if (d < bestD) { bestD = d; best = comp[z * w + x]; }
+                }
+            if (best >= 0) drop.Add(best);
+        }
+        if (drop.Count == 0) return false;
+        for (int k = 0; k < wet.Length; k++)
+            if (comp[k] >= 0 && drop.Contains(comp[k])) { wet[k] = false; depth[k] = 0; }
+        return true;
+    }
+
     static int[] Label(Heightfield ground, bool[] wet, out List<int> sizes)
     {
         int w = ground.Width, h = ground.Height;

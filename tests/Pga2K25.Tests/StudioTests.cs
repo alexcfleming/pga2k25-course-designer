@@ -40,6 +40,18 @@ public class StudioTests
     }
 
     [Fact]
+    public void NotWaterMarks_SaveThenLoad()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), $"studio-notwater-{Guid.NewGuid():N}");
+        Assert.Empty(Pga2K25.CourseFormat.NotWaterMarks.Load(dir));
+        Pga2K25.CourseFormat.NotWaterMarks.Save(dir, [new() { X = -697, Z = 594, Note = "path, dry in game" }, new() { X = 10.5, Z = -3 }]);
+        var back = Pga2K25.CourseFormat.NotWaterMarks.Points(dir);
+        Assert.Equal([new Pga2K25.CourseFormat.Vec2(-697, 594), new Pga2K25.CourseFormat.Vec2(10.5, -3)], back);
+        Assert.Equal("path, dry in game", Pga2K25.CourseFormat.NotWaterMarks.Load(dir)[0].Note);
+        Directory.Delete(dir, recursive: true);
+    }
+
+    [Fact]
     public void CourseLibrary_ReadsACourseWithoutChangingIt()
     {
         string path = Path.Combine(TestPaths.SamplesDir, "berwick-coast.course");

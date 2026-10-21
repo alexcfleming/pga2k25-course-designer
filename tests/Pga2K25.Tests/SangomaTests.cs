@@ -90,6 +90,37 @@ public class SangomaTests
     }
 
     [PrivateSampleFact(File)]
+    public void NotWaterMark_DropsTheStripBesideHole11sPond()
+    {
+        // In game the shallow strip west of the pond, along the path, is dry; the model floods it 0.6–1.8 m deep and
+        // joins it to the pond with a channel. Marking it leaves the pond and drops the strip and the channel.
+        var plane = Course.Value.Water[1];
+        var before = Water.Value.Bodies[Water.Value.BodyAt(plane.Position)];
+        Assert.True(before.ChannelMetres > 0);
+        var strip = new Vec2(-697, 594);
+        Assert.True(Water.Value.IsWet(strip));
+
+        var course = Load();
+        course.NotWater = [strip];
+        var marked = WaterTracer.Trace(course, new TerrainModelOptions { CellMetres = 0.5 });
+        Assert.False(marked.IsWet(strip));
+        var pond = marked.Bodies[marked.BodyAt(plane.Position)];
+        Assert.Equal(0, pond.ChannelMetres);
+        Assert.InRange(pond.AreaM2, 6500, 8500);
+        Assert.Equal(Water.Value.Bodies.Count, marked.Bodies.Count);                          // the other ponds stay
+        Assert.Equal(Water.Value.Bodies.Where(b => b != before).Sum(b => b.AreaM2), marked.Bodies.Where(b => b != pond).Sum(b => b.AreaM2), 0);
+    }
+
+    [PrivateSampleFact(File)]
+    public void NotWaterMark_OnDryGround_ChangesNothing()
+    {
+        var course = Load();
+        course.NotWater = [Course.Value.Holes[0].Tees[^1]];
+        var m = WaterTracer.Trace(course, new TerrainModelOptions { CellMetres = 0.5 });
+        Assert.Equal(Water.Value.Bodies.Select(b => Math.Round(b.AreaM2)), m.Bodies.Select(b => Math.Round(b.AreaM2)));
+    }
+
+    [PrivateSampleFact(File)]
     public void DistanceMarkers_StayOutOfTheWater()
     {
         // The markers sit on dry ground in game; only two, on the hole 4 pond's bank, land in the model's water, and
