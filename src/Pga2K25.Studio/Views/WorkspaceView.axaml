@@ -4,6 +4,29 @@
              xmlns:views="using:Pga2K25.Studio.Views"
              x:Class="Pga2K25.Studio.Views.WorkspaceView"
              x:DataType="vm:WorkspaceViewModel">
+  <UserControl.Resources>
+    <DataTemplate x:Key="ChecklistItemTemplate" x:DataType="vm:ChecklistItemViewModel">
+      <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,8">
+        <Grid ColumnDefinitions="128,*,Auto" ColumnSpacing="12">
+          <Button MinHeight="30" Padding="8,0" CornerRadius="999" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalAlignment="Top" FontSize="12.5"
+                  Content="{Binding Status}" Background="{Binding Fill}" Foreground="{Binding Ink}" BorderBrush="{Binding Edge}" Command="{Binding CycleCommand}"
+                  ToolTip.Tip="Click to cycle Open, Done, Deliberate, N/A" AutomationProperties.Name="{Binding Text}"/>
+          <StackPanel Grid.Column="1" Spacing="4">
+            <TextBlock Text="{Binding Text}" TextWrapping="Wrap"/>
+            <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="4">
+              <Border Classes="chip" BorderBrush="{StaticResource Control}" BorderThickness="1" Padding="8,1"><TextBlock Text="{Binding Source}" FontSize="11.5" Foreground="#3F4A43"/></Border>
+              <Border Classes="chip" Background="#E3EDF5" Padding="8,1" IsVisible="{Binding HasEvidence}"><TextBlock Text="{Binding Evidence}" FontSize="11.5" Foreground="#1E4A70" TextWrapping="Wrap"/></Border>
+            </WrapPanel>
+            <TextBox Text="{Binding Note}" PlaceholderText="Note" MinHeight="30"/>
+          </StackPanel>
+          <Button Grid.Column="2" Content="Remove" Command="{Binding RemoveCommand}" IsVisible="{Binding IsCustom}" MinHeight="28" Padding="10,0" VerticalAlignment="Top"/>
+        </Grid>
+      </Border>
+    </DataTemplate>
+    <DataTemplate x:Key="ToggleTemplate" x:DataType="vm:ToggleItemViewModel">
+      <ToggleButton Classes="pill" Content="{Binding Label}" IsChecked="{Binding IsOn}" MinHeight="30" Padding="10,0"/>
+    </DataTemplate>
+  </UserControl.Resources>
   <DockPanel>
     <!-- Title bar -->
     <Border DockPanel.Dock="Top" Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1" Padding="20,10">
@@ -835,6 +858,387 @@
               <TextBlock Text="{Binding PricesPath}" Classes="mono small" TextWrapping="Wrap"/>
             </StackPanel>
           </Border>
+        </StackPanel>
+      </ScrollViewer>
+
+      <!-- Publish readiness -->
+      <ScrollViewer Grid.Row="1" Grid.ColumnSpan="2" IsVisible="{Binding IsReadiness}" HorizontalScrollBarVisibility="Disabled">
+        <StackPanel Spacing="16" MaxWidth="1400" HorizontalAlignment="Left" DataContext="{Binding Readiness}" x:DataType="vm:ReadinessViewModel"
+                    IsVisible="{Binding $self.DataContext, Converter={x:Static ObjectConverters.IsNotNull}}">
+
+          <!-- Gate -->
+          <Border Classes="card" Padding="16">
+            <DockPanel>
+              <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+                <Button Content="Import checklist backup…" Click="ImportReadiness_Click"/>
+                <Button Content="Re-read course file" Command="{Binding RerunCommand}" IsEnabled="{Binding !Busy}"/>
+                <Button Classes="primary" Content="Export record" Command="{Binding ExportRecordCommand}" IsEnabled="{Binding HasReport}"/>
+              </StackPanel>
+              <StackPanel Spacing="6">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <Ellipse Width="12" Height="12" Fill="{Binding GateBrush}" VerticalAlignment="Center"/>
+                  <TextBlock Text="{Binding GateTitle}" FontSize="16" FontWeight="SemiBold"/>
+                </StackPanel>
+                <TextBlock Text="{Binding GateDetail}" Classes="muted" TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Border Width="320" Height="8" CornerRadius="4" Background="{StaticResource Tint}" HorizontalAlignment="Left">
+                    <Border Width="{Binding OverallWidth}" HorizontalAlignment="Left" CornerRadius="4" Background="{StaticResource Accent}"/>
+                  </Border>
+                  <TextBlock Text="{Binding OverallText}" Classes="mono small" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock Text="{Binding SourceText}" Classes="muted small" TextWrapping="Wrap"/>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <ProgressBar IsIndeterminate="True" Width="120" IsVisible="{Binding Busy}" VerticalAlignment="Center"/>
+                  <TextBlock Text="{Binding Message}" Foreground="{Binding MessageBrush}" TextWrapping="Wrap" MaxWidth="900"
+                             IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding ChoosingImport}">
+                  <ComboBox ItemsSource="{Binding ImportChoices}" SelectedItem="{Binding ImportChoice}" Width="280"/>
+                  <Button Classes="primary" Content="Import this course" Command="{Binding ImportChosenCommand}"/>
+                  <Button Content="Cancel" Command="{Binding CancelImportCommand}"/>
+                </StackPanel>
+              </StackPanel>
+            </DockPanel>
+          </Border>
+
+          <ItemsControl ItemsSource="{Binding TabButtons}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="6"/></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:TabViewModel">
+                <Button Classes="pill" Classes.selected="{Binding IsSelected}" Content="{Binding Label}" Command="{Binding SelectCommand}"/>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+
+          <!-- Overview -->
+          <Grid ColumnDefinitions="*,340" ColumnSpacing="16" IsVisible="{Binding IsOverview}">
+            <Border Classes="card" Padding="16" VerticalAlignment="Top">
+              <StackPanel Spacing="4">
+                <DockPanel Margin="0,0,0,6">
+                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+                    <Border Classes="chip" Background="{StaticResource AccentTint}"><TextBlock Text="{Binding PassCount}" FontSize="12" Foreground="{StaticResource AccentInk}"/></Border>
+                    <Border Classes="chip" Background="#F6E0DA"><TextBlock Text="{Binding OpenCount}" FontSize="12" Foreground="#8E2F1E"/></Border>
+                  </StackPanel>
+                  <TextBlock Classes="h2" Text="From the course file"/>
+                </DockPanel>
+                <ItemsControl ItemsSource="{Binding Findings}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:FindingViewModel">
+                      <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,10">
+                        <Grid ColumnDefinitions="96,*,Auto" ColumnSpacing="12">
+                          <Border Background="{Binding Fill}" CornerRadius="6" Padding="0,3" VerticalAlignment="Top">
+                            <TextBlock Text="{Binding Level}" Foreground="{Binding Ink}" FontSize="12" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                          </Border>
+                          <StackPanel Grid.Column="1" Spacing="3">
+                            <TextBlock Text="{Binding Title}" FontWeight="Medium" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding Detail}" Classes="muted" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding Rule}" Classes="muted small"/>
+                            <TextBox Text="{Binding Reason}" PlaceholderText="Why it's deliberate (kept with the mark)" IsVisible="{Binding CanMark}" Margin="0,4,0,0"/>
+                          </StackPanel>
+                          <StackPanel Grid.Column="2" Spacing="6" VerticalAlignment="Top">
+                            <Button Content="{Binding ShowLabel}" Command="{Binding ShowHoleCommand}" IsVisible="{Binding HasHole}" MinHeight="30" Padding="10,0"/>
+                            <Button Content="{Binding MarkLabel}" Command="{Binding MarkCommand}" IsVisible="{Binding CanMark}" MinHeight="30" Padding="10,0"/>
+                          </StackPanel>
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,10,0,0">
+                  <StackPanel Spacing="4">
+                    <TextBlock Text="PASSING" Classes="muted small"/>
+                    <ItemsControl ItemsSource="{Binding Passes}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                          <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="13" Margin="0,2"/>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                </Border>
+              </StackPanel>
+            </Border>
+
+            <StackPanel Grid.Column="1" Spacing="16">
+              <Border Classes="card" Padding="16">
+                <StackPanel Spacing="10">
+                  <TextBlock Classes="h2" Text="Progress by stage"/>
+                  <ItemsControl ItemsSource="{Binding Stages}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:StageRowViewModel">
+                        <StackPanel Spacing="3" Margin="0,0,0,10">
+                          <DockPanel>
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding Count}" Classes="mono small"/>
+                            <TextBlock Text="{Binding Title}"/>
+                          </DockPanel>
+                          <Border Width="260" Height="6" CornerRadius="3" Background="{StaticResource Tint}" HorizontalAlignment="Left">
+                            <Border Width="{Binding BarWidth}" HorizontalAlignment="Left" CornerRadius="3" Background="{Binding BarBrush}"/>
+                          </Border>
+                          <TextBlock Text="{Binding Note}" Classes="muted small" TextWrapping="Wrap"/>
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Border>
+              <Border Classes="card" Padding="16">
+                <StackPanel Spacing="10">
+                  <DockPanel>
+                    <TextBlock DockPanel.Dock="Right" Text="Principles §9, §11.4" Classes="muted small" VerticalAlignment="Bottom"/>
+                    <TextBlock Classes="h2" Text="Limits"/>
+                  </DockPanel>
+                  <TextBlock Classes="muted small" TextWrapping="Wrap" Text="Proposed values, not rules: change any for this course. Leave the test drive blank until it's measured."/>
+                  <ItemsControl ItemsSource="{Binding Limits}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate><UniformGrid Columns="2"/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:LimitRowViewModel">
+                        <StackPanel Spacing="2" Margin="0,0,8,8">
+                          <TextBlock Text="{Binding Label}" Classes="muted small" TextWrapping="Wrap"/>
+                          <TextBox Text="{Binding Value}"/>
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <Button Classes="primary" Content="Apply and re-check" Command="{Binding ApplyLimitsCommand}" IsEnabled="{Binding !Busy}"/>
+                    <Button Content="Defaults" Command="{Binding ResetLimitsCommand}" IsEnabled="{Binding !Busy}"/>
+                  </StackPanel>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </Grid>
+
+          <!-- By hole -->
+          <Border Classes="card" Padding="16" IsVisible="{Binding IsHoles}">
+            <StackPanel Spacing="10">
+              <DockPanel>
+                <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding HoleStageNames}" SelectedItem="{Binding HoleStageName}" Width="220"/>
+                <StackPanel Spacing="2">
+                  <TextBlock Classes="h2" Text="Hole by hole"/>
+                  <TextBlock Classes="muted small" TextWrapping="Wrap" Text="Shaded cells come from the course file and sit outside a limit. Click a status to cycle Open, Done, Deliberate, N/A."/>
+                  <TextBlock Classes="muted small" Text="{Binding HoleStageLede}"/>
+                </StackPanel>
+              </DockPanel>
+              <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                <StackPanel Spacing="2">
+                  <StackPanel Orientation="Horizontal" Spacing="4">
+                    <TextBlock Width="40" Text="Hole" Classes="muted small" VerticalAlignment="Bottom"/>
+                    <TextBlock Width="70" Text="Par · yds" Classes="muted small" VerticalAlignment="Bottom"/>
+                    <TextBlock Width="96" Text="Test drive" Classes="muted small" VerticalAlignment="Bottom"/>
+                    <TextBlock Width="122" Text="Green sq ft" Classes="muted small" VerticalAlignment="Bottom"/>
+                    <TextBlock Width="100" Text="Landing yds" Classes="muted small" VerticalAlignment="Bottom"/>
+                    <TextBlock Width="74" Text="Tee → green" Classes="muted small" VerticalAlignment="Bottom"/>
+                    <TextBlock Width="62" Text="Relief" Classes="muted small" VerticalAlignment="Bottom"/>
+                    <TextBlock Width="130" Text="Nearest other green" Classes="muted small" VerticalAlignment="Bottom"/>
+                    <TextBlock Width="64" Text="Size deliberate" Classes="muted small" TextWrapping="Wrap" VerticalAlignment="Bottom"/>
+                    <ItemsControl ItemsSource="{Binding HoleColumns}">
+                      <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4"/></ItemsPanelTemplate>
+                      </ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                          <TextBlock Width="96" Text="{Binding}" Classes="muted small" TextWrapping="Wrap" VerticalAlignment="Bottom"/>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </StackPanel>
+                  <ItemsControl ItemsSource="{Binding HoleRows}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:HoleRowViewModel">
+                        <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,3">
+                          <StackPanel Orientation="Horizontal" Spacing="4">
+                            <TextBlock Width="40" Text="{Binding Hole}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Width="70" Text="{Binding ParYards}" Classes="mono small" VerticalAlignment="Center"/>
+                            <Border Width="96" Background="{Binding DriveFill}" CornerRadius="4" Padding="6,4"><TextBlock Text="{Binding Drive}" Classes="mono small"/></Border>
+                            <Border Width="122" Background="{Binding GreenFill}" CornerRadius="4" Padding="6,4"><TextBlock Text="{Binding Green}" Classes="mono small"/></Border>
+                            <Border Width="100" Background="{Binding WidthFill}" CornerRadius="4" Padding="6,4"><TextBlock Text="{Binding Width}" Classes="mono small"/></Border>
+                            <Border Width="74" Background="{Binding ChangeFill}" CornerRadius="4" Padding="6,4"><TextBlock Text="{Binding Change}" Classes="mono small"/></Border>
+                            <Border Width="62" Background="{Binding ReliefFill}" CornerRadius="4" Padding="6,4"><TextBlock Text="{Binding Relief}" Classes="mono small"/></Border>
+                            <Border Width="130" Background="{Binding NearFill}" CornerRadius="4" Padding="6,4"><TextBlock Text="{Binding Near}" Classes="mono small"/></Border>
+                            <CheckBox Width="64" IsChecked="{Binding SizeDeliberate}" HorizontalAlignment="Center" ToolTip.Tip="Green size and landing width on this hole are deliberate"/>
+                            <ItemsControl ItemsSource="{Binding Cells}">
+                              <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4"/></ItemsPanelTemplate>
+                              </ItemsControl.ItemsPanel>
+                              <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:StatusCellViewModel">
+                                  <Button Width="96" MinHeight="28" Padding="4,0" CornerRadius="999" HorizontalContentAlignment="Center" FontSize="12"
+                                          Content="{Binding Label}" Background="{Binding Fill}" Foreground="{Binding Ink}" BorderBrush="{Binding Edge}"
+                                          Command="{Binding CycleCommand}" ToolTip.Tip="{Binding Tip}" AutomationProperties.Name="{Binding Tip}"/>
+                                </DataTemplate>
+                              </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                          </StackPanel>
+                        </Border>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <TextBlock Classes="muted small" Margin="0,6,0,0" TextWrapping="Wrap" Text="* the tee shot lands off the fairway; the nearest fairway's width is shown. Relief and tee → green come from the terrain model: confirm in game."/>
+                </StackPanel>
+              </ScrollViewer>
+            </StackPanel>
+          </Border>
+
+          <!-- Checklists -->
+          <Grid ColumnDefinitions="240,*" ColumnSpacing="16" IsVisible="{Binding IsChecklists}">
+            <Border Classes="card" Padding="10" VerticalAlignment="Top">
+              <ItemsControl ItemsSource="{Binding StageNav}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:StageNavViewModel">
+                    <Button Classes="nav" Classes.selected="{Binding IsSelected}" Command="{Binding SelectCommand}" Margin="0,1">
+                      <DockPanel>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding Detail}" Classes="mono small" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Title}"/>
+                      </DockPanel>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Border>
+            <Border Grid.Column="1" Classes="card" Padding="16">
+              <StackPanel Spacing="6">
+                <TextBlock Classes="h2" Text="{Binding StageTitle}"/>
+                <TextBlock Classes="muted small" Text="{Binding StageLede}" TextWrapping="Wrap"/>
+                <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource ChecklistItemTemplate}"/>
+                <DockPanel Margin="0,8,0,0">
+                  <Button DockPanel.Dock="Right" Content="Add check" Command="{Binding AddItemCommand}" Margin="8,0,0,0"/>
+                  <TextBox Text="{Binding NewItemText}" PlaceholderText="Add your own check to this stage"/>
+                </DockPanel>
+              </StackPanel>
+            </Border>
+          </Grid>
+
+          <!-- Pins and playtest -->
+          <StackPanel Spacing="16" IsVisible="{Binding IsPins}">
+            <Border Classes="card" Padding="16">
+              <StackPanel Spacing="8">
+                <TextBlock Classes="h2" Text="Pins"/>
+                <TextBlock Classes="muted small" TextWrapping="Wrap" Text="Where each pin sits comes from the file: front, centre or back along the approach, then left, centre or right. Click to set its difficulty: hard, medium, easy. Mix them up."/>
+                <TextBlock Text="{Binding PinTally}" Classes="mono small" TextWrapping="Wrap"/>
+                <ItemsControl ItemsSource="{Binding PinRows}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="18" LineSpacing="6"/></ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PinRowViewModel">
+                      <StackPanel Orientation="Horizontal" Spacing="4">
+                        <TextBlock Width="26" Text="{Binding Hole}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <ItemsControl ItemsSource="{Binding Pins}">
+                          <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4"/></ItemsPanelTemplate>
+                          </ItemsControl.ItemsPanel>
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:PinCellViewModel">
+                              <Button Width="68" MinHeight="40" Padding="2" HorizontalContentAlignment="Center" Background="{Binding Fill}" Foreground="{Binding Ink}"
+                                      Command="{Binding CycleCommand}" ToolTip.Tip="{Binding Tip}" AutomationProperties.Name="{Binding Tip}">
+                                <StackPanel>
+                                  <TextBlock Text="{Binding Position}" Classes="mono" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                                  <TextBlock Text="{Binding Difficulty}" FontSize="11" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                              </Button>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+            <Border Classes="card" Padding="16">
+              <StackPanel Spacing="8">
+                <TextBlock Classes="h2" Text="Playtest coverage"/>
+                <TextBlock Classes="muted small" TextWrapping="Wrap" Text="Goal: every wind direction at high intensity at least once with each player profile, and every tee set and pin played. Directions are the in-game setting: N blows from the south towards the north."/>
+                <ItemsControl ItemsSource="{Binding Profiles}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="16" LineSpacing="16"/></ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ProfileViewModel">
+                      <Border BorderBrush="{StaticResource Hairline}" BorderThickness="1" CornerRadius="8" Padding="12" Width="440">
+                        <StackPanel Spacing="8">
+                          <DockPanel>
+                            <TextBlock DockPanel.Dock="Right" Text="{Binding PrevailingText}" Classes="muted small" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                          </DockPanel>
+                          <UniformGrid Columns="3">
+                            <StackPanel Spacing="2" Margin="0,0,6,0"><TextBlock Text="Style" Classes="muted small"/><TextBox Text="{Binding Style}"/></StackPanel>
+                            <StackPanel Spacing="2" Margin="0,0,6,0"><TextBlock Text="Wind intensity" Classes="muted small"/><TextBox Text="{Binding Wind}"/></StackPanel>
+                            <StackPanel Spacing="2"><TextBlock Text="Player profile" Classes="muted small"/><TextBox Text="{Binding Player}"/></StackPanel>
+                          </UniformGrid>
+                          <TextBlock Text="Winds played" Classes="muted small"/>
+                          <ItemsControl ItemsSource="{Binding Winds}" ItemTemplate="{StaticResource ToggleTemplate}">
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="4" LineSpacing="4"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                          </ItemsControl>
+                          <TextBlock Text="Tee sets played" Classes="muted small"/>
+                          <ItemsControl ItemsSource="{Binding Tees}" ItemTemplate="{StaticResource ToggleTemplate}">
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="4" LineSpacing="4"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                          </ItemsControl>
+                          <TextBlock Text="Pins played" Classes="muted small"/>
+                          <ItemsControl ItemsSource="{Binding PinsPlayed}" ItemTemplate="{StaticResource ToggleTemplate}">
+                            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="4" LineSpacing="4"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                          </ItemsControl>
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+
+          <!-- Publish gate -->
+          <Grid ColumnDefinitions="*,380" ColumnSpacing="16" IsVisible="{Binding IsGate}">
+            <Border Classes="card" Padding="16" VerticalAlignment="Top">
+              <StackPanel Spacing="6">
+                <TextBlock Classes="h2" Text="Publish gate"/>
+                <TextBlock Classes="muted small" TextWrapping="Wrap" Text="Nothing goes out until every box here is done, the course-file checks are cleared or marked deliberate, and the sign-off is filled in."/>
+                <ItemsControl ItemsSource="{Binding GateItems}" ItemTemplate="{StaticResource ChecklistItemTemplate}"/>
+                <TextBlock Text="Still to do" Classes="muted small" Margin="0,10,0,0" IsVisible="{Binding !!Blockers.Count}"/>
+                <ItemsControl ItemsSource="{Binding Blockers}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="x:String"><TextBlock Text="{Binding}" Foreground="#8E2F1E" Margin="0,2"/></DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+            <StackPanel Grid.Column="1" Spacing="16">
+              <Border Classes="card" Padding="16">
+                <StackPanel Spacing="8">
+                  <TextBlock Classes="h2" Text="Sign-off"/>
+                  <StackPanel Spacing="2"><TextBlock Text="Designer" Classes="muted small"/><TextBox Text="{Binding Designer}"/></StackPanel>
+                  <StackPanel Spacing="2"><TextBlock Text="Version" Classes="muted small"/><TextBox Text="{Binding Version}"/></StackPanel>
+                  <StackPanel Spacing="2"><TextBlock Text="Tee set names, front to back" Classes="muted small"/><TextBox Text="{Binding TeeNames}" PlaceholderText="Red, Green, White, Blue"/></StackPanel>
+                  <StackPanel Spacing="2"><TextBlock Text="Signed off by" Classes="muted small"/><TextBox Text="{Binding SignName}"/></StackPanel>
+                  <StackPanel Spacing="2"><TextBlock Text="Date" Classes="muted small"/><TextBox Text="{Binding SignDate}" PlaceholderText="Year-month-day"/></StackPanel>
+                  <StackPanel Spacing="2"><TextBlock Text="Notes and known issues going out with this version" Classes="muted small"/>
+                    <TextBox Text="{Binding SignNotes}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="80"/></StackPanel>
+                  <Button Classes="primary" Content="Sign off this version" Command="{Binding SignOffCommand}" IsEnabled="{Binding HasReport}"/>
+                  <TextBlock Text="{Binding SignedStampText}" Classes="muted small" TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
+              <Border Classes="card" Padding="16">
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="h2" Text="Lighting from the file"/>
+                  <TextBlock Text="{Binding LightingText}" TextWrapping="Wrap"/>
+                  <TextBlock Classes="muted small" TextWrapping="Wrap" Text="Recorded each time the file is read, so the published course can be matched against it."/>
+                </StackPanel>
+              </Border>
+              <Border Classes="card" Padding="16">
+                <StackPanel Spacing="6">
+                  <TextBlock Classes="h2" Text="Files"/>
+                  <TextBlock Text="Progress (saved as you go)" Classes="muted small"/>
+                  <TextBlock Text="{Binding StatePath}" Classes="mono small" TextWrapping="Wrap"/>
+                  <Button Content="Show in folder" Command="{Binding OpenStateFileCommand}" HorizontalAlignment="Left"/>
+                  <TextBlock Classes="muted small" TextWrapping="Wrap" Text="Export record writes a dated HTML page and JSON of everything here into the output folder, as the record of the course."/>
+                </StackPanel>
+              </Border>
+            </StackPanel>
+          </Grid>
         </StackPanel>
       </ScrollViewer>
     </Grid>

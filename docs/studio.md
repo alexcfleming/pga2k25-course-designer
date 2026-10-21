@@ -50,6 +50,14 @@ The left-hand menu has the course's sections, its products with page counts, and
   - **Building:** use the viewer, the products panel, or **Build all products**.
 - **Measurements:** in-game measure-tool readings along the route, from the tee marker to the aim point and from the aim point to the green. The yards fill in from the course file. Heights can be typed as the tool shows them (`+13'6"`, `-0'7`, `13 ft 6 in`) or in decimal feet. Readings are saved to `Measurements.csv` in the course's output folder, in the same format as `samples/calibration/route-heights`.
 - **Course settings:** a hole-data workbook (tee and hole names, hazards) and a course-card settings file for this course.
+- **Publish readiness:** the QA and tour-readiness checklist for getting a course ready to publish (see [Publish readiness](readiness.md)). The checks re-run when the section first opens and on **Re-read course file**. Every change saves at once to `Readiness.json` beside the products.
+  - **Overview:** the publish gate and overall progress, the course-file findings and progress by stage. A Flag or High finding can be marked deliberate with its reason, and **Show hole** jumps to the hole on the terrain map. The limits can be edited here; **Apply and re-check** runs the checks again.
+  - **By hole:** the file's measures for every hole (test drive, green size, landing width, tee to green, green relief, nearest other green), with cells outside a limit shaded. Next to them sit the judgement calls for one stage (tour readiness, per-hole checks or planting passes), clicked through Open, Done, Deliberate, N/A. **Size deliberate** marks one hole's green size and landing width as deliberate.
+  - **Checklists:** the pre-build gate, the course-level tour checks, the build checks and the publish gate. Each item has its status, source, note, and, when the file answers it, the evidence. An item the file answers counts as done until you set it yourself. You can add your own checks.
+  - **Pins and playtest:** each pin's place on its green from the file, with its difficulty clicked through hard, medium, easy. Two playtest profiles track the winds played at high intensity, the tee sets and the pins.
+  - **Publish gate:** the publish items, what still blocks the gate, designer, version and tee names, the sign-off, and the lighting recorded from the file. **Sign off this version** ties the sign-off to the course file's fingerprint, so a later change re-opens the gate.
+  - **Import checklist backup…** reads the HTML checklist's Export backup and brings in the course of the same name, or asks which. It only fills what's still open or empty.
+  - **Export record** writes `<course> - Readiness record <date>.html` (printable) and `.json` into the output folder: the final record of the course.
 
 ## What a Build makes
 
