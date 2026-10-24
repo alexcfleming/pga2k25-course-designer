@@ -417,20 +417,14 @@ public sealed class TerrainSurvey
         return sum;
     }
 
-    /// <summary>The game's sea plane (world m): every plot has it, though it only shows where the ground dips below.</summary>
-    public const double SeaPlaneMetres = 0;
+    /// <inheritdoc cref="TerrainReplay.SeaPlaneMetres"/>
+    public const double SeaPlaneMetres = TerrainReplay.SeaPlaneMetres;
 
-    /// <summary>Sea level: the ocean props' height when the plot has any, otherwise the sea plane.</summary>
-    public static double DetectSeaLevel(CourseModel course) => OceanPropLevel(course) ?? SeaPlaneMetres;
+    /// <inheritdoc cref="TerrainReplay.DetectSeaLevel"/>
+    public static double DetectSeaLevel(CourseModel course) => TerrainReplay.DetectSeaLevel(course);
 
-    /// <summary>Median explicit height of the ocean props (wave, churn, impact), or null if there are none.</summary>
-    public static double? OceanPropLevel(CourseModel course)
-    {
-        var heights = course.PlacedObjects
-            .Where(p => p.Height is not null && p.AssetPath.Contains("Ocean", StringComparison.OrdinalIgnoreCase))
-            .Select(p => p.Height!.Value).Order().ToList();
-        return heights.Count == 0 ? null : heights[heights.Count / 2];
-    }
+    /// <inheritdoc cref="TerrainReplay.OceanPropLevel"/>
+    public static double? OceanPropLevel(CourseModel course) => TerrainReplay.OceanPropLevel(course);
 
     static List<List<Vec2>> Trace(Heightfield field, double level)
     {
