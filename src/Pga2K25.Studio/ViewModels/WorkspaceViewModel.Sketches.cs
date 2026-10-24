@@ -133,7 +133,7 @@ public partial class WorkspaceViewModel
 
     partial void OnPlacingNoteChanged(bool value)
     {
-        if (value) { MarkingNotWater = false; ShowNotes = true; HoverText = "Click the map where the note belongs"; }
+        if (value) { MarkingNotWater = false; SetRoutingTool(0); ShowNotes = true; HoverText = "Click the map where the note belongs"; }
     }
 
     partial void OnSelectedNoteChanged(NoteViewModel? oldValue, NoteViewModel? newValue)
@@ -471,6 +471,7 @@ public partial class WorkspaceViewModel
     public void MapClicked(Point px)
     {
         if (MarkingNotWater) { MarkNotWater(px); return; }
+        DeselectArrow();
         if (!PlacingNote) { SelectedNote = null; return; }
         if (_projection is null || !_mapRect.Contains(new SKPoint((float)px.X, (float)px.Y))) return;
         var w = _projection.Unmap(new SKPoint((float)px.X, (float)px.Y));

@@ -170,11 +170,53 @@
                             ToolTip.Tip="Then click the map where the note belongs"/>
               <ToggleButton Classes="pill" Content="Not water…" IsChecked="{Binding MarkingNotWater}" VerticalAlignment="Center" IsVisible="{Binding HasInlandWater}"
                             ToolTip.Tip="Then click a piece of modelled water that is dry in game: every product leaves it out"/>
+              <ToggleButton Classes="pill" Content="Routing test" IsChecked="{Binding RoutingTestOn}" VerticalAlignment="Center"
+                            ToolTip.Tip="Sketch a routing with par 3, 4 and 5 arrows and add up par and yards. Studio only: no product draws it."/>
               <Border Width="1" Height="22" Background="{StaticResource Hairline}" VerticalAlignment="Center" Margin="2,0"/>
               <Button Content="Hole view" Command="{Binding ShowHoleViewCommand}" IsEnabled="{Binding HasHole}" MinHeight="30" Padding="10,0"
                       VerticalAlignment="Center" ToolTip.Tip="Turn and zoom the map to the selected hole's sheet: tee at the bottom, green at the top"/>
               <Button Content="Whole map" Command="{Binding ShowWholeMapCommand}" MinHeight="30" Padding="10,0" VerticalAlignment="Center"
                       ToolTip.Tip="Back out to the whole map, north up"/>
+            </WrapPanel>
+          </Border>
+
+          <!-- Routing test tools: a par stays picked for repeated drops. -->
+          <Border DockPanel.Dock="Top" BorderBrush="#E6E9E3" BorderThickness="0,0,0,1" Padding="12,8" IsVisible="{Binding RoutingTestOn}">
+            <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="8">
+              <TextBlock Text="Routing test" Classes="muted small" VerticalAlignment="Center"/>
+              <ToggleButton Classes="pill" IsChecked="{Binding PlacingPar3}" VerticalAlignment="Center" AutomationProperties.Name="Place par 3 arrows"
+                            ToolTip.Tip="Press where the tee goes and drag toward the green">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Path Data="M0,4 H11 V1 L18,5 L11,9 V6 H0 Z" Fill="#2B6CA3" VerticalAlignment="Center"/>
+                  <TextBlock Text="Par 3 · 185" VerticalAlignment="Center"/>
+                </StackPanel>
+              </ToggleButton>
+              <ToggleButton Classes="pill" IsChecked="{Binding PlacingPar4}" VerticalAlignment="Center" AutomationProperties.Name="Place par 4 arrows"
+                            ToolTip.Tip="Press where the tee goes and drag toward the green">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Path Data="M0,4 H11 V1 L18,5 L11,9 V6 H0 Z" Fill="#C2641C" VerticalAlignment="Center"/>
+                  <TextBlock Text="Par 4 · 420" VerticalAlignment="Center"/>
+                </StackPanel>
+              </ToggleButton>
+              <ToggleButton Classes="pill" IsChecked="{Binding PlacingPar5}" VerticalAlignment="Center" AutomationProperties.Name="Place par 5 arrows"
+                            ToolTip.Tip="Press where the tee goes and drag toward the green">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <Path Data="M0,4 H11 V1 L18,5 L11,9 V6 H0 Z" Fill="#6A3D8F" VerticalAlignment="Center"/>
+                  <TextBlock Text="Par 5 · 545" VerticalAlignment="Center"/>
+                </StackPanel>
+              </ToggleButton>
+              <Border Width="1" Height="22" Background="{StaticResource Hairline}" VerticalAlignment="Center" Margin="2,0"/>
+              <Button Content="↺ 15°" Command="{Binding TurnArrowLeftCommand}" IsEnabled="{Binding HasArrowSelected}" MinHeight="30" Padding="10,0"
+                      VerticalAlignment="Center" AutomationProperties.Name="Turn the selected arrow 15 degrees anticlockwise"/>
+              <Button Content="↻ 15°" Command="{Binding TurnArrowRightCommand}" IsEnabled="{Binding HasArrowSelected}" MinHeight="30" Padding="10,0"
+                      VerticalAlignment="Center" AutomationProperties.Name="Turn the selected arrow 15 degrees clockwise"/>
+              <Button Content="Delete arrow" Command="{Binding DeleteArrowCommand}" IsEnabled="{Binding HasArrowSelected}" MinHeight="30" Padding="10,0"
+                      VerticalAlignment="Center" Foreground="#8E2F1E"/>
+              <Border Width="1" Height="22" Background="{StaticResource Hairline}" VerticalAlignment="Center" Margin="2,0"/>
+              <ToggleButton Classes="pill" Content="Walks" IsChecked="{Binding ShowWalks}" VerticalAlignment="Center"
+                            ToolTip.Tip="Dashed lines from each green to the next tee, with their yards"/>
+              <ToggleButton Classes="pill" Content="Ranges" IsChecked="{Binding ShowRanges}" VerticalAlignment="Center"
+                            ToolTip.Tip="The usual length for each par, as a band near the arrow head"/>
             </WrapPanel>
           </Border>
 
@@ -245,6 +287,92 @@
       <!-- Inspector -->
       <ScrollViewer Grid.Row="1" Grid.Column="1" IsVisible="{Binding IsTerrain}">
         <StackPanel Spacing="16">
+          <Border Classes="card" Padding="16" IsVisible="{Binding RoutingTestOn}">
+            <StackPanel Spacing="12">
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Right" Text="{Binding RoutingCount}" Classes="muted" VerticalAlignment="Bottom"/>
+                <TextBlock Text="Routing test" FontSize="20" FontWeight="SemiBold"/>
+              </DockPanel>
+              <UniformGrid Columns="2" ColumnSpacing="8">
+                <Border Background="{StaticResource Ground}" CornerRadius="8" Padding="10">
+                  <StackPanel><TextBlock Text="Total par" Classes="muted small"/><TextBlock Text="{Binding RoutingTotalPar}" FontSize="24" FontWeight="SemiBold"/></StackPanel>
+                </Border>
+                <Border Background="{StaticResource Ground}" CornerRadius="8" Padding="10">
+                  <StackPanel><TextBlock Text="Approx. yards" Classes="muted small"/><TextBlock Text="{Binding RoutingTotalYards}" FontSize="24" FontWeight="SemiBold"/></StackPanel>
+                </Border>
+              </UniformGrid>
+              <TextBlock Text="{Binding RoutingMix}" FontSize="13"/>
+              <TextBlock Text="{Binding RoutingNines}" Classes="muted small" TextWrapping="Wrap"
+                         IsVisible="{Binding RoutingNines, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+              <TextBlock Text="{Binding RoutingWalks}" Classes="muted small" TextWrapping="Wrap"/>
+              <StackPanel Spacing="2" IsVisible="{Binding HasRouting}">
+                <Grid ColumnDefinitions="48,34,44,58,*,Auto">
+                  <TextBlock Text="Hole" Classes="muted small"/>
+                  <TextBlock Grid.Column="1" Text="Par" Classes="muted small"/>
+                  <TextBlock Grid.Column="2" Text="Yds" Classes="muted small"/>
+                  <TextBlock Grid.Column="3" Text="Rise" Classes="muted small"/>
+                  <TextBlock Grid.Column="4" Text="Walk on" Classes="muted small"/>
+                </Grid>
+                <ItemsControl ItemsSource="{Binding RoutingRows}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:RoutingRowViewModel">
+                      <Border Background="{Binding Background}" CornerRadius="4">
+                        <Grid ColumnDefinitions="48,34,44,58,*,Auto">
+                          <Button Command="{Binding SelectCommand}" Background="Transparent" BorderThickness="0" Padding="2,0" MinHeight="28"
+                                  HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" AutomationProperties.Name="{Binding Number, StringFormat=Select hole {0}}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                              <Ellipse Width="10" Height="10" Fill="{Binding Dot}" VerticalAlignment="Center"/>
+                              <TextBlock Text="{Binding Number}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            </StackPanel>
+                          </Button>
+                          <TextBlock Grid.Column="1" Text="{Binding Par}" VerticalAlignment="Center"/>
+                          <TextBlock Grid.Column="2" Text="{Binding Yards}" VerticalAlignment="Center"/>
+                          <TextBlock Grid.Column="3" Text="{Binding Rise}" Classes="mono small" VerticalAlignment="Center"/>
+                          <TextBlock Grid.Column="4" Text="{Binding Walk}" Classes="mono small" VerticalAlignment="Center"/>
+                          <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="2">
+                            <Button Content="▲" Command="{Binding MoveUpCommand}" IsEnabled="{Binding CanMoveUp}" MinHeight="26" Width="26" Padding="0"
+                                    HorizontalContentAlignment="Center" FontSize="10" AutomationProperties.Name="{Binding UpName}" ToolTip.Tip="Number this hole one earlier"/>
+                            <Button Content="▼" Command="{Binding MoveDownCommand}" IsEnabled="{Binding CanMoveDown}" MinHeight="26" Width="26" Padding="0"
+                                    HorizontalContentAlignment="Center" FontSize="10" AutomationProperties.Name="{Binding DownName}" ToolTip.Tip="Number this hole one later"/>
+                            <Button Content="×" Command="{Binding RemoveCommand}" MinHeight="26" Width="26" Padding="0" HorizontalContentAlignment="Center"
+                                    Foreground="#8E2F1E" AutomationProperties.Name="{Binding RemoveName}"/>
+                          </StackPanel>
+                        </Grid>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+              <TextBlock Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding !HasRouting}"
+                         Text="No arrows yet. Pick Par 3, Par 4 or Par 5 above the map, press where the tee goes and drag toward the green."/>
+              <StackPanel Spacing="4">
+                <TextBlock Text="Arrow lengths (placeholders)" Classes="muted small"/>
+                <ItemsControl ItemsSource="{Binding RoutingLegend}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:RoutingLegendViewModel">
+                      <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,1">
+                        <Ellipse Width="10" Height="10" Fill="{Binding Dot}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding Text}" Classes="small" VerticalAlignment="Center"/>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Classes="muted small" TextWrapping="Wrap"
+                           Text="Drag an arrow to move it; drag the dashed circle at the selected arrow's head to aim it. One routing test per course, saved as you go."/>
+              </StackPanel>
+              <Button Content="Clear routing test" Command="{Binding AskClearRoutingCommand}" IsEnabled="{Binding HasRouting}"
+                      IsVisible="{Binding !ConfirmClearRouting}" HorizontalAlignment="Left" Foreground="#8E2F1E"/>
+              <Border IsVisible="{Binding ConfirmClearRouting}" Background="#F6E0DA" CornerRadius="8" Padding="10">
+                <DockPanel>
+                  <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+                    <Button Content="Clear" Command="{Binding ClearRoutingCommand}" Foreground="#8E2F1E"/>
+                    <Button Content="Cancel" Command="{Binding CancelClearRoutingCommand}"/>
+                  </StackPanel>
+                  <TextBlock Text="Delete every arrow? This can't be undone." TextWrapping="Wrap" VerticalAlignment="Center"/>
+                </DockPanel>
+              </Border>
+            </StackPanel>
+          </Border>
           <Border Classes="card" Padding="4">
             <Expander HorizontalAlignment="Stretch" Background="Transparent" BorderThickness="0" AutomationProperties.Name="Map options">
               <Expander.Header>
