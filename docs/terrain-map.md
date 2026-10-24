@@ -6,7 +6,9 @@ A single high-resolution, north-up PNG of a routed but unbuilt plot, made for pl
 dotnet run --project src/Pga2K25.Cli -- terrain samples/courses/sagan-khushun.course -o out --credit "NAME"
 ```
 
-The output is `<course> - Terrain Map.png`. At the default 4 px per metre, a 1.5 km routing gives roughly 7,000 × 6,500 px, which is about 28 × 26 in at 250 dpi. [Course Designer Studio](studio.md) draws this map live in its workspace and builds the PNG with the default options.
+The output is `<course> - Terrain Map.png`. At the default 4 px per metre, a 1.5 km routing gives roughly 7,000 × 6,500 px, which is about 28 × 26 in at 250 dpi. [Course Designer Studio](studio.md) draws this map live in its workspace and builds the PNG and the PDF with the default options.
+
+`--pdf` also writes `<course> - Terrain Map.pdf`, the same sheet drawn by the same code. Contours, routing, labels, grid and panel are vectors, so they stay sharp at any zoom or print size; only the relief or slope shading is an embedded image. The page is the PNG at `--print-dpi` (default 250): Sagan-Khushun's sheet is 28.2 × 25.8 in, and the PDF is about 4 MB against the PNG's 19 MB. A sheet that would pass PDF's 200 in page limit gets a higher dpi instead.
 
 ## What's on the sheet
 

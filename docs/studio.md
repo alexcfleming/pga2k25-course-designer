@@ -67,7 +67,7 @@ Products are written to `<output folder>\<course>\`:
 
 | Product | Studio builds |
 |---|---|
-| Terrain map | The course's saved map options. Defaults: the routing plus a 150 m margin, relief shading, Auto contours, 4 px/m |
+| Terrain map | The PNG and a PDF (vector contours and text, 250 dpi page) from the course's saved map options. Defaults: the routing plus a 150 m margin, relief shading, Auto contours, 4 px/m |
 | Hole sheets | Every hole: PNGs and one PDF. They use the map options for area, shading, layers and water; each sheet picks its own finer contour interval |
 | Greens book | The sheet, a study PNG per green, and the PDF |
 | Yardage book | The PDF and a PNG per hole; tee names from the workbook |

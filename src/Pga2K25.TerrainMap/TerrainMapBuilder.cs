@@ -4,11 +4,18 @@ using SkiaSharp;
 
 namespace Pga2K25.TerrainMap;
 
-public sealed record TerrainMapResult(string PngPath, SKSizeI Size, TerrainSurvey Survey);
+public sealed record TerrainMapResult(string PngPath, SKSizeI Size, TerrainSurvey Survey)
+{
+    /// <summary>The vector copy, when <see cref="TerrainMapOptions.Pdf"/> asked for one.</summary>
+    public string? PdfPath { get; init; }
+}
 
 public static class TerrainMapBuilder
 {
-    /// <summary>Writes "&lt;course&gt; - Terrain Map.png" to <paramref name="outputDir"/>.</summary>
+    /// <summary>PDF's largest page side, points (200 in).</summary>
+    const float MaxPdfPoints = 14400;
+
+    /// <summary>Writes "&lt;course&gt; - Terrain Map.png" (and .pdf, if asked) to <paramref name="outputDir"/>.</summary>
     public static TerrainMapResult Build(string coursePath, string outputDir, TerrainMapOptions options, IProgress<string>? log = null)
     {
         var course = CourseFile.Load(coursePath).ReadModel();
@@ -46,7 +53,40 @@ public static class TerrainMapBuilder
         using (var f = File.Create(path))
             data.SaveTo(f);
         log?.Report($"Terrain map ({size.Width:N0} × {size.Height:N0} px): {path}");
-        return new TerrainMapResult(path, size, survey);
+
+        string? pdfPath = null;
+        if (options.Pdf)
+        {
+            pdfPath = Path.ChangeExtension(path, ".pdf");
+            double dpi = WritePdf(pdfPath, course.Name, size, options, canvas => renderer.Draw(canvas, survey));
+            log?.Report($"Terrain map PDF ({size.Width / dpi:0.#} × {size.Height / dpi:0.#} in at {dpi:0} dpi): {pdfPath}");
+        }
+        return new TerrainMapResult(path, size, survey) { PdfPath = pdfPath };
+    }
+
+    /// <summary>
+    /// One page drawn by the same renderer, in pixels scaled to points: contours, routing, labels and the panel stay
+    /// vector, and only the shading is an image. Returns the dpi the page size came from.
+    /// </summary>
+    static double WritePdf(string path, string courseName, SKSizeI size, TerrainMapOptions options, Action<SKCanvas> draw)
+    {
+        double dpi = Math.Max(options.PrintDpi, Math.Max(size.Width, size.Height) * 72.0 / MaxPdfPoints);
+        float scale = (float)(72 / dpi);
+        using var stream = File.Create(path);
+        using var doc = SKDocument.CreatePdf(stream, new SKDocumentPdfMetadata
+        {
+            Title = $"{courseName} — Terrain map",
+            Author = options.Credit,
+            Creator = "PGA 2K25 Course Designer",
+            RasterDpi = (float)dpi,
+            EncodingQuality = 100,
+        });
+        var canvas = doc.BeginPage(size.Width * scale, size.Height * scale);
+        canvas.Scale(scale);
+        draw(canvas);
+        doc.EndPage();
+        doc.Close();
+        return dpi;
     }
 
     internal static string SiteNote(HoleRouting h) =>

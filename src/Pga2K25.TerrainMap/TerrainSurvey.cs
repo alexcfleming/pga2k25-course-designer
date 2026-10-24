@@ -106,6 +106,12 @@ public sealed record TerrainMapOptions
     public bool ShowsGreenSite(HoleRouting h) => ShowDrawnGreenSites || !h.GreenSiteIsDrawn;
 
     public string Credit { get; init; } = "";
+
+    /// <summary>Also write "&lt;course&gt; - Terrain Map.pdf": the same sheet, with contours, routing and text as vectors.</summary>
+    public bool Pdf { get; init; }
+
+    /// <summary>The PDF's page size: sheet pixels ÷ this = inches (raised if the page would pass PDF's 200 in limit).</summary>
+    public double PrintDpi { get; init; } = 250;
 }
 
 /// <summary>A traced contour in world coordinates.</summary>
