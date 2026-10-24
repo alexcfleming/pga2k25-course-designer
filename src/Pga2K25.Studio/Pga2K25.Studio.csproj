@@ -10,7 +10,12 @@
     <Version>1.7.1</Version>
     <Product>Course Designer Studio</Product>
     <Authors>Alex C. Fleming</Authors>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\app.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.3" />

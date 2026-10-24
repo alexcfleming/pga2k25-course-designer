@@ -4,6 +4,7 @@
         xmlns:views="using:Pga2K25.Studio.Views"
         x:Class="Pga2K25.Studio.Views.MainWindow"
         x:DataType="vm:MainViewModel"
+        Icon="avares://CourseDesignerStudio/Assets/app.ico"
         Title="Course Designer" Width="1440" Height="920" MinWidth="960" MinHeight="640"
         Background="{StaticResource Ground}">
   <Window.DataTemplates>
