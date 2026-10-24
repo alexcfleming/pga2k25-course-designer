@@ -121,4 +121,69 @@ public class ScorecardMapTests
             if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
         }
     }
+
+    [Fact]
+    public void Illustrated_IsVintageWithTheLandscape()
+    {
+        var (v, i) = (MapTheme.Vintage, MapTheme.Illustrated);
+        Assert.True(i.Landscape);
+        Assert.False(v.Landscape);
+        Assert.Equal((v.Background, v.Ink, v.GrassFill, v.GreenFill, v.BunkerFill), (i.Background, i.Ink, i.GrassFill, i.GreenFill, i.BunkerFill));
+        Assert.Same(i, MapTheme.For(MapThemeKind.Illustrated));
+    }
+
+    static Landscape LandscapeOf(string sample)
+    {
+        var course = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, sample)).ReadModel();
+        var layers = CourseLayers.From(course);
+        var rect = new SKRect(40, 40, 794, 810);
+        var proj = MapProjection.Fit(layers.ExtentPoints().ToList(), rect, MapProjection.NorthUpRotation);
+        return Landscape.Build(course, proj, rect);
+    }
+
+    [Fact]
+    public void Landscape_Cassimbo_HasSeaLinesBushStippleAndHillsButNoTrees()
+    {
+        using var l = LandscapeOf("cassimbo.course");
+        Assert.NotEmpty(l.WaterLines);     // the sea off the west of the links
+        Assert.True(l.Bushes.Count > 1000);
+        Assert.Empty(l.Trees);
+        Assert.True(l.HasHills);
+        Assert.All(l.Hachures, h => Assert.InRange(h.Width, 0.18f, 0.55f));
+    }
+
+    [Fact]
+    public void Landscape_InlandCourse_HasNoSeaLines()
+    {
+        // Murray Estate's ground never reaches the sea plane.
+        using var l = LandscapeOf("murray-estate.course");
+        Assert.Empty(l.WaterLines);
+    }
+
+    [Fact]
+    public void Build_Illustrated_WritesItsOwnFilesWithTheLandscapeDrawn()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "pga2k25-maps-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            string path = Path.Combine(TestPaths.SamplesDir, "cassimbo.course");
+            var result = ScorecardMapBuilder.Build(path, dir, new ScorecardMapOptions(), [MapThemeKind.Vintage, MapThemeKind.Illustrated], pdf: true, scale: 1);
+            Assert.Contains(result.Files, f => f.EndsWith("Scorecard Map (Illustrated).png"));
+            Assert.Contains(result.Files, f => f.EndsWith("Scorecard Map (Illustrated).pdf"));
+            // Same page, less bare parchment: the hachures, bushes and sea lines.
+            static int Bare(string png)
+            {
+                var bg = MapTheme.Vintage.Background;
+                using var bmp = SKBitmap.Decode(png);
+                return bmp.Pixels.Count(c => Math.Abs(c.Red - bg.Red) + Math.Abs(c.Green - bg.Green) + Math.Abs(c.Blue - bg.Blue) < 6);
+            }
+            int vintage = Bare(result.Files.Single(f => f.EndsWith("(Vintage).png")));
+            int illustrated = Bare(result.Files.Single(f => f.EndsWith("(Illustrated).png")));
+            Assert.True(illustrated < vintage * 0.9, $"bare parchment: illustrated {illustrated:N0} px vs vintage {vintage:N0} px");
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
 }

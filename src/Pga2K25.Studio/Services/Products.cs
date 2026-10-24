@@ -58,12 +58,12 @@ public static class Products
         {
             var data = c.Extras.Workbook is { } wb && File.Exists(wb) ? HoleData.Load(wb) : null;
             var options = new ScorecardMapOptions { Data = data, Credit = c.Settings.Credit };
-            return ScorecardMapBuilder.Build(c.CoursePath, c.OutputDir, options, [MapThemeKind.Vintage, MapThemeKind.Modern], pdf: true, log: c.Log)
+            return ScorecardMapBuilder.Build(c.CoursePath, c.OutputDir, options, Enum.GetValues<MapThemeKind>(), pdf: true, log: c.Log)
                 .Files.FirstOrDefault();
         })
         {
-            Pages = ["{0} - Scorecard Map (Vintage).png", "{0} - Scorecard Map (Modern).png"],
-            Pdfs = ["{0} - Scorecard Map (Vintage).pdf", "{0} - Scorecard Map (Modern).pdf"],
+            Pages = ["{0} - Scorecard Map (Vintage).png", "{0} - Scorecard Map (Modern).png", "{0} - Scorecard Map (Illustrated).png"],
+            Pdfs = ["{0} - Scorecard Map (Vintage).pdf", "{0} - Scorecard Map (Modern).pdf", "{0} - Scorecard Map (Illustrated).pdf"],
         },
         new("Course cards", " - Course Data Card.png", c =>
         {

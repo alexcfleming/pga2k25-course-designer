@@ -8,7 +8,7 @@ dotnet run --project src/Pga2K25.Cli -- scorecard "path/to/course.course" -o out
 
 Options:
 
-- `--theme vintage|modern|both` (default `both`)
+- `--theme vintage|modern|illustrated|both|all` (default `all`; `both` is Vintage and Modern)
 - `--landscape` / `--portrait` (default: whichever fits better)
 - `--north-up`: disable auto-rotation
 - `--data holes.xlsx|.csv`: designer hole data. It supplies only what the course file lacks (tee set names). The course file is always treated as the most correct source for pars and yardages; any disagreement is logged, never applied.
@@ -18,20 +18,34 @@ Options:
 - `--pdf`
 - `--credit "NAME"`, `--subtitle "TEXT"`
 
-[Course Designer Studio](studio.md) builds both themes as PNG and PDF, using the course's hole-data workbook if one is set. The other options are on the command line.
+[Course Designer Studio](studio.md) builds all three themes as PNG and PDF, using the course's hole-data workbook if one is set. The other options are on the command line.
 
 ## Themes
 
-| | Vintage | Modern |
-|---|---|---|
-| Inspired by | Engraved course guides (e.g. the Sand Valley / Lido card) | Contemporary flat illustrations (e.g. the ClubTFE Lido map) |
-| Ground | Parchment `#ebe0c2`, double ink frame | Sand `#f6e7ba` |
-| Fairway / tee corridor | Parchment fill with an ink outline around the union of shapes | Flat green `#adbb69` |
-| Greens | Darker parchment, ink outline | Dark green `#3b481c` |
-| Bunkers | Solid ink | Orange `#d98b3a` |
-| Waste areas (optional) | Ink stipple | Tan with orange stipple |
-| Ball flight | Dashed ink, back tee → aim points → green | Thin solid line |
-| Hole numbers | Circled, on the middle of the hole | Bold on a soft disc, on the middle of the hole |
+| | Vintage | Modern | Illustrated |
+|---|---|---|---|
+| Inspired by | Engraved course guides (e.g. the Sand Valley / Lido card) | Contemporary flat illustrations (e.g. the ClubTFE Lido map) | Old engraved estate maps |
+| Ground | Parchment `#ebe0c2`, double ink frame | Sand `#f6e7ba` | As Vintage, with the landscape below |
+| Fairway / tee corridor | Parchment fill with an ink outline around the union of shapes | Flat green `#adbb69` | As Vintage |
+| Greens | Darker parchment, ink outline | Dark green `#3b481c` | As Vintage |
+| Bunkers | Solid ink | Orange `#d98b3a` | As Vintage |
+| Waste areas (optional) | Ink stipple | Tan with orange stipple | As Vintage |
+| Ball flight | Dashed ink, back tee → aim points → green | Thin solid line | As Vintage |
+| Hole numbers | Circled, on the middle of the hole | Bold on a soft disc, on the middle of the hole | As Vintage |
+| North | Small arrow | Small arrow | 32-point compass rose |
+
+## Illustrated landscape
+
+The Illustrated theme is Vintage with the land around the holes drawn like an old engraved map (`Landscape`). Everything comes from the course file, and the course is drawn on top, so fairways, greens and bunkers stay clean.
+
+- **Hills:** hachures, short strokes running downhill, from the replayed terrain (2 m cells, as on the terrain map). Slope is measured across 24 m and drawn only above 11 %, so dune humps and gentle ground stay quiet and the big landforms show. Steeper ground gets longer, heavier, darker strokes.
+- **Sea:** engraved water lines below the sea level (ocean props' height, else the game's 0 m sea plane): every row in the shallows, every second below 2 m, every third below 6 m. Ponds and creeks keep Vintage's hatch.
+- **Trees:** every placed object under `/Trees/` is a canopy (a centre puff and four lobes) sized by its scale, with a shadow to the lower right, drawn back to front so woods read as massed crowns. Sagan-Khushun has 3,045.
+- **Bushes:** a stipple dot per `/Bushes/` object (Cassimbo has 4,810).
+- **Compass rose:** turned to game north, in whichever of the top-left, top-right and bottom-right map corners has the least of the course near it. The scale bar gets a parchment panel.
+- **Legend:** adds Trees and Hills when the course has them.
+
+The landscape is built once per map and shared by the PNG and the PDF. On Sagan-Khushun and Cassimbo, the Illustrated map builds in about 12 seconds. Its PDF is 6–7 MB, because every hachure is a vector stroke.
 
 ## Layout
 

@@ -152,6 +152,21 @@ public static class TerrainReplay
         return field;
     }
 
+    /// <summary>The game's sea plane (world m): every plot has it, though it only shows where the ground dips below.</summary>
+    public const double SeaPlaneMetres = 0;
+
+    /// <summary>Sea level: the ocean props' height when the plot has any, otherwise the sea plane.</summary>
+    public static double DetectSeaLevel(CourseModel course) => OceanPropLevel(course) ?? SeaPlaneMetres;
+
+    /// <summary>Median explicit height of the ocean props (wave, churn, impact), or null if there are none.</summary>
+    public static double? OceanPropLevel(CourseModel course)
+    {
+        var heights = course.PlacedObjects
+            .Where(p => p.Height is not null && p.AssetPath.Contains("Ocean", StringComparison.OrdinalIgnoreCase))
+            .Select(p => p.Height!.Value).Order().ToList();
+        return heights.Count == 0 ? null : heights[heights.Count / 2];
+    }
+
     /// <summary>True when a stamp's centre was clamped to the plot edge (see <see cref="TerrainModelOptions.SkipEdgeStamps"/>).</summary>
     public static bool IsOnPlotEdge(HeightStamp s, double plotHalfMetres = 1000) =>
         Math.Max(Math.Abs(s.Position.X), Math.Abs(s.Position.Z)) >= plotHalfMetres - 0.1;

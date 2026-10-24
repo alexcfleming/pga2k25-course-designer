@@ -2,7 +2,7 @@ using SkiaSharp;
 
 namespace Pga2K25.Maps;
 
-public enum MapThemeKind { Vintage, Modern }
+public enum MapThemeKind { Vintage, Modern, Illustrated }
 
 /// <summary>Colours, strokes and type for a scorecard map style.</summary>
 public sealed record MapTheme
@@ -32,6 +32,10 @@ public sealed record MapTheme
     public required bool Frame { get; init; }
     public required string[] TitleFonts { get; init; }
     public required string[] BodyFonts { get; init; }
+    /// <summary>Draw the engraved landscape (<see cref="Maps.Landscape"/>) under the course, with a compass rose.</summary>
+    public bool Landscape { get; init; }
+    /// <summary>Tree canopy fill when <see cref="Landscape"/> is on.</summary>
+    public SKColor CrownFill { get; init; } = SKColor.Parse("#efe6cb");
 
     /// <summary>Ink on parchment, after classic course-guide engravings (e.g. the Lido card).</summary>
     public static MapTheme Vintage { get; } = new()
@@ -86,5 +90,13 @@ public sealed record MapTheme
         BodyFonts = ["Segoe UI", "Arial"],
     };
 
-    public static MapTheme For(MapThemeKind kind) => kind == MapThemeKind.Vintage ? Vintage : Modern;
+    /// <summary>Vintage with the land drawn like an old engraved map: hachured hills, trees, bushes and the sea.</summary>
+    public static MapTheme Illustrated { get; } = Vintage with { Kind = MapThemeKind.Illustrated, Name = "Illustrated", Landscape = true };
+
+    public static MapTheme For(MapThemeKind kind) => kind switch
+    {
+        MapThemeKind.Modern => Modern,
+        MapThemeKind.Illustrated => Illustrated,
+        _ => Vintage,
+    };
 }

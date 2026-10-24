@@ -45,6 +45,8 @@ public sealed class ScorecardMapRenderer : IDisposable
     readonly MapTheme _t;
     readonly ScorecardMapOptions _o;
     readonly SKTypeface _title, _body, _bodyBold, _italic;
+    // The Illustrated landscape, built on the first draw and reused (PNG and PDF share a renderer).
+    Landscape? _landscape;
 
     public ScorecardMapRenderer(ScorecardMapOptions options)
     {
@@ -61,7 +63,7 @@ public sealed class ScorecardMapRenderer : IDisposable
         families.FirstOrDefault(f => string.Equals(SKTypeface.FromFamilyName(f)?.FamilyName, f, StringComparison.OrdinalIgnoreCase))
         ?? SKTypeface.Default.FamilyName;
 
-    public void Dispose() { _title.Dispose(); _body.Dispose(); _bodyBold.Dispose(); _italic.Dispose(); }
+    public void Dispose() { _title.Dispose(); _body.Dispose(); _bodyBold.Dispose(); _italic.Dispose(); _landscape?.Dispose(); }
 
     /// <summary>Chooses page orientation and rotation, returning the page size in logical units.</summary>
     public (SKSize Page, bool Landscape, double Rotation) Plan(CourseLayers layers)
@@ -94,13 +96,16 @@ public sealed class ScorecardMapRenderer : IDisposable
         canvas.Clear(_t.Background);
         var mapRect = MapRect(page, landscape);
         var proj = MapProjection.Fit(layers.ExtentPoints().ToList(), mapRect, rotation);
+        if (_t.Landscape) _landscape ??= Landscape.Build(course, proj, mapRect);
 
         canvas.Save();
         canvas.ClipRect(mapRect);
+        _landscape?.Draw(canvas, _t.Ink, _t.CrownFill);
         DrawCourse(canvas, layers, proj);
         canvas.Restore();
         DrawHoleNumbers(canvas, layers, proj, mapRect);
-        DrawNorthArrow(canvas, proj, new SKPoint(mapRect.Left + 24, mapRect.Bottom - 34));
+        if (_t.Landscape) DrawCompassRose(canvas, proj, RoseCorner(layers, proj, mapRect), 34);
+        else DrawNorthArrow(canvas, proj, new SKPoint(mapRect.Left + 24, mapRect.Bottom - 34));
         DrawScaleBar(canvas, proj, new SKPoint(mapRect.Left + 56, mapRect.Bottom - 12));
 
         if (landscape)
@@ -200,12 +205,12 @@ public sealed class ScorecardMapRenderer : IDisposable
             using var road = Stroke(_t.RoadColour, 1);
             foreach (var r in l.TrimToPlay(l.Roads, _o.PathReachMetres)) { road.StrokeWidth = Math.Max(1f, (float)(r.Width * k)); using var path = p.Path(r.Points, false); canvas.DrawPath(path, road); }
             using var cart = Stroke(_t.PathColour, 1);
-            if (_t.Kind == MapThemeKind.Vintage) cart.PathEffect = SKPathEffect.CreateDash([1.5f, 1.5f], 0);
+            if (_t.Kind != MapThemeKind.Modern) cart.PathEffect = SKPathEffect.CreateDash([1.5f, 1.5f], 0);
             foreach (var r in l.TrimToPlay(l.Paths, _o.PathReachMetres)) { cart.StrokeWidth = Math.Max(0.6f, (float)(r.Width * k)); using var path = p.Path(r.Points, false); canvas.DrawPath(path, cart); }
         }
 
         // Ball-flight routes: back tee → aim points → green.
-        using var route = Stroke(_t.RouteColour, _t.Kind == MapThemeKind.Vintage ? 0.8f : 0.7f);
+        using var route = Stroke(_t.RouteColour, _t.Kind != MapThemeKind.Modern ? 0.8f : 0.7f);
         if (_t.RouteDash is { } dash) route.PathEffect = SKPathEffect.CreateDash(dash, 0);
         foreach (var h in l.Holes) { using var path = p.Path(h.Route, false); canvas.DrawPath(path, route); }
     }
@@ -298,7 +303,7 @@ public sealed class ScorecardMapRenderer : IDisposable
 
     float DrawTitle(SKCanvas canvas, string name, float x, float y, float width)
     {
-        bool vintage = _t.Kind == MapThemeKind.Vintage;
+        bool vintage = _t.Kind != MapThemeKind.Modern;
         string title = vintage ? name.ToUpperInvariant() : name;
         float size = vintage ? 26 : 28;
         // Long names break onto a second line at the space nearest the middle, then shrink if still too wide.
@@ -357,7 +362,7 @@ public sealed class ScorecardMapRenderer : IDisposable
             float ColRight(int i) => r.Left + holeW + teeW * (i + 1) - 6;
             float parRight = r.Right - 8;
             int rows = block.Count + (grandTotal ? 3 : 2);
-            using var line = Stroke(_t.Kind == MapThemeKind.Vintage ? _t.Ink : _t.MutedInk.WithAlpha(160), 0.7f);
+            using var line = Stroke(_t.Kind != MapThemeKind.Modern ? _t.Ink : _t.MutedInk.WithAlpha(160), 0.7f);
             if (_t.Kind == MapThemeKind.Modern)
             {
                 using var box = Fill(_t.Background);
@@ -393,7 +398,7 @@ public sealed class ScorecardMapRenderer : IDisposable
             Row(totalLabel, i => block.Sum(h => yards(h, i)), block.Sum(h => h.Par), true);
             if (grandTotal) Row("Total", i => holes.Sum(h => yards(h, i)), holes.Sum(h => h.Par), true);
 
-            using var frame = Stroke(_t.Kind == MapThemeKind.Vintage ? _t.Ink : _t.MutedInk, 0.9f);
+            using var frame = Stroke(_t.Kind != MapThemeKind.Modern ? _t.Ink : _t.MutedInk, 0.9f);
             canvas.DrawRect(new SKRect(r.Left, r.Top - 2, r.Right, y + 2), frame);
             canvas.DrawLine(r.Left + holeW, r.Top - 2, r.Left + holeW, y + 2, line);
             canvas.DrawLine(r.Right - parW, r.Top - 2, r.Right - parW, y + 2, line);
@@ -438,6 +443,76 @@ public sealed class ScorecardMapRenderer : IDisposable
         if (_o.ShowWaste)
             Swatch(b => { canvas.Save(); canvas.ClipRect(b); canvas.SaveLayer(); using var f = Fill(_t.WasteFill); canvas.DrawRect(b, f); Stipple(canvas, b, _t.WasteStipple, 2.6f, 0.5f); canvas.Restore(); canvas.Restore(); }, "Waste area");
         Swatch(b => { using var s = Stroke(_t.RouteColour, 0.9f); if (_t.RouteDash is { } d) s.PathEffect = SKPathEffect.CreateDash(d, 0); canvas.DrawLine(b.Left, b.MidY, b.Right, b.MidY, s); }, "Ball flight");
+        if (_landscape is { Trees.Count: > 0 })
+            Swatch(b =>
+            {
+                using var shadow = Fill(_t.Ink.WithAlpha(150));
+                using var crown = Fill(_t.CrownFill);
+                using var edge = Stroke(_t.Ink, 0.5f);
+                foreach (var (x, r) in new[] { (b.Left + 5f, 4.2f), (b.Left + 13f, 5f) })
+                {
+                    canvas.DrawCircle(x + r * 0.35f, b.MidY + r * 0.4f, r, shadow);
+                    canvas.DrawCircle(x, b.MidY, r, crown);
+                    canvas.DrawCircle(x, b.MidY, r, edge);
+                }
+            }, "Trees");
+        if (_landscape is { HasHills: true })
+            Swatch(b =>
+            {
+                using var s = Stroke(_t.Ink, 0.45f);
+                for (float x = b.Left + 2; x < b.Right - 1; x += 2.6f) canvas.DrawLine(x, b.Top + 1, x + 0.6f, b.Bottom - 1, s);
+            }, "Hills");
+    }
+
+    /// <summary>
+    /// The map corner (top left, top right or bottom right; the scale bar has bottom left) with the least of the
+    /// course near it, for the compass rose.
+    /// </summary>
+    static SKPoint RoseCorner(CourseLayers l, MapProjection p, SKRect map)
+    {
+        const float inset = 50;
+        SKPoint[] corners = [new(map.Left + inset, map.Top + inset), new(map.Right - inset, map.Top + inset), new(map.Right - inset, map.Bottom - inset)];
+        var play = l.Grass.Concat(l.Greens).SelectMany(s => s).Concat(l.Holes.SelectMany(h => h.Route)).Select(p.Map).ToList();
+        return corners.MinBy(c => play.Count(q => Math.Abs(q.X - c.X) < inset + 20 && Math.Abs(q.Y - c.Y) < inset + 20));
+    }
+
+    /// <summary>A 32-point engraved compass rose turned to game north, on a parchment disc.</summary>
+    void DrawCompassRose(SKCanvas canvas, MapProjection p, SKPoint at, float r)
+    {
+        var d = p.MapDirection(MapProjection.North);
+        float north = (float)(Math.Atan2(d.Y, d.X) * 180 / Math.PI + 90);
+        canvas.Save();
+        canvas.Translate(at);
+        using var ring = Stroke(_t.Ink, 0.6f);
+        ring.StrokeCap = SKStrokeCap.Butt;
+        using (var disc = Fill(_t.Background)) canvas.DrawCircle(0, 0, r * 0.98f, disc);
+        canvas.DrawCircle(0, 0, r * 0.98f, ring);
+        canvas.DrawCircle(0, 0, r * 0.9f, ring);
+        for (int i = 0; i < 32; i++)
+        {
+            float a = (float)(i * Math.PI / 16);
+            float inner = i % 8 == 0 ? 0.8f : i % 4 == 0 ? 0.84f : 0.87f;
+            canvas.DrawLine(r * inner * MathF.Sin(a), -r * inner * MathF.Cos(a), r * 0.9f * MathF.Sin(a), -r * 0.9f * MathF.Cos(a), ring);
+        }
+        canvas.RotateDegrees(north);
+        using var dark = Fill(_t.Ink);
+        using var light = Fill(_t.Background);
+        using var edge = Stroke(_t.Ink, 0.4f);
+        // Long cardinal points over short ordinal ones; each point half light, half dark.
+        foreach (var (len, wid, deg) in new[] { (0.62f, 0.12f, 45f), (0.62f, 0.12f, 135f), (0.62f, 0.12f, 225f), (0.62f, 0.12f, 315f),
+                                                (0.82f, 0.17f, 0f), (0.82f, 0.17f, 90f), (0.82f, 0.17f, 180f), (0.82f, 0.17f, 270f) })
+        {
+            canvas.Save();
+            canvas.RotateDegrees(deg);
+            using var left = new SKPath(); left.MoveTo(0, -r * len); left.LineTo(-r * wid, 0); left.LineTo(0, 0); left.Close();
+            using var right = new SKPath(); right.MoveTo(0, -r * len); right.LineTo(r * wid, 0); right.LineTo(0, 0); right.Close();
+            canvas.DrawPath(left, light);
+            canvas.DrawPath(left, edge);
+            canvas.DrawPath(right, dark);
+            canvas.Restore();
+        }
+        Text(canvas, "N", 0, -r * 1.06f, r * 0.28f, _bodyBold, _t.Ink, SKTextAlign.Center);
+        canvas.Restore();
     }
 
     void DrawNorthArrow(SKCanvas canvas, MapProjection p, SKPoint at)
@@ -462,6 +537,15 @@ public sealed class ScorecardMapRenderer : IDisposable
     void DrawScaleBar(SKCanvas canvas, MapProjection p, SKPoint at)
     {
         float hundred = (float)(100 * Yard * p.PointsPerMetre);
+        // On the Illustrated landscape the bar sits on a parchment panel so trees and hachures don't swallow it.
+        if (_t.Landscape)
+        {
+            var panel = new SKRect(at.X - 8, at.Y - 16, at.X + 2 * hundred + 40, at.Y + 8);
+            using var bg = Fill(_t.Background);
+            canvas.DrawRoundRect(panel, 3, 3, bg);
+            using var edge = Stroke(_t.Ink, 0.5f);
+            canvas.DrawRoundRect(panel, 3, 3, edge);
+        }
         using var s = Stroke(_t.Ink, 0.9f);
         canvas.DrawLine(at.X, at.Y, at.X + 2 * hundred, at.Y, s);
         for (int i = 0; i <= 2; i++) canvas.DrawLine(at.X + i * hundred, at.Y - 3, at.X + i * hundred, at.Y + 3, s);

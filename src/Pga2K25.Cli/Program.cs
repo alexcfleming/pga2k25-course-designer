@@ -52,7 +52,7 @@ const string Usage = """
       fringe and lighting. Yardages from the back tees. --limits overrides any ReadinessLimits
       value; --holes adds the per-hole table; --json writes the whole report
     pga2k25 calibrate <file.course> <captures.json> [--hardness 0.85] [--blur 1.0]
-    pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|both] [--landscape|--portrait]
+    pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|illustrated|both|all] [--landscape|--portrait]
                       [--north-up] [--data holes.xlsx|.csv] [--waste] [--raw-bunkers] [--no-paths]
                       [--pdf] [--credit "NAME"] [--subtitle "TEXT"]
 
@@ -440,7 +440,7 @@ static int Cards(string path, string[] rest)
 static int Scorecard(string path, string[] rest)
 {
     var options = new ScorecardMapOptions();
-    IEnumerable<MapThemeKind> themes = [MapThemeKind.Vintage, MapThemeKind.Modern];
+    IEnumerable<MapThemeKind> themes = Enum.GetValues<MapThemeKind>();
     string outDir = Path.GetDirectoryName(Path.GetFullPath(path))!;
     bool pdf = false;
     for (int i = 0; i < rest.Length; i++)
@@ -454,7 +454,9 @@ static int Scorecard(string path, string[] rest)
                 {
                     "vintage" => [MapThemeKind.Vintage],
                     "modern" => [MapThemeKind.Modern],
+                    "illustrated" => [MapThemeKind.Illustrated],
                     "both" => [MapThemeKind.Vintage, MapThemeKind.Modern],
+                    "all" => Enum.GetValues<MapThemeKind>(),
                     var t => throw new ArgumentException($"unknown theme {t}"),
                 };
                 break;
