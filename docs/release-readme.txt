@@ -1,13 +1,14 @@
-COURSE DESIGNER STUDIO - release 1.6.0
+COURSE DESIGNER STUDIO - release 1.7.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
 WHAT IT DOES
 Reads your .course files and makes printable products from them:
   - Terrain map: contours, relief and the routing for the whole course
+    (PNG and PDF)
   - Hole sheets: a terrain sketch sheet per hole (PNG and PDF)
   - Greens book: slope and fall of every green
-  - Yardage book, scorecard map and course cards
+  - Yardage book, scorecard maps (three styles) and course cards
   - Construction estimate: what the course might cost to build as a real
     course, with a low / likely / high range (illustrative, not a bid)
 It is read only. It never changes or writes a course file.
@@ -106,6 +107,25 @@ USING IT
 - Green-site circles (new in 1.6.0): untick "Green-site circles on drawn
   greens" in Map options to hide the 15-yd circle and fall arrow once a
   hole's green is drawn.
+- Routing test (new in 1.7.0): turn on "Routing test" on the map toolbar
+  to try out a routing quickly. Pick Par 3, Par 4 or Par 5, press on the
+  map where the tee goes and drag toward the green. The arrows are fixed
+  placeholder lengths (185, 420 and 545 yd) drawn to scale, with a faint
+  band showing each par's usual range. Drag an arrow to move it, or drag
+  the dashed circle at its head to aim it. The panel adds up total par,
+  approximate yards, the walks from each green to the next tee and the
+  rise of each hole. Holes number in the order you drop them; the arrow
+  buttons in the table renumber them. There is one routing test per
+  course, saved in RoutingTest.json beside the products. "Clear routing
+  test" deletes it. It stays in the Studio and is never printed.
+- Terrain map PDF (new in 1.7.0): building the terrain map now also makes
+  a PDF. Contours, routing and labels stay sharp at any zoom or print
+  size, and the file is much smaller than the PNG.
+- Illustrated scorecard map (new in 1.7.0): a third scorecard style next
+  to Vintage and Modern. It keeps Vintage's parchment and scorecard and
+  draws the land like an old engraved map: shaded hills, a canopy for
+  every tree you placed, stipple for bushes, lines on the sea and a
+  compass rose. Building the scorecard map now makes all three styles.
 
 GOOD TO KNOW
 - Terrain is rebuilt from the course's brush strokes, so check critical
