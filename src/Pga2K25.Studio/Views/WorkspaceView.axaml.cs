@@ -13,8 +13,8 @@ using Pga2K25.TerrainMap;
 namespace Pga2K25.Studio.Views;
 
 /// <summary>
-/// Ties the terrain map to the workspace: the map image, sketch layers and note pins; hover, clicks and pin drags;
-/// the hole-sheet view and zoom / turn controls; and the file pickers.
+/// Ties the terrain map to the workspace: the map image, sketch layers, note pins and routing-test arrows; hover,
+/// clicks, pin and arrow drags; the hole-sheet view and zoom / turn controls; and the file pickers.
 /// </summary>
 public partial class WorkspaceView : UserControl
 {
@@ -34,6 +34,10 @@ public partial class WorkspaceView : UserControl
         _map.MapClicked += p => _vm?.MapClicked(p);
         _map.PinClicked += id => _vm?.PinClicked(id);
         _map.PinMoved += (id, p) => _vm?.PinMoved(id, p);
+        _map.ArrowPlaced += (p, d) => _vm?.ArrowPlaced(p, d);
+        _map.ArrowClicked += id => _vm?.ArrowClicked(id);
+        _map.ArrowMoved += (id, p) => _vm?.ArrowMoved(id, p);
+        _map.ArrowAimed += (id, d) => _vm?.ArrowAimed(id, d);
         _map.ViewChanged += UpdateViewReadout;
         UpdateViewReadout();
     }
@@ -77,6 +81,11 @@ public partial class WorkspaceView : UserControl
         _map.Lines = _vm.CurrentLineLayers();
         _map.Pins = _vm.CurrentPins();
         _map.SelectedPin = _vm.SelectedPinId;
+        _map.Arrows = _vm.CurrentArrows();
+        _map.Walks = _vm.CurrentWalks();
+        _map.SelectedArrow = _vm.SelectedArrowId;
+        _map.ShowRanges = _vm.ShowRanges;
+        _map.ArrowTemplate = _vm.CurrentArrowTemplate();
     }
 
     void CentreOn(Point px) => _map.CentreOn(px);

@@ -84,6 +84,7 @@ public partial class WorkspaceViewModel : ObservableObject
         LoadLayerSettings();
         LoadNotes();
         LoadNotWater();
+        LoadRoutingTest();
         LoadSketches();
         Task.Run(LoadSurvey);
     }
@@ -105,6 +106,7 @@ public partial class WorkspaceViewModel : ObservableObject
                 _survey = survey;
                 HasInlandWater = survey.InlandWater is not null || _notWater.Count > 0;
                 RebuildNotWaterRows();
+                RebuildRoutingRows();
                 SetSheetLayouts(survey);
                 SeaText = survey.SeaLevelMetres is null ? "No sea on the sheet" : "Elevations above sea level";
                 Holes.Clear();
@@ -172,7 +174,7 @@ public partial class WorkspaceViewModel : ObservableObject
         if (!_mapRect.Contains(p)) { HoverText = "Off the map"; return; }
         var w = _projection.Unmap(p);
         string grid = _renderer.GridReference(_survey, p) is { } g ? $" · {g}" : "";
-        HoverText = (PlacingNote ? "Click to pin the note · " : "") + $"{_survey.Feet(w):0} ft · slope {_survey.SlopePct(w):0.0} %{grid}";
+        HoverText = (PlacingNote ? "Click to pin the note · " : _routingTool > 0 ? $"Par {_routingTool}: press at the tee, drag to aim · " : "") + $"{_survey.Feet(w):0} ft · slope {_survey.SlopePct(w):0.0} %{grid}";
     }
 
     void SelectHole(int number, bool centre)

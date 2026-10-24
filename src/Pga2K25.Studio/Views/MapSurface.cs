@@ -21,13 +21,30 @@ public sealed record LineLayer(Geometry Geometry, Color Colour, double Opacity, 
 public sealed record MapPin(string Id, Point At, string Label, Color Colour, string Callout);
 
 /// <summary>
+/// A routing-test arrow in map-bitmap pixels: tee, unit direction of play and length, with its par's usual range as
+/// lengths along it. <see cref="Label"/> is the hole number on its badge.
+/// </summary>
+public sealed record MapArrow(string Id, Point Tee, Vector Direction, double Length, double RangeMin, double RangeMax, Color Colour, string Label)
+{
+    public Point Head => Tee + Direction * Length;
+    public Point At(double along) => Tee + Direction * along;
+}
+
+/// <summary>A routing-test walk from one green to the next tee (map-bitmap pixels), labelled with its yards.</summary>
+public sealed record MapWalk(Point From, Point To, string Label);
+
+/// <summary>
 /// The live terrain map with sketch layers and note pins, under one view transform: zoom (wheel, about the
 /// pointer), pan (drag), rotate (right-drag or Shift + drag, about the centre of the view). The map bitmap is
 /// north-up, so the view's rotation is the compass turn. Pins are drawn at screen size so they stay readable.
+/// Routing-test arrows sit on top: with an <see cref="ArrowTemplate"/> set, a press drops a tee and the drag aims it;
+/// an arrow's shaft or badge drags it, and the selected arrow's head handle turns it.
 /// </summary>
 public sealed class MapSurface : Control
 {
-    const double MinScale = 0.02, MaxScale = 8, PinRadius = 9, ClickSlop = 4;
+    const double MinScale = 0.02, MaxScale = 8, PinRadius = 9, ClickSlop = 4, BadgeRadius = 11, ShaftReach = 9;
+
+    enum ArrowDrag { None, Place, Move, Aim }
 
     Bitmap? _source;
     IReadOnlyList<SketchLayer> _sketches = [];
@@ -35,6 +52,10 @@ public sealed class MapSurface : Control
     IReadOnlyList<MapPin> _pins = [];
     string? _selectedPin, _hoverPin;
     bool _placing;
+    IReadOnlyList<MapArrow> _arrows = [];
+    IReadOnlyList<MapWalk> _walks = [];
+    string? _selectedArrow;
+    bool _showRanges = true;
 
     // View: the map pixel at the centre of the control, screen pixels per map pixel, and the turn (radians, clockwise).
     Point _centre;
@@ -45,8 +66,12 @@ public sealed class MapSurface : Control
     Point _pressCentre;
     double _pressAngle;
     bool _moved, _rotating;
+    StandardCursorType _cursor = StandardCursorType.Cross;
     string? _dragPin;
     Point _dragAt;
+    ArrowDrag _arrowDrag;
+    MapArrow? _arrowPreview;
+    Vector _arrowGrab;
 
     DispatcherTimer? _anim;
     bool _fitPending;
@@ -56,6 +81,13 @@ public sealed class MapSurface : Control
     public event Action<Point>? MapClicked;
     public event Action<string>? PinClicked;
     public event Action<string, Point>? PinMoved;
+    /// <summary>A routing-test tee dropped (map pixels), with the direction it was dragged, or null for a plain click.</summary>
+    public event Action<Point, Vector?>? ArrowPlaced;
+    public event Action<string>? ArrowClicked;
+    /// <summary>An arrow dragged to a new tee (map pixels).</summary>
+    public event Action<string, Point>? ArrowMoved;
+    /// <summary>An arrow turned by its head handle to a new unit direction (map pixels).</summary>
+    public event Action<string, Vector>? ArrowAimed;
     /// <summary>Zoom or rotation changed.</summary>
     public event Action? ViewChanged;
 
@@ -86,12 +118,19 @@ public sealed class MapSurface : Control
     public IReadOnlyList<LineLayer> Lines { get => _lines; set { _lines = value; InvalidateVisual(); } }
     public IReadOnlyList<MapPin> Pins { get => _pins; set { _pins = value; InvalidateVisual(); } }
     public string? SelectedPin { get => _selectedPin; set { _selectedPin = value; InvalidateVisual(); } }
+    public IReadOnlyList<MapArrow> Arrows { get => _arrows; set { _arrows = value; InvalidateVisual(); } }
+    public IReadOnlyList<MapWalk> Walks { get => _walks; set { _walks = value; InvalidateVisual(); } }
+    public string? SelectedArrow { get => _selectedArrow; set { _selectedArrow = value; InvalidateVisual(); } }
+    public bool ShowRanges { get => _showRanges; set { _showRanges = value; InvalidateVisual(); } }
+
+    /// <summary>The par being placed (its length, range and colour; tee and direction unused), or null when not placing.</summary>
+    public MapArrow? ArrowTemplate { get; set; }
 
     /// <summary>Placing a note: clicks drop a pin, and the cursor says so.</summary>
     public bool Placing
     {
         get => _placing;
-        set { _placing = value; Cursor = new Cursor(value ? StandardCursorType.Hand : StandardCursorType.Cross); }
+        set { _placing = value; _cursor = value ? StandardCursorType.Hand : StandardCursorType.Cross; Cursor = new Cursor(_cursor); }
     }
 
     Size ImageSize => _source is null ? default : new Size(_source.PixelSize.Width, _source.PixelSize.Height);
@@ -143,7 +182,76 @@ public sealed class MapSurface : Control
                     ctx.DrawGeometry(null, pen, layer.Geometry);
                 }
         }
+        DrawRouting(ctx);
         DrawPins(ctx);
+    }
+
+    /// <summary>The arrows being shown: the saved ones, with the one being dragged or dropped in its dragged place.</summary>
+    IEnumerable<MapArrow> ShownArrows()
+    {
+        foreach (var a in _arrows) yield return _arrowPreview is { } p && p.Id == a.Id && _arrowDrag != ArrowDrag.Place ? p : a;
+        if (_arrowDrag == ArrowDrag.Place && _arrowPreview is { } placing) yield return placing;
+    }
+
+    void DrawRouting(DrawingContext ctx)
+    {
+        if (_arrows.Count == 0 && _arrowDrag != ArrowDrag.Place) return;
+        var ink = new SolidColorBrush(Color.Parse("#3F4A43"));
+        // Walks follow the saved arrows, so they wait for a drag to finish.
+        if (_arrowDrag == ArrowDrag.None)
+        {
+            var walkPen = new Pen(ink, 1.5, new DashStyle([2, 3], 0), PenLineCap.Round);
+            var halo = new SolidColorBrush(Color.FromArgb(220, 255, 255, 255));
+            foreach (var w in _walks)
+            {
+                Point a = ToScreen(w.From), b = ToScreen(w.To);
+                ctx.DrawLine(walkPen, a, b);
+                var t = Text(w.Label, 10, ink, FontWeight.Normal);
+                var mid = new Point((a.X + b.X) / 2, (a.Y + b.Y) / 2);
+                var box = new Rect(mid.X - t.Width / 2 - 4, mid.Y - t.Height / 2 - 1, t.Width + 8, t.Height + 2);
+                ctx.DrawRectangle(halo, null, box, 4, 4);
+                ctx.DrawText(t, new Point(box.X + 4, box.Y + 1));
+            }
+        }
+
+        var white = new Pen(Brushes.White, 2);
+        foreach (var a in ShownArrows())
+        {
+            Point tee = ToScreen(a.Tee), head = ToScreen(a.Head);
+            Vector v = head - tee;
+            double len = v.Length;
+            if (len < 1) continue;
+            var u = v / len;
+            var n = new Vector(-u.Y, u.X);
+            var brush = new SolidColorBrush(a.Colour);
+            bool selected = a.Id == _selectedArrow || (_arrowPreview is { } p && p.Id == a.Id);
+            if (_showRanges)
+            {
+                Point r0 = ToScreen(a.At(a.RangeMin)), r1 = ToScreen(a.At(a.RangeMax));
+                ctx.DrawLine(new Pen(new SolidColorBrush(a.Colour, 0.22), 12, lineCap: PenLineCap.Round), r0, r1);
+                var tick = new Pen(brush, 1.5);
+                ctx.DrawLine(tick, r0 - n * 7, r0 + n * 7);
+                ctx.DrawLine(tick, r1 - n * 7, r1 + n * 7);
+            }
+            double headLen = Math.Min(16, len * 0.4);
+            ctx.DrawLine(new Pen(brush, selected ? 5 : 3.5, lineCap: PenLineCap.Round), tee, head - u * (headLen * 0.75));
+            var tip = new StreamGeometry();
+            using (var g = tip.Open())
+            {
+                g.BeginFigure(head, true);
+                g.LineTo(head - u * headLen + n * (headLen / 2));
+                g.LineTo(head - u * headLen - n * (headLen / 2));
+                g.EndFigure(true);
+            }
+            ctx.DrawGeometry(brush, null, tip);
+            ctx.DrawEllipse(Brushes.White, new Pen(brush, 3), tee, 6, 6);
+            if (a.Id == _selectedArrow && _arrowDrag == ArrowDrag.None)
+                ctx.DrawEllipse(new SolidColorBrush(Colors.White, 0.6), new Pen(ink, 1.5, new DashStyle([3, 2], 0)), head, BadgeRadius, BadgeRadius);
+            var mid = tee + v / 2;
+            ctx.DrawEllipse(brush, white, mid, BadgeRadius, BadgeRadius);
+            var label = Text(a.Label, 11, Brushes.White, FontWeight.Bold);
+            ctx.DrawText(label, new Point(mid.X - label.Width / 2, mid.Y - label.Height / 2));
+        }
     }
 
     void DrawPins(DrawingContext ctx)
@@ -269,6 +377,30 @@ public sealed class MapSurface : Control
         return null;
     }
 
+    /// <summary>The arrow under a screen point: the selected arrow's head handle first (aim), then badges and shafts (move).</summary>
+    (MapArrow Arrow, bool Aim)? HitArrow(Point screen)
+    {
+        if (_arrows.FirstOrDefault(a => a.Id == _selectedArrow) is { } s && Distance(ToScreen(s.Head), screen) <= BadgeRadius + 3)
+            return (s, true);
+        for (int i = _arrows.Count - 1; i >= 0; i--)
+        {
+            var a = _arrows[i];
+            Point tee = ToScreen(a.Tee), head = ToScreen(a.Head);
+            if (Distance(tee + (head - tee) / 2, screen) <= BadgeRadius + 2 || SegmentDistance(screen, tee, head) <= ShaftReach) return (a, false);
+        }
+        return null;
+    }
+
+    static double Distance(Point a, Point b) => ((Vector)(a - b)).Length;
+
+    static double SegmentDistance(Point p, Point a, Point b)
+    {
+        var ab = b - a;
+        double len2 = ab.X * ab.X + ab.Y * ab.Y;
+        double t = len2 < 1e-9 ? 0 : Math.Clamp(((p.X - a.X) * ab.X + (p.Y - a.Y) * ab.Y) / len2, 0, 1);
+        return Distance(p, a + ab * t);
+    }
+
     protected override void OnPointerPressed(PointerPressedEventArgs e)
     {
         base.OnPointerPressed(e);
@@ -283,6 +415,25 @@ public sealed class MapSurface : Control
         _rotating = pt.Properties.IsRightButtonPressed || (e.KeyModifiers & KeyModifiers.Shift) != 0;
         _dragPin = _rotating ? null : HitPin(pt.Position);
         _dragAt = _dragPin is null ? default : _pins.First(p => p.Id == _dragPin).At;
+        _arrowDrag = ArrowDrag.None;
+        _arrowPreview = null;
+        if (!_rotating && _dragPin is null)
+        {
+            var at = ToMap(pt.Position);
+            if (HitArrow(pt.Position) is { } hit)
+            {
+                _arrowDrag = hit.Aim ? ArrowDrag.Aim : ArrowDrag.Move;
+                _arrowPreview = hit.Arrow;
+                _arrowGrab = hit.Arrow.Tee - at;
+            }
+            else if (ArrowTemplate is { } template)
+            {
+                // North up the bitmap until the drag aims it.
+                _arrowDrag = ArrowDrag.Place;
+                _arrowPreview = template with { Id = "", Tee = at, Direction = new Vector(0, -1) };
+                InvalidateVisual();
+            }
+        }
         e.Pointer.Capture(this);
         e.Handled = true;
     }
@@ -296,6 +447,10 @@ public sealed class MapSurface : Control
         {
             var hover = HitPin(pos);
             if (hover != _hoverPin) { _hoverPin = hover; InvalidateVisual(); }
+            var over = hover is null ? HitArrow(pos) : null;
+            var cursor = over is { Aim: true } ? StandardCursorType.Hand : over is not null ? StandardCursorType.SizeAll
+                : _placing ? StandardCursorType.Hand : StandardCursorType.Cross;
+            if (cursor != _cursor) { _cursor = cursor; Cursor = new Cursor(cursor); }
             return;
         }
         var d = pos - press;
@@ -312,6 +467,12 @@ public sealed class MapSurface : Control
         {
             _dragAt = ToMap(pos);
         }
+        else if (_arrowDrag != ArrowDrag.None && _arrowPreview is { } arrow)
+        {
+            var at = ToMap(pos);
+            if (_arrowDrag == ArrowDrag.Move) _arrowPreview = arrow with { Tee = at + _arrowGrab };
+            else if ((Vector)(at - arrow.Tee) is { Length: > 1e-6 } aim) _arrowPreview = arrow with { Direction = aim / aim.Length };
+        }
         else
         {
             _centre = _pressCentre - ScreenToMapVector(d, _scale, _angle);
@@ -324,7 +485,17 @@ public sealed class MapSurface : Control
         base.OnPointerReleased(e);
         if (_press is null) return;
         var pos = e.GetPosition(this);
-        if (!_moved)
+        if (_arrowDrag != ArrowDrag.None && _arrowPreview is { } arrow)
+        {
+            var drag = _arrowDrag;
+            _arrowDrag = ArrowDrag.None;
+            _arrowPreview = null;
+            if (drag == ArrowDrag.Place) ArrowPlaced?.Invoke(arrow.Tee, _moved ? arrow.Direction : null);
+            else if (!_moved) ArrowClicked?.Invoke(arrow.Id);
+            else if (drag == ArrowDrag.Move) ArrowMoved?.Invoke(arrow.Id, arrow.Tee);
+            else ArrowAimed?.Invoke(arrow.Id, arrow.Direction);
+        }
+        else if (!_moved)
         {
             if (HitPin(pos) is { } id) PinClicked?.Invoke(id);
             else MapClicked?.Invoke(ToMap(pos));

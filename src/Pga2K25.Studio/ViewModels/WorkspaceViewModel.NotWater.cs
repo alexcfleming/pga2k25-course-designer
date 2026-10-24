@@ -23,7 +23,7 @@ public partial class WorkspaceViewModel
 
     partial void OnMarkingNotWaterChanged(bool value)
     {
-        if (value) { PlacingNote = false; HoverText = "Click a piece of water that is dry in game"; }
+        if (value) { PlacingNote = false; SetRoutingTool(0); HoverText = "Click a piece of water that is dry in game"; }
     }
 
     void LoadNotWater()
