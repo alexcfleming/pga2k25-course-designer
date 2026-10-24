@@ -87,6 +87,31 @@ public class TerrainMapTests
             using var bitmap = SKBitmap.Decode(result.PngPath);
             Assert.Equal(result.Size.Width, bitmap.Width);
             Assert.True(bitmap.Width > result.Survey.Max.X - result.Survey.Min.X);   // map plus side panel
+            Assert.Null(result.PdfPath);
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Build_WithPdf_WritesTheSameSheetAsAPdfBesideThePng()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "pga2k25-terrain-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var result = TerrainMapBuilder.Build(SaganPath, dir, new TerrainMapOptions { PixelsPerMetre = 1, Pdf = true, PrintDpi = 100 });
+            Assert.True(File.Exists(result.PngPath));
+            Assert.Equal(Path.ChangeExtension(result.PngPath, ".pdf"), result.PdfPath);
+            byte[] pdf = File.ReadAllBytes(result.PdfPath!);
+            Assert.Equal("%PDF", System.Text.Encoding.ASCII.GetString(pdf, 0, 4));
+            // One page, the PNG's pixels at 100 dpi in points.
+            string text = System.Text.Encoding.Latin1.GetString(pdf);
+            var box = System.Text.RegularExpressions.Regex.Match(text, @"/MediaBox \[0 0 ([\d.]+) ([\d.]+)\]");
+            Assert.True(box.Success);
+            Assert.Equal(result.Size.Width * 0.72, double.Parse(box.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture), 0);
+            Assert.Equal(result.Size.Height * 0.72, double.Parse(box.Groups[2].Value, System.Globalization.CultureInfo.InvariantCulture), 0);
         }
         finally
         {

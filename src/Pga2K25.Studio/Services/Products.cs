@@ -27,9 +27,9 @@ public static class Products
     public static readonly IReadOnlyList<ProductDefinition> All =
     [
         new("Terrain map", " - Terrain Map.png", c =>
-            TerrainMapBuilder.Build(c.CoursePath, c.OutputDir, c.Extras.Terrain.ToOptions(c.Settings.Credit), c.Log).PngPath)
+            TerrainMapBuilder.Build(c.CoursePath, c.OutputDir, c.Extras.Terrain.ToOptions(c.Settings.Credit) with { Pdf = true }, c.Log).PngPath)
         {
-            Pages = ["{0} - Terrain Map.png"],
+            Pages = ["{0} - Terrain Map.png"], Pdfs = ["{0} - Terrain Map.pdf"],
         },
         new("Hole sheets", " - Hole Sheets.pdf", c =>
             // Area (for the shared 0 ft), shading, surfaces, hilltops and water carry over. Each sheet picks its own

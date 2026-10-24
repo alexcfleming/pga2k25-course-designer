@@ -19,7 +19,7 @@ const string Usage = """
     pga2k25 terrain <file.course> [-o <dir>] [--full-plot|--buildable] [--margin 150] [--interval 5] [--index 5]
                     [--shading relief|slope|none] [--ppm 4] [--cell 1.0] [--grid 100] [--no-features]
                     [--hardness 0.85] [--large-hardness 0.3] [--smooth 0] [--sea-level <m>] [--no-water]
-                    [--water-footprints] [--holes 7,12|all [--sheet-grid 50] [--no-pdf] [--no-png]]
+                    [--water-footprints] [--pdf [--print-dpi 250]] [--holes 7,12|all [--sheet-grid 50] [--no-pdf] [--no-png]]
       --holes     instead, one 8.5 x 11 in terrain sketch sheet per hole, oriented like the
                   yardage book (PNGs at 300 dpi + one PDF)
                     [--no-summits] [--credit "NAME"]
@@ -27,6 +27,8 @@ const string Usage = """
       the routing as sticks and dots ("<course> - Terrain Map.png")
       --interval  contour interval in feet (default: smallest of 1/2/5/10… that fits)
       --ppm       output pixels per metre of ground (default 4)
+      --pdf       also write "<course> - Terrain Map.pdf", the same sheet with vector contours and
+                  text; the page is the PNG at --print-dpi (default 250)
     pga2k25 sketches <file.course> <scan.pdf|.jpg|.png>... [-o <dir>] [--sheets <built Hole Sheets folder>]
       imports scanned hole sheets with pencil sketching: finds each page's hole by matching it
       against the course's sheets and writes "<course> - Sketches/" (pencil PNG, straightened
@@ -393,6 +395,8 @@ static int Terrain(string path, string[] rest)
             case "--water-footprints": options = options with { ShowWaterFootprints = true }; break;
             case "--no-drawn-green-sites": options = options with { ShowDrawnGreenSites = false }; break;
             case "--credit": options = options with { Credit = Next() }; break;
+            case "--pdf": options = options with { Pdf = true }; break;
+            case "--print-dpi": options = options with { PrintDpi = NextDouble() }; break;
             default: throw new ArgumentException($"unknown option {rest[i]}");
         }
     }
