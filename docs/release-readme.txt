@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 1.7.0
+COURSE DESIGNER STUDIO - release 1.7.1
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -118,6 +118,7 @@ USING IT
   buttons in the table renumber them. There is one routing test per
   course, saved in RoutingTest.json beside the products. "Clear routing
   test" deletes it. It stays in the Studio and is never printed.
+  (1.7.1 fixes walks of 100 yd or more being cut off in the table.)
 - Terrain map PDF (new in 1.7.0): building the terrain map now also makes
   a PDF. Contours, routing and labels stay sharp at any zoom or print
   size, and the file is much smaller than the PNG.
