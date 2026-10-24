@@ -306,7 +306,7 @@
                          IsVisible="{Binding RoutingNines, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
               <TextBlock Text="{Binding RoutingWalks}" Classes="muted small" TextWrapping="Wrap"/>
               <StackPanel Spacing="2" IsVisible="{Binding HasRouting}">
-                <Grid ColumnDefinitions="48,34,44,58,*,Auto">
+                <Grid ColumnDefinitions="40,28,40,52,*,Auto">
                   <TextBlock Text="Hole" Classes="muted small"/>
                   <TextBlock Grid.Column="1" Text="Par" Classes="muted small"/>
                   <TextBlock Grid.Column="2" Text="Yds" Classes="muted small"/>
@@ -317,7 +317,7 @@
                   <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:RoutingRowViewModel">
                       <Border Background="{Binding Background}" CornerRadius="4">
-                        <Grid ColumnDefinitions="48,34,44,58,*,Auto">
+                        <Grid ColumnDefinitions="40,28,40,52,*,Auto">
                           <Button Command="{Binding SelectCommand}" Background="Transparent" BorderThickness="0" Padding="2,0" MinHeight="28"
                                   HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" AutomationProperties.Name="{Binding Number, StringFormat=Select hole {0}}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
