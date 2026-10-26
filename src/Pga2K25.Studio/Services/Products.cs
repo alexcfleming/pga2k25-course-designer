@@ -35,7 +35,7 @@ public static class Products
             // Area (for the shared 0 ft), shading, surfaces, hilltops and water carry over. Each sheet picks its own
             // finer contour interval, window and resolution.
             HoleSheetBuilder.Build(c.CoursePath, c.OutputDir,
-                new HoleSheetOptions { Map = c.Extras.Terrain.ToOptions(c.Settings.Credit) with { ContourIntervalFeet = null } }, null, c.Log).PdfPath)
+                new HoleSheetOptions { Map = c.Extras.Terrain.ToSheetOptions(c.Settings.Credit) }, null, c.Log).PdfPath)
         {
             Pages = ["{0} - Hole Sheets/*.png"], Pdfs = ["{0} - Hole Sheets.pdf"],
         },

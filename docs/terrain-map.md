@@ -76,6 +76,29 @@ dotnet run --project src/Pga2K25.Cli -- terrain samples/courses/sagan-khushun.co
 - **Header:** hole, par and yards, tee → green elevations, the green site's tilt and ±ft, and the elevation range near the hole. There is no badge on the map itself.
 - **0 ft** is the same on every sheet and on the plot map: sea level, or the plot map's lowest point when there is no sea.
 
+## Planting
+
+With planting on (Studio's **Planting** toggle, or `--planting` on the CLI), the map shows what the designer planted. It is drawn over the contours and under the routing:
+
+| Layer | Drawn as |
+|---|---|
+| Trees | A crown at its canopy size (4 m radius at scale 1). Broadleaf trees are light green with a dark edge and conifers are dark green, so they read apart in black and white; **Trees by type** off (`--trees-one-colour`) draws one green. |
+| Bushes, flowers | Small dots (bushes green, flowers rose). Hole sheets leave flowers off. |
+| Grass and fescue | Stipple. |
+| Walls and fences | A line, dashed for fences. |
+
+The course file stores planting three ways, and all three are shown:
+
+- **Placed one by one**: each item's position and size (`placedObjects4[].Value.items`).
+- **Scatter groups** (`clusters`): a centre, a radius and a count. The game places the copies itself, so the map draws the circle dashed and tree groups carry their count (×14).
+- **Planted areas** (`splines` with `fillPct`): a closed outline, hatched, labelled with an estimate of area × fill. Reading `fillPct` as instances per m² is inferred: Murray's four Eastern White Pine areas come to 49,371 m², or about 370 trees.
+
+The side panel adds a **Planting** section, with tree totals (≈ where groups or areas are involved) and the six commonest tree species, plus legend rows for the layers that are on. Kind and species come from the asset's folders (`…/Trees/Birch_River/…` is a broadleaf "Birch River"; names with Pine, Larch, Cedar, Spruce, Fir and the like are conifers).
+
+Vegetation the game generates by itself (its tree, plant and grass density settings, which change with each theme) isn't stored in the file and isn't shown. Neither are the `clearTrees` / `clearDetail` layers, which only remove that generated vegetation. Most designers clear it from near the playing area anyway.
+
+The code is `Planting` and `PlantSpecies` in `src/Pga2K25.TerrainMap/Planting.cs`, plus `TerrainInk.DrawPlanting`. The extra records (`PlacedCluster`, `PlacedArea`, `ObjectPath`) are read in `CourseModel`.
+
 ## Green sites
 
 Green sites are shaped and levelled in the game when the green is built. The figures describe the ground **as it lies**, so you can see how much shaping a site needs. They are not a warning that the green will play that way.

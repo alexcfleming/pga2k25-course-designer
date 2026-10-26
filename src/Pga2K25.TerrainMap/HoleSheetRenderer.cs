@@ -55,6 +55,8 @@ public sealed class HoleSheetRenderer : TerrainInk
         var summits = _o.ShowSummits ? PlaceSummits(s, p, map, obstacles).Where(t => DistanceToPolyline(t.At, route) > 12 * u).ToList() : [];
         DrawContours(canvas, s, p, map, all, obstacles, labelSpacing: 120);
         DrawPaintedWater(canvas, s, p);
+        // Flowers would only add noise at a hole's scale.
+        DrawPlanting(canvas, s, p, map, _o.Planting & ~PlantingLayers.Flowers);
         DrawGridSpots(canvas, spots);
         DrawSummits(canvas, summits);
         DrawNeighbours(canvas, s, all, self, map);

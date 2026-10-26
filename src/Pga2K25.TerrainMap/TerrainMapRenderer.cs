@@ -60,6 +60,7 @@ public sealed class TerrainMapRenderer : TerrainInk
         var summitLabels = _o.ShowSummits ? PlaceSummits(s, l.Projection, l.Map, obstacles) : [];
         DrawContours(canvas, s, l.Projection, l.Map, routes, obstacles);
         DrawPaintedWater(canvas, s, l.Projection);
+        DrawPlanting(canvas, s, l.Projection, l.Map, _o.Planting);
         DrawSummits(canvas, summitLabels);
         if (_o.GridYards > 0) DrawGridLines(canvas, l);
         DrawRouting(canvas, s.Holes, l.Projection, routes, obstacles);
@@ -149,7 +150,9 @@ public sealed class TerrainMapRenderer : TerrainInk
 
     const float RowH = 12.5f;
 
-    float PanelHeight(TerrainSurvey s) => (s.Holes.Count == 0 ? 520 : 300 + RowH * (s.Holes.Count + 2) + 420) * _u;
+    float PanelHeight(TerrainSurvey s) => ((s.Holes.Count == 0 ? 520 : 300 + RowH * (s.Holes.Count + 2) + 420) + (ShowsPlanting(s) ? 280 : 0)) * _u;
+
+    bool ShowsPlanting(TerrainSurvey s) => s.Planting.Has(_o.Planting);
 
     void DrawPanel(SKCanvas canvas, TerrainSurvey s, Layout l)
     {
@@ -220,6 +223,43 @@ public sealed class TerrainMapRenderer : TerrainInk
         y += 22 * u;
         }
 
+        // Planting summary: trees, and their species.
+        var plants = s.Planting;
+        bool planting = ShowsPlanting(s), trees = planting && (_o.Planting & PlantingLayers.Trees) != 0;
+        if (planting)
+        {
+            Heading("PLANTING");
+            var (placed, scattered) = plants.Count(PlantKind.Tree);
+            if (trees && placed + scattered > 0)
+            {
+                Text(canvas, scattered == 0 ? $"{placed:N0} trees" : $"≈ {placed + scattered:N0} trees", r.Left, y + 6 * u, 10 * u, _serifBold, Ink);
+                y += 16 * u;
+                if (scattered > 0)
+                {
+                    Text(canvas, $"{placed:N0} placed, ≈ {scattered:N0} in groups and areas", r.Left, y + 6 * u, 8 * u, _serifItalic, Grey);
+                    y += 14 * u;
+                }
+                var species = plants.TreeSpecies();
+                foreach (var (sp, count, estimated) in species.Take(6))
+                {
+                    using var dot = Fill(TreeFill(sp));
+                    canvas.DrawCircle(r.Left + 3 * u, y + 4 * u, 2.6f * u, dot);
+                    Text(canvas, sp.Name, r.Left + 10 * u, y + 6.5f * u, 7.4f * u, _sans, Ink);
+                    Text(canvas, (estimated ? "≈ " : "") + count.ToString("N0"), r.Right - 10 * u, y + 6.5f * u, 7.4f * u, _sans, Ink, SKTextAlign.Right);
+                    y += 11 * u;
+                }
+                if (species.Count > 6)
+                {
+                    Text(canvas, $"+ {species.Count - 6} more species", r.Left + 10 * u, y + 6.5f * u, 6.8f * u, _sansItalic, Grey);
+                    y += 11 * u;
+                }
+            }
+            Text(canvas, "Only what was planted in the designer: trees and", r.Left, y + 6 * u, 6.6f * u, _sansItalic, Grey);
+            y += 10 * u;
+            Text(canvas, "plants the game adds by itself aren't shown.", r.Left, y + 6 * u, 6.6f * u, _sansItalic, Grey);
+            y += 20 * u;
+        }
+
         // Legend.
         Heading("LEGEND");
         float sx = r.Left, sw = 34 * u;
@@ -229,6 +269,7 @@ public sealed class TerrainMapRenderer : TerrainInk
             Text(canvas, label, sx + sw + 10 * u, y + 7 * u, 7.6f * u, _sans, Ink);
             y += 15 * u;
         }
+        if (planting) PlantingLegend(canvas, plants, Row, sx, sw);
         Row(cy => { using var p = Stroke(MinorContour, 0.38f * u); canvas.DrawLine(sx, cy, sx + sw, cy, p); },
             $"Contour, every {Interval(s)}" + (_o.MinContourSpacingPixels > 0 ? " (thinned on steep ground)" : ""));
         Row(cy =>
@@ -383,6 +424,71 @@ public sealed class TerrainMapRenderer : TerrainInk
         ];
         foreach (var n in notes) { Text(canvas, n, r.Left, y + 4 * u, 6.8f * u, _sansItalic, Grey); y += 10 * u; }
         Text(canvas, Attribution.Text, r.Left, y + 10 * u, 6 * u, _sans, Grey);
+    }
+
+    /// <summary>Legend rows for the planting layers that are on and have something in them.</summary>
+    void PlantingLegend(SKCanvas canvas, Planting plants, Action<Action<float>, string> row, float sx, float sw)
+    {
+        float u = _u;
+        bool On(PlantingLayers l) => (_o.Planting & l) != 0;
+        bool Has(PlantKind k) => On(Planting.LayerOf(k)) && (plants.Singles.Any(p => p.Species.Kind == k)
+            || plants.Groups.Any(g => g.Species.Kind == k) || plants.Areas.Any(a => a.Species.Kind == k));
+        void Crowns(float cy, SKColor fill, SKColor edge)
+        {
+            using var f = Fill(fill);
+            using var e = Stroke(edge, 0.5f * u);
+            foreach (float dx in new[] { 9f, 17f, 25f }) { canvas.DrawCircle(sx + dx * u, cy, 3.4f * u, f); canvas.DrawCircle(sx + dx * u, cy, 3.4f * u, e); }
+        }
+        if (Has(PlantKind.Tree))
+        {
+            if (_o.TreesByType)
+            {
+                row(cy => Crowns(cy, Broadleaf, BroadleafEdge), "Broadleaf tree, drawn to its canopy");
+                row(cy => Crowns(cy, Conifer, Paper), "Conifer");
+            }
+            else row(cy => Crowns(cy, OneTree, Paper), "Tree, drawn to its canopy");
+        }
+        if (plants.Groups.Any(g => On(Planting.LayerOf(g.Species.Kind))))
+            row(cy =>
+            {
+                using var e = Stroke(OneTree, 0.6f * u);
+                using var dash = SKPathEffect.CreateDash([3 * u, 2.2f * u], 0);
+                e.PathEffect = dash;
+                canvas.DrawCircle(sx + sw / 2, cy, 5.5f * u, e);
+            }, "Scatter group, with its count");
+        if (plants.Areas.Any(a => On(Planting.LayerOf(a.Species.Kind))))
+            row(cy =>
+            {
+                var box = new SKRect(sx + 4 * u, cy - 5 * u, sx + sw - 4 * u, cy + 5 * u);
+                canvas.Save();
+                canvas.ClipRect(box);
+                using (var h = Stroke(Conifer, 0.5f * u))
+                    for (float x = box.Left - box.Height; x < box.Right; x += 3.2f * u) canvas.DrawLine(x, box.Bottom, x + box.Height, box.Top, h);
+                canvas.Restore();
+                using var e = Stroke(Conifer, 0.7f * u);
+                canvas.DrawRect(box, e);
+            }, "Planted area, with an estimate (area × fill)");
+        if (Has(PlantKind.Grass))
+            row(cy =>
+            {
+                using var p = new SKPaint { Color = GrassInk, IsAntialias = true, StrokeCap = SKStrokeCap.Round, StrokeWidth = 1.4f * u };
+                canvas.DrawPoints(SKPointMode.Points, [new(sx + 8 * u, cy - 2 * u), new(sx + 14 * u, cy + 2 * u), new(sx + 20 * u, cy - 3 * u),
+                    new(sx + 25 * u, cy + 1 * u), new(sx + 11 * u, cy + 3.5f * u), new(sx + 28 * u, cy - 1 * u)], p);
+            }, "Grass and fescue");
+        if (Has(PlantKind.Bush))
+            row(cy => { using var f = Fill(BushInk); canvas.DrawCircle(sx + 12 * u, cy, 1.8f * u, f); canvas.DrawCircle(sx + 22 * u, cy, 1.8f * u, f); }, "Bush");
+        if (Has(PlantKind.Flower))
+            row(cy => { using var f = Fill(FlowerInk); canvas.DrawCircle(sx + 12 * u, cy, 1.3f * u, f); canvas.DrawCircle(sx + 20 * u, cy, 1.3f * u, f); }, "Flowers");
+        if (On(PlantingLayers.Walls) && plants.Walls.Count > 0)
+            row(cy =>
+            {
+                using var w = Stroke(WallInk, 0.9f * u);
+                canvas.DrawLine(sx + 2 * u, cy - 2 * u, sx + sw - 2 * u, cy - 2 * u, w);
+                using var f = Stroke(WallInk, 0.7f * u);
+                using var dash = SKPathEffect.CreateDash([2.4f * u, 1.4f * u], 0);
+                f.PathEffect = dash;
+                canvas.DrawLine(sx + 2 * u, cy + 3 * u, sx + sw - 2 * u, cy + 3 * u, f);
+            }, "Wall (solid) and fence (dashed)");
     }
 
     void DrawNorthArrow(SKCanvas canvas, SKPoint c)
