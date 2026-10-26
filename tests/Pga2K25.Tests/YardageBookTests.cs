@@ -122,4 +122,23 @@ public class YardageBookTests
         Assert.Equal(3, path.PointCount);                  // start, the corner, the end
         Assert.Equal(proj.Map(new Vec2(100, 0)), path.GetPoint(1));
     }
+    [Fact]
+    public void PlantedAreas_JoinTheVegetationMasses_AndThePageHasRelief()
+    {
+        // Murray's trees are all planted areas (Eastern White Pine, no single trees): the holes beside them still
+        // get canopy masses covering the areas, and every page keeps its terrain for the relief.
+        var course = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, "murray-estate.course")).ReadModel();
+        var layers = CourseLayers.From(course);
+        var analyses = course.Holes.Select(h => HoleAnalysis.Analyze(course, layers, h, new YardageOptions(),
+            YardagePageRenderer.MapRect.Width / YardagePageRenderer.MapRect.Height)).ToList();
+        Assert.All(analyses, a => Assert.NotNull(a.Field));
+        var centres = course.PlacedAreas.Select(a => new Vec2(a.Outline.Average(q => q.X), a.Outline.Average(q => q.Z))).ToList();
+        Assert.Contains(analyses, a => centres.Any(c => a.Vegetation.Any(v => Geometry.Contains(v, c))));
+        Assert.All(analyses, a => Assert.Empty(a.Conifers));   // planted areas are masses, not crowns
+
+        using var renderer = new YardagePageRenderer(new YardageOptions());
+        using var bitmap = new SKBitmap((int)YardagePageRenderer.PageWidth, (int)YardagePageRenderer.PageHeight);
+        using var canvas = new SKCanvas(bitmap);
+        renderer.Draw(canvas, course.Name, analyses[0]);
+    }
 }
