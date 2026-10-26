@@ -76,6 +76,17 @@ dotnet run --project src/Pga2K25.Cli -- terrain samples/courses/sagan-khushun.co
 - **Header:** hole, par and yards, tee → green elevations, the green site's tilt and ±ft, and the elevation range near the hole. There is no badge on the map itself.
 - **0 ft** is the same on every sheet and on the plot map: sea level, or the plot map's lowest point when there is no sea.
 
+## Game budget (rough estimate)
+
+The side panel shows two meters for the course designer's budget counters: **Objects** (how many things are in the plot) and **Memory** (driven mostly by how many different things there are). The file doesn't store either counter; the game works them out when it loads the course. `GameBudget` in `src/Pga2K25.TerrainMap/GameBudget.cs` estimates them from what the file holds:
+
+- **Objects** = placed items + plants in scatter groups + planted-area trees (area × `fillPct` × 31.9) + 2.4 per metre of wall, fence or other object path + 46 per hole, out of about 119,350.
+- **Memory %** ≈ 9.8 + 0.32 × the number of different assets + 0.10 × √objects.
+
+The constants come from four in-game readings taken on 2026-10-26 (object % / memory %): Sagan-Khushun 72.5 / 62.7, Wakinyan Dunes 0.7 / 14.3, Blackwolf Lenz Upper 6.3 / 46.9 and Murray Estate 11.7 / 28.1. Those four fit the object formula exactly and the memory formula to within 0.9 points. Neither formula has been checked on a course it wasn't fitted to, so the panel labels both as rough, and the designer's own counters remain the real figures. The meters turn red from 90 %.
+
+Readings from Halvoy (almost nothing placed, no holes) and Berwick Coast (few items, 833 m of walls) would test the per-hole and per-metre parts. A count of Murray's pines in game would test the planted-area scale. That scale suggests planted areas hold far more trees than the plain area × `fillPct` the planting overlay uses.
+
 ## Planting
 
 With planting on (Studio's **Planting** toggle, or `--planting` on the CLI), the map shows what the designer planted. It is drawn over the contours and under the routing:
