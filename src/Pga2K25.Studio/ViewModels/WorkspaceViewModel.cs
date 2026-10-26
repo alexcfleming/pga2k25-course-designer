@@ -90,7 +90,10 @@ public partial class WorkspaceViewModel : ObservableObject
     }
 
     /// <summary>The course's saved terrain options at the viewer's resolution.</summary>
-    TerrainMapOptions ViewerOptions() => Terrain.ToOptions(Settings.Credit, ViewerPixelsPerMetre);
+    TerrainMapOptions ViewerOptions() => Terrain.ToOptions(Settings.Credit, ViewerPixelsPerMetre) with
+    {
+        Planting = Terrain.ShowPlanting ? Terrain.PlantingLayers : PlantingLayers.None,
+    };
 
     void LoadSurvey()
     {
@@ -107,6 +110,7 @@ public partial class WorkspaceViewModel : ObservableObject
                 HasInlandWater = survey.InlandWater is not null || _notWater.Count > 0;
                 RebuildNotWaterRows();
                 RebuildRoutingRows();
+                RebuildPlanting();
                 SetSheetLayouts(survey);
                 SeaText = survey.SeaLevelMetres is null ? "No sea on the sheet" : "Elevations above sea level";
                 Holes.Clear();

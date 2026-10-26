@@ -42,6 +42,23 @@ public sealed class TerrainSettings
     public bool SketchRawPencil { get; set; }
     public bool ShowNotes { get; set; } = true;
 
+    /// <summary>The designer's planting over the live map (the map toolbar's Planting toggle).</summary>
+    public bool ShowPlanting { get; set; }
+    public bool PlantTrees { get; set; } = true;
+    public bool PlantBushes { get; set; } = true;
+    public bool PlantGrass { get; set; } = true;
+    public bool PlantFlowers { get; set; } = true;
+    public bool PlantWalls { get; set; } = true;
+    public bool TreesByType { get; set; } = true;
+    /// <summary>Builds print the planting layers that are switched on: on the terrain map by default, not on hole sheets.</summary>
+    public bool PrintPlantingOnMap { get; set; } = true;
+    public bool PrintPlantingOnSheets { get; set; }
+
+    [JsonIgnore]
+    public PlantingLayers PlantingLayers =>
+        (PlantTrees ? PlantingLayers.Trees : 0) | (PlantBushes ? PlantingLayers.Bushes : 0) | (PlantGrass ? PlantingLayers.Grass : 0)
+        | (PlantFlowers ? PlantingLayers.Flowers : 0) | (PlantWalls ? PlantingLayers.Walls : 0);
+
     public TerrainMapOptions ToOptions(string credit, double? pixelsPerMetre = null) => new()
     {
         Extent = Area switch { WholePlot => MapExtent.FullPlot, Buildable => MapExtent.Buildable, _ => MapExtent.Routing },
@@ -56,8 +73,14 @@ public sealed class TerrainSettings
         ShowWaterFootprints = ShowWaterFootprints,
         ShowDrawnGreenSites = ShowDrawnGreenSites,
         PixelsPerMetre = pixelsPerMetre ?? PrintPixelsPerMetre,
+        Planting = PrintPlantingOnMap ? PlantingLayers : PlantingLayers.None,
+        TreesByType = TreesByType,
         Credit = credit,
     };
+
+    /// <summary>The hole sheets' options: the plot map's interval would be too coarse there, and planting has its own switch.</summary>
+    public TerrainMapOptions ToSheetOptions(string credit) =>
+        ToOptions(credit) with { ContourIntervalFeet = null, Planting = PrintPlantingOnSheets ? PlantingLayers : PlantingLayers.None };
 
     /// <summary>The options that change what is surveyed (and so need a fresh survey, not just a redraw).</summary>
     [JsonIgnore]

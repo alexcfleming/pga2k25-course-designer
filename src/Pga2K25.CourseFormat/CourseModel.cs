@@ -100,6 +100,40 @@ public sealed record WaterPlane(int Index, Vec2 Position, double HalfX, double H
 public sealed record PlacedObject(string AssetPath, Vec2 Position, double Scale, double? Height = null);
 
 /// <summary>
+/// A scatter group from placedObjects4 <c>clusters</c>: the game places <paramref name="Count"/> copies of the asset
+/// within <paramref name="Radius"/> m of <paramref name="Centre"/>, from its own seed, so where each one lands isn't stored.
+/// </summary>
+public sealed record PlacedCluster(string AssetPath, Vec2 Centre, double Radius, int Count);
+
+/// <summary>
+/// A planted area from placedObjects4 <c>splines</c>: a closed outline (its waypoints) the game fills with the asset
+/// at <paramref name="FillPerSquareMetre"/> (<c>fillPct</c>; read as instances per m², which is inferred).
+/// </summary>
+public sealed record PlacedArea(string AssetPath, IReadOnlyList<Vec2> Outline, double FillPerSquareMetre)
+{
+    /// <summary>The outline's area (m², shoelace).</summary>
+    public double AreaSquareMetres
+    {
+        get
+        {
+            double a = 0;
+            for (int i = 0; i < Outline.Count; i++)
+            {
+                Vec2 p = Outline[i], q = Outline[(i + 1) % Outline.Count];
+                a += p.X * q.Z - q.X * p.Z;
+            }
+            return Math.Abs(a) / 2;
+        }
+    }
+
+    /// <summary>About how many the game plants in it.</summary>
+    public int EstimatedCount => (int)Math.Round(AreaSquareMetres * FillPerSquareMetre);
+}
+
+/// <summary>Objects laid along a path (placedObjects4 <c>objectPaths2</c>): walls, fences and the like, by waypoint.</summary>
+public sealed record ObjectPath(string AssetPath, IReadOnlyList<Vec2> Points);
+
+/// <summary>
 /// Surface ids used by surfaceSplines2[].surface and surfaceBrushes2[].surfaceCategory.
 /// 0/1/2/3/4/7/10 are confirmed by the reference Course Finisher. 8, 15 and 18 were identified by
 /// matching Cassimbo's layers against an in-game overhead capture (see docs/scorecard-maps.md).
@@ -139,6 +173,9 @@ public sealed class CourseModel
     public required IReadOnlyList<HeightStamp> HeightStamps { get; init; }
     public required IReadOnlyList<SurfaceBrush> SurfaceBrushes { get; init; }
     public required IReadOnlyList<PlacedObject> PlacedObjects { get; init; }
+    public IReadOnlyList<PlacedCluster> PlacedClusters { get; init; } = [];
+    public IReadOnlyList<PlacedArea> PlacedAreas { get; init; } = [];
+    public IReadOnlyList<ObjectPath> ObjectPaths { get; init; } = [];
 
     /// <summary>
     /// Painted water and water planes (<c>water[]</c>): brushes whose <see cref="SurfaceBrush.Value"/> is the
@@ -190,6 +227,9 @@ public sealed class CourseModel
             HeightStamps = ReadStamps(desc["height"] as JsonArray),
             SurfaceBrushes = ReadBrushes(desc["surfaceBrushes2"] as JsonArray),
             PlacedObjects = ReadObjects(desc["placedObjects4"] as JsonArray),
+            PlacedClusters = ReadClusters(desc["placedObjects4"] as JsonArray),
+            PlacedAreas = ReadAreas(desc["placedObjects4"] as JsonArray),
+            ObjectPaths = ReadObjectPaths(desc["placedObjects4"] as JsonArray),
             WaterBrushes = ReadBrushes(desc["water"] as JsonArray),
             Water = ReadWater(desc["water"] as JsonArray),
             DistanceMarkers = Array(desc["distanceMarkers"]).Select(m => m?["position"])
@@ -304,6 +344,28 @@ public sealed class CourseModel
         }
         return result;
     }
+
+    /// <summary>Each asset group in placedObjects4, with its path, and the entries under <paramref name="key"/>.</summary>
+    static IEnumerable<(string Path, JsonNode Entry)> Entries(JsonArray? groups, string key) =>
+        from g in groups ?? []
+        let path = g?["Key"]?["path"]?.GetValue<string>() ?? ""
+        from e in Array(g?["Value"]?[key])
+        where e is not null
+        select (path, e!);
+
+    static List<Vec2> Waypoints(JsonNode? path) => Array(path?["waypoints"]).Select(w => ReadVec(w?["waypoint"])).ToList();
+
+    static List<PlacedCluster> ReadClusters(JsonArray? groups) =>
+        Entries(groups, "clusters").Select(e => new PlacedCluster(e.Path, ReadVec(e.Entry["position"]),
+            Num(e.Entry["radius"]), (int)Num(e.Entry["count"], 1))).ToList();
+
+    static List<PlacedArea> ReadAreas(JsonArray? groups) =>
+        Entries(groups, "splines").Select(e => new PlacedArea(e.Path, Waypoints(e.Entry["path"]), Num(e.Entry["fillPct"])))
+            .Where(a => a.Outline.Count >= 3).ToList();
+
+    static List<ObjectPath> ReadObjectPaths(JsonArray? groups) =>
+        Entries(groups, "objectPaths2").Select(e => new ObjectPath(e.Path, Waypoints(e.Entry["path"])))
+            .Where(p => p.Points.Count >= 2).ToList();
 
     static IEnumerable<JsonNode?> Array(JsonNode? node) => node as JsonArray ?? [];
 

@@ -170,6 +170,8 @@
                             ToolTip.Tip="Then click the map where the note belongs"/>
               <ToggleButton Classes="pill" Content="Not water…" IsChecked="{Binding MarkingNotWater}" VerticalAlignment="Center" IsVisible="{Binding HasInlandWater}"
                             ToolTip.Tip="Then click a piece of modelled water that is dry in game: every product leaves it out"/>
+              <ToggleButton Classes="pill" Content="Planting" IsChecked="{Binding ShowPlanting}" VerticalAlignment="Center"
+                            ToolTip.Tip="The trees, bushes, grasses, flowers and walls placed in the designer"/>
               <ToggleButton Classes="pill" Content="Routing test" IsChecked="{Binding RoutingTestOn}" VerticalAlignment="Center"
                             ToolTip.Tip="Sketch a routing with par 3, 4 and 5 arrows and add up par and yards. Studio only: no product draws it."/>
               <Border Width="1" Height="22" Background="{StaticResource Hairline}" VerticalAlignment="Center" Margin="2,0"/>
@@ -177,6 +179,31 @@
                       VerticalAlignment="Center" ToolTip.Tip="Turn and zoom the map to the selected hole's sheet: tee at the bottom, green at the top"/>
               <Button Content="Whole map" Command="{Binding ShowWholeMapCommand}" MinHeight="30" Padding="10,0" VerticalAlignment="Center"
                       ToolTip.Tip="Back out to the whole map, north up"/>
+            </WrapPanel>
+          </Border>
+
+          <!-- Planting layers: each redraws the map. -->
+          <Border DockPanel.Dock="Top" BorderBrush="#E6E9E3" BorderThickness="0,0,0,1" Padding="12,8" IsVisible="{Binding ShowPlanting}">
+            <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="8">
+              <TextBlock Text="Planting" Classes="muted small" VerticalAlignment="Center"/>
+              <ToggleButton Classes="pill" IsChecked="{Binding PlantTrees}" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="6"><Ellipse Width="10" Height="10" Fill="#4F7F3A" VerticalAlignment="Center"/><TextBlock Text="Trees" VerticalAlignment="Center"/></StackPanel>
+              </ToggleButton>
+              <ToggleButton Classes="pill" IsChecked="{Binding PlantBushes}" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="6"><Ellipse Width="10" Height="10" Fill="#5B7A30" VerticalAlignment="Center"/><TextBlock Text="Bushes" VerticalAlignment="Center"/></StackPanel>
+              </ToggleButton>
+              <ToggleButton Classes="pill" IsChecked="{Binding PlantGrass}" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="6"><Ellipse Width="10" Height="10" Fill="#A88B45" VerticalAlignment="Center"/><TextBlock Text="Grass &amp; fescue" VerticalAlignment="Center"/></StackPanel>
+              </ToggleButton>
+              <ToggleButton Classes="pill" IsChecked="{Binding PlantFlowers}" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="6"><Ellipse Width="10" Height="10" Fill="#C0477A" VerticalAlignment="Center"/><TextBlock Text="Flowers" VerticalAlignment="Center"/></StackPanel>
+              </ToggleButton>
+              <ToggleButton Classes="pill" IsChecked="{Binding PlantWalls}" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="6"><Rectangle Width="10" Height="10" Fill="#4A4F4B" VerticalAlignment="Center"/><TextBlock Text="Walls &amp; fences" VerticalAlignment="Center"/></StackPanel>
+              </ToggleButton>
+              <Border Width="1" Height="22" Background="{StaticResource Hairline}" VerticalAlignment="Center" Margin="2,0"/>
+              <ToggleButton Classes="pill" Content="Trees by type" IsChecked="{Binding TreesByType}" VerticalAlignment="Center"
+                            ToolTip.Tip="Conifers darker than broadleaf trees; off draws every tree in one green"/>
             </WrapPanel>
           </Border>
 
@@ -293,6 +320,71 @@
       <!-- Inspector -->
       <ScrollViewer Grid.Row="1" Grid.Column="1" IsVisible="{Binding IsTerrain}">
         <StackPanel Spacing="16">
+          <Border Classes="card" Padding="16" IsVisible="{Binding ShowPlanting}">
+            <StackPanel Spacing="12">
+              <DockPanel>
+                <TextBlock DockPanel.Dock="Right" Text="from the course file" Classes="muted" VerticalAlignment="Bottom"/>
+                <TextBlock Text="Planting" FontSize="20" FontWeight="SemiBold"/>
+              </DockPanel>
+              <TextBlock Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding !HasPlanting}"
+                         Text="Nothing has been planted in the designer yet."/>
+              <StackPanel Spacing="12" IsVisible="{Binding HasPlanting}">
+                <UniformGrid Columns="2" ColumnSpacing="8">
+                  <Border Background="{StaticResource Ground}" CornerRadius="8" Padding="10">
+                    <StackPanel>
+                      <TextBlock Text="Trees" Classes="muted small"/>
+                      <TextBlock Text="{Binding PlantingTrees}" FontSize="24" FontWeight="SemiBold"/>
+                      <TextBlock Text="{Binding PlantingTreesSplit}" Classes="muted small" TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </Border>
+                  <Border Background="{StaticResource Ground}" CornerRadius="8" Padding="10">
+                    <StackPanel>
+                      <TextBlock Text="Species" Classes="muted small"/>
+                      <TextBlock Text="{Binding PlantingSpeciesCount}" FontSize="24" FontWeight="SemiBold"/>
+                      <TextBlock Text="of trees" Classes="muted small"/>
+                    </StackPanel>
+                  </Border>
+                </UniformGrid>
+                <ItemsControl ItemsSource="{Binding PlantingRows}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PlantingRowViewModel">
+                      <DockPanel Margin="0,2">
+                        <Ellipse DockPanel.Dock="Left" Width="10" Height="10" Fill="{Binding Dot}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBlock DockPanel.Dock="Right" Text="{Binding Count}" Classes="mono small" FontWeight="SemiBold" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        <StackPanel>
+                          <TextBlock Text="{Binding Label}" Classes="small"/>
+                          <TextBlock Text="{Binding How}" Classes="muted small"/>
+                        </StackPanel>
+                      </DockPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <StackPanel Spacing="2">
+                  <TextBlock Text="Tree species" Classes="muted small"/>
+                  <ItemsControl ItemsSource="{Binding TreeSpeciesRows}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:PlantingRowViewModel">
+                        <DockPanel Margin="0,1">
+                          <Ellipse DockPanel.Dock="Left" Width="10" Height="10" Fill="{Binding Dot}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                          <TextBlock DockPanel.Dock="Right" Text="{Binding Count}" Classes="mono small" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                          <TextBlock DockPanel.Dock="Right" Text="{Binding How}" Classes="muted small" VerticalAlignment="Center"/>
+                          <TextBlock Text="{Binding Label}" Classes="small" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                        </DockPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+                <TextBlock Classes="muted small" TextWrapping="Wrap"
+                           Text="≈ counts come from scatter groups and planted areas, where the game picks the exact spots. Vegetation the game generates by itself isn't shown."/>
+              </StackPanel>
+              <StackPanel Spacing="4">
+                <TextBlock Text="On printed sheets" Classes="muted small"/>
+                <CheckBox Content="Terrain map (PNG and PDF)" IsChecked="{Binding PrintPlantingOnMap}"/>
+                <CheckBox Content="Hole sheets" IsChecked="{Binding PrintPlantingOnSheets}"/>
+                <TextBlock Classes="muted small" TextWrapping="Wrap" Text="Builds print the layers switched on above the map. Hole sheets leave flowers off."/>
+              </StackPanel>
+            </StackPanel>
+          </Border>
           <Border Classes="card" Padding="16" IsVisible="{Binding RoutingTestOn}">
             <StackPanel Spacing="12">
               <DockPanel>

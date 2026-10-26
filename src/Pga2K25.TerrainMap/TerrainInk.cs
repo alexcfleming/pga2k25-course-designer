@@ -264,6 +264,126 @@ public abstract class TerrainInk : IDisposable
         foreach (var r in L.Roads.Concat(L.Paths)) DrawRibbon(canvas, p, r, SKColor.Parse("#9a958c").WithAlpha(170));
     }
 
+    // Planting ink: shape and lightness tell the layers apart, so a black-and-white print still reads.
+    protected static readonly SKColor Broadleaf = SKColor.Parse("#7fa65e"), BroadleafEdge = SKColor.Parse("#3f6b3a"),
+        Conifer = SKColor.Parse("#25523f"), OneTree = SKColor.Parse("#4f7f3a"), BushInk = SKColor.Parse("#5b7a30"),
+        GrassInk = SKColor.Parse("#a88b45"), FlowerInk = SKColor.Parse("#c0477a"), WallInk = SKColor.Parse("#4a4f4b");
+
+    protected SKColor TreeFill(PlantSpecies s) => !_o.TreesByType ? OneTree : s.Form == TreeForm.Conifer ? Conifer : Broadleaf;
+
+    SKColor KindInk(PlantSpecies s) => s.Kind switch
+    {
+        PlantKind.Tree => TreeFill(s),
+        PlantKind.Bush => BushInk,
+        PlantKind.Grass => GrassInk,
+        _ => FlowerInk,
+    };
+
+    /// <summary>
+    /// The designer's planting, for the layers in <see cref="TerrainMapOptions.Planting"/>: grass stipple, scatter
+    /// groups as dashed circles with their count, planted areas hatched with an estimate, then walls, bushes,
+    /// flowers and trees at their canopy size on top.
+    /// </summary>
+    protected void DrawPlanting(SKCanvas canvas, TerrainSurvey s, MapProjection p, SKRect view, PlantingLayers layers)
+    {
+        var plants = s.Planting;
+        if (!plants.Has(layers)) return;
+        float u = _u, ppm = p.PointsPerMetre;
+        bool On(PlantKind k) => (layers & Planting.LayerOf(k)) != 0;
+        var reach = Inflate(view, 40 * ppm);
+        bool Near(SKPoint at) => reach.Contains(at);
+
+        // Grass and fescue tufts, as stipple.
+        if (On(PlantKind.Grass))
+        {
+            var dots = plants.Singles.Where(g => g.Species.Kind == PlantKind.Grass).Select(g => p.Map(g.At)).Where(Near).ToArray();
+            using var stipple = new SKPaint { Color = GrassInk.WithAlpha(200), IsAntialias = true, StrokeCap = SKStrokeCap.Round, StrokeWidth = Math.Max(0.8f * ppm, 0.9f * u) };
+            canvas.DrawPoints(SKPointMode.Points, dots, stipple);
+        }
+
+        using var dash = SKPathEffect.CreateDash([3 * u, 2.2f * u], 0);
+        foreach (var g in plants.Groups.Where(g => On(g.Species.Kind)))
+        {
+            var at = p.Map(g.Cluster.Centre);
+            float r = (float)(g.Cluster.Radius * ppm);
+            if (!Near(at)) continue;
+            var c = KindInk(g.Species);
+            // Bush, grass and flower groups overlap in big drifts (Cassimbo's are 25–30 m across): keep them a light
+            // wash so the ground still reads. Only tree groups are labelled with their count.
+            bool tree = g.Species.Kind == PlantKind.Tree;
+            using var fill = Fill(c.WithAlpha(tree ? (byte)55 : (byte)30));
+            using var edge = Stroke(c.WithAlpha(tree ? (byte)255 : (byte)100), (tree ? 0.6f : 0.4f) * u);
+            edge.PathEffect = dash;
+            canvas.DrawCircle(at, r, fill);
+            canvas.DrawCircle(at, r, edge);
+            if (r > 6 * u && tree)
+                Text(canvas, $"×{g.Cluster.Count}", at.X, at.Y + 2 * u, 5.6f * u, _sansBold, Ink, SKTextAlign.Center, halo: Paper);
+        }
+
+        foreach (var a in plants.Areas.Where(a => On(a.Species.Kind)))
+        {
+            using var path = p.Path(a.Placed.Outline, true);
+            if (!reach.IntersectsWith(path.Bounds)) continue;
+            var c = KindInk(a.Species);
+            canvas.Save();
+            canvas.ClipPath(path, antialias: true);
+            using (var hatch = Stroke(c.WithAlpha(200), 0.5f * u))
+            {
+                var b = path.Bounds;
+                float step = 3.2f * u;
+                for (float x = b.Left - b.Height; x < b.Right; x += step) canvas.DrawLine(x, b.Bottom, x + b.Height, b.Top, hatch);
+            }
+            canvas.Restore();
+            using var edge = Stroke(c, 0.7f * u);
+            canvas.DrawPath(path, edge);
+            var mid = p.Map(new Vec2(a.Placed.Outline.Average(q => q.X), a.Placed.Outline.Average(q => q.Z)));
+            if (path.Bounds.Width > 30 * u)
+                Text(canvas, $"≈ {a.Placed.EstimatedCount:N0} {a.Species.Name}", mid.X, mid.Y, 5.6f * u, _sansBold, Ink, SKTextAlign.Center, halo: Paper);
+        }
+
+        if ((layers & PlantingLayers.Walls) != 0)
+        {
+            using var wall = Stroke(WallInk, 0.9f * u);
+            using var fence = Stroke(WallInk, 0.7f * u);
+            using var fenceDash = SKPathEffect.CreateDash([2.4f * u, 1.4f * u], 0);
+            fence.PathEffect = fenceDash;
+            foreach (var w in plants.Walls)
+            {
+                using var path = p.Path(w.Points, false);
+                if (reach.IntersectsWith(path.Bounds)) canvas.DrawPath(path, w.Fence ? fence : wall);
+            }
+        }
+
+        void Dots(PlantKind kind, SKColor c, double metres, float minPoints)
+        {
+            if (!On(kind)) return;
+            using var paint = Fill(c);
+            foreach (var b in plants.Singles.Where(b => b.Species.Kind == kind))
+            {
+                var at = p.Map(b.At);
+                if (Near(at)) canvas.DrawCircle(at, Math.Max((float)(metres * Math.Max(0.5, b.Scale) * ppm), minPoints), paint);
+            }
+        }
+        Dots(PlantKind.Bush, BushInk, 1.2, 0.9f * u);
+        Dots(PlantKind.Flower, FlowerInk, 0.6, 0.7f * u);
+
+        if (On(PlantKind.Tree))
+        {
+            using var halo = Stroke(Paper.WithAlpha(220), 0.35f * u);
+            using var broadEdge = Stroke(BroadleafEdge, 0.4f * u);
+            // Smaller crowns last, so they aren't hidden under big neighbours.
+            foreach (var t in plants.Singles.Where(t => t.Species.Kind == PlantKind.Tree).OrderByDescending(t => t.Scale))
+            {
+                var at = p.Map(t.At);
+                if (!Near(at)) continue;
+                float r = Math.Max((float)(t.CanopyMetres * ppm), 1.2f * u);
+                using var fill = Fill(TreeFill(t.Species).WithAlpha(235));
+                canvas.DrawCircle(at, r, fill);
+                canvas.DrawCircle(at, r, _o.TreesByType && t.Species.Form == TreeForm.Broadleaf ? broadEdge : halo);
+            }
+        }
+    }
+
     static void DrawRibbon(SKCanvas canvas, MapProjection p, Ribbon r, SKColor c)
     {
         using var path = p.Path(r.Points, false);

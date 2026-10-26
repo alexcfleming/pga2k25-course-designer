@@ -23,6 +23,9 @@ const string Usage = """
       --holes     instead, one 8.5 x 11 in terrain sketch sheet per hole, oriented like the
                   yardage book (PNGs at 300 dpi + one PDF)
                     [--no-summits] [--credit "NAME"]
+                    [--planting | --planting-layers trees,bushes,grass,flowers,walls] [--trees-one-colour]
+      --planting  draw what was planted in the designer (trees, bushes, grass, flowers, walls);
+                  hole sheets leave flowers off. Vegetation the game adds by itself isn't shown.
       one north-up PNG of the plot: contours, relief or slope shading, lettered grid and
       the routing as sticks and dots ("<course> - Terrain Map.png")
       --interval  contour interval in feet (default: smallest of 1/2/5/10… that fits)
@@ -397,6 +400,9 @@ static int Terrain(string path, string[] rest)
             case "--credit": options = options with { Credit = Next() }; break;
             case "--pdf": options = options with { Pdf = true }; break;
             case "--print-dpi": options = options with { PrintDpi = NextDouble() }; break;
+            case "--planting": options = options with { Planting = PlantingLayers.All }; break;
+            case "--planting-layers": options = options with { Planting = ParseLayers(Next()) }; break;
+            case "--trees-one-colour": options = options with { TreesByType = false }; break;
             default: throw new ArgumentException($"unknown option {rest[i]}");
         }
     }
@@ -410,6 +416,19 @@ static int Terrain(string path, string[] rest)
     HoleSheetBuilder.Build(path, outDir, sheet with { Map = options }, numbers, new SyncProgress(Console.WriteLine));
     return 0;
 }
+
+/// <summary>"trees,bushes,grass,flowers,walls" (any of them) as planting layers.</summary>
+static PlantingLayers ParseLayers(string list) =>
+    list.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Aggregate(PlantingLayers.None, (l, name) => l | name.ToLowerInvariant() switch
+    {
+        "trees" => PlantingLayers.Trees,
+        "bushes" => PlantingLayers.Bushes,
+        "grass" => PlantingLayers.Grass,
+        "flowers" => PlantingLayers.Flowers,
+        "walls" => PlantingLayers.Walls,
+        "all" => PlantingLayers.All,
+        var t => throw new ArgumentException($"unknown planting layer {t} (trees, bushes, grass, flowers, walls)"),
+    });
 
 static int Cards(string path, string[] rest)
 {

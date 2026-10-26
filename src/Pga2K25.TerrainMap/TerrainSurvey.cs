@@ -105,6 +105,12 @@ public sealed record TerrainMapOptions
     /// <summary>Whether a hole's green-site circle is drawn (see <see cref="ShowDrawnGreenSites"/>).</summary>
     public bool ShowsGreenSite(HoleRouting h) => ShowDrawnGreenSites || !h.GreenSiteIsDrawn;
 
+    /// <summary>What the designer planted, by layer (see <see cref="Planting"/>); none by default.</summary>
+    public PlantingLayers Planting { get; init; } = PlantingLayers.None;
+
+    /// <summary>Conifers darker than broadleaf trees; false draws every tree in one green.</summary>
+    public bool TreesByType { get; init; } = true;
+
     public string Credit { get; init; } = "";
 
     /// <summary>Also write "&lt;course&gt; - Terrain Map.pdf": the same sheet, with contours, routing and text as vectors.</summary>
@@ -161,6 +167,10 @@ public sealed class TerrainSurvey
 
     public required CourseModel Course { get; init; }
     public required CourseLayers Layers { get; init; }
+
+    Planting? _planting;
+    /// <summary>What the designer planted, sorted into layers (read once, when first drawn).</summary>
+    public Planting Planting => _planting ??= Planting.From(Course);
     public required Vec2 Min { get; init; }
     public required Vec2 Max { get; init; }
     public required Heightfield Field { get; init; }

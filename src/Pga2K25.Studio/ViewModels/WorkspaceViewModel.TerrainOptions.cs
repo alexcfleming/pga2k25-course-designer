@@ -56,6 +56,7 @@ public partial class WorkspaceViewModel
         OptPrintPpm = t.PrintPixelsPerMetre.ToString("0.##", Inv);
         OptError = "";
         UpdateOptSummary();
+        RaisePlanting();
     }
 
     void UpdateOptSummary()

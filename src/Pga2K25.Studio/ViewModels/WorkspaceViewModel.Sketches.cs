@@ -326,7 +326,7 @@ public partial class WorkspaceViewModel
         Status = "Reading the scans…";
         var progress = new Progress<string>(line => { Log.Add(line); Status = line; });
         // The same sheet options as the Hole sheets build, so the fresh render matches what was printed.
-        var options = new HoleSheetOptions { Map = Terrain.ToOptions(Settings.Credit) with { ContourIntervalFeet = null } };
+        var options = new HoleSheetOptions { Map = Terrain.ToSheetOptions(Settings.Credit) };
         try
         {
             // The Hole sheets build's PNGs are usually what was printed; they still match where the ground has changed since.
