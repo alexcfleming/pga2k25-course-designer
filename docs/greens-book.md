@@ -112,6 +112,10 @@ All of these were worse on heights, slopes, or both.
 
 **Brush shapes (2026-10-03).** The replay now stamps each brush with its real shape from the designer's palette (see docs/terrain-map.md, "Terrain model"). The hardness and blur above still apply to brushes of unknown shape. With the shapes, the Cassimbo greens score 4 %, 12 %, 9 % and 6 % of range (holes 1, 7, 10, 13), against 2–10 % for the round-disc model. That model was tuned on these greens alone, and away from them it was badly wrong: 22 ft RMS on Berwick Coast's route heights, against 2 ft with the shapes.
 
+**Flatten samples (2026-10-26).** Small flatten stamps are now read as the game's ground where they were clicked (docs/terrain-map.md, "Terrain model"). That removed a false 17.6 in crown at Sagan-Khushun green 9 pin 1, which in game sits in a gentle hollow. Cassimbo moves to 3.3, 12.6, 7.7 and 6.6 % of range, so the calibration test's limit is now 13 %.
+
+**Sagan-Khushun green 9 capture** (`samples/calibration/sagan-khushun/`, 14 labels zeroed on the pin 1 cup, pins fit to 0.15 m). In game the green is nearly flat: everything above pin 1 is within 4 in, falling 7 in at 12 yd short and 18 in at 20 yd short. The replay scores 10.3 in RMS (49 % of a 21 in range) without flatten samples and 5.4 in (26 %) with them. Wider settings fit this green better (2.2 in with flattens up to 20 m and a 3× reach), but every setting that did took at least one Cassimbo green past 13 %, and so did heavier blur, so the defaults keep the balance. What is left on green 9 is a tilt of about ±9 in across pin 1 (west low, east high) that the game doesn't show, and a surface lumpier than the real one.
+
 **Known limits:**
 
 - Heights match well, but the slope *shape* only moderately agrees with the in-game grid colours (rank correlation about 0.5). The model still concentrates slope into narrower bands than the game shows, so treat band sharpness as approximate.

@@ -45,6 +45,24 @@ public sealed record TerrainModelOptions
     /// <summary>Half the plot's width: stamp centres are clamped to ±this.</summary>
     public double PlotHalfMetres { get; init; } = 1000;
 
+    /// <summary>
+    /// Read each flatten stamp's value as the game's ground where it was clicked (the designer's flatten picks up the
+    /// height under the cursor: 85 % of Sagan-Khushun's sub-4 m flatten dabs sit within 3 in of the modelled ground).
+    /// Where the replay disagrees, the ground around the stamp is shifted by the gap before the stamp lands, so the
+    /// flatten levels what is really out of level instead of building a table on an error left by the big sculpting
+    /// brushes. Sagan-Khushun green 9 showed a 17 in crown at pin 1 without it; the game shows a gentle hollow.
+    /// </summary>
+    public bool FlattenSamples { get; init; } = true;
+
+    /// <summary>Only flattens smaller than this (scale, m) are read as samples; big drags are often set to a height.</summary>
+    public double FlattenSampleMaxScale { get; init; } = 8;
+
+    /// <summary>The shift fades out (smoothstep) at this multiple of the stamp's scale.</summary>
+    public double FlattenSampleReach { get; init; } = 2;
+
+    /// <summary>Gaps larger than this (m) are taken as a set height, not a sample, and left alone.</summary>
+    public double FlattenSampleMaxMetres { get; init; } = 1;
+
     /// <summary>Raster cell size in metres.</summary>
     public double CellMetres { get; init; } = 0.25;
 }
@@ -100,7 +118,8 @@ public static class TerrainReplay
     /// Rebuilds elevations over a window by replaying <c>height[]</c> in file order:
     /// tool 0 (flatten) blends toward the stamp's absolute value, tool 1 (raise) adds its value, both weighted
     /// by the brush's shape at its size and rotation (<see cref="StampShape"/>). Unknown types use a circular
-    /// plateau + smoothstep falloff.
+    /// plateau + smoothstep falloff. With <see cref="TerrainModelOptions.FlattenSamples"/>, a small flatten first
+    /// shifts the ground around it to its value (<see cref="FlattenShifts"/>).
     /// </summary>
     public static Heightfield Build(CourseModel course, Vec2 min, Vec2 max, TerrainModelOptions options)
     {
@@ -114,11 +133,13 @@ public static class TerrainReplay
         var values = field.Values;
         double hard = Math.Clamp(options.Hardness, 0, 0.98);
         double soft = Math.Clamp(options.LargeBrushHardness ?? options.Hardness, 0, 0.98);
+        var shifts = options.FlattenSamples ? FlattenShifts(course, options) : null;
 
-        foreach (var s in course.HeightStamps)
+        for (int i = 0; i < course.HeightStamps.Count; i++)
         {
-            if (s.Scale <= 0 || !double.IsFinite(s.Value)) continue;
-            if (options.SkipEdgeStamps && IsOnPlotEdge(s, options.PlotHalfMetres)) continue;
+            var s = course.HeightStamps[i];
+            if (!Applies(s, options)) continue;
+            if (shifts is not null && shifts[i] != 0) Shift(field, s.Position, s.Scale * options.FlattenSampleReach, shifts[i]);
             if (options.BrushShapes && BrushShape.ForType(s.Type) is { } shape)
             {
                 StampShape(field, s, shape);
@@ -150,6 +171,92 @@ public static class TerrainReplay
 
         if (sigma > 0) GaussianBlur(field, sigma / cell);
         return field;
+    }
+
+    static bool Applies(HeightStamp s, TerrainModelOptions options) =>
+        s.Scale > 0 && double.IsFinite(s.Value) && !(options.SkipEdgeStamps && IsOnPlotEdge(s, options.PlotHalfMetres));
+
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<CourseModel, Dictionary<TerrainModelOptions, double[]>> ShiftCache = new();
+
+    /// <summary>
+    /// For each stamp (by its place in <c>height[]</c>), how far to shift the ground around it before it lands:
+    /// the gap between a small flatten's value and the replayed ground at its centre, or 0. Worked out once per
+    /// course along the whole replay at the stamp centres alone, so every window agrees, whatever it covers.
+    /// The gaps ignore the final blur, which only softens.
+    /// </summary>
+    public static double[] FlattenShifts(CourseModel course, TerrainModelOptions options)
+    {
+        var byOptions = ShiftCache.GetOrCreateValue(course);
+        // Only the settings that change the replay matter; the window and cell don't.
+        var key = options with { CellMetres = 0, BlurSigmaMetres = 0 };
+        lock (byOptions)
+            if (byOptions.TryGetValue(key, out var cached)) return cached;
+
+        var stamps = course.HeightStamps;
+        var shifts = new double[stamps.Count];
+        double hard = Math.Clamp(options.Hardness, 0, 0.98);
+        double soft = Math.Clamp(options.LargeBrushHardness ?? options.Hardness, 0, 0.98);
+        for (int i = 0; i < stamps.Count; i++)
+        {
+            var s = stamps[i];
+            if (s.Tool != 0 || s.Scale >= options.FlattenSampleMaxScale || !Applies(s, options)) continue;
+            double ground = 0;
+            for (int j = 0; j < i; j++)
+            {
+                var t = stamps[j];
+                if (!Applies(t, options)) continue;
+                if (shifts[j] != 0) ground += shifts[j] * ShiftWeight(Vec2.Distance(s.Position, t.Position) / (t.Scale * options.FlattenSampleReach));
+                double weight = Weight(t, s.Position, options, hard, soft);
+                if (weight > 0) ground = t.Tool == 0 ? ground + (t.Value - ground) * weight : ground + t.Value * weight;
+            }
+            double gap = s.Value - ground;
+            if (Math.Abs(gap) <= options.FlattenSampleMaxMetres) shifts[i] = gap;
+        }
+        lock (byOptions) byOptions[key] = shifts;
+        return shifts;
+    }
+
+    static double ShiftWeight(double d)
+    {
+        if (d >= 1) return 0;
+        double t = 1 - d;
+        return t * t * (3 - 2 * t);
+    }
+
+    /// <summary>Raises the ground by <paramref name="by"/> at <paramref name="centre"/>, fading to nothing at <paramref name="reach"/>.</summary>
+    static void Shift(Heightfield field, Vec2 centre, double reach, double by)
+    {
+        var origin = field.Origin;
+        double cell = field.Cell;
+        int x0 = Math.Max(0, (int)Math.Floor((centre.X - reach - origin.X) / cell));
+        int x1 = Math.Min(field.Width - 1, (int)Math.Ceiling((centre.X + reach - origin.X) / cell));
+        int z0 = Math.Max(0, (int)Math.Floor((centre.Z - reach - origin.Z) / cell));
+        int z1 = Math.Min(field.Height - 1, (int)Math.Ceiling((centre.Z + reach - origin.Z) / cell));
+        for (int iz = z0; iz <= z1; iz++)
+            for (int ix = x0; ix <= x1; ix++)
+            {
+                double w = ShiftWeight(Vec2.Distance(field.CellCentre(ix, iz), centre) / reach);
+                if (w > 0) field[ix, iz] += by * w;
+            }
+    }
+
+    /// <summary>One stamp's weight at a world point: the same weights <see cref="Build"/> rasterises.</summary>
+    static double Weight(HeightStamp s, Vec2 p, TerrainModelOptions options, double hard, double soft)
+    {
+        double dx = p.X - s.Position.X, dz = p.Z - s.Position.Z;
+        if (Math.Abs(dx) > s.Scale * 1.5 || Math.Abs(dz) > s.Scale * 1.5) return 0;   // beyond any brush's reach
+        if (options.BrushShapes && BrushShape.ForType(s.Type) is { } shape)
+        {
+            double half = s.Scale;
+            double th = s.RotationY * Math.PI / 180, cos = Math.Cos(th), sin = Math.Sin(th);
+            double gain = s.Tool == 0 && shape.Peak > 0 ? 1 / shape.Peak : 1;
+            return Math.Min(1, shape.Weight((dx * cos - dz * sin) / half, (dx * sin + dz * cos) / half) * gain);
+        }
+        double d = Math.Sqrt(dx * dx + dz * dz) / (s.Scale / 2);
+        if (d >= 1) return 0;
+        double inner = s.Scale >= options.LargeBrushMetres ? soft : hard;
+        double tt = Math.Clamp((1 - d) / (1 - inner), 0, 1);
+        return tt * tt * (3 - 2 * tt);
     }
 
     /// <summary>The game's sea plane (world m): every plot has it, though it only shows where the ground dips below.</summary>
