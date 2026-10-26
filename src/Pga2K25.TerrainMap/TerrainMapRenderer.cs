@@ -150,7 +150,7 @@ public sealed class TerrainMapRenderer : TerrainInk
 
     const float RowH = 12.5f;
 
-    float PanelHeight(TerrainSurvey s) => ((s.Holes.Count == 0 ? 520 : 300 + RowH * (s.Holes.Count + 2) + 420) + (ShowsPlanting(s) ? 280 : 0)) * _u;
+    float PanelHeight(TerrainSurvey s) => ((s.Holes.Count == 0 ? 520 : 300 + RowH * (s.Holes.Count + 2) + 420) + 80 + (ShowsPlanting(s) ? 280 : 0)) * _u;
 
     bool ShowsPlanting(TerrainSurvey s) => s.Planting.Has(_o.Planting);
 
@@ -222,6 +222,25 @@ public sealed class TerrainMapRenderer : TerrainInk
         Text(canvas, "ground lies, before shaping: tilt of its best-fit plane, ± most the ground departs from it.", r.Left, y + 6 * u, 6.6f * u, _sansItalic, Grey);
         y += 22 * u;
         }
+
+        // The designer's budget counters, estimated (the file doesn't store them).
+        Heading("GAME BUDGET  (rough estimate)");
+        var budget = GameBudget.Estimate(s.Course);
+        void Meter(string label, double pct)
+        {
+            Text(canvas, label, r.Left, y + 6.5f * u, 7.6f * u, _sans, Ink);
+            var bar = new SKRect(r.Left + 46 * u, y + 1 * u, r.Right - 46 * u, y + 7 * u);
+            using (var back = Fill(Rule.WithAlpha(120))) canvas.DrawRect(bar, back);
+            using (var fill = Fill(pct >= 90 ? Flag : Ink)) canvas.DrawRect(bar.Left, bar.Top, bar.Width * (float)Math.Clamp(pct / 100, 0, 1), bar.Height, fill);
+            Text(canvas, $"≈ {pct:0} %", r.Right, y + 6.5f * u, 7.6f * u, _sansBold, pct >= 90 ? Flag : Ink, SKTextAlign.Right);
+            y += 13 * u;
+        }
+        Meter("Objects", budget.ObjectPercent);
+        Meter("Memory", budget.MemoryPercent);
+        Text(canvas, $"≈ {budget.Objects:N0} objects, {budget.UniqueAssets} different assets. Fitted to four courses'", r.Left, y + 5 * u, 6.4f * u, _sansItalic, Grey);
+        y += 9 * u;
+        Text(canvas, "in-game readings; the designer's own counters are the real figures.", r.Left, y + 5 * u, 6.4f * u, _sansItalic, Grey);
+        y += 20 * u;
 
         // Planting summary: trees, and their species.
         var plants = s.Planting;

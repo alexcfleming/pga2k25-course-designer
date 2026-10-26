@@ -59,6 +59,16 @@ public class PlantingTests
     }
 
     [Fact]
+    public void GameBudget_MatchesMurraysInGameCounters()
+    {
+        // The repo's Murray sample holds the same placed things as the file read in game: 11.7 % objects, 28.1 % memory.
+        var b = GameBudget.Estimate(Murray.Value);
+        Assert.Equal(23, b.UniqueAssets);
+        Assert.InRange(b.ObjectPercent, 11.2, 12.2);
+        Assert.InRange(b.MemoryPercent, 26.6, 29.6);
+    }
+
+    [Fact]
     public void TreeSpecies_AddUpAndMarkEstimates()
     {
         var p = Planting.From(Murray.Value);
