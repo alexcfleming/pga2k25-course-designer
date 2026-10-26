@@ -5,10 +5,12 @@ using SkiaSharp;
 namespace Pga2K25.YardageBook;
 
 /// <summary>
-/// One tall yardage-book page per hole, after the StrackaLine layout: the hole plays up the page,
-/// grey distance arcs from the green (right-hand labels) and from the back tee (left-hand labels),
-/// fairway bunker carries as tee-yards over green-yards, circled fairway widths, spot elevations
-/// relative to the green centre, and a tee-set footer.
+/// One tall yardage-book page per hole in the Clubhouse style: the hole plays up the page over soft,
+/// edgeless fills with illustrated relief (a hillshade wash and downhill hachures, fainter on the fairways),
+/// planting in canopy masses, distance circles from the green (right-hand labels) and from the back tee
+/// (left-hand labels), hazard carries as tee-yards over gold green-yards, fairway widths in gold-edged tags,
+/// spot elevations relative to the green centre, and a footer with a deep green par disc, the tee sets and a
+/// gold hole ring.
 /// </summary>
 public sealed class YardagePageRenderer : IDisposable
 {
@@ -16,42 +18,52 @@ public sealed class YardagePageRenderer : IDisposable
     public static readonly SKRect MapRect = new(14, 56, PageWidth - 14, PageHeight - 104);
     const double Yard = HoleAnalysis.Yard;
 
+    // Clubhouse palette: soft fills, green only for turf, gold for yards to the green and the page's accents.
     static readonly SKColor Paper = SKColor.Parse("#ffffff");
-    static readonly SKColor Ground = SKColor.Parse("#f5f2e9");
-    static readonly SKColor RoughFill = SKColor.Parse("#e3eed8");
-    static readonly SKColor FairwayFill = SKColor.Parse("#c3e0ad");
-    static readonly SKColor FairwayEdge = SKColor.Parse("#9fca88");
-    static readonly SKColor GreenFill = SKColor.Parse("#98cf80");
-    static readonly SKColor GreenEdge = SKColor.Parse("#4f9443");
-    static readonly SKColor BunkerFill = SKColor.Parse("#f0e4d2");
-    static readonly SKColor BunkerEdge = SKColor.Parse("#c5ab88");
-    static readonly SKColor WaterFill = SKColor.Parse("#cfe3ec");
-    static readonly SKColor ScrubFill = SKColor.Parse("#7f9b5c");
-    static readonly SKColor TreeFill = SKColor.Parse("#2f6b3a");
-    static readonly SKColor RockFill = SKColor.Parse("#a79f93");
-    static readonly SKColor RockEdge = SKColor.Parse("#7e776c");
-    static readonly SKColor LineOfPlay = SKColor.Parse("#5f6b64");
-    static readonly SKColor PathColour = SKColor.Parse("#d9cfb8");
-    static readonly SKColor ArcGreen = SKColor.Parse("#a7afb5");
-    static readonly SKColor ArcTee = SKColor.Parse("#b9c4d6");
-    static readonly SKColor Ink = SKColor.Parse("#222222");
-    static readonly SKColor Muted = SKColor.Parse("#7d868d");
-    static readonly SKColor GreenText = SKColor.Parse("#2e8b3e");
-    static readonly SKColor RedText = SKColor.Parse("#c0392b");
+    static readonly SKColor Ground = SKColor.Parse("#faf9f5");
+    static readonly SKColor RoughFill = SKColor.Parse("#eef1e4");
+    static readonly SKColor FairwayFill = SKColor.Parse("#e1ead0");
+    static readonly SKColor FairwayEdge = SKColor.Parse("#cbd9b2");
+    static readonly SKColor TeeFill = SKColor.Parse("#cfddb8");
+    static readonly SKColor GreenFill = SKColor.Parse("#86b46e");
+    static readonly SKColor GreenEdge = SKColor.Parse("#5d8a49");
+    static readonly SKColor BunkerFill = SKColor.Parse("#f3ead3");
+    static readonly SKColor BunkerEdge = SKColor.Parse("#d9c79b");
+    static readonly SKColor WaterFill = SKColor.Parse("#d5e6ee");
+    static readonly SKColor Canopy = SKColor.Parse("#a7c08c");
+    static readonly SKColor ConiferCanopy = SKColor.Parse("#57785c");
+    static readonly SKColor HazardFill = SKColor.Parse("#8e9a6a");
+    static readonly SKColor HazardEdge = SKColor.Parse("#5e6a44");
+    static readonly SKColor RockFill = SKColor.Parse("#c9c3b6");
+    static readonly SKColor RockEdge = SKColor.Parse("#a9a293");
+    static readonly SKColor PathColour = SKColor.Parse("#e4ddcb");
+    static readonly SKColor ArcGreen = SKColor.Parse("#bdb7ac");
+    static readonly SKColor ArcTee = SKColor.Parse("#d3cec4");
+    static readonly SKColor Ink = SKColor.Parse("#23302a");
+    static readonly SKColor Muted = SKColor.Parse("#6b6f68");
+    static readonly SKColor TeeArcText = SKColor.Parse("#8a8e86");
+    static readonly SKColor Gold = SKColor.Parse("#b07d2b");
+    static readonly SKColor DeepGreen = SKColor.Parse("#23402f");
+    static readonly SKColor Uphill = SKColor.Parse("#3f6b4a");
+    static readonly SKColor Downhill = SKColor.Parse("#a65a2e");
 
     readonly YardageOptions _o;
-    readonly SKTypeface _regular, _bold;
+    readonly SKTypeface _regular, _bold, _heavy;
 
     public YardagePageRenderer(YardageOptions options)
     {
         _o = options;
-        string family = new[] { "Segoe UI", "Arial" }
+        // Archivo, bundled next to the app (fonts/archivo) when present, else installed; Segoe UI or Arial otherwise.
+        string fonts = Path.Combine(AppContext.BaseDirectory, "fonts", "archivo");
+        SKTypeface? Bundled(string file) => File.Exists(Path.Combine(fonts, file)) ? SKTypeface.FromFile(Path.Combine(fonts, file)) : null;
+        string family = new[] { "Archivo", "Segoe UI", "Arial" }
             .FirstOrDefault(f => string.Equals(SKTypeface.FromFamilyName(f)?.FamilyName, f, StringComparison.OrdinalIgnoreCase)) ?? SKTypeface.Default.FamilyName;
-        _regular = SKTypeface.FromFamilyName(family, SKFontStyle.Normal);
-        _bold = SKTypeface.FromFamilyName(family, SKFontStyle.Bold);
+        _regular = Bundled("Archivo-Regular.ttf") ?? SKTypeface.FromFamilyName(family, SKFontStyle.Normal);
+        _bold = Bundled("Archivo-Bold.ttf") ?? SKTypeface.FromFamilyName(family, SKFontStyle.Bold);
+        _heavy = Bundled("Archivo-ExtraBold.ttf") ?? SKTypeface.FromFamilyName(family, new SKFontStyle(SKFontStyleWeight.ExtraBold, SKFontStyleWidth.Normal, SKFontStyleSlant.Upright));
     }
 
-    public void Dispose() { _regular.Dispose(); _bold.Dispose(); }
+    public void Dispose() { _regular.Dispose(); _bold.Dispose(); _heavy.Dispose(); }
 
     public void Draw(SKCanvas canvas, string courseName, HoleAnalysis a)
     {
@@ -64,6 +76,8 @@ public sealed class YardagePageRenderer : IDisposable
         using (var g = Fill(Ground)) canvas.DrawRect(MapRect, g);
 
         FillAll(canvas, proj, a.Rough, RoughFill, null, a.Foreign);
+        using var relief = Relief.Build(a, proj, MapRect);
+        relief?.DrawShade(canvas, 1f);
         foreach (var r in a.Paths) { using var s = Stroke(PathColour, Math.Max(0.8f, (float)(r.Width * k))); using var path = proj.Path(r.Points, false); canvas.DrawPath(path, s); }
         FillAll(canvas, proj, a.Water, WaterFill, null);
         foreach (var body in a.WaterBodies)
@@ -78,6 +92,17 @@ public sealed class YardagePageRenderer : IDisposable
         FillAll(canvas, proj, a.Fairways, FairwayFill, FairwayEdge, a.Foreign);
         FillAll(canvas, proj, a.Bunkers, BunkerFill, BunkerEdge, a.Foreign);
 
+        // Relief over the fairways is the same ground, fainter, so the surfaces still read first. Greens get
+        // none: their slopes are the greens book's job.
+        using (var fairwayPath = Union(proj, a.Fairways.Where(f => !a.Foreign.Contains(f))))
+        {
+            canvas.Save();
+            canvas.ClipPath(fairwayPath, antialias: true);
+            relief?.DrawShade(canvas, 0.45f);
+            relief?.DrawHachures(canvas, 0.35f);
+            canvas.Restore();
+        }
+
         // Background vegetation and rock: kept off this hole's fairways, tees and greens (a tee complex set
         // inside a rocky surround stays visible). In-play hazards are drawn on top, unclipped.
         using (var play = new SKPathBuilder())
@@ -89,12 +114,20 @@ public sealed class YardagePageRenderer : IDisposable
             using var playPath = play.Detach();
             canvas.Save();
             canvas.ClipPath(playPath, SKClipOperation.Difference, antialias: true);
-            DrawMasses(canvas, proj, a.Vegetation.Where(l => !a.InPlay.Contains(l)), ScrubFill.WithAlpha(72), ScrubFill.WithAlpha(120), 0.6f);
-            DrawMasses(canvas, proj, a.Outcrops.Where(m => !a.InPlay.Contains(m)), RockFill.WithAlpha(90), RockEdge.WithAlpha(110), 0.5f);
+            // Hachures run through the rough, under the planting.
+            using (var wet = Union(proj, a.Water.Concat(a.WaterBodies.SelectMany(b => b)).Concat(a.Bunkers)))
+            {
+                canvas.Save();
+                canvas.ClipPath(wet, SKClipOperation.Difference, antialias: true);
+                relief?.DrawHachures(canvas, 1f);
+                canvas.Restore();
+            }
+            DrawPlanting(canvas, proj, a);
+            DrawMasses(canvas, proj, a.Outcrops.Where(m => !a.InPlay.Contains(m)), RockFill.WithAlpha(150), RockEdge.WithAlpha(150), 0.5f);
             canvas.Restore();
         }
-        // In-play hazards (inside this hole's fairway) mix rock and scrub: a strong olive-grey.
-        DrawMasses(canvas, proj, a.Outcrops.Where(a.InPlay.Contains), SKColor.Parse("#9c9a7c").WithAlpha(200), SKColor.Parse("#6f6d55"), 0.9f);
+        // In-play hazards (inside this hole's fairway) mix rock and scrub: a strong olive.
+        DrawMasses(canvas, proj, a.Outcrops.Where(a.InPlay.Contains), HazardFill.WithAlpha(220), HazardEdge, 0.9f);
 
         foreach (var t in a.TeeSets.Select(t => t.Tee).Distinct()) DrawTeePad(canvas, proj, t, a.Forward);
         FillAll(canvas, proj, a.Greens, GreenFill, GreenEdge, a.Foreign);
@@ -110,7 +143,7 @@ public sealed class YardagePageRenderer : IDisposable
         DrawAimPoints(canvas, proj, a);
         canvas.Restore();
 
-        using (var frame = Stroke(SKColor.Parse("#9aa3a8"), 0.8f)) canvas.DrawRect(MapRect, frame);
+        using (var frame = Stroke(SKColor.Parse("#e6e2d8"), 0.6f)) canvas.DrawRect(MapRect, frame);
         DrawHeader(canvas, courseName, a, proj);
         DrawFooter(canvas, a);
     }
@@ -146,6 +179,30 @@ public sealed class YardagePageRenderer : IDisposable
         return new SKColor(Mix(c.Red, Ground.Red), Mix(c.Green, Ground.Green), Mix(c.Blue, Ground.Blue));
     }
 
+    /// <summary>One path holding every shape (non-zero, so overlaps don't punch holes).</summary>
+    static SKPath Union(MapProjection p, IEnumerable<List<Vec2>> shapes)
+    {
+        using var b = new SKPathBuilder();
+        foreach (var s in shapes.Where(s => s.Count >= 3)) p.AddPolyline(b, s, true);
+        return b.Detach();
+    }
+
+    /// <summary>
+    /// Planting in canopy masses: the fused trees, bushes, scatter groups and planted areas in soft sage, with
+    /// the placed conifers' crowns darker inside them.
+    /// </summary>
+    static void DrawPlanting(SKCanvas canvas, MapProjection p, HoleAnalysis a)
+    {
+        using var masses = Union(p, a.Vegetation.Where(l => !a.InPlay.Contains(l)));
+        using (var f = Fill(Canopy)) canvas.DrawPath(masses, f);
+        if (a.Conifers.Count == 0) return;
+        canvas.Save();
+        canvas.ClipPath(masses, antialias: true);
+        using var dark = Fill(ConiferCanopy.WithAlpha(230));
+        foreach (var d in a.Conifers) canvas.DrawCircle(p.Map(d.Centre), (float)(d.Radius * p.PointsPerMetre), dark);
+        canvas.Restore();
+    }
+
     static void DrawMasses(SKCanvas canvas, MapProjection p, IEnumerable<List<Vec2>> loops, SKColor fill, SKColor edge, float edgeWidth)
     {
         using var b = new SKPathBuilder { FillType = SKPathFillType.EvenOdd };
@@ -158,8 +215,8 @@ public sealed class YardagePageRenderer : IDisposable
     /// <summary>Faint dashed line of play: back tee → aim points → green.</summary>
     static void DrawLineOfPlay(SKCanvas canvas, MapProjection p, HoleAnalysis a)
     {
-        using var s = Stroke(LineOfPlay.WithAlpha(150), 0.9f);
-        s.PathEffect = SKPathEffect.CreateDash([5f, 4f], 0);
+        using var s = Stroke(Gold.WithAlpha(200), 1f);
+        s.PathEffect = SKPathEffect.CreateDash([3f, 2.5f], 0);
         using var path = p.Path(a.Route, false);
         canvas.DrawPath(path, s);
     }
@@ -170,15 +227,25 @@ public sealed class YardagePageRenderer : IDisposable
         {
             var c = p.Map(aim.Point);
             using (var f = Fill(SKColors.White)) canvas.DrawCircle(c, 4.2f, f);
-            using (var s = Stroke(LineOfPlay, 1.2f)) canvas.DrawCircle(c, 4.2f, s);
-            using (var d = Fill(LineOfPlay)) canvas.DrawCircle(c, 1.4f, d);
-            // Label on the side with more room.
-            bool right = c.X < MapRect.MidX;
-            var align = right ? SKTextAlign.Left : SKTextAlign.Right;
-            float x = c.X + (right ? 8 : -8);
+            using (var s = Stroke(Ink, 1.1f)) canvas.DrawCircle(c, 4.2f, s);
+            using (var d = Fill(Ink)) canvas.DrawCircle(c, 1.4f, d);
+            var (x, align, _) = AimLabel(aim, c);
             Label(canvas, aim.FromTeeYards.ToString(), x, c.Y - 1, 10.5f, _bold, Ink, align, halo: true);
-            Label(canvas, aim.ToGreenYards.ToString(), x, c.Y + 10, 9.5f, _bold, GreenText, align, halo: true);
+            Label(canvas, aim.ToGreenYards.ToString(), x, c.Y + 10, 9.5f, _bold, Gold, align, halo: true);
         }
+    }
+
+    /// <summary>
+    /// Where an aim point's two numbers go: on the side with more room. Returns the text anchor, its alignment,
+    /// and the box the marker and both numbers cover, which width tags keep clear of.
+    /// </summary>
+    (float X, SKTextAlign Align, SKRect Box) AimLabel(AimPoint aim, SKPoint c)
+    {
+        bool right = c.X < MapRect.MidX;
+        float x = c.X + (right ? 8 : -8);
+        float w = Math.Max(Measure(aim.FromTeeYards.ToString(), 10.5f, _bold), Measure(aim.ToGreenYards.ToString(), 9.5f, _bold));
+        var box = right ? new SKRect(c.X - 6, c.Y - 10, x + w + 2, c.Y + 13) : new SKRect(x - w - 2, c.Y - 10, c.X + 6, c.Y + 13);
+        return (x, right ? SKTextAlign.Left : SKTextAlign.Right, box);
     }
 
     static void DrawTeePad(SKCanvas canvas, MapProjection p, Vec2 tee, Vec2 fwd)
@@ -192,8 +259,8 @@ public sealed class YardagePageRenderer : IDisposable
         canvas.Translate(c.X, c.Y);
         canvas.RotateDegrees(angle);
         var rect = new SKRect(-wid / 2, -len / 2, wid / 2, len / 2);
-        using (var f = Fill(FairwayFill)) canvas.DrawRoundRect(rect, 1.5f, 1.5f, f);
-        using (var s = Stroke(FairwayEdge.WithAlpha(255), 0.8f)) canvas.DrawRoundRect(rect, 1.5f, 1.5f, s);
+        using (var f = Fill(TeeFill)) canvas.DrawRoundRect(rect, 3f, 3f, f);
+        using (var s = Stroke(FairwayEdge, 0.8f)) canvas.DrawRoundRect(rect, 3f, 3f, s);
         canvas.Restore();
     }
 
@@ -204,9 +271,9 @@ public sealed class YardagePageRenderer : IDisposable
         int hole = a.LengthYards;
         var green = p.Map(a.Green);
         var tee = p.Map(a.BackTee);
-        using var gs = Stroke(ArcGreen.WithAlpha(190), 0.7f);
-        using var ts = Stroke(ArcTee.WithAlpha(190), 0.7f);
-        ts.PathEffect = SKPathEffect.CreateDash([4f, 3f], 0);
+        using var gs = Stroke(ArcGreen, 0.8f);
+        using var ts = Stroke(ArcTee, 0.7f);
+        ts.PathEffect = SKPathEffect.CreateDash([5f, 4f], 0);
 
         for (int y = 50; y <= hole - 25; y += 25)
         {
@@ -215,7 +282,7 @@ public sealed class YardagePageRenderer : IDisposable
             // Label where the arc meets the right edge, below the green.
             float x = MapRect.Right - 13, dx = x - green.X;
             if (Math.Abs(dx) < r && green.Y + MathF.Sqrt(r * r - dx * dx) is var yy && yy < MapRect.Bottom - 8 && yy > MapRect.Top + 8)
-                Label(canvas, y.ToString(), x, yy + 3.5f, 9, _bold, ArcGreen.WithAlpha(255), SKTextAlign.Center, halo: true);
+                Label(canvas, y.ToString(), x, yy + 3.5f, 8.5f, _bold, Gold, SKTextAlign.Center, halo: true);
         }
         for (int y = 150; y <= hole - 40; y += 25)
         {
@@ -223,7 +290,7 @@ public sealed class YardagePageRenderer : IDisposable
             DrawVisibleArc(canvas, tee, r, ts);
             float x = MapRect.Left + 13, dx = x - tee.X;
             if (Math.Abs(dx) < r && tee.Y - MathF.Sqrt(r * r - dx * dx) is var yy && yy > MapRect.Top + 8 && yy < MapRect.Bottom - 8)
-                Label(canvas, y.ToString(), x, yy + 3.5f, 9, _bold, SKColor.Parse("#7f93b3"), SKTextAlign.Center, halo: true);
+                Label(canvas, y.ToString(), x, yy + 3.5f, 8.5f, _bold, TeeArcText, SKTextAlign.Center, halo: true);
         }
     }
 
@@ -265,11 +332,33 @@ public sealed class YardagePageRenderer : IDisposable
     {
         foreach (var w in a.Widths)
         {
-            using (var line = Stroke(Muted.WithAlpha(150), 0.6f)) { line.PathEffect = SKPathEffect.CreateDash([2f, 2f], 0); canvas.DrawLine(p.Map(w.Left), p.Map(w.Right), line); }
+            SKPoint l = p.Map(w.Left), r = p.Map(w.Right);
+            using (var line = Stroke(Ink.WithAlpha(200), 0.7f)) canvas.DrawLine(l, r, line);
+            // End ticks across the line.
+            var u = new SKPoint(r.X - l.X, r.Y - l.Y);
+            float len = MathF.Max(u.Length, 1e-3f);
+            var n = new SKPoint(-u.Y / len * 3, u.X / len * 3);
+            using (var tick = Stroke(Ink.WithAlpha(200), 0.7f))
+            {
+                canvas.DrawLine(l.X - n.X, l.Y - n.Y, l.X + n.X, l.Y + n.Y, tick);
+                canvas.DrawLine(r.X - n.X, r.Y - n.Y, r.X + n.X, r.Y + n.Y, tick);
+            }
+            // The tag sits mid-fairway unless an aim point's marker or numbers are there: then it slides along its
+            // line to the nearest clear spot (Sagan-Khushun hole 12's dogleg aim sits on the 300 yd width).
             var c = p.Map(w.Centre);
-            using (var f = Fill(SKColors.White)) canvas.DrawCircle(c, 8.5f, f);
-            using (var s = Stroke(Muted, 0.8f)) canvas.DrawCircle(c, 8.5f, s);
-            Label(canvas, w.Yards.ToString(), c.X, c.Y + 3.3f, 8.5f, _bold, Ink, SKTextAlign.Center);
+            var busy = a.AimPoints.Select(x => AimLabel(x, p.Map(x.Point)).Box).ToList();
+            float half = TagWidth(w.Yards.ToString()) / 2 + 2;
+            bool Clear(SKPoint at) => !busy.Any(b => b.IntersectsWith(new SKRect(at.X - half, at.Y - 9, at.X + half, at.Y + 9)));
+            var dir = new SKPoint(u.X / len, u.Y / len);
+            if (!Clear(c))
+                for (float step = 4; step < len / 2; step += 4)
+                {
+                    var ahead = new SKPoint(c.X + dir.X * step, c.Y + dir.Y * step);
+                    var back = new SKPoint(c.X - dir.X * step, c.Y - dir.Y * step);
+                    if (Clear(ahead)) { c = ahead; break; }
+                    if (Clear(back)) { c = back; break; }
+                }
+            Tag(canvas, w.Yards.ToString(), c);
         }
     }
 
@@ -286,7 +375,7 @@ public sealed class YardagePageRenderer : IDisposable
             if (busy.Any(q => Math.Abs(q.X - (c.X - 16)) < 30 && Math.Abs(q.Y - c.Y) < 20)) continue;
             if (tees.Any(q => SKPoint.Distance(q, c) < 28)) continue;
             string text = ft == 0 ? "-0-" : ft > 0 ? $"+{ft}" : ft.ToString();
-            var colour = ft == 0 ? Muted : ft > 0 ? GreenText : RedText;
+            var colour = ft == 0 ? Muted : ft > 0 ? Uphill : Downhill;
             Label(canvas, text, c.X - 16, c.Y + 3, 9, _bold, colour, SKTextAlign.Center, halo: true);
         }
     }
@@ -310,7 +399,7 @@ public sealed class YardagePageRenderer : IDisposable
             using (var dot = Fill(Ink)) canvas.DrawCircle(c, 1.8f, dot);
             var align = right ? SKTextAlign.Left : SKTextAlign.Right;
             Label(canvas, b.FromTeeYards.ToString(), anchor.X, anchor.Y - 1, 10.5f, _bold, Ink, align, halo: true);
-            Label(canvas, b.ToGreenYards.ToString(), anchor.X, anchor.Y + 10, 9.5f, _bold, GreenText, align, halo: true);
+            Label(canvas, b.ToGreenYards.ToString(), anchor.X, anchor.Y + 10, 9.5f, _bold, Gold, align, halo: true);
         }
     }
 
@@ -318,9 +407,12 @@ public sealed class YardagePageRenderer : IDisposable
     {
         if (a.GreenDepthYards <= 0) return;
         var c = p.Map(a.Green);
-        using (var f = Fill(SKColors.White.WithAlpha(235))) canvas.DrawCircle(c, 8.5f, f);
-        using (var s = Stroke(GreenEdge, 0.8f)) canvas.DrawCircle(c, 8.5f, s);
-        Label(canvas, a.GreenDepthYards.ToString(), c.X, c.Y + 3.3f, 8.5f, _bold, Ink, SKTextAlign.Center);
+        using var b = new SKPathBuilder();
+        b.MoveTo(c.X, c.Y - 10); b.LineTo(c.X + 11, c.Y); b.LineTo(c.X, c.Y + 10); b.LineTo(c.X - 11, c.Y); b.Close();
+        using var diamond = b.Detach();
+        using (var f = Fill(SKColors.White)) canvas.DrawPath(diamond, f);
+        using (var s = Stroke(Gold, 1.2f)) canvas.DrawPath(diamond, s);
+        Label(canvas, a.GreenDepthYards.ToString(), c.X, c.Y + 3.2f, 8.5f, _bold, Ink, SKTextAlign.Center);
     }
 
     void DrawTeeLabels(SKCanvas canvas, MapProjection p, HoleAnalysis a)
@@ -336,7 +428,7 @@ public sealed class YardagePageRenderer : IDisposable
             Label(canvas, t.Name, at.X, at.Y, 8.5f, _bold, Ink, SKTextAlign.Left, halo: true);
             float w = Measure(t.Name + " ", 8.5f, _bold);
             Label(canvas, ft == 0 ? "0" : ft > 0 ? $"+{ft}" : ft.ToString(), at.X + w, at.Y, 8.5f, _bold,
-                ft < 0 ? RedText : ft > 0 ? GreenText : Muted, SKTextAlign.Left, halo: true);
+                ft < 0 ? Downhill : ft > 0 ? Uphill : Muted, SKTextAlign.Left, halo: true);
         }
     }
 
@@ -344,16 +436,16 @@ public sealed class YardagePageRenderer : IDisposable
 
     void DrawHeader(SKCanvas canvas, string courseName, HoleAnalysis a, MapProjection p)
     {
-        Label(canvas, courseName.ToUpperInvariant(), 16, 24, 11, _bold, Ink);
-        Label(canvas, $"Hole {a.Hole.Number}  ·  Par {a.Hole.Par}  ·  {a.LengthYards} yds", 16, 40, 9.5f, _regular, Muted);
-        Label(canvas, _o.Credit, PageWidth - 16, 24, 8, _regular, Muted, SKTextAlign.Right);
+        using (var rule = Fill(Gold)) canvas.DrawRect(MapRect.Left, 8, MapRect.Width, 2.6f, rule);
+        Label(canvas, courseName, MapRect.Left, 31, 15.5f, _heavy, DeepGreen);
+        Label(canvas, $"Hole {a.Hole.Number}  ·  Par {a.Hole.Par}  ·  {a.LengthYards} yds", MapRect.Left, 46, 9.5f, _regular, Muted);
 
         // North arrow, top right.
         var d = p.MapDirection(MapProjection.North);
-        var at = new SKPoint(PageWidth - 30, 40);
+        var at = new SKPoint(PageWidth - 30, 33);
         var tip = new SKPoint(at.X + d.X * 9, at.Y + d.Y * 9);
         var tail = new SKPoint(at.X - d.X * 9, at.Y - d.Y * 9);
-        using (var s = Stroke(Ink, 1.1f)) canvas.DrawLine(tail, tip, s);
+        using (var s = Stroke(DeepGreen, 1.1f)) canvas.DrawLine(tail, tip, s);
         var n = new SKPoint(-d.Y, d.X);
         using var b = new SKPathBuilder();
         b.MoveTo(tip);
@@ -361,8 +453,8 @@ public sealed class YardagePageRenderer : IDisposable
         b.LineTo(tip.X - d.X * 5 - n.X * 3, tip.Y - d.Y * 5 - n.Y * 3);
         b.Close();
         using var head = b.Detach();
-        using (var f = Fill(Ink)) canvas.DrawPath(head, f);
-        Label(canvas, "N", tip.X + d.X * 7, tip.Y + d.Y * 7 + 3, 7.5f, _bold, Ink, SKTextAlign.Center);
+        using (var f = Fill(DeepGreen)) canvas.DrawPath(head, f);
+        Label(canvas, "N", tip.X + d.X * 7, tip.Y + d.Y * 7 + 3, 7.5f, _bold, DeepGreen, SKTextAlign.Center);
     }
 
     void DrawFooter(SKCanvas canvas, HoleAnalysis a)
@@ -370,10 +462,9 @@ public sealed class YardagePageRenderer : IDisposable
         float top = MapRect.Bottom + 12;
         // Par / length badge.
         var badge = new SKPoint(40, top + 32);
-        using (var f = Fill(SKColors.White)) canvas.DrawCircle(badge, 24, f);
-        using (var s = Stroke(GreenEdge, 1.6f)) canvas.DrawCircle(badge, 24, s);
-        Label(canvas, $"Par {a.Hole.Par}", badge.X, badge.Y - 3, 9.5f, _bold, Ink, SKTextAlign.Center);
-        Label(canvas, a.LengthYards.ToString(), badge.X, badge.Y + 10, 11, _bold, Ink, SKTextAlign.Center);
+        using (var f = Fill(DeepGreen)) canvas.DrawCircle(badge, 24, f);
+        Label(canvas, $"Par {a.Hole.Par}", badge.X, badge.Y - 3, 9.5f, _bold, SKColors.White, SKTextAlign.Center);
+        Label(canvas, a.LengthYards.ToString(), badge.X, badge.Y + 10, 11, _bold, SKColors.White, SKTextAlign.Center);
 
         // Tee sets: name / yards / elevation change to the green (+ = plays uphill).
         float x0 = 78, colW = Math.Min(62, (PageWidth - 78 - 70) / Math.Max(1, a.TeeSets.Count));
@@ -387,18 +478,20 @@ public sealed class YardagePageRenderer : IDisposable
             int rise = -(int)Math.Round(t.ElevationFt);   // green minus tee
             Label(canvas, t.Name, cx, top + 14, 9, _bold, Ink, SKTextAlign.Center);
             Label(canvas, t.Yards.ToString(), cx, top + 30, 9.5f, _bold, Ink, SKTextAlign.Center);
-            Label(canvas, rise == 0 ? "0" : rise > 0 ? $"+{rise}'" : $"{rise}'", cx, top + 46, 9, _bold,
-                rise > 0 ? RedText : rise < 0 ? GreenText : Muted, SKTextAlign.Center);
+            Label(canvas, rise == 0 ? "0" : rise > 0 ? $"+{rise}'" : $"{rise}'", cx, top + 46, 9, _bold, Gold, SKTextAlign.Center);
         }
-        Label(canvas, $"Green {a.GreenDepthYards} deep  ·  front {a.GreenFrontYards}  ·  back {a.GreenBackYards}", x0, top + 66, 8, _regular, Muted);
-        Label(canvas, "Black = yds from back tee · green = yds to green centre · spot heights ft vs green", x0, top + 79, 7, _regular, Muted);
-        Label(canvas, Attribution.Text, PageWidth - 16, top + 66, 6, _regular, Muted, SKTextAlign.Right);
+        Label(canvas, $"Green {a.GreenDepthYards} deep  ·  front {a.GreenFrontYards}  ·  back {a.GreenBackYards}", x0, top + 64, 8, _regular, Muted);
+        Label(canvas, "Dark = yds from back tee · gold = yds to green centre · spot heights ft vs green", x0, top + 76, 7, _regular, Muted);
+        // Designer credit bottom right (blank by default), with the Studio note under it.
+        if (!string.IsNullOrWhiteSpace(_o.Credit))
+            Label(canvas, _o.Credit, PageWidth - 16, top + 64, 7.5f, _bold, DeepGreen, SKTextAlign.Right);
+        Label(canvas, Attribution.Text, PageWidth - 16, top + 87, 6, _regular, Muted, SKTextAlign.Right);
 
-        // Hole number.
+        // Hole number in a gold ring.
         var hn = new SKPoint(PageWidth - 34, top + 32);
         using (var f = Fill(SKColors.White)) canvas.DrawCircle(hn, 20, f);
-        using (var s = Stroke(GreenEdge, 1.8f)) canvas.DrawCircle(hn, 20, s);
-        Label(canvas, a.Hole.Number.ToString(), hn.X, hn.Y + 7, 20, _bold, GreenEdge, SKTextAlign.Center);
+        using (var s = Stroke(Gold, 1.6f)) canvas.DrawCircle(hn, 20, s);
+        Label(canvas, a.Hole.Number.ToString(), hn.X, hn.Y + 7, 20, _bold, Gold, SKTextAlign.Center);
     }
 
     // ───────────────────────────── primitives ─────────────────────────────
@@ -410,6 +503,18 @@ public sealed class YardagePageRenderer : IDisposable
         Color = c, StrokeWidth = w, IsAntialias = true, Style = SKPaintStyle.Stroke,
         StrokeCap = SKStrokeCap.Round, StrokeJoin = SKStrokeJoin.Round,
     };
+
+    /// <summary>A number in a white, gold-edged rounded tag (fairway widths).</summary>
+    float TagWidth(string text) => Measure(text, 8.5f, _bold) + 10;
+
+    void Tag(SKCanvas canvas, string text, SKPoint c)
+    {
+        float w = TagWidth(text);
+        var box = new SKRect(c.X - w / 2, c.Y - 7, c.X + w / 2, c.Y + 7);
+        using (var f = Fill(SKColors.White)) canvas.DrawRoundRect(box, 7, 7, f);
+        using (var s = Stroke(Gold, 1.2f)) canvas.DrawRoundRect(box, 7, 7, s);
+        Label(canvas, text, c.X, c.Y + 3.1f, 8.5f, _bold, Ink, SKTextAlign.Center);
+    }
 
     static float Measure(string text, float size, SKTypeface face)
     {

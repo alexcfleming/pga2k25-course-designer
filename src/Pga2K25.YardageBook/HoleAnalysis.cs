@@ -86,6 +86,13 @@ public sealed class HoleAnalysis
     /// <summary>Rocks fused into outcrop shapes (world outlines).</summary>
     public required IReadOnlyList<List<Vec2>> Outcrops { get; init; }
 
+    /// <summary>Conifer canopies (placed trees), drawn darker inside the vegetation masses.</summary>
+    public IReadOnlyList<Disc> Conifers { get; init; } = [];
+
+    /// <summary>The terrain over the page window, for the relief shading; <see cref="GreenHeightMetres"/> is its 0 ft.</summary>
+    public Heightfield? Field { get; init; }
+    public double GreenHeightMetres { get; init; }
+
     /// <summary>Vegetation/outcrop masses that sit in this hole's fairway (drawn strongly, given carries).</summary>
     public required IReadOnlySet<List<Vec2>> InPlay { get; init; }
 
@@ -154,9 +161,17 @@ public sealed class HoleAnalysis
         var rocks = objects.Where(p => p.AssetPath.Contains("/Rocks/", StringComparison.OrdinalIgnoreCase)).ToList();
 
         // Vegetation: each plant is a canopy disc; nearby canopies fuse into masses, never across fairways/greens.
+        // Scatter groups of trees and bushes join as their whole circle, and planted areas as their outline:
+        // the game places those plants itself, so the mass is the honest summary.
+        static bool Woody(string path) => PlantSpecies.Of(path)?.Kind is PlantKind.Tree or PlantKind.Bush;
+        var groups = course.PlacedClusters.Where(c => Woody(c.AssetPath) && InView(c.Centre, 30 + c.Radius)).ToList();
+        var areas = course.PlacedAreas.Where(a => Woody(a.AssetPath) && AnyInView(a.Outline)).Select(a => (IReadOnlyList<Vec2>)a.Outline).ToList();
         var canopies = scrub.Select(s => new Disc(s.Position, o.BushRadiusMetres * Math.Max(0.5, s.Scale)))
-            .Concat(trees.Select(t => new Disc(t.Position, 2.5 * o.BushRadiusMetres * Math.Max(0.5, t.Scale)))).ToList();
-        var vegetation = canopies.Count == 0 ? [] : ShapeMerger.Merge([], [], canopies,
+            .Concat(trees.Select(t => new Disc(t.Position, 2.5 * o.BushRadiusMetres * Math.Max(0.5, t.Scale))))
+            .Concat(groups.Select(g => new Disc(g.Centre, Math.Max(g.Radius, o.BushRadiusMetres)))).ToList();
+        var conifers = trees.Where(t => PlantSpecies.Of(t.AssetPath)?.Form == TreeForm.Conifer)
+            .Select(t => new Disc(t.Position, 2.5 * o.BushRadiusMetres * Math.Max(0.5, t.Scale))).ToList();
+        var vegetation = canopies.Count == 0 && areas.Count == 0 ? [] : ShapeMerger.Merge(areas, [], canopies,
             closeRadius: o.VegetationMergeMetres / 2, smooth: 1.0,
             keepOut: fairways.Concat(greens).Select(g => (IReadOnlyList<Vec2>)g).ToList(), keepOutReach: 2.5)
             .Where(v => Geometry.Area(v) >= o.MinVegetationArea).ToList();
@@ -343,6 +358,7 @@ public sealed class HoleAnalysis
             Scrub = scrub, Trees = trees, Rocks = rocks, Vegetation = vegetation, Outcrops = outcrops,
             InPlay = inPlay, Foreign = foreign, AimPoints = aims, BunkerLabels = labels, Diagnostics = diagnostics, Widths = widths, Spots = spots,
             GreenDepthYards = depth, GreenFrontYards = front, GreenBackYards = backYards,
+            Conifers = conifers, Field = field, GreenHeightMetres = greenH,
         };
     }
 

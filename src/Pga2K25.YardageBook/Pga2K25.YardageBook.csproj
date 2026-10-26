@@ -10,6 +10,11 @@
     <PackageReference Include="SkiaSharp" Version="4.152.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Archivo (SIL OFL 1.1), the yardage book's face, shipped with the app so pages render the same anywhere. -->
+    <None Include="..\..\assets\fonts\archivo\*" Link="fonts\archivo\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

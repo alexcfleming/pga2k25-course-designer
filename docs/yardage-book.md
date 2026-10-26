@@ -1,6 +1,21 @@
 # Yardage book
 
-This builds a StrackaLine-style yardage book from a `.course` file. It uses one page per hole and one page format.
+This builds a yardage book from a `.course` file. It uses one page per hole and one page format.
+
+## Look (Studio 1.8, "Clubhouse")
+
+Since 1.8 the page has its own look. Earlier versions followed a familiar commercial yardage book too closely. The information and layout are unchanged:
+
+- **Palette:** a white page with soft, edgeless fills on a warm ground. Green is used only for turf. Gold is used for the yards to the green, the line of play and the page's accents. Deep green is used for the course name and the par disc.
+- **Type:** Archivo, regular, bold and extra bold. It is read from `fonts/archivo/` next to the app (`Archivo-Regular.ttf`, `Archivo-Bold.ttf`, `Archivo-ExtraBold.ttf`, OFL) when those files are there, then from an installed Archivo, then Segoe UI or Arial.
+- **Header:** a gold rule, then the course name and "Hole · Par · yards", with the north arrow at the right.
+- **Markers:** fairway widths sit in white, gold-edged rounded tags with tick marks at the ends. The green depth sits in a gold-edged diamond. Carries are plain stacked numbers.
+- **Footer:** a deep green par disc, the tee table (elevation change in gold) and the hole number in a gold ring. The designer credit, when set, is at the bottom right above the Studio note.
+- **Relief** (`Relief.cs`): no contour lines, so nothing fights the distance circles.
+  - A hillshade wash lit from the top left of the page. It is a small smoothed raster, so a PDF page stays light.
+  - Hachures down the fall line, longer and closer on steeper ground and none below an 8 % slope.
+  - Both read the slope across 5 m of the hole's terrain model, so the brush replay's small bumps don't show.
+  - Both are full strength in the rough, and about 40 % on this hole's fairways (fainter, so the surfaces read first). There are none on the greens, whose slopes are the greens book's job, and no hachures in water or bunkers.
 
 ## Output
 
@@ -35,21 +50,22 @@ CLI options:
   - Shapes owned by another hole are faded. Ownership is decided by a majority vote of nearby hole routes, and any shape within 15 m of this hole's line of play always belongs to this hole.
   - Water includes drawn water shapes and the course's `water[]` entries: painted streams and water planes, traced once per course by `WaterTracer` (see [terrain-map.md](terrain-map.md)). Islands stay dry.
 - **Vegetation and rocks:**
-  - Bushes and trees are fused into smooth masses. So are rocks: their radius is estimated from the course itself (see below). Both use the same merge as the scorecard bunkers: rasterise, close, smooth, trace.
+  - Planting is shown in masses. Bushes and trees are fused into smooth sage canopy masses, and the placed conifers' crowns are drawn darker inside them. Scatter groups of trees and bushes (`clusters`) join the masses as their whole circle, and planted areas (`splines` with a fill) join as their outline, because the game places those plants itself. Grass and flowers are left off at this scale. Vegetation the game generates by itself isn't in the file and isn't shown (see [terrain-map.md](terrain-map.md#planting)).
+  - Rocks are fused into masses too: their radius is estimated from the course itself (see below). Both use the same merge as the scorecard bunkers: rasterise, close, smooth, trace.
   - Background masses are clipped away from this hole's fairways, greens and tees.
   - Masses sitting in the fairway are **in-play hazards**. They are drawn strongly and given numbers.
-- **Hazard numbers:** black is yards from the back tee and green is yards to the green centre.
+- **Hazard numbers:** dark is yards from the back tee and gold is yards to the green centre.
   - The carry point is the part of the hazard nearest the line of play: within 15 m, falling back to 40 m.
   - A hazard crossing the line in several places is split into stretches, with each stretch labelled separately. Water is never split: its near and far banks are one crossing.
   - Long stretches (25 yd or more) also get a front number (a dot marks the point).
   - Carries within 40 yds of the green, or past the green, are left out. Bunker and in-play carries under 120 yds (fronts under 100) are left out too, but water carries are always numbered: a forced carry off the tee is the number a golfer needs (Luke Muscat's hole 1 creek, 54 yds). On a par 3, a water carry is numbered even within 40 yds of the green, because the tee shot is the approach: Sangoma's hole 11 clears its pond 39 yds short of the green.
-- **Arcs:** green-centred distance arcs every 25 yds are labelled on the right. Back-tee arcs (dashed) are labelled on the left.
+- **Arcs:** green-centred distance circles every 25 yds are labelled on the right, in gold. Back-tee circles (dashed) are labelled on the left.
 - **Widths:** fairway width at 200, 250 and 300 yds, measured across the page. Bunkers and in-play hazards are excluded.
 - **Spot heights:** feet relative to the green centre, every 50 yds from 125 yds. The calibrated greens-book terrain is used: hardness 0.85, blur 1 m. A spot height is skipped where it would collide with a number.
 - **Aim points and green:**
   - Aim points (dogleg and lay-up) show the yards from the back tee and to the green.
   - Green depth, front and back.
-- **Footer:** par badge, then a row for each tee set with name, yards and elevation change to the green, then the hole number.
+- **Footer:** par disc, then a row for each tee set with name, yards and elevation change to the green, then the hole number. The designer credit and the Studio note are at the bottom right.
 
 ## Rock footprints
 
