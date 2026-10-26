@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 1.7.1
+COURSE DESIGNER STUDIO - release 1.8.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -17,7 +17,7 @@ INSTALL
 1. Unzip this folder anywhere (for example Documents\Course Designer Studio).
 2. Run CourseDesignerStudio.exe. Nothing else needs installing.
    Keep the "fonts" and "estimate" folders next to the exe; the course
-  cards and the construction estimate use them.
+   cards, the yardage book and the construction estimate use them.
 3. Windows may show "Windows protected your PC" because the app is not
    signed. Click "More info", then "Run anyway".
 Needs 64-bit Windows 10 or 11.
@@ -127,6 +127,38 @@ USING IT
   draws the land like an old engraved map: shaded hills, a canopy for
   every tree you placed, stipple for bushes, lines on the sea and a
   compass rose. Building the scorecard map now makes all three styles.
+- Routing test doglegs (new in 1.8.0): par 4s bend once at 275 yd, where
+  the drive lands, and par 5s bend at 218 and 436 yd. Select a hole and
+  drag the dashed circle at the end of a leg to swing it; the legs after
+  it follow, and bends snap to 5 degrees. A hole's yards stay the same
+  however it bends. "Straighten" takes the bends out.
+  Landing zones show the drive area (250-300 yd) on par 4s and 5s, and
+  the layup (420-470 yd) on par 5s, each with its rise from the tee.
+  Corridors draw a 70 yd band along each hole and flag holes closer than
+  100 yd, centre line to centre line (red overlaps, amber tight).
+  Back-to-back holes may sit close at the green and the next tee.
+  "Landing zones" and "Corridors" switch on the map toolbar; "Ranges" now
+  starts off. Routing tests saved by 1.7 open with straight holes.
+- Planting (new in 1.8.0): turn on "Planting" on the map toolbar to see
+  the trees, bushes, grass, flowers, walls and fences you placed. Trees
+  are drawn at their canopy size, conifers darker ("Trees by type" off
+  draws one green). Scatter groups show as dashed circles with their
+  count, and planted areas are hatched with an estimate. The Planting
+  card counts each layer and lists the tree species. Builds print the
+  planting on the terrain map (on by default) and on the hole sheets
+  (off by default); hole sheets leave flowers off. Vegetation the game
+  generates by itself isn't in the course file and isn't shown.
+- Yardage book look (new in 1.8.0): the same information and layout in
+  a new style. It has soft fills, gold for yards to the green, rounded
+  width tags, a deep green par disc and the Archivo font. Contour lines
+  are replaced by a soft hillshade and hachures down the slopes, fainter
+  on fairways. Planting is drawn in masses, with conifers darker. The
+  designer credit now sits at the bottom right of each page.
+- Game budget (new in 1.8.0): the terrain map's side panel shows rough
+  Objects and Memory meters for the designer's budget counters, which
+  the course file doesn't store. They are estimated from what the file
+  holds and fitted to four courses' in-game readings, so treat them as
+  a guide; the game's own counters are the real figures.
 
 GOOD TO KNOW
 - Terrain is rebuilt from the course's brush strokes, so check critical
