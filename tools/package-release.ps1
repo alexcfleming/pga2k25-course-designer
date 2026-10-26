@@ -1,5 +1,5 @@
 # Packages Course Designer Studio as a stand-alone Windows zip: a self-contained single-file exe (no .NET install
-# needed), the bundled Lora fonts and the estimate's data files beside it, and the testers' read-me. The version comes from the Studio project.
+# needed), the bundled Lora and Archivo fonts and the estimate's data files beside it, and the testers' read-me. The version comes from the Studio project.
 #
 #   powershell -ExecutionPolicy Bypass -File tools\package-release.ps1 [-OutDir <folder>]
 
@@ -22,9 +22,12 @@ if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
 
 # The single-file bundler swallows the font files, and the card renderer looks for them next to the exe. -LiteralPath
 # and ZipFile (not Compress-Archive) because "[wght]" in the font names is a wildcard to PowerShell.
-$fonts = Join-Path $staging "fonts\lora"
-New-Item -ItemType Directory -Force $fonts | Out-Null
-Get-ChildItem -LiteralPath (Join-Path $repo "assets\fonts\lora") -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $fonts }
+# Lora for the course cards and estimate, Archivo for the yardage book.
+foreach ($family in "lora", "archivo") {
+    $fonts = Join-Path $staging "fonts\$family"
+    New-Item -ItemType Directory -Force $fonts | Out-Null
+    Get-ChildItem -LiteralPath (Join-Path $repo "assets\fonts\$family") -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $fonts }
+}
 # The construction estimate reads its zone presets, prices and rules from estimate\*.json next to the exe.
 $estimate = Join-Path $staging "estimate"
 New-Item -ItemType Directory -Force $estimate | Out-Null
