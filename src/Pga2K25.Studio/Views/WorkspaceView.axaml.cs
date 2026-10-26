@@ -37,7 +37,7 @@ public partial class WorkspaceView : UserControl
         _map.ArrowPlaced += (p, d) => _vm?.ArrowPlaced(p, d);
         _map.ArrowClicked += id => _vm?.ArrowClicked(id);
         _map.ArrowMoved += (id, p) => _vm?.ArrowMoved(id, p);
-        _map.ArrowAimed += (id, d) => _vm?.ArrowAimed(id, d);
+        _map.ArrowAimed += (id, leg, d) => _vm?.ArrowAimed(id, leg, d);
         _map.ViewChanged += UpdateViewReadout;
         UpdateViewReadout();
     }
@@ -85,6 +85,9 @@ public partial class WorkspaceView : UserControl
         _map.Walks = _vm.CurrentWalks();
         _map.SelectedArrow = _vm.SelectedArrowId;
         _map.ShowRanges = _vm.ShowRanges;
+        _map.ShowZones = _vm.ShowZones;
+        _map.ShowCorridors = _vm.ShowCorridors;
+        _map.Conflicts = _vm.CurrentConflicts();
         _map.ArrowTemplate = _vm.CurrentArrowTemplate();
     }
 
