@@ -186,4 +186,34 @@ public class ScorecardMapTests
             if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
         }
     }
+
+    [Fact]
+    public void BarScaleRatio_IsRealDistanceOverPrintedLength()
+    {
+        // 100 yd = 3,600 in; drawn 1 in long (100 page units) is 1 : 3,600.
+        Assert.Equal(3600, ScorecardMapRenderer.BarScaleRatio(100));
+        Assert.Equal(6400, ScorecardMapRenderer.BarScaleRatio(56.5f));
+    }
+
+    [Fact]
+    public void Build_PlanSheet_IsAlwaysLandscapeWithRedFlights()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "pga2k25-maps-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            string path = Path.Combine(TestPaths.SamplesDir, "cassimbo.course");
+            var options = new ScorecardMapOptions { Orientation = PageOrientation.Portrait, Credit = "Test Designer", Location = "Somewhere, Far Away" };
+            var result = ScorecardMapBuilder.Build(path, dir, options, [MapThemeKind.PlanSheet], pdf: true, scale: 1);
+            Assert.True(result.Landscape);
+            Assert.Contains(result.Files, f => f.EndsWith("Scorecard Map (Plan Sheet).pdf"));
+            using var bmp = SKBitmap.Decode(result.Files.Single(f => f.EndsWith("Scorecard Map (Plan Sheet).png")));
+            Assert.Equal(1100, bmp.Width);
+            var red = MapTheme.PlanSheet.RouteColour;
+            Assert.True(bmp.Pixels.Count(c => Math.Abs(c.Red - red.Red) + Math.Abs(c.Green - red.Green) + Math.Abs(c.Blue - red.Blue) < 40) > 200);
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
 }

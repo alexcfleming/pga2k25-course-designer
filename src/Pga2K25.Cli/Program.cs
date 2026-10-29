@@ -55,7 +55,7 @@ const string Usage = """
       fringe and lighting. Yardages from the back tees. --limits overrides any ReadinessLimits
       value; --holes adds the per-hole table; --json writes the whole report
     pga2k25 calibrate <file.course> <captures.json> [--hardness 0.85] [--blur 1.0]
-    pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|illustrated|both|all] [--landscape|--portrait]
+    pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|illustrated|plansheet|both|all] [--landscape|--portrait]
                       [--north-up] [--data holes.xlsx|.csv] [--waste] [--raw-bunkers] [--no-paths]
                       [--pdf] [--credit "NAME"] [--subtitle "TEXT"]
 
@@ -474,6 +474,7 @@ static int Scorecard(string path, string[] rest)
                     "vintage" => [MapThemeKind.Vintage],
                     "modern" => [MapThemeKind.Modern],
                     "illustrated" => [MapThemeKind.Illustrated],
+                    "plansheet" or "plan-sheet" or "plan" => [MapThemeKind.PlanSheet],
                     "both" => [MapThemeKind.Vintage, MapThemeKind.Modern],
                     "all" => Enum.GetValues<MapThemeKind>(),
                     var t => throw new ArgumentException($"unknown theme {t}"),
@@ -490,6 +491,7 @@ static int Scorecard(string path, string[] rest)
             case "--pdf": pdf = true; break;
             case "--credit": options = options with { Credit = Next() }; break;
             case "--subtitle": options = options with { Subtitle = Next() }; break;
+            case "--location": options = options with { Location = Next() }; break;
             default: throw new ArgumentException($"unknown option {rest[i]}");
         }
     }

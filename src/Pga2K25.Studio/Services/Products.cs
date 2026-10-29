@@ -62,8 +62,8 @@ public static class Products
                 .Files.FirstOrDefault();
         })
         {
-            Pages = ["{0} - Scorecard Map (Vintage).png", "{0} - Scorecard Map (Modern).png", "{0} - Scorecard Map (Illustrated).png"],
-            Pdfs = ["{0} - Scorecard Map (Vintage).pdf", "{0} - Scorecard Map (Modern).pdf", "{0} - Scorecard Map (Illustrated).pdf"],
+            Pages = ["{0} - Scorecard Map (Vintage).png", "{0} - Scorecard Map (Modern).png", "{0} - Scorecard Map (Illustrated).png", "{0} - Scorecard Map (Plan Sheet).png"],
+            Pdfs = ["{0} - Scorecard Map (Vintage).pdf", "{0} - Scorecard Map (Modern).pdf", "{0} - Scorecard Map (Illustrated).pdf", "{0} - Scorecard Map (Plan Sheet).pdf"],
         },
         new("Course cards", " - Course Data Card.png", c =>
         {

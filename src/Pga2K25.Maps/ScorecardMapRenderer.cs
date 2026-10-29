@@ -34,17 +34,20 @@ public sealed record ScorecardMapOptions
     public HoleData? Data { get; init; }
     public string Credit { get; init; } = "";
     public string Subtitle { get; init; } = "PGA TOUR 2K25";
+
+    /// <summary>Plan Sheet only: where the course is, printed under its name (e.g. "Olkhon Island, Lake Baikal"). Blank prints nothing.</summary>
+    public string Location { get; init; } = "";
 }
 
 /// <summary>Draws a one-page scorecard map: traced course features, hole routes and numbers, scorecard table.</summary>
-public sealed class ScorecardMapRenderer : IDisposable
+public sealed partial class ScorecardMapRenderer : IDisposable
 {
     public const float LongSide = 1100, ShortSide = 850;   // 11 × 8.5 in at 100 units/in
     const double Yard = 0.9144;
 
     readonly MapTheme _t;
     readonly ScorecardMapOptions _o;
-    readonly SKTypeface _title, _body, _bodyBold, _italic;
+    readonly SKTypeface _title, _body, _bodyBold, _italic, _display, _label;
     // The Illustrated landscape, built on the first draw and reused (PNG and PDF share a renderer).
     Landscape? _landscape;
 
@@ -57,13 +60,14 @@ public sealed class ScorecardMapRenderer : IDisposable
         _body = SKTypeface.FromFamilyName(bodyFamily, SKFontStyle.Normal);
         _bodyBold = SKTypeface.FromFamilyName(bodyFamily, SKFontStyle.Bold);
         _italic = SKTypeface.FromFamilyName(bodyFamily, SKFontStyle.Italic);
+        (_display, _label) = PlanSheetFaces();
     }
 
     static string Resolve(string[] families) =>
         families.FirstOrDefault(f => string.Equals(SKTypeface.FromFamilyName(f)?.FamilyName, f, StringComparison.OrdinalIgnoreCase))
         ?? SKTypeface.Default.FamilyName;
 
-    public void Dispose() { _title.Dispose(); _body.Dispose(); _bodyBold.Dispose(); _italic.Dispose(); _landscape?.Dispose(); }
+    public void Dispose() { _title.Dispose(); _body.Dispose(); _bodyBold.Dispose(); _italic.Dispose(); _display.Dispose(); _label.Dispose(); _landscape?.Dispose(); }
 
     /// <summary>Chooses page orientation and rotation, returning the page size in logical units.</summary>
     public (SKSize Page, bool Landscape, double Rotation) Plan(CourseLayers layers)
@@ -71,13 +75,13 @@ public sealed class ScorecardMapRenderer : IDisposable
         var pts = layers.ExtentPoints().ToList();
         (double scale, double rot) Try(bool landscape)
         {
-            var rect = MapRect(landscape ? new SKSize(LongSide, ShortSide) : new SKSize(ShortSide, LongSide), landscape);
+            var rect = MapRect(landscape ? new SKSize(LongSide, ShortSide) : new SKSize(ShortSide, LongSide), landscape, IsPlanSheet);
             double rot = _o.AutoRotate ? MapProjection.BestRotation(pts, rect) : MapProjection.NorthUpRotation;
             return (MapProjection.FitScale(pts, rect, rot), rot);
         }
         var land = Try(true);
         var port = Try(false);
-        bool useLandscape = _o.Orientation switch
+        bool useLandscape = IsPlanSheet || _o.Orientation switch
         {
             PageOrientation.Landscape => true,
             PageOrientation.Portrait => false,
@@ -86,15 +90,16 @@ public sealed class ScorecardMapRenderer : IDisposable
         return useLandscape ? (new SKSize(LongSide, ShortSide), true, land.rot) : (new SKSize(ShortSide, LongSide), false, port.rot);
     }
 
-    static SKRect MapRect(SKSize page, bool landscape) => landscape
-        ? new SKRect(40, 40, page.Width - 40 - 250 - 16, page.Height - 40)
+    static SKRect MapRect(SKSize page, bool landscape, bool planSheet = false) =>
+        planSheet ? PlanSheetMapRect(page)
+        : landscape ? new SKRect(40, 40, page.Width - 40 - 250 - 16, page.Height - 40)
         : new SKRect(40, 118, page.Width - 40, page.Height - 40 - 262);
 
     public void Draw(SKCanvas canvas, string courseName, CourseModel course, CourseLayers layers)
     {
         var (page, landscape, rotation) = Plan(layers);
         canvas.Clear(_t.Background);
-        var mapRect = MapRect(page, landscape);
+        var mapRect = MapRect(page, landscape, IsPlanSheet);
         var proj = MapProjection.Fit(layers.ExtentPoints().ToList(), mapRect, rotation);
         if (_t.Landscape) _landscape ??= Landscape.Build(course, proj, mapRect);
 
@@ -104,6 +109,11 @@ public sealed class ScorecardMapRenderer : IDisposable
         DrawCourse(canvas, layers, proj);
         canvas.Restore();
         DrawHoleNumbers(canvas, layers, proj, mapRect);
+        if (IsPlanSheet)
+        {
+            DrawPlanSheet(canvas, courseName, course, layers, proj, page, mapRect);
+            return;
+        }
         if (_t.Landscape) DrawCompassRose(canvas, proj, RoseCorner(layers, proj, mapRect), 34);
         else DrawNorthArrow(canvas, proj, new SKPoint(mapRect.Left + 24, mapRect.Bottom - 34));
         DrawScaleBar(canvas, proj, new SKPoint(mapRect.Left + 56, mapRect.Bottom - 12));
@@ -212,6 +222,7 @@ public sealed class ScorecardMapRenderer : IDisposable
         // Ball-flight routes: back tee → aim points → green.
         using var route = Stroke(_t.RouteColour, _t.Kind != MapThemeKind.Modern ? 0.8f : 0.7f);
         if (_t.RouteDash is { } dash) route.PathEffect = SKPathEffect.CreateDash(dash, 0);
+        if (IsPlanSheet) { foreach (var h in l.Holes) DrawFlightArrows(canvas, h.Route.Select(p.Map).ToList()); return; }
         foreach (var h in l.Holes) { using var path = p.Path(h.Route, false); canvas.DrawPath(path, route); }
     }
 
@@ -349,11 +360,10 @@ public sealed class ScorecardMapRenderer : IDisposable
         "yellow" => new SKColor(0xE3, 0xC5, 0x2C), "silver" => new SKColor(0xB0, 0xB4, 0xB8), _ => null,
     };
 
-    float DrawTable(SKCanvas canvas, CourseModel course, SKRect area, bool splitNines)
+    float DrawTable(SKCanvas canvas, CourseModel course, SKRect area, bool splitNines, float rowH = 15.5f, float size = 9.5f)
     {
         var (names, yards) = TeeColumns(course);
         var holes = course.Holes;
-        const float rowH = 15.5f, size = 9.5f;
 
         float DrawBlock(IReadOnlyList<Hole> block, string totalLabel, SKRect r, bool grandTotal)
         {
@@ -368,29 +378,29 @@ public sealed class ScorecardMapRenderer : IDisposable
                 using var box = Fill(_t.Background);
                 canvas.DrawRect(new SKRect(r.Left, y - 2, r.Right, y + rowH * rows + 4), box);
             }
-            Text(canvas, "Hole", r.Left + 5, y + 11, size, _bodyBold, _t.Ink);
+            Text(canvas, "Hole", r.Left + 5, y + rowH * 0.71f, size, _bodyBold, _t.Ink);
             for (int i = 0; i < names.Count; i++)
             {
-                Text(canvas, names[i], ColRight(i), y + 11, size, _bodyBold, _t.Ink, SKTextAlign.Right);
+                Text(canvas, names[i], ColRight(i), y + rowH * 0.71f, size, _bodyBold, _t.Ink, SKTextAlign.Right);
                 if (TeeColour(names[i]) is { } tc)
                 {
                     float tw = Measure(names[i], size, _bodyBold);
-                    var dot = new SKPoint(ColRight(i) - tw - 6, y + 7.5f);
+                    var dot = new SKPoint(ColRight(i) - tw - 6, y + rowH * 0.48f);
                     using (var f = Fill(tc)) canvas.DrawCircle(dot, 3.2f, f);
                     using (var ring = Stroke(_t.Ink, 0.6f)) canvas.DrawCircle(dot, 3.2f, ring);
                 }
             }
-            Text(canvas, "Par", parRight, y + 11, size, _bodyBold, _t.Ink, SKTextAlign.Right);
+            Text(canvas, "Par", parRight, y + rowH * 0.71f, size, _bodyBold, _t.Ink, SKTextAlign.Right);
             y += rowH;
             canvas.DrawLine(r.Left, y - 2, r.Right, y - 2, line);
 
             void Row(string label, Func<int, int> yardsFor, int par, bool bold)
             {
                 var face = bold ? _bodyBold : _body;
-                Text(canvas, label, bold ? r.Left + 5 : r.Left + holeW / 2, y + 10.5f, size, face, _t.Ink, bold ? SKTextAlign.Left : SKTextAlign.Center);
+                Text(canvas, label, bold ? r.Left + 5 : r.Left + holeW / 2, y + rowH * 0.68f, size, face, _t.Ink, bold ? SKTextAlign.Left : SKTextAlign.Center);
                 for (int i = 0; i < names.Count; i++)
-                    Text(canvas, yardsFor(i).ToString("N0"), ColRight(i), y + 10.5f, size, face, _t.Ink, SKTextAlign.Right);
-                Text(canvas, par.ToString(), parRight, y + 10.5f, size, face, _t.Ink, SKTextAlign.Right);
+                    Text(canvas, yardsFor(i).ToString("N0"), ColRight(i), y + rowH * 0.68f, size, face, _t.Ink, SKTextAlign.Right);
+                Text(canvas, par.ToString(), parRight, y + rowH * 0.68f, size, face, _t.Ink, SKTextAlign.Right);
                 y += rowH;
             }
             foreach (var h in block) Row(h.Number.ToString(), i => yards(h, i), h.Par, false);

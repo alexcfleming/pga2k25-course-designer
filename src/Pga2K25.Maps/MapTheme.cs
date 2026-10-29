@@ -2,7 +2,7 @@ using SkiaSharp;
 
 namespace Pga2K25.Maps;
 
-public enum MapThemeKind { Vintage, Modern, Illustrated }
+public enum MapThemeKind { Vintage, Modern, Illustrated, PlanSheet }
 
 /// <summary>Colours, strokes and type for a scorecard map style.</summary>
 public sealed record MapTheme
@@ -93,10 +93,24 @@ public sealed record MapTheme
     /// <summary>Vintage with the land drawn like an old engraved map: hachured hills, trees, bushes and the sea.</summary>
     public static MapTheme Illustrated { get; } = Vintage with { Kind = MapThemeKind.Illustrated, Name = "Illustrated", Landscape = true };
 
+    /// <summary>
+    /// Illustrated drawn as a hand-lettered course plan, in the style of the RGD Artworks Course Graphics Dept.
+    /// (Renaissance Golf Design): title column with the scorecard and a hole direction dial, red ball-flight arrows,
+    /// a bar scale. Always landscape.
+    /// </summary>
+    public static MapTheme PlanSheet { get; } = Illustrated with
+    {
+        Kind = MapThemeKind.PlanSheet, Name = "Plan Sheet",
+        Background = SKColor.Parse("#ece2c9"),
+        RouteColour = SKColor.Parse("#b3261e"), RouteDash = null,
+        TitleFonts = ["Federo", "Bahnschrift", "Georgia"],
+    };
+
     public static MapTheme For(MapThemeKind kind) => kind switch
     {
         MapThemeKind.Modern => Modern,
         MapThemeKind.Illustrated => Illustrated,
+        MapThemeKind.PlanSheet => PlanSheet,
         _ => Vintage,
     };
 }
