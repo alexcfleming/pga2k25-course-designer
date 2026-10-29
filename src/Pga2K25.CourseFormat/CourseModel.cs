@@ -17,7 +17,8 @@ public readonly record struct Vec2(double X, double Z)
 
 public enum GameVersion { Unknown = -1, PGA2K21 = 19, PGA2K23 = 23, PGA2K25 = 25 }
 
-/// <param name="Route">Waypoints: [0] route start (usually, not always, the back tee), [^1] green anchor.</param>
+/// <param name="Route">Waypoints: [0] route start (usually, not always, the back tee), [^1] green anchor. A waypoint on top of
+/// the one before it is dropped when reading.</param>
 /// <param name="Tees">Tee markers ordered front to back.</param>
 /// <param name="Pins">Absolute pin positions (file stores offsets from the green anchor).</param>
 public sealed record Hole(int Number, int Par, IReadOnlyList<Vec2> Route, IReadOnlyList<Vec2> Tees, IReadOnlyList<Vec2> Pins)
@@ -261,7 +262,11 @@ public sealed class CourseModel
         for (int i = 0; i < holes.Count; i++)
         {
             var h = holes[i]!.AsObject();
-            var route = Array(h["waypoints"]).Select(ReadVec).ToList();
+            var route = new List<Vec2>();
+            // The routing tool can leave a waypoint on top of the next (Devil's Perch's par 3s put their aim point on
+            // the green), which carries no length and would make the approach a zero vector.
+            foreach (var p in Array(h["waypoints"]).Select(ReadVec))
+                if (route.Count == 0 || Vec2.Distance(route[^1], p) > 0.05) route.Add(p);
             if (route.Count == 0) continue;
             var anchor = route[^1];
             var tees = Array(h["tees"]).Select(t => ReadVec(t!["position"])).ToList();

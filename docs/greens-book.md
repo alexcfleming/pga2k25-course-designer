@@ -46,7 +46,8 @@ The `.course` file does **not** contain a heightmap. It holds an ordered log of 
 
 ### Green outlines
 
-- **Drawn greens** (a closed surface-1 spline containing the green anchor or a pin) use that spline, lightly Fourier-smoothed.
+- **Drawn greens** (a closed surface-1 spline containing the green anchor or a pin) use that spline, lightly Fourier-smoothed. A green drawn as several overlapping splines is merged into one outline, as the game shows it (M@hr C.C: Devil's Perch greens 2 and 8); the merged outline also sets the green's size and perimeter.
+- **Par 3 approach.** The approach is the last route leg. A waypoint on top of the one before it is dropped when the course is read: Devil's Perch's par 3s put their aim point on the green, which left no direction and collapsed those greens to a dot.
 - **Game-generated greens** have no outline in the file. The game builds them from `greenRadius`/`greenPoints`/`greenVariance`/seed. We draw an approach-aligned ellipse (15 × 12 m, grown so every pin sits 3 m inside), shown **dashed**.
 
 In the three samples only 5 of 54 greens are drawn splines.

@@ -2,7 +2,8 @@ namespace Pga2K25.CourseFormat;
 
 /// <summary>
 /// The putting-surface outline of a hole's green. A drawn green is the smallest closed green spline that contains
-/// the green anchor or a pin, lightly Fourier-smoothed (the outline every greens-book page draws). A green the game
+/// the green anchor or a pin, lightly Fourier-smoothed (the outline every greens-book page draws), merged with any
+/// green splines that overlap it, since the game shows overlapping greens as one surface. A green the game
 /// generates has no outline in the file, so it gets a stand-in ellipse and <see cref="Estimated"/> is set.
 /// </summary>
 public sealed record GreenOutline(IReadOnlyList<Vec2> Points, bool Estimated)
@@ -20,14 +21,31 @@ public sealed record GreenOutline(IReadOnlyList<Vec2> Points, bool Estimated)
     {
         var probes = new List<Vec2> { hole.GreenAnchor };
         probes.AddRange(hole.Pins);
-        var best = course.SurfaceSplines
+        var greens = course.SurfaceSplines
             .Where(s => s.Surface == Surfaces.Green && s.Closed && s.Points.Count >= 3)
             .Select(s => Geometry.SampleSpline(s, 24))
+            .ToList();
+        var best = greens
             .Where(poly => probes.Any(p => Geometry.Contains(poly, p)))
             .OrderBy(Geometry.Area)
             .FirstOrDefault();
         if (best is not null)
-            return new(Geometry.FourierSmooth(best, Math.Max(harmonics * 2, 12)), false);
+        {
+            // A green can be drawn as several overlapping splines (Devil's Perch 2 and 8): the game shows them as one
+            // surface, so merge every green spline that overlaps this one, and those that overlap them.
+            var parts = new List<List<Vec2>> { best };
+            for (bool grew = true; grew;)
+            {
+                grew = false;
+                foreach (var g in greens.Where(g => !parts.Contains(g) && parts.Any(p => Geometry.Overlaps(p, g))).ToList())
+                {
+                    parts.Add(g);
+                    grew = true;
+                }
+            }
+            var smoothed = parts.Select(p => (IReadOnlyList<Vec2>)Geometry.FourierSmooth(p, Math.Max(harmonics * 2, 12))).ToList();
+            return new(Geometry.Union(smoothed), false);
+        }
 
         // No stored outline: an approach-aligned ellipse, grown until every pin sits 3 m inside.
         var forward = Approach(hole);
