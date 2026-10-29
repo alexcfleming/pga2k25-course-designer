@@ -134,6 +134,93 @@ public static class Geometry
         return result;
     }
 
+    /// <summary>True when two closed outlines overlap (one has a vertex inside the other, or their edges cross).</summary>
+    public static bool Overlaps(IReadOnlyList<Vec2> a, IReadOnlyList<Vec2> b)
+    {
+        if (a.Max(p => p.X) < b.Min(p => p.X) || b.Max(p => p.X) < a.Min(p => p.X) ||
+            a.Max(p => p.Z) < b.Min(p => p.Z) || b.Max(p => p.Z) < a.Min(p => p.Z)) return false;
+        if (a.Any(p => Contains(b, p)) || b.Any(p => Contains(a, p))) return true;
+        for (int i = 0; i < a.Count; i++)
+            for (int j = 0; j < b.Count; j++)
+                if (Cross(a[i], a[(i + 1) % a.Count], b[j], b[(j + 1) % b.Count]) is not null) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// The outer edge of overlapping closed outlines merged into one: every edge piece of each outline that lies
+    /// outside all the others, chained into loops; the longest loop is returned (holes inside the union are dropped).
+    /// </summary>
+    public static List<Vec2> Union(IReadOnlyList<IReadOnlyList<Vec2>> polys)
+    {
+        if (polys.Count == 1) return polys[0].ToList();
+        // Counter-clockwise outlines keep every kept piece running the same way round the union.
+        var rings = polys.Select(p => SignedArea(p) < 0 ? p.Reverse().ToList() : p.ToList()).ToList();
+
+        // Each crossing is worked out once and shared by both edges, so the pieces meet at identical points.
+        var cuts = rings.Select(r => Enumerable.Range(0, r.Count).Select(_ => new List<(double T, Vec2 P)>()).ToArray()).ToList();
+        for (int a = 0; a < rings.Count; a++)
+            for (int b = a + 1; b < rings.Count; b++)
+                for (int i = 0; i < rings[a].Count; i++)
+                    for (int j = 0; j < rings[b].Count; j++)
+                    {
+                        var ra = rings[a]; var rb = rings[b];
+                        if (Cross(ra[i], ra[(i + 1) % ra.Count], rb[j], rb[(j + 1) % rb.Count]) is not { } x) continue;
+                        cuts[a][i].Add((x.T, x.P));
+                        cuts[b][j].Add((x.U, x.P));
+                    }
+
+        var next = new Dictionary<Vec2, Vec2>();
+        for (int r = 0; r < rings.Count; r++)
+        {
+            var ring = rings[r];
+            for (int i = 0; i < ring.Count; i++)
+            {
+                var stops = new List<Vec2> { ring[i] };
+                stops.AddRange(cuts[r][i].OrderBy(c => c.T).Select(c => c.P));
+                stops.Add(ring[(i + 1) % ring.Count]);
+                for (int k = 0; k + 1 < stops.Count; k++)
+                {
+                    var mid = (stops[k] + stops[k + 1]) * 0.5;
+                    bool inside = false;
+                    for (int o = 0; o < rings.Count && !inside; o++) inside = o != r && Contains(rings[o], mid);
+                    if (!inside && Vec2.Distance(stops[k], stops[k + 1]) > 1e-12) next.TryAdd(stops[k], stops[k + 1]);
+                }
+            }
+        }
+
+        var best = new List<Vec2>();
+        var seen = new HashSet<Vec2>();
+        foreach (var start in next.Keys)
+        {
+            if (seen.Contains(start)) continue;
+            var loop = new List<Vec2>();
+            var at = start;
+            while (seen.Add(at) && next.TryGetValue(at, out var to)) { loop.Add(at); at = to; }
+            if (Perimeter(loop) > Perimeter(best)) best = loop;
+        }
+        return best;
+    }
+
+    static double SignedArea(IReadOnlyList<Vec2> poly)
+    {
+        double s = 0;
+        for (int i = 0, j = poly.Count - 1; i < poly.Count; j = i++)
+            s += poly[j].X * poly[i].Z - poly[i].X * poly[j].Z;
+        return s / 2;
+    }
+
+    /// <summary>Where segments a0→a1 and b0→b1 cross (T along a, U along b, both in [0, 1)), or null.</summary>
+    static (double T, double U, Vec2 P)? Cross(Vec2 a0, Vec2 a1, Vec2 b0, Vec2 b1)
+    {
+        var r = a1 - a0; var s = b1 - b0;
+        double den = r.X * s.Z - r.Z * s.X;
+        if (Math.Abs(den) < 1e-15) return null;
+        var q = b0 - a0;
+        double t = (q.X * s.Z - q.Z * s.X) / den, u = (q.X * r.Z - q.Z * r.X) / den;
+        if (t < 0 || t >= 1 || u < 0 || u >= 1) return null;
+        return (t, u, a0 + r * t);
+    }
+
     public static List<Vec2> Ellipse(Vec2 centre, Vec2 majorAxis, double semiMajor, double semiMinor, int count = 120)
     {
         var u = majorAxis.Normalized();
