@@ -44,7 +44,7 @@ The Plan Sheet is the Illustrated map laid out as a hand-drawn course plan, in t
 - **Golf hole direction dial:** one ray per hole from the back tee towards its green, with North, East, South and West arrows. Directions are on the page, so the dial turns with the map. A hole label near a cardinal arrow starts past its word. Labels of holes within 8° of each other step outwards on a dotted leader. The dial is sized to fit between the scorecard and the credits.
 - **Bar scale:** yards in 100 yd segments (50 yd at large scales), two rows with alternate segments hatched, and the print ratio (100 yd = 3,600 in over the bar's printed length, to the nearest 100). It sits on a cartouche in the map corner with the least of the course under it.
 - **Credits:** "In the style of the RGD Artworks Course Graphics Dept., Renaissance Golf Design, Inc.", then "Designed by" and the credit when set. The "Created using" note sits under the map.
-- **Type:** Federo for display and Josefin Sans for small labels, loaded from `fonts/plansheet` next to the app when bundled, else installed fonts, else Bahnschrift.
+- **Type:** Federo for display and Josefin Sans (SemiBold, set on the variable font) for small labels, both OFL and bundled in `assets/fonts/plansheet` (copied to `fonts/plansheet` next to the app); installed fonts, then Bahnschrift, if missing.
 - No legend and no compass rose on the map.
 
 ## Illustrated landscape

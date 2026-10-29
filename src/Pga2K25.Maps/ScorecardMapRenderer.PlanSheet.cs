@@ -27,7 +27,19 @@ public sealed partial class ScorecardMapRenderer
         string fonts = Path.Combine(AppContext.BaseDirectory, "fonts", "plansheet");
         SKTypeface? Bundled(string file) => File.Exists(Path.Combine(fonts, file)) ? SKTypeface.FromFile(Path.Combine(fonts, file)) : null;
         return (Bundled("Federo-Regular.ttf") ?? SKTypeface.FromFamilyName(Resolve(["Federo", "Bahnschrift", "Georgia"])),
-                Bundled("JosefinSans[wght].ttf") ?? SKTypeface.FromFamilyName(Resolve(["Josefin Sans", "Bahnschrift", "Georgia"])));
+                Weight(Bundled("JosefinSans[wght].ttf"), 600) ?? SKTypeface.FromFamilyName(Resolve(["Josefin Sans", "Bahnschrift", "Georgia"]), SKFontStyle.Bold));
+    }
+
+    /// <summary>A variable font set to <paramref name="weight"/>; its default instance (Josefin's is Thin) is too faint for small labels.</summary>
+    static SKTypeface? Weight(SKTypeface? variable, float weight)
+    {
+        if (variable is null) return null;
+        const uint Wght = ('w' << 24) | ('g' << 16) | ('h' << 8) | 't';
+        if (!variable.VariationDesignParameters.Any(a => a.Tag == Wght)) return variable;
+        var set = variable.Clone([new SKFontVariationPositionCoordinate { Axis = Wght, Value = weight }]);
+        if (set is null) return variable;
+        variable.Dispose();
+        return set;
     }
 
     void DrawPlanSheet(SKCanvas canvas, string courseName, CourseModel course, CourseLayers layers, MapProjection proj, SKSize page, SKRect map)
