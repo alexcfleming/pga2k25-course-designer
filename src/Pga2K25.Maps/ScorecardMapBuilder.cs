@@ -8,7 +8,7 @@ public sealed record ScorecardMapResult(IReadOnlyList<string> Files, double Rota
 public static class ScorecardMapBuilder
 {
     /// <summary>
-    /// Writes "&lt;course&gt; - Scorecard Map (&lt;theme&gt;).png" (and optionally a PDF) for each theme.
+    /// Writes "&lt;course&gt; - Scorecard Map (&lt;theme name&gt;).png" (and optionally a PDF) for each theme.
     /// PNG resolution: 300 dpi on an 11 × 8.5 in page (3300 × 2550 px) at the default scale.
     /// </summary>
     public static ScorecardMapResult Build(string coursePath, string outputDir, ScorecardMapOptions options,
@@ -53,7 +53,7 @@ public static class ScorecardMapBuilder
             var (page, land, rot) = renderer.Plan(layers);
             rotation = rot; landscape = land;
 
-            string png = Path.Combine(outputDir, $"{baseName} - Scorecard Map ({theme}).png");
+            string png = Path.Combine(outputDir, $"{baseName} - Scorecard Map ({MapTheme.For(theme).Name}).png");
             var info = new SKImageInfo((int)Math.Round(page.Width * scale), (int)Math.Round(page.Height * scale));
             using (var surface = SKSurface.Create(info))
             {

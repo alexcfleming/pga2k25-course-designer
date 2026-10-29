@@ -72,7 +72,7 @@ Products are written to `<output folder>\<course>\`:
 | Hole sheets | Every hole: PNGs and one PDF. They use the map options for area, shading, layers and water; each sheet picks its own finer contour interval |
 | Greens book | The sheet, a study PNG per green, and the PDF |
 | Yardage book | The PDF and a PNG per hole; tee names from the workbook |
-| Scorecard map | Vintage, Modern and Illustrated, each as PNG and PDF; names from the workbook |
+| Scorecard map | Vintage, Modern, Illustrated and Plan Sheet, each as PNG and PDF; names from the workbook |
 | Course cards | From the course-card settings file and workbook; errors stop the build |
 
 Everything else is on the command line (`src/Pga2K25.Cli`): hole subsets, scorecard orientation and waste, forcing a draft course card, and so on. See each product's page in `docs/`.

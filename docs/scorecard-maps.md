@@ -8,7 +8,7 @@ dotnet run --project src/Pga2K25.Cli -- scorecard "path/to/course.course" -o out
 
 Options:
 
-- `--theme vintage|modern|illustrated|both|all` (default `all`; `both` is Vintage and Modern)
+- `--theme vintage|modern|illustrated|plansheet|both|all` (default `all`; `both` is Vintage and Modern)
 - `--landscape` / `--portrait` (default: whichever fits better)
 - `--north-up`: disable auto-rotation
 - `--data holes.xlsx|.csv`: designer hole data. It supplies only what the course file lacks (tee set names). The course file is always treated as the most correct source for pars and yardages; any disagreement is logged, never applied.
@@ -17,8 +17,9 @@ Options:
 - `--no-paths`
 - `--pdf`
 - `--credit "NAME"`, `--subtitle "TEXT"`
+- `--location "PLACE, REGION"`: Plan Sheet only, printed under the course name, one line per comma-separated part (blank prints nothing)
 
-[Course Designer Studio](studio.md) builds all three themes as PNG and PDF, using the course's hole-data workbook if one is set. The other options are on the command line.
+[Course Designer Studio](studio.md) builds all four themes as PNG and PDF, using the course's hole-data workbook if one is set. The other options are on the command line.
 
 ## Themes
 
@@ -33,6 +34,18 @@ Options:
 | Ball flight | Dashed ink, back tee → aim points → green | Thin solid line | As Vintage |
 | Hole numbers | Circled, on the middle of the hole | Bold on a soft disc, on the middle of the hole | As Vintage |
 | North | Small arrow | Small arrow | 32-point compass rose |
+
+## Plan Sheet
+
+The Plan Sheet is the Illustrated map laid out as a hand-drawn course plan, in the style of the RGD Artworks Course Graphics Dept. (Renaissance Golf Design). The sheet credits that style first, then the designer credit.
+
+- **Always landscape.** A title column on the left holds "A Plan of the", the course name (broken at spaces and hyphens, as large as fits), the optional location line, and the scorecard.
+- **Ball flight:** red arrows, one per shot (back tee → aim points → green), each stopping just short of its target.
+- **Golf hole direction dial:** one ray per hole from the back tee towards its green, with North, East, South and West arrows. Directions are on the page, so the dial turns with the map. A hole label near a cardinal arrow starts past its word. Labels of holes within 8° of each other step outwards on a dotted leader. The dial is sized to fit between the scorecard and the credits.
+- **Bar scale:** yards in 100 yd segments (50 yd at large scales), two rows with alternate segments hatched, and the print ratio (100 yd = 3,600 in over the bar's printed length, to the nearest 100). It sits on a cartouche in the map corner with the least of the course under it.
+- **Credits:** "In the style of the RGD Artworks Course Graphics Dept., Renaissance Golf Design, Inc.", then "Designed by" and the credit when set. The "Created using" note sits under the map.
+- **Type:** Federo for display and Josefin Sans for small labels, loaded from `fonts/plansheet` next to the app when bundled, else installed fonts, else Bahnschrift.
+- No legend and no compass rose on the map.
 
 ## Illustrated landscape
 
