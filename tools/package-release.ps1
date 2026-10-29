@@ -22,8 +22,8 @@ if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed" }
 
 # The single-file bundler swallows the font files, and the card renderer looks for them next to the exe. -LiteralPath
 # and ZipFile (not Compress-Archive) because "[wght]" in the font names is a wildcard to PowerShell.
-# Lora for the course cards and estimate, Archivo for the yardage book.
-foreach ($family in "lora", "archivo") {
+# Lora for the course cards and estimate, Archivo for the yardage book, Federo + Josefin Sans for the Plan Sheet map.
+foreach ($family in "lora", "archivo", "plansheet") {
     $fonts = Join-Path $staging "fonts\$family"
     New-Item -ItemType Directory -Force $fonts | Out-Null
     Get-ChildItem -LiteralPath (Join-Path $repo "assets\fonts\$family") -File | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination $fonts }
