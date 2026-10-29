@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 1.8.0
+COURSE DESIGNER STUDIO - release 1.9.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -8,7 +8,7 @@ Reads your .course files and makes printable products from them:
     (PNG and PDF)
   - Hole sheets: a terrain sketch sheet per hole (PNG and PDF)
   - Greens book: slope and fall of every green
-  - Yardage book, scorecard maps (three styles) and course cards
+  - Yardage book, scorecard maps (four styles) and course cards
   - Construction estimate: what the course might cost to build as a real
     course, with a low / likely / high range (illustrative, not a bid)
 It is read only. It never changes or writes a course file.
@@ -17,7 +17,8 @@ INSTALL
 1. Unzip this folder anywhere (for example Documents\Course Designer Studio).
 2. Run CourseDesignerStudio.exe. Nothing else needs installing.
    Keep the "fonts" and "estimate" folders next to the exe; the course
-   cards, the yardage book and the construction estimate use them.
+   cards, the yardage book, the Plan Sheet map and the construction
+   estimate use them.
 3. Windows may show "Windows protected your PC" because the app is not
    signed. Click "More info", then "Run anyway".
 Needs 64-bit Windows 10 or 11.
@@ -159,6 +160,21 @@ USING IT
   the course file doesn't store. They are estimated from what the file
   holds and fitted to four courses' in-game readings, so treat them as
   a guide; the game's own counters are the real figures.
+- Plan Sheet scorecard map (new in 1.9.0): a fourth scorecard style,
+  after the hand-drawn course plans of the RGD Artworks Course Graphics
+  Dept. (Renaissance Golf Design), who are credited on the sheet before
+  the designer credit. The Illustrated map sits in a framed panel beside
+  a title column with the course name and scorecard. Red arrows show
+  each shot, a dial shows the direction of every hole, and a bar scale
+  gives the print ratio. It is always landscape. Building the scorecard
+  map now makes all four styles.
+- Greens (fixed in 1.9.0): a par 3 whose aim point sits on the green no
+  longer collapses that green to a dot in the greens book. A green drawn
+  as two overlapping splines is read as one green, so pins stay on it
+  and its size and perimeter count the whole green.
+- Terrain (improved in 1.9.0): small flatten brushes are read as the
+  game's own ground height where they were dabbed. This removes false
+  crowns on some greens and fits in-game measurements more closely.
 
 GOOD TO KNOW
 - Terrain is rebuilt from the course's brush strokes, so check critical
