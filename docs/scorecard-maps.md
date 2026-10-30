@@ -45,6 +45,7 @@ The Plan Sheet is the Illustrated map laid out as a hand-drawn course plan, in t
 - **Bar scale:** yards in 100 yd segments (50 yd at large scales), two rows with alternate segments hatched, and the print ratio (100 yd = 3,600 in over the bar's printed length, to the nearest 100). It sits on a cartouche in the map corner with the least of the course under it.
 - **Credits:** "In the style of the RGD Artworks Course Graphics Dept., Renaissance Golf Design, Inc.", then "Designed by" and the credit when set. The "Created using" note sits under the map.
 - **Type:** Federo for display and Josefin Sans (SemiBold, set on the variable font) for small labels, both OFL and bundled in `assets/fonts/plansheet` (copied to `fonts/plansheet` next to the app); installed fonts, then Bahnschrift, if missing.
+- **Region watermark:** with Locator "Generated region" on the Place card (and its watermark box ticked), or `--region SHAPE [--seed N] [--region-km K]`, the invented region is drawn faint behind the map, the course on its mark and place line 1 naming the land (see [Terrain map](terrain-map.md)).
 - No legend and no compass rose on the map.
 
 ## Illustrated landscape

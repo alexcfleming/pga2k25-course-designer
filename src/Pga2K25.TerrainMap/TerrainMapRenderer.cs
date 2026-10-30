@@ -152,10 +152,29 @@ public sealed class TerrainMapRenderer : TerrainInk
     const float RowH = 12.5f;
 
     float PanelHeight(TerrainSurvey s) => ((s.Holes.Count == 0 ? 520 : 300 + RowH * (s.Holes.Count + 2) + 420) + 80 + (ShowsPlanting(s) ? 280 : 0)
-        + (_o.SiteInset ? SiteBlock : 0)) * _u;
+        + (_o.Region is not null ? RegionBlock : _o.SiteInset ? SiteBlock : 0)) * _u;
 
     // Heading, the inset square and its caption, in panel units.
-    const float SiteSide = 170, SiteBlock = 22 + SiteSide + 28;
+    const float SiteSide = 170, SiteBlock = 22 + SiteSide + 28, RegionHeight = 176, RegionBlock = 22 + RegionHeight + 28;
+
+    void DrawRegion(SKCanvas canvas, TerrainSurvey s, SKRect r, ref float y)
+    {
+        float u = _u;
+        _site ??= Maps.SiteInset.Build(s.Course, s.Layers);
+        var box = new SKRect(r.Left, y, r.Right, y + RegionHeight * u);
+        Maps.RegionLocator.DrawLocator(canvas, box, _o.Region!, _o.RegionName, _serif, Ink, Paper, Flag, u, _site, Shore.WithAlpha(170));
+        y += RegionHeight * u + 12 * u;
+        string kind = _o.Region!.Shape switch
+        {
+            Maps.RegionShape.Island => "An invented island",
+            Maps.RegionShape.Peninsula => "An invented peninsula",
+            Maps.RegionShape.Bay => "An invented bay",
+            Maps.RegionShape.Lake => "An invented lake shore",
+            _ => "Invented inland country",
+        };
+        Text(canvas, $"{kind}, north up  ·  the course in red, its plot in the corner", r.Left, y, 7.6f * u, _serifItalic, Grey);
+        y += 16 * u;
+    }
     Maps.SiteInset? _site;
 
     void DrawSite(SKCanvas canvas, TerrainSurvey s, SKRect r, ref float y)
@@ -188,7 +207,12 @@ public sealed class TerrainMapRenderer : TerrainInk
             y += 22 * u;
         }
 
-        if (_o.SiteInset)
+        if (_o.Region is not null)
+        {
+            Heading("THE PLACE");
+            DrawRegion(canvas, s, r, ref y);
+        }
+        else if (_o.SiteInset)
         {
             Heading("THE SITE");
             DrawSite(canvas, s, r, ref y);

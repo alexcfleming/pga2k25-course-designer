@@ -356,6 +356,7 @@ static int Terrain(string path, string[] rest)
     var options = new TerrainMapOptions();
     var sheet = new HoleSheetOptions();
     string? holes = null;
+    string? regionShape = null; int regionSeed = 1; double regionKm = 25;
     string outDir = Path.GetDirectoryName(Path.GetFullPath(path))!;
     for (int i = 0; i < rest.Length; i++)
     {
@@ -402,11 +403,15 @@ static int Terrain(string path, string[] rest)
             case "--print-dpi": options = options with { PrintDpi = NextDouble() }; break;
             case "--planting": options = options with { Planting = PlantingLayers.All }; break;
             case "--site-inset": options = options with { SiteInset = true }; break;
+            case "--region": regionShape = Next(); break;
+            case "--seed": regionSeed = int.Parse(Next()); break;
+            case "--region-km": regionKm = double.Parse(Next(), System.Globalization.CultureInfo.InvariantCulture); break;
             case "--planting-layers": options = options with { Planting = ParseLayers(Next()) }; break;
             case "--trees-one-colour": options = options with { TreesByType = false }; break;
             default: throw new ArgumentException($"unknown option {rest[i]}");
         }
     }
+    if (regionShape is not null) options = options with { Region = CliRegion(path, regionShape, regionSeed, regionKm) };
     if (holes is null)
     {
         TerrainMapBuilder.Build(path, outDir, options, new SyncProgress(Console.WriteLine));
@@ -460,6 +465,7 @@ static int Cards(string path, string[] rest)
 static int Scorecard(string path, string[] rest)
 {
     var options = new ScorecardMapOptions();
+    string? regionShape = null; int regionSeed = 1; double regionKm = 25;
     IEnumerable<MapThemeKind> themes = Enum.GetValues<MapThemeKind>();
     string outDir = Path.GetDirectoryName(Path.GetFullPath(path))!;
     bool pdf = false;
@@ -493,12 +499,20 @@ static int Scorecard(string path, string[] rest)
             case "--credit": options = options with { Credit = Next() }; break;
             case "--subtitle": options = options with { Subtitle = Next() }; break;
             case "--location": options = options with { Location = Next() }; break;
+            case "--region": regionShape = Next(); break;
+            case "--seed": regionSeed = int.Parse(Next()); break;
+            case "--region-km": regionKm = double.Parse(Next(), System.Globalization.CultureInfo.InvariantCulture); break;
             default: throw new ArgumentException($"unknown option {rest[i]}");
         }
     }
+    if (regionShape is not null) options = options with { Watermark = CliRegion(path, regionShape, regionSeed, regionKm) };
     ScorecardMapBuilder.Build(path, outDir, options, themes, pdf, log: new SyncProgress(Console.WriteLine));
     return 0;
 }
+
+// A generated region from the command line, turned to the plot's surf-prop sea side.
+static Region CliRegion(string path, string shape, int seed, double km) =>
+    RegionGenerator.Generate(RegionGenerator.Parse(shape), seed, OceanFinder.SeaBearing(CourseFile.Load(path).ReadModel()), km);
 
 sealed class SyncProgress(Action<string> write) : IProgress<string>
 {

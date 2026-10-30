@@ -81,29 +81,3 @@ public sealed record CourseCardConfig
         return names[(int)Math.Round(((bearing % 360) + 360) % 360 / 22.5) % 16];
     }
 }
-
-public static class OceanFinder
-{
-    /// <summary>
-    /// Direction (whole-degree bearing) from the middle of the routing towards the surf: the ocean props
-    /// (OceanChurn wave / impact prefabs) the designer places along the shoreline, each weighted by 1/d² of its
-    /// distance to the nearest hole so the shore that play actually runs along wins on a headland. Null when there
-    /// are none. Ground at sea level is not used: an unsculpted plot is a flat at exactly that height all round.
-    /// A heuristic: set <see cref="CourseCardConfig.OceanSide"/> when it disagrees with the designer.
-    /// </summary>
-    public static int? SeaBearing(CourseModel course)
-    {
-        var surf = course.PlacedObjects.Where(p => p.AssetPath.Contains("Ocean", StringComparison.OrdinalIgnoreCase)).ToList();
-        if (surf.Count == 0 || course.Holes.Count == 0) return null;
-        var pts = course.Holes.SelectMany(h => h.Route).ToList();
-        var centre = new Vec2(pts.Average(p => p.X), pts.Average(p => p.Z));
-        double sx = 0, sz = 0;
-        foreach (var p in surf)
-        {
-            var d = (p.Position - centre).Normalized();
-            double near = Math.Max(20, pts.Min(q => Vec2.Distance(q, p.Position)));
-            sx += d.X / (near * near); sz += d.Z / (near * near);
-        }
-        return Math.Sqrt(sx * sx + sz * sz) < 1e-6 ? null : CourseCardData.Bearing(new Vec2(0, 0), new Vec2(sx, sz));
-    }
-}
