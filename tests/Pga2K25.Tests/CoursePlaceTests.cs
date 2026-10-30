@@ -63,4 +63,22 @@ public class CoursePlaceTests
             if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
         }
     }
+
+    [Fact]
+    public void SiteInset_CoastalPlotHasSea_InlandPlotDoesNot()
+    {
+        static Maps.SiteInset Site(string file)
+        {
+            var course = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, file)).ReadModel();
+            return Maps.SiteInset.Build(course, Maps.CourseLayers.From(course));
+        }
+        var sagan = Site("sagan-khushun.course");
+        Assert.True(sagan.HasSea);
+        Assert.NotEmpty(sagan.Footprint);
+        Assert.Equal(sagan.Max.X - sagan.Min.X, sagan.Max.Z - sagan.Min.Z, 6);   // a true square
+
+        var murray = Site("murray-estate.course");
+        Assert.False(murray.HasSea);
+        Assert.NotEmpty(murray.Footprint);
+    }
 }

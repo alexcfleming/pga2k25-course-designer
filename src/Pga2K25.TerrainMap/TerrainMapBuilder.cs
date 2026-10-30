@@ -20,7 +20,9 @@ public static class TerrainMapBuilder
     {
         var course = CourseFile.Load(coursePath).ReadModel();
         course.NotWater = NotWaterMarks.Points(outputDir);
-        if (string.IsNullOrWhiteSpace(options.Place)) options = options with { Place = CoursePlaces.Load(outputDir).Line };
+        var place = CoursePlaces.Load(outputDir);
+        if (string.IsNullOrWhiteSpace(options.Place)) options = options with { Place = place.Line };
+        if (place.ShowsSite) options = options with { SiteInset = true };
 
         var survey = TerrainSurvey.Build(course, options);
         log?.Report($"Terrain: {course.HeightStamps.Count:N0} stamps replayed over {(survey.Max.X - survey.Min.X):0} × {(survey.Max.Z - survey.Min.Z):0} m " +

@@ -20,6 +20,12 @@ public sealed class CoursePlace
     /// <summary>Prevailing wind blows FROM this bearing (degrees from north). The course file stores no wind.</summary>
     public int? WindFromDegrees { get; set; }
 
+    /// <summary>Locator kind: "none", or "site" for a small map of the plot's own shore and the course on it.</summary>
+    public string Coastline { get; set; } = "none";
+
+    /// <summary>The products draw the site locator.</summary>
+    public bool ShowsSite => Coastline.Equals("site", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>The place lines that have text, trimmed.</summary>
     public IReadOnlyList<string> PlaceLines => Lines.Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
 
