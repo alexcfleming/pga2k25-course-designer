@@ -43,6 +43,11 @@
               <TextBlock Classes="muted" TextWrapping="Wrap" Text="Your name as the course designer, printed on the terrain map, hole sheets, greens book, yardage book and scorecard maps. Leave it blank for no credit."/>
               <TextBox Text="{Binding Credit}" Watermark="Your name" Margin="0,6,0,0" MaxWidth="420" HorizontalAlignment="Left" MinWidth="320"/>
             </StackPanel>
+            <StackPanel Spacing="4">
+              <TextBlock Classes="h2" Text="Online wind data"/>
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Studio works offline. Switch this on to let a course's Place card fetch ten years of real hourly wind for a real place (ERA5 reanalysis from the free Open-Meteo archive, about 2.5 MB). Nothing is fetched until you press Fetch wind data on a course, and the finished wind rose is saved with the course, so it keeps working if you switch this off again."/>
+              <CheckBox IsChecked="{Binding AllowOnlineWind}" Content="Allow online wind data" Margin="0,6,0,0"/>
+            </StackPanel>
             <TextBlock Text="{Binding Error}" Foreground="#A32D2D" IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
           </StackPanel>
         </Border>

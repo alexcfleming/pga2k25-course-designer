@@ -11,6 +11,12 @@ public sealed class StudioSettings
     public string OutputRoot { get; set; } = Path.Combine(Documents, "PGA 2K25 Greens Books");
     public string Credit { get; set; } = "";
 
+    /// <summary>
+    /// Lets the Place card fetch a real place's wind record from the internet, only when its button is pressed.
+    /// Off by default: with it off Studio makes no network calls at all.
+    /// </summary>
+    public bool AllowOnlineWind { get; set; }
+
     /// <summary>Course files opened most recently first (at most <see cref="MaxRecent"/>).</summary>
     public List<string> Recent { get; set; } = [];
     public const int MaxRecent = 6;

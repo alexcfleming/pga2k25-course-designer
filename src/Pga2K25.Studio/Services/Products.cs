@@ -73,8 +73,8 @@ public static class Products
                 .FirstOrDefault(f => f.EndsWith("Course Data Card.png", StringComparison.OrdinalIgnoreCase));
         })
         {
-            Pages = ["{0} - Course Data Card.png", "{0} - Green Size Card.png", "{0} - Hole Data Card.png", "{0} - Compass Rose.png"],
-            Pdfs = ["{0} - Course Data Card.pdf", "{0} - Green Size Card.pdf", "{0} - Hole Data Card.pdf", "{0} - Compass Rose.pdf"],
+            Pages = ["{0} - Course Data Card.png", "{0} - Green Size Card.png", "{0} - Wind Card.png", "{0} - Hole Data Card.png", "{0} - Compass Rose.png"],
+            Pdfs = ["{0} - Course Data Card.pdf", "{0} - Green Size Card.pdf", "{0} - Wind Card.pdf", "{0} - Hole Data Card.pdf", "{0} - Compass Rose.pdf"],
         },
         // Reads Estimate.json from the course's output folder for per-course choices (zones, overrides).
         new("Construction estimate", " - Estimate.pdf", c => EstimateBuilder.Build(c.CoursePath, c.OutputDir, log: c.Log).PdfPath)

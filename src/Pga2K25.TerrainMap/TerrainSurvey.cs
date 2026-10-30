@@ -122,6 +122,9 @@ public sealed record TerrainMapOptions
     /// <summary>A generated region drawn as the panel's locator, with the site inset in its corner. Wins over <see cref="SiteInset"/>.</summary>
     public Maps.Region? Region { get; init; }
 
+    /// <summary>The course's wind rose (Place.json), drawn in the panel with each hole's exposure; null for none.</summary>
+    public WindRose? Wind { get; init; }
+
     /// <summary>The region's name (place line 1).</summary>
     public string RegionName { get; init; } = "";
 

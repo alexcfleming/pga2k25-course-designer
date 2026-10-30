@@ -25,6 +25,8 @@ public static class TerrainMapBuilder
         if (place.ShowsSite) options = options with { SiteInset = true };
         if (place.ShowsRegion && options.Region is null)
             options = options with { Region = Maps.RegionGenerator.Generate(Maps.RegionGenerator.Parse(place.Shape), place.Seed, Maps.OceanFinder.SeaBearing(place, course), place.SizeKm) };
+        if (options.Wind is null && place.Rose(Maps.OceanFinder.SeaBearing(place, course)) is { } wind)
+            options = options with { Wind = wind };
         if (options.Region is not null && string.IsNullOrWhiteSpace(options.RegionName))
             options = options with { RegionName = place.PlaceLines.FirstOrDefault() ?? "" };
 

@@ -152,10 +152,34 @@ public sealed class TerrainMapRenderer : TerrainInk
     const float RowH = 12.5f;
 
     float PanelHeight(TerrainSurvey s) => ((s.Holes.Count == 0 ? 520 : 300 + RowH * (s.Holes.Count + 2) + 420) + 80 + (ShowsPlanting(s) ? 280 : 0)
-        + (_o.Region is not null ? RegionBlock : _o.SiteInset ? SiteBlock : 0)) * _u;
+        + (_o.Region is not null ? RegionBlock : _o.SiteInset ? SiteBlock : 0) + (_o.Wind is not null ? WindBlock : 0)) * _u;
 
     // Heading, the inset square and its caption, in panel units.
-    const float SiteSide = 170, SiteBlock = 22 + SiteSide + 28, RegionHeight = 176, RegionBlock = 22 + RegionHeight + 28;
+    const float SiteSide = 170, SiteBlock = 22 + SiteSide + 28, RegionHeight = 176, RegionBlock = 22 + RegionHeight + 28,
+        WindSide = 190, WindBlock = 22 + WindSide + 12 + 4 * 11 + 14;
+
+    void DrawWind(SKCanvas canvas, TerrainSurvey s, SKRect r, ref float y)
+    {
+        float u = _u;
+        var wind = _o.Wind!;
+        var box = new SKRect(r.Left, y, r.Right, y + WindSide * u);
+        Maps.WindRoseDrawing.Draw(canvas, box, wind, _serif, Ink, Paper, u);
+        y += WindSide * u + 12 * u;
+        Text(canvas, $"Prevailing {WindRose.SectorNames[WindRose.SectorOf(wind.PrevailingFrom)]}  ·  calm {wind.Calm:P0}  ·  breezy (8 mph +) {wind.Breezy:P0}",
+            r.Left, y, 7.6f * u, _serifItalic, Grey);
+        y += 11 * u;
+        Text(canvas, wind.Source, r.Left, y, 7.6f * u, _serifItalic, Grey);
+        y += 11 * u;
+        if (s.Holes.Count > 0)
+        {
+            var parts = Maps.WindExposure.Summary(Maps.WindExposure.For(s.Course, wind)).Split("  ·  ");
+            Text(canvas, $"{parts[0]}  ·  {parts[1]}", r.Left, y, 7.6f * u, _sans, Ink);
+            y += 11 * u;
+            Text(canvas, $"{parts[2]}  ·  {parts[3]}", r.Left, y, 7.6f * u, _sans, Ink);
+            y += 11 * u;
+        }
+        y += 14 * u;
+    }
 
     void DrawRegion(SKCanvas canvas, TerrainSurvey s, SKRect r, ref float y)
     {
@@ -216,6 +240,11 @@ public sealed class TerrainMapRenderer : TerrainInk
         {
             Heading("THE SITE");
             DrawSite(canvas, s, r, ref y);
+        }
+        if (_o.Wind is not null)
+        {
+            Heading("THE WIND");
+            DrawWind(canvas, s, r, ref y);
         }
 
         if (s.Holes.Count == 0)

@@ -8,7 +8,7 @@ namespace Pga2K25.CourseCard;
 /// reference matplotlib build (figure fractions and point sizes carried over); everything is drawn in points
 /// on a canvas pre-scaled to the output resolution. Every number comes from <see cref="CourseCardData"/>.
 /// </summary>
-public sealed class CourseCardRenderer : IDisposable
+public sealed partial class CourseCardRenderer : IDisposable
 {
     public static readonly SKSize RosePage = new(13 * 72, 14 * 72);
     public static readonly SKSize TablePage = new(16 * 72, 11.6f * 72);
