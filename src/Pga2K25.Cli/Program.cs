@@ -401,6 +401,7 @@ static int Terrain(string path, string[] rest)
             case "--pdf": options = options with { Pdf = true }; break;
             case "--print-dpi": options = options with { PrintDpi = NextDouble() }; break;
             case "--planting": options = options with { Planting = PlantingLayers.All }; break;
+            case "--site-inset": options = options with { SiteInset = true }; break;
             case "--planting-layers": options = options with { Planting = ParseLayers(Next()) }; break;
             case "--trees-one-colour": options = options with { TreesByType = false }; break;
             default: throw new ArgumentException($"unknown option {rest[i]}");

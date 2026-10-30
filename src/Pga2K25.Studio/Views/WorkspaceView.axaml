@@ -969,6 +969,11 @@
                   <ComboBox ItemsSource="{Binding WindChoices}" SelectedItem="{Binding WindChoice}" HorizontalAlignment="Stretch" AutomationProperties.Name="Prevailing wind"/>
                 </StackPanel>
               </Grid>
+              <StackPanel Spacing="3">
+                <TextBlock Text="Locator" Classes="muted small"/>
+                <ComboBox ItemsSource="{Binding LocatorChoices}" SelectedItem="{Binding LocatorChoice}" HorizontalAlignment="Stretch" AutomationProperties.Name="Locator"/>
+                <TextBlock Classes="muted small" TextWrapping="Wrap" Text="A small north-up map at the top of the terrain map's panel: the whole plot, its sea (on plots with surf props) and the course's footprint in red."/>
+              </StackPanel>
               <TextBlock Classes="muted small" TextWrapping="Wrap">
                 <Run Text="Saved as you type to Place.json in "/>
                 <Run Text="{Binding OutputFolder}"/>

@@ -151,7 +151,26 @@ public sealed class TerrainMapRenderer : TerrainInk
 
     const float RowH = 12.5f;
 
-    float PanelHeight(TerrainSurvey s) => ((s.Holes.Count == 0 ? 520 : 300 + RowH * (s.Holes.Count + 2) + 420) + 80 + (ShowsPlanting(s) ? 280 : 0)) * _u;
+    float PanelHeight(TerrainSurvey s) => ((s.Holes.Count == 0 ? 520 : 300 + RowH * (s.Holes.Count + 2) + 420) + 80 + (ShowsPlanting(s) ? 280 : 0)
+        + (_o.SiteInset ? SiteBlock : 0)) * _u;
+
+    // Heading, the inset square and its caption, in panel units.
+    const float SiteSide = 170, SiteBlock = 22 + SiteSide + 28;
+    Maps.SiteInset? _site;
+
+    void DrawSite(SKCanvas canvas, TerrainSurvey s, SKRect r, ref float y)
+    {
+        float u = _u;
+        _site ??= Maps.SiteInset.Build(s.Course, s.Layers);
+        var box = SKRect.Create(r.Left, y, SiteSide * u, SiteSide * u);
+        _site.Draw(canvas, box, Ink, Paper, Flag, u, Shore.WithAlpha(170));
+        Text(canvas, "N", box.Right + 8 * u, box.Top + 9 * u, 8 * u, _sansBold, Ink);
+        using (var arrow = Stroke(Ink, 0.8f * u)) canvas.DrawLine(box.Right + 10.5f * u, box.Top + 13 * u, box.Right + 10.5f * u, box.Top + 26 * u, arrow);
+        y += SiteSide * u + 12 * u;
+        string sea = _site.HasSea ? "sea hatched  ·  " : "";
+        Text(canvas, $"The plot, {_site.SideMetres * TerrainSurvey.YardsPerMetre:N0} yds across  ·  {sea}the course in red", r.Left, y, 7.6f * u, _serifItalic, Grey);
+        y += 16 * u;
+    }
 
     bool ShowsPlanting(TerrainSurvey s) => s.Planting.Has(_o.Planting);
 
@@ -167,6 +186,12 @@ public sealed class TerrainMapRenderer : TerrainInk
             using var rule = Stroke(Rule, 0.6f * u);
             canvas.DrawLine(r.Left, y + 11 * u, r.Right, y + 11 * u, rule);
             y += 22 * u;
+        }
+
+        if (_o.SiteInset)
+        {
+            Heading("THE SITE");
+            DrawSite(canvas, s, r, ref y);
         }
 
         if (s.Holes.Count == 0)

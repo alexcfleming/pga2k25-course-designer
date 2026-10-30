@@ -9,10 +9,12 @@ namespace Pga2K25.Studio.ViewModels;
 public partial class WorkspaceViewModel
 {
     const string DetectSea = "Detect from the plot", NoSea = "None (inland)", NoWind = "Not set";
+    const string NoLocator = "None", SiteLocator = "The site: plot, sea and course";
     static readonly string[] Compass = ["North", "North-east", "East", "South-east", "South", "South-west", "West", "North-west"];
 
     public IReadOnlyList<string> SeaSideChoices { get; } = [DetectSea, NoSea, .. Compass];
     public IReadOnlyList<string> WindChoices { get; } = [NoWind, .. Compass];
+    public IReadOnlyList<string> LocatorChoices { get; } = [NoLocator, SiteLocator];
 
     [ObservableProperty] private string _placeLine1 = "";
     [ObservableProperty] private string _placeLine2 = "";
@@ -20,6 +22,7 @@ public partial class WorkspaceViewModel
     [ObservableProperty] private string _placeDescription = "";
     [ObservableProperty] private string _seaSideChoice = DetectSea;
     [ObservableProperty] private string _windChoice = NoWind;
+    [ObservableProperty] private string _locatorChoice = NoLocator;
     [ObservableProperty] private string _detectedSea = "";
 
     bool _placeLoading;
@@ -39,6 +42,7 @@ public partial class WorkspaceViewModel
             var s => Compass.FirstOrDefault(c => c.Equals(s, StringComparison.OrdinalIgnoreCase)) ?? DetectSea,
         };
         WindChoice = place.WindFromDegrees is int w ? Compass[(int)Math.Round((w % 360 + 360) % 360 / 45.0) % 8] : NoWind;
+        LocatorChoice = place.ShowsSite ? SiteLocator : NoLocator;
         _placeLoading = false;
 
         // The surf props say which way the sea is; read the course off the UI thread.
@@ -62,6 +66,7 @@ public partial class WorkspaceViewModel
     partial void OnPlaceDescriptionChanged(string value) => SavePlace();
     partial void OnSeaSideChoiceChanged(string value) => SavePlace();
     partial void OnWindChoiceChanged(string value) => SavePlace();
+    partial void OnLocatorChoiceChanged(string value) => SavePlace();
 
     void SavePlace()
     {
@@ -77,6 +82,7 @@ public partial class WorkspaceViewModel
         };
         int wind = Array.IndexOf(Compass, WindChoice);
         place.WindFromDegrees = wind < 0 ? null : wind * 45;
+        place.Coastline = LocatorChoice == SiteLocator ? "site" : "none";
         try { CoursePlaces.Save(OutputFolder, place); }
         catch (Exception ex) { Status = $"Place could not be saved: {ex.Message}"; }
     }

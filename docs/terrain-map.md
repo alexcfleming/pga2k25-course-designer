@@ -30,6 +30,7 @@ The output is `<course> - Terrain Map.png`. At the default 4 px per metre, a 1.5
   - a numbered badge with par, scorecard yards, and the rise or fall from tee to green
 - **Drawn surfaces.** Any fairways, greens, bunkers, water and paths already in the file are shown faintly. Waste, rock and vegetation are left off.
 - **Side panel**:
+  - optional **site inset** at the top (`--site-inset`, or Locator "The site" on the Studio Place card, saved in `Place.json`): a north-up square of the whole plot (sculpted ground plus routing), the sea hatched, and the course's footprint in red. The footprint is the fairways and greens plus every hole's route as a 50 m corridor, fused (`ShapeMerger`, 30 m closing). The plot is replayed at 8 m for it. The sea is drawn only when the plot has surf props, because unsculpted ground also sits at the sea plane (`Maps.SiteInset`).
   - totals, plus the sheet's relief and the elevation range in play
   - a hole table: par, yards, tee and green elevation, change, and the green site's **tilt** and **±ft** (see *Green sites* below)
   - legend, scale bar, north arrow and notes
