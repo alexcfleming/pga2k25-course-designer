@@ -937,6 +937,44 @@
       <ScrollViewer Grid.Row="1" Grid.ColumnSpan="2" IsVisible="{Binding IsCourseSettings}">
         <Border Classes="card" Padding="20" MaxWidth="820" HorizontalAlignment="Left" VerticalAlignment="Top">
           <StackPanel Spacing="18">
+            <StackPanel Spacing="8">
+              <TextBlock Classes="h2" Text="Place"/>
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Optional. Where the course is, real or invented. The place lines print under the name on the Plan Sheet scorecard map and before the terrain map's subtitle; the description, sea side and wind fill the course cards wherever a card settings file leaves them unset."/>
+              <Grid ColumnDefinitions="*,10,*,10,*" Margin="0,4,0,0">
+                <StackPanel Grid.Column="0" Spacing="3">
+                  <TextBlock Text="Place line 1" Classes="muted small"/>
+                  <TextBox Text="{Binding PlaceLine1}" PlaceholderText="e.g. Olkhon Island" AutomationProperties.Name="Place line 1"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="3">
+                  <TextBlock Text="Place line 2" Classes="muted small"/>
+                  <TextBox Text="{Binding PlaceLine2}" PlaceholderText="e.g. Lake Baikal" AutomationProperties.Name="Place line 2"/>
+                </StackPanel>
+                <StackPanel Grid.Column="4" Spacing="3">
+                  <TextBlock Text="Place line 3" Classes="muted small"/>
+                  <TextBox Text="{Binding PlaceLine3}" PlaceholderText="Optional" AutomationProperties.Name="Place line 3"/>
+                </StackPanel>
+              </Grid>
+              <StackPanel Spacing="3">
+                <TextBlock Text="One-line description (course cards)" Classes="muted small"/>
+                <TextBox Text="{Binding PlaceDescription}" PlaceholderText="e.g. Cliff-top links on the shore of a great lake (fictional)" AutomationProperties.Name="Place description"/>
+              </StackPanel>
+              <Grid ColumnDefinitions="*,10,*">
+                <StackPanel Grid.Column="0" Spacing="3">
+                  <TextBlock Text="Sea side" Classes="muted small"/>
+                  <ComboBox ItemsSource="{Binding SeaSideChoices}" SelectedItem="{Binding SeaSideChoice}" HorizontalAlignment="Stretch" AutomationProperties.Name="Sea side"/>
+                  <TextBlock Text="{Binding DetectedSea}" Classes="muted small"/>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Spacing="3">
+                  <TextBlock Text="Prevailing wind from" Classes="muted small"/>
+                  <ComboBox ItemsSource="{Binding WindChoices}" SelectedItem="{Binding WindChoice}" HorizontalAlignment="Stretch" AutomationProperties.Name="Prevailing wind"/>
+                </StackPanel>
+              </Grid>
+              <TextBlock Classes="muted small" TextWrapping="Wrap">
+                <Run Text="Saved as you type to Place.json in "/>
+                <Run Text="{Binding OutputFolder}"/>
+                <Run Text=". The course file is never changed."/>
+              </TextBlock>
+            </StackPanel>
             <StackPanel Spacing="4">
               <TextBlock Classes="h2" Text="Hole-data workbook"/>
               <TextBlock Classes="muted" TextWrapping="Wrap" Text="Optional. Adds tee names, hole names and hazard notes to the yardage book, scorecard map and course cards. Yardages always come from the course file."/>

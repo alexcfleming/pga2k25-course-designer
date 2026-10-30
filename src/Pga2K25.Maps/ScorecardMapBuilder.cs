@@ -16,6 +16,7 @@ public static class ScorecardMapBuilder
     {
         var course = CourseFile.Load(coursePath).ReadModel();
         course.NotWater = NotWaterMarks.Points(outputDir);
+        if (options.PlaceLines.Count == 0) options = options with { PlaceLines = CoursePlaces.Load(outputDir).PlaceLines };
         var layers = CourseLayers.From(course);
         if (course.Water.Count > 0)
             layers.AddInlandWater(GreensBook.WaterTracer.Trace(course, new GreensBook.TerrainModelOptions { CellMetres = 0.5 }));

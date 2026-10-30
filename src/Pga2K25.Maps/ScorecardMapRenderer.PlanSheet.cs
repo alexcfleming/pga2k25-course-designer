@@ -54,7 +54,8 @@ public sealed partial class ScorecardMapRenderer
         var (lines, size) = NameLines(courseName.ToUpperInvariant(), ColumnRight - ColumnLeft - 34);
         foreach (var line in lines) { y += size * 0.98f; Text(canvas, line, ColumnMid, y, size, _display, _t.Ink, SKTextAlign.Center, tracking: size * 0.02f); }
         y += 4;
-        foreach (var line in _o.Location.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        var place = string.IsNullOrWhiteSpace(_o.Location) ? _o.PlaceLines : _o.Location.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (var line in place)
         {
             y += 16;
             Text(canvas, line.ToUpperInvariant(), ColumnMid, y, 11, _display, _t.Ink, SKTextAlign.Center, tracking: 2.4f);

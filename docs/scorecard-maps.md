@@ -17,7 +17,7 @@ Options:
 - `--no-paths`
 - `--pdf`
 - `--credit "NAME"`, `--subtitle "TEXT"`
-- `--location "PLACE, REGION"`: Plan Sheet only, printed under the course name, one line per comma-separated part (blank prints nothing)
+- `--location "PLACE, REGION"`: Plan Sheet only, printed under the course name, one line per comma-separated part. Without it the place lines come from the course's `Place.json` (the Studio Place card); with neither, nothing prints.
 
 [Course Designer Studio](studio.md) builds all four themes as PNG and PDF, using the course's hole-data workbook if one is set. The other options are on the command line.
 

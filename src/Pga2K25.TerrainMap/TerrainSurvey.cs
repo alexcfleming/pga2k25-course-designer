@@ -113,6 +113,9 @@ public sealed record TerrainMapOptions
 
     public string Credit { get; init; } = "";
 
+    /// <summary>Where the course is, printed before the subtitle. Blank takes the course's Place.json.</summary>
+    public string Place { get; init; } = "";
+
     /// <summary>Also write "&lt;course&gt; - Terrain Map.pdf": the same sheet, with contours, routing and text as vectors.</summary>
     public bool Pdf { get; init; }
 

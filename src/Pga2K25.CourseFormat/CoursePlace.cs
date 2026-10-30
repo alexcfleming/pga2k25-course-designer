@@ -1,0 +1,55 @@
+using System.Text.Json;
+
+namespace Pga2K25.CourseFormat;
+
+/// <summary>
+/// Where a course is, real or invented: what the course file can't say. Saved as Place.json in the course's output
+/// folder beside Notes.json, written by the Studio Place card and read by every product. Blank fields print nothing.
+/// </summary>
+public sealed class CoursePlace
+{
+    /// <summary>Up to three place lines, broadest last, e.g. "Olkhon Island", "Lake Baikal".</summary>
+    public List<string> Lines { get; set; } = [];
+
+    /// <summary>One-line description for the course cards, e.g. "Cliff-top links on a great lake (fictional)".</summary>
+    public string Description { get; set; } = "";
+
+    /// <summary>"WEST", "NORTH-EAST", … or "none". Null detects it from the sea on the plot.</summary>
+    public string? SeaSide { get; set; }
+
+    /// <summary>Prevailing wind blows FROM this bearing (degrees from north). The course file stores no wind.</summary>
+    public int? WindFromDegrees { get; set; }
+
+    /// <summary>The place lines that have text, trimmed.</summary>
+    public IReadOnlyList<string> PlaceLines => Lines.Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
+
+    /// <summary>The place lines on one line, e.g. "Olkhon Island, Lake Baikal".</summary>
+    public string Line => string.Join(", ", PlaceLines);
+}
+
+public static class CoursePlaces
+{
+    public const string FileName = "Place.json";
+
+    static readonly JsonSerializerOptions Json = new() { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
+    public static string PathFor(string outputDir) => Path.Combine(outputDir, FileName);
+
+    /// <summary>The course's place, or an empty one when there's no file (or it can't be read).</summary>
+    public static CoursePlace Load(string outputDir)
+    {
+        string path = PathFor(outputDir);
+        if (!File.Exists(path)) return new CoursePlace();
+        try { return JsonSerializer.Deserialize<CoursePlace>(File.ReadAllText(path), Json) ?? new CoursePlace(); }
+        catch (JsonException) { return new CoursePlace(); }
+    }
+
+    public static void Save(string outputDir, CoursePlace place)
+    {
+        Directory.CreateDirectory(outputDir);
+        // Write beside and swap, so a crash mid-write can't lose the place.
+        string path = PathFor(outputDir), tmp = path + ".tmp";
+        File.WriteAllText(tmp, JsonSerializer.Serialize(place, Json));
+        File.Move(tmp, path, overwrite: true);
+    }
+}
