@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
     <AssemblyName>CourseDesignerStudio</AssemblyName>
-    <Version>1.9.0</Version>
+    <Version>2.0.0</Version>
     <Product>Course Designer Studio</Product>
     <Authors>Alex C. Fleming</Authors>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>

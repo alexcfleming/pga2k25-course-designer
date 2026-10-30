@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 1.9.0
+COURSE DESIGNER STUDIO - release 2.0.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -9,9 +9,11 @@ Reads your .course files and makes printable products from them:
   - Hole sheets: a terrain sketch sheet per hole (PNG and PDF)
   - Greens book: slope and fall of every green
   - Yardage book, scorecard maps (four styles) and course cards
+    (including a Wind Card when the course has a wind rose)
   - Construction estimate: what the course might cost to build as a real
     course, with a low / likely / high range (illustrative, not a bid)
-It is read only. It never changes or writes a course file.
+It is read only. It never changes or writes a course file. It works
+offline: the one online feature (wind data) is off unless you turn it on.
 
 INSTALL
 1. Unzip this folder anywhere (for example Documents\Course Designer Studio).
@@ -31,7 +33,8 @@ Products are saved to
 Change either folder in Settings (top right of the library).
 Also in Settings: "Designer credit". Type your name there to print it on
 the products as the course designer. It is blank to start with, and a
-blank credit prints nothing.
+blank credit prints nothing. "Allow online wind data" (off to start with)
+lets a course fetch real wind records; see Wind rose below.
 
 USING IT
 - Open a course from the library to see its live terrain map. Hover for
@@ -175,6 +178,47 @@ USING IT
 - Terrain (improved in 1.9.0): small flatten brushes are read as the
   game's own ground height where they were dabbed. This removes false
   crowns on some greens and fits in-game measurements more closely.
+- Place (new in 2.0.0): the Place card at the top of Course settings
+  says where the course is, real or invented: up to three place lines
+  (for example "Olkhon Island", "Lake Baikal"), a one-line description,
+  the sea side (detected from the surf props unless you choose) and the
+  prevailing wind. It saves as you type in Place.json beside the
+  products. The place lines print under the name on the Plan Sheet map
+  and before the terrain map's subtitle, and the course cards take the
+  description, sea side and wind from it.
+- Locator (new in 2.0.0, on the Place card): "The site" adds a small
+  north-up map of the whole plot, its sea and the course to the top of
+  the terrain map's panel. "Generated region" invents a landscape round
+  the course instead: an island, peninsula, bay, lake shore or inland
+  country, its shore turned to face the plot's sea side, with the plot in
+  the corner. Pick the shape and size, and press Reroll for another
+  coast; the same seed always draws the same coast. Place line 1 names
+  the land. It is also drawn faintly behind the Plan Sheet map (untick
+  the watermark box to leave it off).
+- Wind rose (new in 2.0.0, on the Place card): how often the wind blows
+  from each direction, by speed, with the calm hours in the middle.
+  "Climate model" invents one for a made-up place: trade winds, maritime
+  westerlies, sea-breeze coast, monsoon, inland plains or mountain
+  valley, with strength, steadiness and a seed. "Real place" uses ten
+  years of hourly wind for a latitude and longitude. To fetch it, turn on
+  "Allow online wind data" in Settings, then press "Fetch wind data" on
+  the Place card (about 2.5 MB from the free Open-Meteo archive). Nothing
+  is fetched until you press it, and the finished rose is saved with the
+  course, so it keeps working if you turn the setting off again.
+  Builds add a Wind Card to the course cards: the rose, and a table of
+  how each hole plays in it (the share of breezy hours into the wind,
+  across from the left or right, and downwind), with the holes into the
+  wind and downwind. The terrain map's panel shows the rose too, and the
+  compass rose's wind arrow follows it. The game sets the wind each
+  round, so this is a design aid.
+- Hole data card (new in 2.0.0): the Hazards and Green Contours & Hole
+  Positions columns are filled in from the course file: fairway bunkers
+  by carry, cross bunkers, water, greenside bunkers; and each green's
+  shape and size, which way it falls, any tier, spine, crown or bowl, and
+  where the pins sit. Anything typed in the hole-data workbook still
+  wins. Building the course cards takes about a minute longer for it.
+- Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
+  top open the built terrain map, so you no longer need the folder.
 
 GOOD TO KNOW
 - Terrain is rebuilt from the course's brush strokes, so check critical
@@ -184,6 +228,11 @@ GOOD TO KNOW
 - Brushes dragged past the edge of the plot are left out of the terrain
   (new in 1.6.0): the game doesn't apply them, and on one tester's course
   they had sunk the ground and flooded a pond's whole rectangle.
+- Fetched wind is from the ERA5 reanalysis, whose cells are about 25 km
+  across, so speeds read low for an exposed site; directions are
+  reliable. Wind data: Open-Meteo.com, CC BY 4.0.
+- The hole data card leaves out the sea, cliffs, trees and rocks as
+  hazards for now.
 
 FEEDBACK
 Please send Alex any problems, with the course file and a screenshot if
