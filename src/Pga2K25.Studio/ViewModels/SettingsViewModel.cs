@@ -11,6 +11,7 @@ public partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string _coursesFolder;
     [ObservableProperty] private string _outputRoot;
     [ObservableProperty] private string _credit;
+    [ObservableProperty] private bool _allowOnlineWind;
     [ObservableProperty] private string _error = "";
 
     public string SettingsFile => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CourseDesignerStudio", "settings.json");
@@ -21,6 +22,7 @@ public partial class SettingsViewModel : ObservableObject
         _coursesFolder = main.Settings.CoursesFolder;
         _outputRoot = main.Settings.OutputRoot;
         _credit = main.Settings.Credit;
+        _allowOnlineWind = main.Settings.AllowOnlineWind;
     }
 
     [RelayCommand] private void Save()
@@ -31,6 +33,7 @@ public partial class SettingsViewModel : ObservableObject
         s.CoursesFolder = CoursesFolder.Trim();
         s.OutputRoot = OutputRoot.Trim();
         s.Credit = Credit.Trim();
+        s.AllowOnlineWind = AllowOnlineWind;
         s.Save();
         _main.ShowLibrary();
     }

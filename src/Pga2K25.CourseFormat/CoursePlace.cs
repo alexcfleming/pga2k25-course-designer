@@ -38,6 +38,41 @@ public sealed class CoursePlace
     /// <summary>Draw the region faint behind the Plan Sheet's map.</summary>
     public bool Watermark { get; set; } = true;
 
+    /// <summary>Wind rose source: "none", "model" (<see cref="WindClimate"/>) or "data" (the fetched <see cref="WindData"/>).</summary>
+    public string WindSource { get; set; } = "none";
+
+    /// <summary>Climate model preset (see <see cref="WindClimate.Presets"/>); its main wind blows from <see cref="WindFromDegrees"/>.</summary>
+    public string Climate { get; set; } = "sea";
+
+    /// <summary>Climate model speed scale: 0.7 light, 1 moderate, 1.35 windy.</summary>
+    public double WindStrength { get; set; } = 1;
+
+    /// <summary>Climate model lobe tightness, 0.4 (wandering) to 2.2 (steady).</summary>
+    public double WindSteadiness { get; set; } = 1;
+
+    public int WindSeed { get; set; } = 1;
+
+    /// <summary>Latitude and longitude of a real place, for fetching its wind record.</summary>
+    public double? Latitude { get; set; }
+    public double? Longitude { get; set; }
+
+    /// <summary>
+    /// A real place's rose, binned from a fetched hourly record and kept here so it never needs fetching again
+    /// (and keeps working when online data is switched off in Studio).
+    /// </summary>
+    public WindRose? WindData { get; set; }
+
+    /// <summary>
+    /// The rose the products draw, or null for none. "data" without a saved record falls back to the climate model.
+    /// </summary>
+    /// <param name="seaBearing">The plot's sea bearing, for the sea-breeze climate.</param>
+    public WindRose? Rose(int? seaBearing)
+    {
+        if (WindSource.Equals("data", StringComparison.OrdinalIgnoreCase) && WindData is { Sectors.Count: 16 } data) return data;
+        if (WindSource.Equals("none", StringComparison.OrdinalIgnoreCase)) return null;
+        return WindClimate.Generate(Climate, WindFromDegrees ?? 270, seaBearing, WindStrength, WindSteadiness, WindSeed);
+    }
+
     /// <summary>The products draw the site locator on its own.</summary>
     public bool ShowsSite => Coastline.Equals("site", StringComparison.OrdinalIgnoreCase);
 

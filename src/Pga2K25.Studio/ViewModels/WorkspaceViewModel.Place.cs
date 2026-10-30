@@ -64,6 +64,7 @@ public partial class WorkspaceViewModel
         SeedText = place.Seed.ToString();
         SizeChoice = Sizes.MinBy(s => Math.Abs(s.Km - place.SizeKm)).Label;
         PlaceWatermark = place.Watermark;
+        InitWind(place);
         _placeLoading = false;
 
         // The surf props say which way the sea is; read the course off the UI thread.
@@ -80,14 +81,15 @@ public partial class WorkspaceViewModel
             Dispatcher.UIThread.Post(() => DetectedSea = text);
         });
         RefreshRegionPreview();
+        RefreshWindPreview();
     }
 
     partial void OnPlaceLine1Changed(string value) { SavePlace(); RefreshRegionPreview(); }
     partial void OnPlaceLine2Changed(string value) => SavePlace();
     partial void OnPlaceLine3Changed(string value) => SavePlace();
     partial void OnPlaceDescriptionChanged(string value) => SavePlace();
-    partial void OnSeaSideChoiceChanged(string value) { SavePlace(); RefreshRegionPreview(); }
-    partial void OnWindChoiceChanged(string value) => SavePlace();
+    partial void OnSeaSideChoiceChanged(string value) { SavePlace(); RefreshRegionPreview(); RefreshWindPreview(); }
+    partial void OnWindChoiceChanged(string value) { SavePlace(); RefreshWindPreview(); }
     partial void OnLocatorChoiceChanged(string value) { OnPropertyChanged(nameof(IsRegionLocator)); SavePlace(); RefreshRegionPreview(); }
     partial void OnShapeChoiceChanged(string value) { SavePlace(); RefreshRegionPreview(); }
     partial void OnSeedTextChanged(string value) { SavePlace(); RefreshRegionPreview(); }
@@ -114,6 +116,7 @@ public partial class WorkspaceViewModel
         if (int.TryParse(SeedText, out int seed)) saved.Seed = seed;
         saved.SizeKm = Sizes.FirstOrDefault(s => s.Label == SizeChoice, Sizes[1]).Km;
         saved.Watermark = PlaceWatermark;
+        CardWind(saved);
         return saved;
     }
 

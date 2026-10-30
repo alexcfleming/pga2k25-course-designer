@@ -996,6 +996,53 @@
                 </Border>
                 <TextBlock Classes="muted small" TextWrapping="Wrap" Text="The same seed always draws the same coast. Place line 1 names the land."/>
               </StackPanel>
+              <StackPanel Spacing="3">
+                <TextBlock Text="Wind rose" Classes="muted small"/>
+                <ComboBox ItemsSource="{Binding WindSourceChoices}" SelectedItem="{Binding WindSourceChoice}" HorizontalAlignment="Stretch" AutomationProperties.Name="Wind rose source"/>
+                <TextBlock Classes="muted small" TextWrapping="Wrap" Text="How often the wind blows from each direction, by speed. Adds a Wind Card to the course cards and a wind block to the terrain map. A design aid: the game sets the wind each round."/>
+              </StackPanel>
+              <StackPanel Spacing="8" IsVisible="{Binding IsModelWind}">
+                <StackPanel Spacing="3">
+                  <TextBlock Text="Climate" Classes="muted small"/>
+                  <ComboBox ItemsSource="{Binding ClimateChoices}" SelectedItem="{Binding ClimateChoice}" HorizontalAlignment="Stretch" AutomationProperties.Name="Climate"/>
+                </StackPanel>
+                <Grid ColumnDefinitions="*,10,*,10,110,10,Auto">
+                  <StackPanel Grid.Column="0" Spacing="3">
+                    <TextBlock Text="Strength" Classes="muted small"/>
+                    <ComboBox ItemsSource="{Binding StrengthChoices}" SelectedItem="{Binding StrengthChoice}" HorizontalAlignment="Stretch" AutomationProperties.Name="Wind strength"/>
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Spacing="3">
+                    <TextBlock Text="Steadiness" Classes="muted small"/>
+                    <Slider Minimum="0.4" Maximum="2.2" Value="{Binding WindSteadiness}" AutomationProperties.Name="Wind steadiness"/>
+                  </StackPanel>
+                  <StackPanel Grid.Column="4" Spacing="3">
+                    <TextBlock Text="Seed" Classes="muted small"/>
+                    <TextBox Text="{Binding WindSeedText}" AutomationProperties.Name="Wind seed"/>
+                  </StackPanel>
+                  <Button Grid.Column="6" Content="Reroll" Command="{Binding RerollWindCommand}" VerticalAlignment="Bottom"/>
+                </Grid>
+                <TextBlock Classes="muted small" TextWrapping="Wrap" Text="The main wind blows from Prevailing wind from (west if not set). The sea-breeze lobe blows onshore from the sea side. The seed adds the small unevenness real records have."/>
+              </StackPanel>
+              <StackPanel Spacing="8" IsVisible="{Binding IsDataWind}">
+                <Grid ColumnDefinitions="*,10,*,10,Auto">
+                  <StackPanel Grid.Column="0" Spacing="3">
+                    <TextBlock Text="Latitude (north +)" Classes="muted small"/>
+                    <TextBox Text="{Binding LatitudeText}" PlaceholderText="e.g. 53.31" AutomationProperties.Name="Latitude"/>
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Spacing="3">
+                    <TextBlock Text="Longitude (east +)" Classes="muted small"/>
+                    <TextBox Text="{Binding LongitudeText}" PlaceholderText="e.g. 107.74" AutomationProperties.Name="Longitude"/>
+                  </StackPanel>
+                  <Button Grid.Column="4" Content="Fetch wind data" Command="{Binding FetchWindCommand}" VerticalAlignment="Bottom" IsVisible="{Binding AllowOnlineWind}"/>
+                </Grid>
+                <TextBlock Text="{Binding WindStatus}" Classes="muted small" TextWrapping="Wrap"/>
+              </StackPanel>
+              <StackPanel Spacing="6" IsVisible="{Binding HasWind}">
+                <Border BorderBrush="#d6cfc2" BorderThickness="1" HorizontalAlignment="Left">
+                  <Image Source="{Binding WindPreview}" Width="315" Height="330" Stretch="Uniform" AutomationProperties.Name="Wind rose preview"/>
+                </Border>
+                <TextBlock Text="{Binding WindSummary}" Classes="muted small" TextWrapping="Wrap"/>
+              </StackPanel>
               <TextBlock Classes="muted small" TextWrapping="Wrap">
                 <Run Text="Saved as you type to Place.json in "/>
                 <Run Text="{Binding OutputFolder}"/>

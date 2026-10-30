@@ -20,11 +20,13 @@ public static class CourseCardBuilder
         var course = CourseFile.Load(coursePath).ReadModel();
         // The card settings file wins; the course's Place.json fills what it leaves unset.
         var place = CoursePlaces.Load(outputDir);
+        var wind = place.Rose(OceanFinder.SeaBearing(place, course));
         config = config with
         {
             Description = string.IsNullOrWhiteSpace(config.Description) && place.Description.Trim().Length > 0 ? place.Description.Trim() : config.Description,
             OceanSide = config.OceanSide ?? place.SeaSide,
-            WindFromDegrees = config.WindFromDegrees ?? place.WindFromDegrees,
+            // With a rose and no wind set by hand, the arrow points from the rose's most frequent direction.
+            WindFromDegrees = config.WindFromDegrees ?? place.WindFromDegrees ?? wind?.PrevailingFrom,
         };
         var workbook = workbookPath is null ? null : HoleData.Load(workbookPath);
         var issues = new List<CardIssue>();
@@ -47,6 +49,8 @@ public static class CourseCardBuilder
                                           "have no green spline (estimated outline); left out of the green size figures."));
         if (config.WindFromDegrees is null)
             issues.Add(new(Severity.Info, "No prevailing wind set (the course file has none); no wind arrow drawn."));
+        if (wind is null)
+            issues.Add(new(Severity.Info, "No wind rose on the Place card; the Wind Card is not drawn."));
 
         foreach (var i in issues) log?.Report(i.ToString());
         Directory.CreateDirectory(outputDir);
@@ -57,7 +61,11 @@ public static class CourseCardBuilder
             throw new InvalidDataException($"Card build stopped: {issues.Count(i => i.Severity == Severity.Error)} error(s); see {report}. Nothing was corrected.");
 
         var files = new List<string>();
-        using var renderer = new CourseCardRenderer(data, config, ocean);
+        using var renderer = new CourseCardRenderer(data, config, ocean)
+        {
+            Wind = wind,
+            HoleWinds = wind is null ? [] : WindExposure.For(course, wind),
+        };
         var pages = new List<(string Name, SKSize Size, Action<SKCanvas> Draw)>
         {
             ("Compass Rose", CourseCardRenderer.RosePage, renderer.DrawRosePage),
@@ -65,6 +73,7 @@ public static class CourseCardBuilder
             ("Course Data Card", CourseCardRenderer.CardPage, renderer.DrawCoursePage),
         };
         if (greenCard) pages.Add(("Green Size Card", CourseCardRenderer.CardPage, renderer.DrawGreenSizePage));
+        if (wind is not null) pages.Add(("Wind Card", CourseCardRenderer.CardPage, renderer.DrawWindPage));
         pages = pages.Select(p => (p.Name, p.Size, (Action<SKCanvas>)(c => { p.Draw(c); renderer.DrawAttribution(c, p.Size); }))).ToList();
         var formats = config.Formats.Select(f => f.ToLowerInvariant()).ToHashSet();
         foreach (var (name, size, draw) in pages)
