@@ -137,7 +137,8 @@ public sealed class TerrainMapRenderer : TerrainInk
         var t = l.Title;
         string name = string.IsNullOrWhiteSpace(s.Course.Name) ? "Course" : s.Course.Name;
         Text(canvas, name.ToUpperInvariant(), t.Left, t.Top + 26 * u, 26 * u, _serifBold, Ink, tracking: 2.2f * u);
-        Text(canvas, $"{(s.Holes.Count == 0 ? "Terrain plan for routing" : "Terrain & routing plan")}  ·  {Interval(s)} contours, index every {s.IntervalFeet * s.IndexEvery:0.##} ft  ·  " +
+        string place = string.IsNullOrWhiteSpace(_o.Place) ? "" : _o.Place.Trim() + "  ·  ";
+        Text(canvas, $"{place}{(s.Holes.Count == 0 ? "Terrain plan for routing" : "Terrain & routing plan")}  ·  {Interval(s)} contours, index every {s.IntervalFeet * s.IndexEvery:0.##} ft  ·  " +
                      (s.SeaLevelMetres is null ? "elevations in feet above the lowest point on the sheet" : "elevations in feet above sea level"), t.Left, t.Top + 44 * u, 10 * u, _serifItalic, Grey);
         if (!string.IsNullOrWhiteSpace(_o.Credit))
             Text(canvas, _o.Credit.ToUpperInvariant(), t.Right, t.Top + 26 * u, 9 * u, _serif, Grey, SKTextAlign.Right, tracking: 1.6f * u);

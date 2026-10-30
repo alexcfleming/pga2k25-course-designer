@@ -35,8 +35,11 @@ public sealed record ScorecardMapOptions
     public string Credit { get; init; } = "";
     public string Subtitle { get; init; } = "PGA TOUR 2K25";
 
-    /// <summary>Plan Sheet only: where the course is, printed under its name (e.g. "Olkhon Island, Lake Baikal"). Blank prints nothing.</summary>
+    /// <summary>Plan Sheet only: where the course is, printed under its name, one line per comma-separated part (e.g. "Olkhon Island, Lake Baikal"). Overrides <see cref="PlaceLines"/>.</summary>
     public string Location { get; init; } = "";
+
+    /// <summary>Plan Sheet only: the place lines from the course's Place.json, used when <see cref="Location"/> is blank.</summary>
+    public IReadOnlyList<string> PlaceLines { get; init; } = [];
 }
 
 /// <summary>Draws a one-page scorecard map: traced course features, hole routes and numbers, scorecard table.</summary>

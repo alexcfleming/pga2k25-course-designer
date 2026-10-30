@@ -18,6 +18,14 @@ public static class CourseCardBuilder
         string? workbookPath = null, IProgress<string>? log = null, bool force = false)
     {
         var course = CourseFile.Load(coursePath).ReadModel();
+        // The card settings file wins; the course's Place.json fills what it leaves unset.
+        var place = CoursePlaces.Load(outputDir);
+        config = config with
+        {
+            Description = string.IsNullOrWhiteSpace(config.Description) && place.Description.Trim().Length > 0 ? place.Description.Trim() : config.Description,
+            OceanSide = config.OceanSide ?? place.SeaSide,
+            WindFromDegrees = config.WindFromDegrees ?? place.WindFromDegrees,
+        };
         var workbook = workbookPath is null ? null : HoleData.Load(workbookPath);
         var issues = new List<CardIssue>();
         var data = CourseCardData.From(course, workbook, config.TeeNames, issues);

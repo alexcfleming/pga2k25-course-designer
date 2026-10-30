@@ -85,6 +85,7 @@ Everything is optional. Nothing in it is hole data.
 - **Text on par colours:** switches from salt to ink when a swatch's relative luminance is over 0.55.
 - **Ocean side:** when unset, it is detected from the surf props (`OceanChurn…` prefabs), each weighted by 1/d² of its distance to the nearest hole. That gives WEST on Sagan-Khushun and SOUTH-WEST on Cassimbo, whose designer calls it west, so set it when it matters. `"none"` hides it.
 - **Wind:** the course file stores no wind. Without `windFromDegrees` no arrow is drawn.
+- **Place fallback:** `description`, `oceanSide` and `windFromDegrees` left unset here are taken from the course's `Place.json` in the output folder (the Studio Place card). Values set in this file always win.
 - **Logo:** an optional square PNG or JPG. Cassimbo's Voronoi roundel is course art and isn't generated here.
 
 ## Type
