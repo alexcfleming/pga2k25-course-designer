@@ -129,6 +129,11 @@
       <!-- Header -->
       <DockPanel Grid.ColumnSpan="2">
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
+          <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsTerrain}" Margin="0,0,8,0">
+            <Button Content="Open PDF" Command="{Binding OpenTerrainPdfCommand}" IsVisible="{Binding HasTerrainPdf}" ToolTip.Tip="Open the terrain map PDF"/>
+            <Button Content="Open image" Command="{Binding OpenTerrainImageCommand}" IsVisible="{Binding HasTerrainImage}" ToolTip.Tip="Open the terrain map PNG"/>
+            <Button Content="Build terrain map" Command="{Binding BuildTerrainCommand}" IsVisible="{Binding TerrainNotBuilt}" IsEnabled="{Binding !Busy}"/>
+          </StackPanel>
           <Border Classes="chip" Background="{StaticResource AccentTint}" CornerRadius="8" IsVisible="{Binding HasModelCheck}">
             <TextBlock Text="{Binding ModelCheck}" FontSize="12" Foreground="{StaticResource AccentInk}"/>
           </Border>

@@ -24,7 +24,7 @@ Pass a `.course` path on the command line to open straight into that course.
 
 The left-hand menu has the course's sections, its products with page counts, and recently opened courses.
 
-- **Terrain map:** drawn live by the same code as the printed terrain map.
+- **Terrain map:** drawn live by the same code as the printed terrain map. Once the terrain map product is built, **Open PDF** and **Open image** in the page header open it; before that, **Build terrain map** builds it.
   - Relief / Slope / Plain shading; Surfaces, Grid and Hilltops layers.
   - Zoom with the mouse wheel or the buttons, drag to pan, and turn it with right-drag, Shift + drag or the turn buttons. Fit (or **Whole map**) shows the whole map north up.
   - **Hole view** turns and zooms to the selected hole's sheet, tee at the bottom.

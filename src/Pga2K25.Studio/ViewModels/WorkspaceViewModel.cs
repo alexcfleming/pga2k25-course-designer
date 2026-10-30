@@ -240,8 +240,26 @@ public partial class WorkspaceViewModel : ObservableObject
 
     // ───────────────────────── products ─────────────────────────
 
+    ProductDefinition TerrainProduct => Products.All.First(p => p.Name == "Terrain map");
+
+    /// <summary>The built terrain map's PDF and image, for the buttons on the terrain page; null when not built.</summary>
+    [ObservableProperty] private string? _terrainPdf;
+    [ObservableProperty] private string? _terrainImage;
+    public bool HasTerrainPdf => TerrainPdf is not null;
+    public bool HasTerrainImage => TerrainImage is not null;
+    public bool TerrainNotBuilt => TerrainPdf is null && TerrainImage is null;
+    partial void OnTerrainPdfChanged(string? value) { OnPropertyChanged(nameof(HasTerrainPdf)); OnPropertyChanged(nameof(TerrainNotBuilt)); }
+    partial void OnTerrainImageChanged(string? value) { OnPropertyChanged(nameof(HasTerrainImage)); OnPropertyChanged(nameof(TerrainNotBuilt)); }
+
+    [RelayCommand] private void OpenTerrainPdf() { if (TerrainPdf is { } f) OpenPath(f); }
+    [RelayCommand] private void OpenTerrainImage() { if (TerrainImage is { } f) OpenPath(f); }
+    [RelayCommand] private Task BuildTerrain() => BuildAsync([TerrainProduct]);
+
     void RefreshProducts()
     {
+        TerrainPdf = Products.PdfsOf(TerrainProduct, Settings, Entry.Name).FirstOrDefault();
+        string image = Products.FileFor(TerrainProduct, Settings, Entry.Name);
+        TerrainImage = File.Exists(image) ? image : null;
         ProductRows.Clear();
         foreach (var p in Products.All)
         {
