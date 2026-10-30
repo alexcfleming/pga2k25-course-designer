@@ -2,7 +2,7 @@
 
 A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer `.course` files and produces print-style companion material. It only reads course files; it never edits or writes them.
 
-> Status: **Greens books** (one-page PNG of all greens with slope colour, per-green studies, PDF; terrain calibrated against in-game spot elevations) **scorecard maps** (vintage and modern themes) **yardage books** (an 18-page portrait PDF workbook, optional PNG per hole) and **terrain maps** (one large contour sheet of a routed plot, plus a Letter-size sketch sheet per hole) and **course cards** (compass rose, hole data card, course data card and green size card) are working.
+> Status: **Greens books** (one-page PNG of all greens with slope colour, per-green studies, PDF; terrain calibrated against in-game spot elevations) **scorecard maps** (vintage, modern, illustrated and Plan Sheet themes) **yardage books** (an 18-page portrait PDF workbook, optional PNG per hole) and **terrain maps** (one large contour sheet of a routed plot, plus a Letter-size sketch sheet per hole) and **course cards** (compass rose, hole data card with hazards and green notes, course data card, green size card and wind card) are working.
 
 ## Documentation
 
@@ -14,7 +14,7 @@ A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer
 - [Terrain map](docs/terrain-map.md): contour planning sheet of the plot with the routing as sticks and dots; terrain model notes and options.
 - [Course Designer Studio](docs/studio.md): the desktop app, with a course library, a live terrain map, measurements, product viewers and builds.
 - [Routing test](docs/routing-test.md): sketch a routing in Studio with par 3, 4 and 5 arrows and add up par and approximate yards.
-- [Course cards](docs/course-cards.md): compass rose, hole data card, course data card and green size card from the course file; validation rules, settings, the 180° blind spot.
+- [Course cards](docs/course-cards.md): compass rose, hole data card (hazards and green notes read from the course file), course data card, green size card and wind card; validation rules, settings, the 180° blind spot.
 - [Publish readiness](docs/readiness.md): QA and tour-readiness checks from the course file (drive tests, scale, corridors, elevation, green relief, speed, fringe, lighting) with editable limits.
 
 ## Solution layout
