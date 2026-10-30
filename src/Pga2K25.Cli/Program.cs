@@ -36,6 +36,8 @@ const string Usage = """
       imports scanned hole sheets with pencil sketching: finds each page's hole by matching it
       against the course's sheets and writes "<course> - Sketches/" (pencil PNG, straightened
       scan and sketches.json, tied to world coordinates) for the Studio's terrain map
+    pga2k25 hole-notes <file.course>
+        Prints the hazards and green notes the hole data card writes from the course file.
     pga2k25 cards <file.course> [-o <dir>] [--config course-card.json] [--data holes.xlsx]
                   [--formats png,pdf,svg] [--dpi 300] [--wind 225] [--ocean WEST|none] [--force]
       compass rose, hole data card, course data card and green size card (when the course has
@@ -81,6 +83,7 @@ try
         case "yardage": return Yardage(args[1], args[2..]);
         case "terrain": return Terrain(args[1], args[2..]);
         case "cards": return Cards(args[1], args[2..]);
+        case "hole-notes": return HoleNotesCommand(args[1]);
         case "sketches": return Sketches(args[1], args[2..]);
         case "estimate": return Estimate(args[1], args[2..]);
         case "readiness": return Readiness(args[1], args[2..]);
@@ -453,6 +456,7 @@ static int Cards(string path, string[] rest)
             case "--formats": config = config with { Formats = Next().Split(',') }; break;
             case "--dpi": config = config with { Dpi = double.Parse(Next(), CultureInfo.InvariantCulture) }; break;
             case "--wind": config = config with { WindFromDegrees = int.Parse(Next(), CultureInfo.InvariantCulture) }; break;
+            case "--no-auto-notes": config = config with { AutoHoleNotes = false }; break;
             case "--ocean": config = config with { OceanSide = Next() }; break;
             case "--force": force = true; break;
             default: throw new ArgumentException($"unknown option {rest[i]}");
@@ -507,6 +511,17 @@ static int Scorecard(string path, string[] rest)
     }
     if (regionShape is not null) options = options with { Watermark = CliRegion(path, regionShape, regionSeed, regionKm) };
     ScorecardMapBuilder.Build(path, outDir, options, themes, pdf, log: new SyncProgress(Console.WriteLine));
+    return 0;
+}
+
+static int HoleNotesCommand(string path)
+{
+    var course = CourseFile.Load(path).ReadModel();
+    foreach (var n in Pga2K25.CourseCard.HoleNotes.For(course, new Progress<string>(Console.Error.WriteLine)))
+    {
+        Console.WriteLine($"{n.Hole,2}  {string.Join(" · ", n.Hazards)}");
+        Console.WriteLine($"    {n.GreenNotes}");
+    }
     return 0;
 }
 

@@ -46,7 +46,9 @@ public sealed class CourseCardData
     /// <summary>The longest tee set, which the rose and bar charts use.</summary>
     public int RoseTee => TeeNames.Count - 1;
 
-    public static CourseCardData From(CourseModel course, HoleData? workbook, IReadOnlyList<string>? teeNames, List<CardIssue> issues)
+    /// <param name="notes">Hazards and green notes written from the course file; a workbook entry wins where it has one.</param>
+    public static CourseCardData From(CourseModel course, HoleData? workbook, IReadOnlyList<string>? teeNames, List<CardIssue> issues,
+        IReadOnlyList<HoleNote>? notes = null)
     {
         int sets = Math.Max(1, course.Holes.Max(h => h.Tees.Count));
         var names = teeNames is { Count: > 0 } && teeNames.Count == sets ? teeNames
@@ -56,7 +58,7 @@ public sealed class CourseCardData
             issues.Add(new(Severity.Warn, $"Workbook has {workbook.TeeNames.Count} tee columns ({string.Join(", ", workbook.TeeNames)}) " +
                                           $"but the course file has {sets} tee set(s); tee names not taken from the workbook."));
 
-        var holes = course.Holes.OrderBy(h => h.Number).Select(h => FromHole(h, sets, workbook)).ToList();
+        var holes = course.Holes.OrderBy(h => h.Number).Select(h => FromHole(h, sets, workbook, notes?.FirstOrDefault(n => n.Hole == h.Number))).ToList();
         CardTotals Sum(IEnumerable<CardHole> part)
         {
             var list = part.ToList();
@@ -74,7 +76,7 @@ public sealed class CourseCardData
         };
     }
 
-    static CardHole FromHole(Hole h, int sets, HoleData? workbook)
+    static CardHole FromHole(Hole h, int sets, HoleData? workbook, HoleNote? note)
     {
         var yards = Enumerable.Range(0, sets).Select(i => (int)Math.Round(h.TeeSetLength(i) * YardsPerMetre)).ToList();
         var back = h.Tees.Count > 0 ? h.Tees[^1] : h.Route[0];
@@ -96,7 +98,9 @@ public sealed class CourseCardData
             corner = total > 0 ? Vec2.Distance(route[0], route[1]) / total : 0.5;
         }
         var row = workbook?.For(h.Number);
-        return new CardHole(h.Number, h.Par, yards, tee, approach, corner, row?.Hazards ?? [], row?.GreenNotes);
+        var hazards = row?.Hazards is { Count: > 0 } hz ? hz : note?.Hazards ?? [];
+        string? green = !string.IsNullOrWhiteSpace(row?.GreenNotes) ? row.GreenNotes : note is { GreenNotes.Length: > 0 } ? note.GreenNotes : row?.GreenNotes;
+        return new CardHole(h.Number, h.Par, yards, tee, approach, corner, hazards, green);
     }
 
     /// <summary>Whole-degree compass bearing from a to b. Game north is −Z and east is −X.</summary>

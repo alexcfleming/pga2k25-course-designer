@@ -44,6 +44,12 @@ public sealed record CourseCardConfig
     /// <summary>Optional note after the wind direction, e.g. "onshore".</summary>
     public string? WindNote { get; init; }
 
+    /// <summary>
+    /// Write the hole data card's Hazards and Green Contours &amp; Hole Positions from the course file
+    /// (<see cref="HoleNotes"/>) wherever the workbook leaves them blank.
+    /// </summary>
+    public bool AutoHoleNotes { get; init; } = true;
+
     /// <summary>Optional square logo (PNG/JPG) for the card headers.</summary>
     public string? LogoPath { get; init; }
 

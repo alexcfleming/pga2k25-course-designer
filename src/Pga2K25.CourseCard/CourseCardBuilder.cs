@@ -30,7 +30,20 @@ public static class CourseCardBuilder
         };
         var workbook = workbookPath is null ? null : HoleData.Load(workbookPath);
         var issues = new List<CardIssue>();
-        var data = CourseCardData.From(course, workbook, config.TeeNames, issues);
+        IReadOnlyList<HoleNote>? notes = null;
+        if (config.AutoHoleNotes)
+        {
+            log?.Report("Reading hazards and greens from the course file for the hole data card…");
+            notes = HoleNotes.For(course, log);
+        }
+        var data = CourseCardData.From(course, workbook, config.TeeNames, issues, notes);
+        if (notes is not null)
+        {
+            var blank = workbook is null ? [] : course.Holes.Where(h => workbook.For(h.Number) is not { } r || r.Hazards.Count == 0 || string.IsNullOrWhiteSpace(r.GreenNotes)).ToList();
+            issues.Add(new(Severity.Info, workbook is null
+                ? "Hazards and green notes written from the course file (no workbook)."
+                : $"Hazards and green notes written from the course file where the workbook leaves them blank ({blank.Count} hole{(blank.Count == 1 ? "" : "s")})."));
+        }
         issues.AddRange(data.Validate(workbook));
 
         string? ocean = config.OceanSide switch
