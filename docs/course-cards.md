@@ -5,7 +5,7 @@ Four print pages that describe a course's orientation, lengths and green sizes, 
 | Page | File | Shows |
 |---|---|---|
 | Compass rose | `<course> - Compass Rose.png/.pdf` (13 × 14 in) | Every hole as a path from a common origin, by bearing, scaled to the longest tee set |
-| Hole data card | `<course> - Hole Data Card` (16 × 11.6 in) | Every hole × every tee set, tee and approach bearings, hazards, OUT / IN / TOTAL |
+| Hole data card | `<course> - Hole Data Card` (16 × 11.6 in) | Every hole × every tee set, tee and approach bearings, hazards, green contours and hole positions, OUT / IN / TOTAL |
 | Course data card | `<course> - Course Data Card` (17 × 11.6 in) | Rose + bar chart in hole order + bar chart sorted by length, with live header totals |
 | Green size card | `<course> - Green Size Card` (17 × 11.6 in) | Green area by hole against the mean, median and ±1 SD; difference from the mean; spread and average by par. Only when the course has drawn greens |
 | Wind card | `<course> - Wind Card` (17 × 11.6 in) | The wind rose (16 directions × mph bands, calm in the middle) and a table of how each hole plays in it: share of breezy hours (8 mph and up) into, across from the left or right, and down the line of play, back tee to green, with a summary (holes into the wind, downwind, par 3s into the wind, par 5s downwind). Only when the Place card has a wind rose |
@@ -18,7 +18,7 @@ dotnet run --project src/Pga2K25.Cli -- cards "<file.course>" -o out --config sa
 
 [Course Designer Studio](studio.md) builds them from the course's card settings file and hole-data workbook, set on its Course settings page.
 
-Options: `--data holes.xlsx`, `--formats png,pdf,svg`, `--dpi 300`, `--wind 225`, `--ocean WEST|none` and `--force`.
+Options: `--data holes.xlsx`, `--formats png,pdf,svg`, `--dpi 300`, `--wind 225`, `--ocean WEST|none`, `--no-auto-notes` and `--force`.
 
 ## Green size card
 
@@ -85,6 +85,10 @@ Everything is optional. Nothing in it is hole data.
 - **Palette:** defaults to Cassimbo's "Option A". Sagan-Khushun's ([samples/data/sagan-khushun-card.json](../samples/data/sagan-khushun-card.json)) reuses the colours of its terrain sheets: grid slate, contour brown and flag red.
 - **Text on par colours:** switches from salt to ink when a swatch's relative luminance is over 0.55.
 - **Ocean side:** when unset, it is detected from the surf props (`OceanChurn…` prefabs), each weighted by 1/d² of its distance to the nearest hole. That gives WEST on Sagan-Khushun and SOUTH-WEST on Cassimbo, whose designer calls it west, so set it when it matters. `"none"` hides it.
+- **Hazards and green notes:** the hole data card's Hazards and Green Contours & Hole Positions columns are written from the course file wherever the workbook leaves them blank (`HoleNotes`; `--no-auto-notes` or `"autoHoleNotes": false` turns this off). `pga2k25 hole-notes <file.course>` prints them. Sides are as the golfer faces the green; yards are from the back tee.
+  - *Hazards*, from the yardage book's analysis: fairway bunkers left and right by carry (bunkers within 15 yd of each other given as one range), cross bunkers (the line of play runs through them) as front–back, water carried or alongside, and greenside bunkers (within 10 m of the green) by where they sit round it. Hazards more than 35 m off the line, other holes' bunkers and the sea are left out.
+  - *Green*, from the greens book's analysis: shape (round, oval, kidney, long and narrow, wide and shallow) with depth × width in yards and "angled L to R" when the long axis runs front-left to back-right; the best-fit tilt named by how it runs to the golfer, its slope and the surface's total fall; a tier, spine, crown or bowl where the surface has one; and where the pins sit (front / mid / back, L / R).
+  - Text too long for one line wraps to two smaller lines in the same row, broken at a " · ".
 - **Wind:** the course file stores no wind. Without `windFromDegrees` no arrow is drawn, unless the Place card has a wind rose: then the arrow points from the rose's most frequent direction.
 - **Place fallback:** `description`, `oceanSide` and `windFromDegrees` left unset here are taken from the course's `Place.json` in the output folder (the Studio Place card). Values set in this file always win.
 - **Logo:** an optional square PNG or JPG. Cassimbo's Voronoi roundel is course art and isn't generated here.

@@ -499,7 +499,17 @@ public sealed partial class CourseCardRenderer : IDisposable
                     continue;
                 }
                 float tx = In(centre ? xs[i] + cw / 2 : xs[i] + .14);
-                Text(canvas, vals[i]!, tx, Y(y + rh * .32), i < hazards ? 10.2f : 9.2f, sum || i == 0 ? _bold : _serif, _ink,
+                float size = i < hazards ? 10.2f : 9.2f, room = In(cw - .22);
+                if (i >= hazards && Measure(vals[i]!, size, _serif) > room)
+                {
+                    // Too long for one line: two smaller lines in the same row, broken at " · " where possible.
+                    float small = 8.2f;
+                    var (l1, l2) = TwoLines(vals[i]!, small, room);
+                    Text(canvas, l1, tx, Y(y + rh * .56), small, _serif, _ink);
+                    Text(canvas, l2, tx, Y(y + rh * .18), small, _serif, _ink);
+                    continue;
+                }
+                Text(canvas, vals[i]!, tx, Y(y + rh * .32), size, sum || i == 0 ? _bold : _serif, _ink,
                     centre ? SKTextAlign.Center : SKTextAlign.Left);
             }
             canvas.DrawLine(In(x0), Y(y), In(x0 + totalW), Y(y), rowRule);
@@ -511,6 +521,35 @@ public sealed partial class CourseCardRenderer : IDisposable
         string second = string.Join("  ·  ", new[] { OceanPhrase is null ? null : $"{OceanPhrase}", WindPhrase,
             "tee columns in in-game order, shortest to longest", "yardages are the game's scorecard lengths" }.Where(s => s is not null));
         Text(canvas, second, In(.5), Y(y - .64), 9, _serif, Note);
+    }
+
+    /// <summary>
+    /// Splits text into two lines that fit <paramref name="room"/>: at the most even " · " break where both fit, else at the
+    /// last " · " (or space) that fits line one, cutting line two with an ellipsis.
+    /// </summary>
+    (string, string) TwoLines(string text, float size, float room)
+    {
+        var even = new List<int>();
+        for (int at = text.IndexOf(" · "); at > 0; at = text.IndexOf(" · ", at + 1)) even.Add(at);
+        var fits = even.Where(at => Measure(text[..at], size, _serif) <= room && Measure(text[(at + 3)..], size, _serif) <= room).ToList();
+        if (fits.Count > 0)
+        {
+            int at = fits.MinBy(a => Math.Abs(Measure(text[..a], size, _serif) - Measure(text[(a + 3)..], size, _serif)));
+            return (text[..at], text[(at + 3)..]);
+        }
+        int best = -1;
+        foreach (var sep in new[] { " · ", " " })
+        {
+            for (int at = text.IndexOf(sep); at > 0; at = text.IndexOf(sep, at + 1))
+                if (Measure(text[..at], size, _serif) <= room) best = at; else break;
+            if (best > 0)
+            {
+                string rest = text[(best + sep.Length)..];
+                while (rest.Length > 1 && Measure(rest, size, _serif) > room) rest = rest[..^2] + "…";
+                return (text[..best], rest);
+            }
+        }
+        return (text, "");
     }
 
     // ───────────────────────────── rose ─────────────────────────────
