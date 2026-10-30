@@ -40,6 +40,9 @@ public sealed record ScorecardMapOptions
 
     /// <summary>Plan Sheet only: the place lines from the course's Place.json, used when <see cref="Location"/> is blank.</summary>
     public IReadOnlyList<string> PlaceLines { get; init; } = [];
+
+    /// <summary>Plan Sheet only: a generated region drawn faint behind the map, the course on its mark.</summary>
+    public Region? Watermark { get; init; }
 }
 
 /// <summary>Draws a one-page scorecard map: traced course features, hole routes and numbers, scorecard table.</summary>
@@ -108,6 +111,9 @@ public sealed partial class ScorecardMapRenderer : IDisposable
 
         canvas.Save();
         canvas.ClipRect(mapRect);
+        if (IsPlanSheet && _o.Watermark is { } region)
+            RegionLocator.DrawWatermark(canvas, mapRect, new SKPoint(mapRect.MidX, mapRect.MidY), Math.Min(mapRect.Width, mapRect.Height) * 1.1f,
+                region, PlaceName, _display, _t.Ink, _t.Background, 1);
         _landscape?.Draw(canvas, _t.Ink, _t.CrownFill);
         DrawCourse(canvas, layers, proj);
         canvas.Restore();

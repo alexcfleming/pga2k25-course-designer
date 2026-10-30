@@ -20,11 +20,29 @@ public sealed class CoursePlace
     /// <summary>Prevailing wind blows FROM this bearing (degrees from north). The course file stores no wind.</summary>
     public int? WindFromDegrees { get; set; }
 
-    /// <summary>Locator kind: "none", or "site" for a small map of the plot's own shore and the course on it.</summary>
+    /// <summary>
+    /// Locator kind: "none"; "site" for a small map of the plot's own shore and the course on it; "region" for an
+    /// invented landscape round the course (with the site inset) grown from <see cref="Shape"/> and <see cref="Seed"/>.
+    /// </summary>
     public string Coastline { get; set; } = "none";
 
-    /// <summary>The products draw the site locator.</summary>
+    /// <summary>Region shape: island, peninsula, bay, lake or inland.</summary>
+    public string Shape { get; set; } = "island";
+
+    /// <summary>Region seed: the same seed always draws the same coast.</summary>
+    public int Seed { get; set; } = 1;
+
+    /// <summary>Roughly how far across the region is, km.</summary>
+    public double SizeKm { get; set; } = 25;
+
+    /// <summary>Draw the region faint behind the Plan Sheet's map.</summary>
+    public bool Watermark { get; set; } = true;
+
+    /// <summary>The products draw the site locator on its own.</summary>
     public bool ShowsSite => Coastline.Equals("site", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>The products draw the generated region (which carries the site inset).</summary>
+    public bool ShowsRegion => Coastline.Equals("region", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>The place lines that have text, trimmed.</summary>
     public IReadOnlyList<string> PlaceLines => Lines.Select(l => l.Trim()).Where(l => l.Length > 0).ToList();

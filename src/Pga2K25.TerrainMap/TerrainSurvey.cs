@@ -119,6 +119,12 @@ public sealed record TerrainMapOptions
     /// <summary>A site locator (the whole plot, its sea and the course) at the top of the panel. Place.json can turn it on.</summary>
     public bool SiteInset { get; init; }
 
+    /// <summary>A generated region drawn as the panel's locator, with the site inset in its corner. Wins over <see cref="SiteInset"/>.</summary>
+    public Maps.Region? Region { get; init; }
+
+    /// <summary>The region's name (place line 1).</summary>
+    public string RegionName { get; init; } = "";
+
     /// <summary>Also write "&lt;course&gt; - Terrain Map.pdf": the same sheet, with contours, routing and text as vectors.</summary>
     public bool Pdf { get; init; }
 

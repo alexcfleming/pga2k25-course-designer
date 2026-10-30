@@ -23,6 +23,10 @@ public static class TerrainMapBuilder
         var place = CoursePlaces.Load(outputDir);
         if (string.IsNullOrWhiteSpace(options.Place)) options = options with { Place = place.Line };
         if (place.ShowsSite) options = options with { SiteInset = true };
+        if (place.ShowsRegion && options.Region is null)
+            options = options with { Region = Maps.RegionGenerator.Generate(Maps.RegionGenerator.Parse(place.Shape), place.Seed, Maps.OceanFinder.SeaBearing(place, course), place.SizeKm) };
+        if (options.Region is not null && string.IsNullOrWhiteSpace(options.RegionName))
+            options = options with { RegionName = place.PlaceLines.FirstOrDefault() ?? "" };
 
         var survey = TerrainSurvey.Build(course, options);
         log?.Report($"Terrain: {course.HeightStamps.Count:N0} stamps replayed over {(survey.Max.X - survey.Min.X):0} × {(survey.Max.Z - survey.Min.Z):0} m " +

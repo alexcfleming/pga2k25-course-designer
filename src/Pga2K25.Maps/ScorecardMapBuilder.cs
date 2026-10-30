@@ -16,7 +16,10 @@ public static class ScorecardMapBuilder
     {
         var course = CourseFile.Load(coursePath).ReadModel();
         course.NotWater = NotWaterMarks.Points(outputDir);
-        if (options.PlaceLines.Count == 0) options = options with { PlaceLines = CoursePlaces.Load(outputDir).PlaceLines };
+        var place = CoursePlaces.Load(outputDir);
+        if (options.PlaceLines.Count == 0) options = options with { PlaceLines = place.PlaceLines };
+        if (options.Watermark is null && place.ShowsRegion && place.Watermark)
+            options = options with { Watermark = RegionGenerator.Generate(RegionGenerator.Parse(place.Shape), place.Seed, OceanFinder.SeaBearing(place, course), place.SizeKm) };
         var layers = CourseLayers.From(course);
         if (course.Water.Count > 0)
             layers.AddInlandWater(GreensBook.WaterTracer.Trace(course, new GreensBook.TerrainModelOptions { CellMetres = 0.5 }));

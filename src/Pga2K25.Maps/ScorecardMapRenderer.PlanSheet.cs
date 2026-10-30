@@ -16,6 +16,9 @@ public sealed partial class ScorecardMapRenderer
 
     bool IsPlanSheet => _t.Kind == MapThemeKind.PlanSheet;
 
+    /// <summary>The first place line, which names the watermark's land.</summary>
+    string? PlaceName => (string.IsNullOrWhiteSpace(_o.Location) ? _o.PlaceLines : _o.Location.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).FirstOrDefault();
+
     static SKRect PlanSheetMapRect(SKSize page) => new(ColumnRight + 12, 30, page.Width - 30, page.Height - 38);
 
     /// <summary>

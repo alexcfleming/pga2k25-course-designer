@@ -972,7 +972,29 @@
               <StackPanel Spacing="3">
                 <TextBlock Text="Locator" Classes="muted small"/>
                 <ComboBox ItemsSource="{Binding LocatorChoices}" SelectedItem="{Binding LocatorChoice}" HorizontalAlignment="Stretch" AutomationProperties.Name="Locator"/>
-                <TextBlock Classes="muted small" TextWrapping="Wrap" Text="A small north-up map at the top of the terrain map's panel: the whole plot, its sea (on plots with surf props) and the course's footprint in red."/>
+                <TextBlock Classes="muted small" TextWrapping="Wrap" Text="A small north-up map at the top of the terrain map's panel. The site: the whole plot, its sea (on plots with surf props) and the course's footprint in red. Generated region: an invented landscape round the course, its shore facing the plot's sea side, with the site in the corner."/>
+              </StackPanel>
+              <StackPanel Spacing="8" IsVisible="{Binding IsRegionLocator}">
+                <Grid ColumnDefinitions="*,10,110,10,Auto,10,*">
+                  <StackPanel Grid.Column="0" Spacing="3">
+                    <TextBlock Text="Shape" Classes="muted small"/>
+                    <ComboBox ItemsSource="{Binding ShapeChoices}" SelectedItem="{Binding ShapeChoice}" HorizontalAlignment="Stretch" AutomationProperties.Name="Region shape"/>
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Spacing="3">
+                    <TextBlock Text="Seed" Classes="muted small"/>
+                    <TextBox Text="{Binding SeedText}" AutomationProperties.Name="Region seed"/>
+                  </StackPanel>
+                  <Button Grid.Column="4" Content="Reroll" Command="{Binding RerollRegionCommand}" VerticalAlignment="Bottom"/>
+                  <StackPanel Grid.Column="6" Spacing="3">
+                    <TextBlock Text="Size" Classes="muted small"/>
+                    <ComboBox ItemsSource="{Binding SizeChoices}" SelectedItem="{Binding SizeChoice}" HorizontalAlignment="Stretch" AutomationProperties.Name="Region size"/>
+                  </StackPanel>
+                </Grid>
+                <CheckBox IsChecked="{Binding PlaceWatermark}" Content="Watermark the region behind the Plan Sheet scorecard map"/>
+                <Border BorderBrush="#d6cfc2" BorderThickness="1" HorizontalAlignment="Left">
+                  <Image Source="{Binding RegionPreview}" Width="480" Height="300" Stretch="Uniform" AutomationProperties.Name="Region preview"/>
+                </Border>
+                <TextBlock Classes="muted small" TextWrapping="Wrap" Text="The same seed always draws the same coast. Place line 1 names the land."/>
               </StackPanel>
               <TextBlock Classes="muted small" TextWrapping="Wrap">
                 <Run Text="Saved as you type to Place.json in "/>

@@ -81,4 +81,53 @@ public class CoursePlaceTests
         Assert.False(murray.HasSea);
         Assert.NotEmpty(murray.Footprint);
     }
+
+    [Fact]
+    public void Region_SameSeedSameCoast_DifferentSeedDifferent()
+    {
+        var a = Maps.RegionGenerator.Generate(Maps.RegionShape.Island, 4127, 270);
+        var b = Maps.RegionGenerator.Generate(Maps.RegionShape.Island, 4127, 270);
+        var c = Maps.RegionGenerator.Generate(Maps.RegionShape.Island, 4128, 270);
+        Assert.Equal(a.Land[0], b.Land[0]);
+        Assert.NotEqual(a.Land[0], c.Land[0]);
+        // Pinned values: if these move, every saved seed would draw a different coast.
+        Assert.Equal(18 * 16, a.Land[0].Count);
+        Assert.Equal(105.767f, a.Land[0][5].X, 2);
+    }
+
+    [Theory]
+    [InlineData(270)]   // sea west: the course is the island's west shore
+    [InlineData(0)]     // sea north
+    [InlineData(135)]   // sea south-east
+    public void Region_CourseSitsOnTheShoreFacingTheSea(int seaBearing)
+    {
+        foreach (var shape in new[] { Maps.RegionShape.Island, Maps.RegionShape.Peninsula })
+        {
+            var r = Maps.RegionGenerator.Generate(shape, 7, seaBearing);
+            // Page frame: x east, y south. The pin is the land point furthest towards the sea, give or take the coast's wiggle.
+            double rad = seaBearing * Math.PI / 180;
+            var toSea = new SkiaSharp.SKPoint((float)Math.Sin(rad), (float)-Math.Cos(rad));
+            float Along(SkiaSharp.SKPoint p) => p.X * toSea.X + p.Y * toSea.Y;
+            Assert.True(Along(r.Pin) >= r.Land[0].Max(Along) - 40, $"{shape} at {seaBearing}°");
+        }
+    }
+
+    [Fact]
+    public void Region_InlandHasNoSeaAndARiver()
+    {
+        var r = Maps.RegionGenerator.Generate(Maps.RegionShape.Inland, 3, null);
+        Assert.False(r.SeaAround);
+        Assert.Empty(r.Land);
+        Assert.Single(r.Rivers);
+        Assert.Equal(2, r.Water.Count);
+    }
+
+    [Fact]
+    public void SeaBearing_FollowsThePlaceCard()
+    {
+        var course = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, "sagan-khushun.course")).ReadModel();
+        Assert.Equal(45, Maps.OceanFinder.SeaBearing(new CoursePlace { SeaSide = "NORTH-EAST" }, course));
+        Assert.Null(Maps.OceanFinder.SeaBearing(new CoursePlace { SeaSide = "none" }, course));
+        Assert.Equal(Maps.OceanFinder.SeaBearing(course), Maps.OceanFinder.SeaBearing(new CoursePlace(), course));
+    }
 }
