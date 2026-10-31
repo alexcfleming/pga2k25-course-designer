@@ -372,9 +372,15 @@ public sealed partial class ScorecardMapRenderer : IDisposable
 
     float DrawTable(SKCanvas canvas, CourseModel course, SKRect area, bool splitNines, float rowH = 15.5f, float size = 9.5f)
     {
-        var (names, yards) = TeeColumns(course);
+        // The map's table shows the championship (longest) tees only, headed by their name when the Holes card gives
+        // one; the yardage book and hole data card carry every set.
+        var (allNames, allYards) = TeeColumns(course);
+        int back = allNames.Count - 1;
+        bool backNamed = (_o.Holes?.Tees ?? []).ElementAtOrDefault(back) is { Length: > 0 };
+        var names = new List<string> { backNamed ? allNames[back] : "Yards" };
+        int yards(Hole h, int _) => allYards(h, back);
         var holes = course.Holes;
-        // A Name column only when the Holes card names at least one hole; it takes up to 40% of the table.
+        // A Name column only when the Holes card names at least one hole; it takes up to 60% of the table.
         string? NameOf(Hole h) => _o.Holes?.NameOf(h.Number);
         bool named = holes.Any(h => NameOf(h) is not null);
 
@@ -384,7 +390,7 @@ public sealed partial class ScorecardMapRenderer : IDisposable
         {
             float y = r.Top, w = r.Width;
             // The tee columns are measured first, so headers and totals never touch; the name takes what is left
-            // (up to 40%). When even a narrow name won't fit, the whole table shrinks: type, padding and the fixed
+            // (up to 60%). When even a narrow name won't fit, the whole table shrinks: type, padding and the fixed
             // Hole and Par columns together.
             string widest = holes.Count == 0 ? "0" : Enumerable.Range(0, names.Count)
                 .Select(i => holes.Sum(h => yards(h, i)).ToString("N0")).MaxBy(t => t.Length)!;
@@ -400,7 +406,7 @@ public sealed partial class ScorecardMapRenderer : IDisposable
                 rowH = Math.Max(rowH - 0.4f, size * 1.35f);
             }
             float holeW = 34 * k, parW = 30 * k, pad = 6 * k, minName = named ? 60 * k : 0;
-            float nameW = !named ? 0 : Math.Max(Math.Min(Math.Min(w * 0.4f, NameWant(size)), w - holeW - parW - TeeNeed(size, k) * names.Count), minName);
+            float nameW = !named ? 0 : Math.Max(Math.Min(Math.Min(w * 0.6f, NameWant(size)), w - holeW - parW - TeeNeed(size, k) * names.Count), minName);
             float teeW = (w - holeW - nameW - parW) / names.Count;
             float ColRight(int i) => r.Left + holeW + nameW + teeW * (i + 1) - pad;
             float parRight = r.Right - 8 * k;
