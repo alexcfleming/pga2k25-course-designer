@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 2.0.0
+COURSE DESIGNER STUDIO - release 2.1.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -219,6 +219,21 @@ USING IT
   wins. Building the course cards takes about a minute longer for it.
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
+
+FIXED IN 2.1.0
+- Streams and ponds made with the designer's "running water" and
+  "create a body of water" tools now show on every map: terrain map,
+  hole sheets, scorecard maps, yardage book and hole notes. Before, only
+  water planes and painted water appeared. A stream is drawn at its path's
+  width; one whose water amount is set near zero holds no water in game
+  and is left off.
+- Surface weathering (bare-ground or "reverse weathering" splines and
+  brushes) is no longer drawn as fairway on the scorecard maps or counted
+  as fairway in the yardage book.
+- A tree or rock island splitting a fairway still gets its carry numbers
+  in the yardage book when it spills past the fairway edges.
+- Pins hang from the exact green point the game uses when a hole's last
+  two route points sit on top of each other.
 
 GOOD TO KNOW
 - Terrain is rebuilt from the course's brush strokes, so check critical
