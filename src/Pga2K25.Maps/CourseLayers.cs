@@ -15,7 +15,7 @@ public sealed record HoleLayout(Hole Hole, IReadOnlyList<Vec2> Route, Vec2 BackT
 /// </summary>
 public sealed class CourseLayers
 {
-    public required List<List<Vec2>> Grass { get; init; }      // fairway, fairway cut, rough & heavy-rough areas
+    public required List<List<Vec2>> Grass { get; init; }      // fairway, rough & heavy-rough areas
     public required List<List<Vec2>> Greens { get; init; }
     public required List<List<Vec2>> BunkerAreas { get; init; }
     public required List<Ribbon> BunkerRibbons { get; init; }
@@ -63,7 +63,7 @@ public sealed class CourseLayers
         return loops;
     }
 
-    static readonly HashSet<int> GrassSurfaces = [Surfaces.Fairway, Surfaces.FairwayCut, Surfaces.Rough, Surfaces.HeavyRough];
+    static readonly HashSet<int> GrassSurfaces = [Surfaces.Fairway, Surfaces.Rough, Surfaces.HeavyRough];
 
     public static CourseLayers From(CourseModel course)
     {

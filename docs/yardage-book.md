@@ -48,7 +48,7 @@ CLI options:
 - **Surfaces:**
   - Drawing order: rough, paths, water, fairways, bunkers, vegetation and rock masses, in-play hazards, tee pads, greens.
   - Shapes owned by another hole are faded. Ownership is decided by a majority vote of nearby hole routes, and any shape within 15 m of this hole's line of play always belongs to this hole.
-  - Water includes drawn water shapes and the course's `water[]` entries: painted streams and water planes, traced once per course by `WaterTracer` (see [terrain-map.md](terrain-map.md)). Islands stay dry.
+  - Water includes drawn water shapes and the course's `water[]` entries (painted streams and water planes) and the water tools' streams and ponds, traced once per course by `WaterTracer` (see [terrain-map.md](terrain-map.md)). Islands stay dry.
 - **Vegetation and rocks:**
   - Planting is shown in masses. Bushes and trees are fused into smooth sage canopy masses, and the placed conifers' crowns are drawn darker inside them. Scatter groups of trees and bushes (`clusters`) join the masses as their whole circle, and planted areas (`splines` with a fill) join as their outline, because the game places those plants itself. Grass and flowers are left off at this scale. Vegetation the game generates by itself isn't in the file and isn't shown (see [terrain-map.md](terrain-map.md#planting)).
   - Rocks are fused into masses too: their radius is estimated from the course itself (see below). Both use the same merge as the scorecard bunkers: rasterise, close, smooth, trace.

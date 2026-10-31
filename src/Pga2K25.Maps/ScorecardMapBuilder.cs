@@ -21,7 +21,7 @@ public static class ScorecardMapBuilder
         if (options.Watermark is null && place.ShowsRegion && place.Watermark)
             options = options with { Watermark = RegionGenerator.Generate(RegionGenerator.Parse(place.Shape), place.Seed, OceanFinder.SeaBearing(place, course), place.SizeKm) };
         var layers = CourseLayers.From(course);
-        if (course.Water.Count > 0)
+        if (course.HasWater)
             layers.AddInlandWater(GreensBook.WaterTracer.Trace(course, new GreensBook.TerrainModelOptions { CellMetres = 0.5 }));
         log?.Report($"{course.Name}: {layers.Grass.Count} grass areas, {layers.Greens.Count} greens, " +
                     $"{layers.BunkerAreas.Count + layers.BunkerRibbons.Count} bunker shapes + {layers.BunkerBrushes.Count} bunker brushes, " +
