@@ -98,7 +98,7 @@ public sealed partial class CourseCardRenderer : IDisposable
 
     string? OceanPhrase => _oceanSide is null ? null : $"{Cap(_c.OceanLabel)} to the {_oceanSide}";
     string? WindPhrase => _c.WindFromDegrees is int w
-        ? $"prevailing wind {CourseCardConfig.CompassName(w).Replace("-", "")}" + (_c.WindNote is { Length: > 0 } n ? $" ({n})" : "")
+        ? $"prevailing wind {WindRose.SectorNames[WindRose.SectorOf(w)]}" + (_c.WindNote is { Length: > 0 } n ? $" ({n})" : "")
         : null;
 
     static string Cap(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s[1..].ToLowerInvariant();
@@ -428,8 +428,12 @@ public sealed partial class CourseCardRenderer : IDisposable
         Text(canvas, others ?? halves, In(15.5), Y(h - 1.02), 10.5f, _serif, Muted, SKTextAlign.Right);
         using (var rule = Stroke(_fog, 1.3f)) canvas.DrawLine(In(0.5), Y(h - 1.25), In(15.5), Y(h - 1.25), rule);
 
-        // Columns: tee columns follow the course's tee sets; the two text columns absorb the spare width.
-        var cols = new List<(string Name, double W, bool Centre)> { ("Hole", .9, true), ("Par", .9, true) };
+        // Columns: tee columns follow the course's tee sets; the two text columns absorb the spare width. Hole names
+        // get a column only when the Holes card names at least one hole.
+        bool named = _d.Holes.Any(x => x.Name is not null);
+        var cols = new List<(string Name, double W, bool Centre)> { ("Hole", .9, true) };
+        if (named) cols.Add(("Name", 1.9, false));
+        cols.Add(("Par", .9, true));
         cols.AddRange(_d.TeeNames.Select(n => (n, 1.15, true)));
         cols.Add(("Tee °", 1.0, true)); cols.Add(("Appr °", 1.0, true));
         double fixedW = cols.Sum(c => c.W), spare = 15 - fixedW - 6.6;
@@ -439,7 +443,8 @@ public sealed partial class CourseCardRenderer : IDisposable
         var xs = new List<double>();
         double acc = x0;
         foreach (var c in cols) { xs.Add(acc); acc += c.W; }
-        int teeCols = _d.TeeNames.Count, firstTee = 2, teeB = 2 + teeCols, apprB = teeB + 1, hazards = apprB + 1, contours = hazards + 1;
+        int nameCol = named ? 1 : -1, parCol = named ? 2 : 1;
+        int teeCols = _d.TeeNames.Count, firstTee = parCol + 1, teeB = firstTee + teeCols, apprB = teeB + 1, hazards = apprB + 1, contours = hazards + 1;
 
         var rows = new List<(string Kind, CardHole? Hole, string Label, CardTotals? Totals)>();
         foreach (var hole in _d.Holes)
@@ -474,13 +479,14 @@ public sealed partial class CourseCardRenderer : IDisposable
             if (sum)
             {
                 using (var f = Fill(_fog.WithAlpha((byte)(.55 * 255)))) canvas.DrawRect(band, f);
-                vals[0] = label; vals[1] = totals!.Par.ToString();
+                vals[0] = label; vals[parCol] = totals!.Par.ToString();
                 for (int t = 0; t < teeCols; t++) vals[firstTee + t] = totals.Yards[t].ToString("N0");
             }
             else
             {
                 if (r % 2 == 1) using (var f = Fill(_fog.WithAlpha((byte)(.16 * 255)))) canvas.DrawRect(band, f);
-                vals[0] = hole!.Number.ToString(); vals[1] = hole.Par.ToString();
+                vals[0] = hole!.Number.ToString(); vals[parCol] = hole.Par.ToString();
+                if (named) vals[nameCol] = hole.Name;
                 for (int t = 0; t < teeCols; t++) vals[firstTee + t] = hole.Yards[t].ToString("N0");
                 vals[teeB] = hole.TeeBearing.ToString(); vals[apprB] = hole.ApproachBearing.ToString();
                 vals[hazards] = string.Join(" · ", hole.Hazards);
@@ -490,7 +496,7 @@ public sealed partial class CourseCardRenderer : IDisposable
             {
                 if (string.IsNullOrEmpty(vals[i])) continue;
                 var (_, cw, centre) = cols[i];
-                if (i == 1 && !sum)
+                if (i == parCol && !sum)
                 {
                     float cx = In(xs[i] + cw / 2), cy = Y(y + rh / 2);
                     using var pill = Fill(ParColour(hole!.Par));
@@ -500,6 +506,12 @@ public sealed partial class CourseCardRenderer : IDisposable
                 }
                 float tx = In(centre ? xs[i] + cw / 2 : xs[i] + .14);
                 float size = i < hazards ? 10.2f : 9.2f, room = In(cw - .22);
+                if (i == nameCol)
+                {
+                    var (fit, fitSize) = FitLine(vals[i]!, 10.2f, 7.5f, room, _italic);
+                    Text(canvas, fit, tx, Y(y + rh * .32), fitSize, _italic, _ink);
+                    continue;
+                }
                 if (i >= hazards && Measure(vals[i]!, size, _serif) > room)
                 {
                     // Too long for one line: two smaller lines in the same row, broken at " · " where possible.
@@ -521,6 +533,16 @@ public sealed partial class CourseCardRenderer : IDisposable
         string second = string.Join("  ·  ", new[] { OceanPhrase is null ? null : $"{OceanPhrase}", WindPhrase,
             "tee columns in in-game order, shortest to longest", "yardages are the game's scorecard lengths" }.Where(s => s is not null));
         Text(canvas, second, In(.5), Y(y - .64), 9, _serif, Note);
+    }
+
+    /// <summary>The text at the largest size from <paramref name="size"/> down to <paramref name="min"/> that fits, cut with an ellipsis if even that doesn't.</summary>
+    (string Text, float Size) FitLine(string text, float size, float min, float room, SKTypeface face)
+    {
+        for (float s = size; s >= min; s -= 0.25f)
+            if (Measure(text, s, face) <= room) return (text, s);
+        string cut = text;
+        while (cut.Length > 1 && Measure(cut + "…", min, face) > room) cut = cut[..^1];
+        return (cut.TrimEnd() + "…", min);
     }
 
     /// <summary>
@@ -612,7 +634,7 @@ public sealed partial class CourseCardRenderer : IDisposable
             DrawArrow(canvas, a0, a1, Note, 1.6f, 9);
             var lp = P(wf, R * 1.045 * 1.045);
             Text(canvas, "prevailing", lp.X, lp.Y - 1, 9 * k, _italic, Note, SKTextAlign.Center);
-            Text(canvas, $"wind  {CourseCardConfig.CompassAbbreviation(wf)}", lp.X, lp.Y + 10 * k, 9 * k, _italic, Note, SKTextAlign.Center);
+            Text(canvas, $"wind  {WindRose.SectorNames[WindRose.SectorOf(wf)]}", lp.X, lp.Y + 10 * k, 9 * k, _italic, Note, SKTextAlign.Center);
         }
 
         // Hole paths: common origin; tee leg then approach leg; total path length = rose-tee yards.

@@ -6,8 +6,13 @@ namespace Pga2K25.YardageBook;
 
 public sealed record YardageOptions
 {
-    /// <summary>Tee set names (shortest → longest); defaults to T1…Tn. Yardages always come from the course file.</summary>
+    /// <summary>
+    /// Tee set names (shortest → longest); otherwise the Holes card's, else T1…Tn. Yardages always come from the course file.
+    /// </summary>
     public IReadOnlyList<string>? TeeNames { get; init; }
+
+    /// <summary>The Studio's hole entries (Holes.json) for tee and hole names; null reads them from the output folder.</summary>
+    public CourseHoles? Holes { get; init; }
     public double MetresBehindTee { get; init; } = 22;
     public double MetresBeyondGreen { get; init; } = 32;
     /// <summary>Fairway widths are measured at these distances from the back tee (yards).</summary>
@@ -269,7 +274,7 @@ public sealed class HoleAnalysis
         var teeSets = Enumerable.Range(0, sets).Select(i =>
         {
             var tee = hole.Tees.Count > 0 ? hole.Tees[Math.Min(i, hole.Tees.Count - 1)] : back;
-            string name = o.TeeNames?.ElementAtOrDefault(i) is { Length: > 0 } n ? n : $"T{i + 1}";
+            string name = (o.TeeNames ?? o.Holes?.Tees)?.ElementAtOrDefault(i) is { Length: > 0 } n ? n : $"T{i + 1}";
             return new TeeSet(name, (int)Math.Round(hole.TeeSetLength(i) / Yard), tee, Feet(tee));
         }).ToList();
         double holeYards = teeSets[^1].Yards;

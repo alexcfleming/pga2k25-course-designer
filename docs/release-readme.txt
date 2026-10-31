@@ -185,7 +185,8 @@ USING IT
   prevailing wind. It saves as you type in Place.json beside the
   products. The place lines print under the name on the Plan Sheet map
   and before the terrain map's subtitle, and the course cards take the
-  description, sea side and wind from it.
+  description and sea side from it, and the wind when there is no wind
+  rose.
 - Locator (new in 2.0.0, on the Place card): "The site" adds a small
   north-up map of the whole plot, its sea and the course to the top of
   the terrain map's panel. "Generated region" invents a landscape round
@@ -209,16 +210,37 @@ USING IT
   how each hole plays in it (the share of breezy hours into the wind,
   across from the left or right, and downwind), with the holes into the
   wind and downwind. The terrain map's panel shows the rose too, and the
-  compass rose's wind arrow follows it. The game sets the wind each
+  course data card's wind arrow follows it. The game sets the wind each
   round, so this is a design aid.
 - Hole data card (new in 2.0.0): the Hazards and Green Contours & Hole
   Positions columns are filled in from the course file: fairway bunkers
   by carry, cross bunkers, water, greenside bunkers; and each green's
   shape and size, which way it falls, any tier, spine, crown or bowl, and
-  where the pins sit. Anything typed in the hole-data workbook still
-  wins. Building the course cards takes about a minute longer for it.
+  where the pins sit. Anything written by hand on the Holes card wins.
+  Building the course cards takes about a minute longer for it.
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
+
+NEW SINCE 2.1.0
+- Holes card (in Course settings, under Place): tee set names, and a
+  name for each hole. The names add a Name column to every scorecard
+  table (the four scorecard maps, the hole data card and the Wind Card)
+  and go in each yardage book page's header; with no names set there is
+  no Name column. You can also write a hole's hazards or green notes by
+  hand there; blank boxes show, faintly, what is read from the course
+  file. It saves as you type in Holes.json beside the products. Tee names
+  typed on the Publish readiness page carry over and stay in step.
+- The hole-data workbook (.xlsx / .csv) is retired, and its box has gone
+  from Course settings. Tee names and hole names come from the Holes
+  card; pars, yardages and bearings from the course file; hazards and
+  green notes from the course file unless written on the Holes card. If
+  you used a workbook, type its tee names (and any hand-written notes)
+  into the Holes card once.
+- The course data card's prevailing-wind arrow now matches the Wind
+  Card: with a wind rose it points from the rose's most common direction,
+  named the same way (for example WNW). A wind set by hand that differs
+  is noted in the card validation file. Without a rose the arrow follows
+  the card settings, then Prevailing wind from on the Place card.
 
 FIXED IN 2.1.0
 - Streams and ponds made with the designer's "running water" and

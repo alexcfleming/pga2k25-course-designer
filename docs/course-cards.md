@@ -5,10 +5,10 @@ Four print pages that describe a course's orientation, lengths and green sizes, 
 | Page | File | Shows |
 |---|---|---|
 | Compass rose | `<course> - Compass Rose.png/.pdf` (13 × 14 in) | Every hole as a path from a common origin, by bearing, scaled to the longest tee set |
-| Hole data card | `<course> - Hole Data Card` (16 × 11.6 in) | Every hole × every tee set, tee and approach bearings, hazards, green contours and hole positions, OUT / IN / TOTAL |
+| Hole data card | `<course> - Hole Data Card` (16 × 11.6 in) | Every hole × every tee set (with a Name column when the Holes card names any hole), tee and approach bearings, hazards, green contours and hole positions, OUT / IN / TOTAL |
 | Course data card | `<course> - Course Data Card` (17 × 11.6 in) | Rose + bar chart in hole order + bar chart sorted by length, with live header totals |
 | Green size card | `<course> - Green Size Card` (17 × 11.6 in) | Green area by hole against the mean, median and ±1 SD; difference from the mean; spread and average by par. Only when the course has drawn greens |
-| Wind card | `<course> - Wind Card` (17 × 11.6 in) | The wind rose (16 directions × mph bands, calm in the middle) and a table of how each hole plays in it: share of breezy hours (8 mph and up) into, across from the left or right, and down the line of play, back tee to green, with a summary (holes into the wind, downwind, par 3s into the wind, par 5s downwind). Only when the Place card has a wind rose |
+| Wind card | `<course> - Wind Card` (17 × 11.6 in) | The wind rose (16 directions × mph bands, calm in the middle) and a table of how each hole plays in it: share of breezy hours (8 mph and up) into, across from the left or right, and down the line of play, back tee to green, with a summary (holes into the wind, downwind, par 3s into the wind, par 5s downwind). Hole names follow the number when the Holes card has any. Only when the Place card has a wind rose |
 
 The layouts follow the reference matplotlib build from the Cassimbo card handoff, which was approved. The fonts, sizes and figure fractions carry over.
 
@@ -16,9 +16,9 @@ The layouts follow the reference matplotlib build from the Cassimbo card handoff
 dotnet run --project src/Pga2K25.Cli -- cards "<file.course>" -o out --config samples/data/sagan-khushun-card.json
 ```
 
-[Course Designer Studio](studio.md) builds them from the course's card settings file and hole-data workbook, set on its Course settings page.
+[Course Designer Studio](studio.md) builds them from the course's card settings file, set on its Course settings page, and the Place and Holes cards on the same page.
 
-Options: `--data holes.xlsx`, `--formats png,pdf,svg`, `--dpi 300`, `--wind 225`, `--ocean WEST|none`, `--no-auto-notes` and `--force`.
+Options: `--formats png,pdf,svg`, `--dpi 300`, `--wind 225`, `--ocean WEST|none`, `--no-auto-notes` and `--force`. Tee names, hole names and hand-written hazards and green notes come from `Holes.json` in the output folder (`-o`), which the Studio's Holes card writes.
 
 ## Green size card
 
@@ -37,10 +37,12 @@ The **course file is the source of truth**.
 - **Bearings:** whole degrees from 0–359, clockwise from north, measured on the routing.
   - Game north is **−Z** and east is **−X**. The handoff note's "X east, Y north" doesn't apply to the file.
   - The tee bearing is back tee → first aim point, and the approach bearing is last aim point → green.
-  - Par 3s use straight tee → green for both, matching the workbook convention that they are equal on par 3s.
+  - Par 3s use straight tee → green for both, so the two are equal on par 3s.
 - **Rose shape:** the corner on a dogleg sits at the route's real corner, as a share of its length. Path length equals the hole's yardage, so a dogleg ends inside its own yardage ring. The paths are drawn from a common origin; this is **not a routing plan**.
-- **Optional workbook:** only supplies what the file lacks, namely tee set names, hazard tags and green notes. Its pars, yardages and bearings are compared with the file. Any difference is reported and the file is used.
-- **Tee names:** taken from the settings file, then the workbook, otherwise "Back" (a single set) or "Tee 1 … Back".
+- **Hazards and green notes:** read from the course file (see *Hazards and green notes* below). A hole whose hazards or green notes are written by hand on the Studio's Holes card (`Holes.json`) prints those instead.
+- **Tee names:** taken from the settings file, then the Holes card, otherwise "Back" (a single set) or "Tee 1 … Back". Names for a different number of tee sets than the file has are reported (WARN) and not used.
+- **Hole names:** from the Holes card. With none, the hole data card and Wind Card have no Name column.
+- Earlier releases took tee names, hazards and green notes from an optional hole-data workbook (`--data holes.xlsx`). It is retired: everything now comes from the course file or the Studio.
 
 ## Validation (reports, never corrects)
 
@@ -49,15 +51,15 @@ The **course file is the source of truth**.
 | Exactly 18 holes; par is 3, 4 or 5 | ERROR |
 | Tee yardages ascend from forward to back on each hole | ERROR |
 | Dogleg bend over 45° between tee and approach bearings | WARN |
-| Workbook par, yardage or bearing (over 10° off) differs from the file | WARN, file used |
-| Ocean side detected; no wind set | INFO |
+| Tee names given for a different number of tee sets | WARN, names not used |
+| Ocean side detected; no wind set; a wind set by hand that the wind rose overrides | INFO |
 
 - **What gets written:** issues print to the log and go to `<course> - Card Validation.txt`.
 - **ERRORs stop the build.** `--force` (command line only) draws anyway for a draft. The errors are still reported.
 
-On Cassimbo the game's own scorecard has hole 4's Red tee longer than its Green (364 vs 362 yds), so a normal build stops. The workbook is also stale on holes 4, 7, 11, 12 and 16. Hand-measured bearings differ from the routing by up to 35° on a few holes.
+On Cassimbo the game's own scorecard has hole 4's Red tee longer than its Green (364 vs 362 yds), so a normal build stops.
 
-**Blind spot.** An error that shifts every bearing the same way, such as a course whose bearings are all reversed by 180°, triggers no dogleg warning. Bearings taken from the file can't be reversed this way. Hand bearings in a workbook can be, but the bearing comparison catches them: every hole would differ by about 180°. To check visually, compare the rose against the terrain map. For example, Sagan-Khushun hole 1 is 90° (due east) on both.
+**Blind spot.** An error that shifts every bearing the same way, such as a course whose bearings are all reversed by 180°, triggers no dogleg warning. Bearings taken from the file can't be reversed this way. To check visually, compare the rose against the terrain map. For example, Sagan-Khushun hole 1 is 90° (due east) on both.
 
 ## Settings file (JSON)
 
@@ -85,12 +87,12 @@ Everything is optional. Nothing in it is hole data.
 - **Palette:** defaults to Cassimbo's "Option A". Sagan-Khushun's ([samples/data/sagan-khushun-card.json](../samples/data/sagan-khushun-card.json)) reuses the colours of its terrain sheets: grid slate, contour brown and flag red.
 - **Text on par colours:** switches from salt to ink when a swatch's relative luminance is over 0.55.
 - **Ocean side:** when unset, it is detected from the surf props (`OceanChurn…` prefabs), each weighted by 1/d² of its distance to the nearest hole. That gives WEST on Sagan-Khushun and SOUTH-WEST on Cassimbo, whose designer calls it west, so set it when it matters. `"none"` hides it.
-- **Hazards and green notes:** the hole data card's Hazards and Green Contours & Hole Positions columns are written from the course file wherever the workbook leaves them blank (`HoleNotes`; `--no-auto-notes` or `"autoHoleNotes": false` turns this off). `pga2k25 hole-notes <file.course>` prints them. Sides are as the golfer faces the green; yards are from the back tee.
+- **Hazards and green notes:** the hole data card's Hazards and Green Contours & Hole Positions columns are written from the course file wherever the Holes card leaves them blank (`HoleNotes`; `--no-auto-notes` or `"autoHoleNotes": false` turns this off). `pga2k25 hole-notes <file.course>` prints them. Sides are as the golfer faces the green; yards are from the back tee.
   - *Hazards*, from the yardage book's analysis: fairway bunkers left and right by carry (bunkers within 15 yd of each other given as one range), cross bunkers (the line of play runs through them) as front–back, water carried or alongside, and greenside bunkers (within 10 m of the green) by where they sit round it. Hazards more than 35 m off the line, other holes' bunkers and the sea are left out.
   - *Green*, from the greens book's analysis: shape (round, oval, kidney, long and narrow, wide and shallow) with depth × width in yards and "angled L to R" when the long axis runs front-left to back-right; the best-fit tilt named by how it runs to the golfer, its slope and the surface's total fall; a tier, spine, crown or bowl where the surface has one; and where the pins sit (front / mid / back, L / R).
   - Text too long for one line wraps to two smaller lines in the same row, broken at a " · ".
-- **Wind:** the course file stores no wind. Without `windFromDegrees` no arrow is drawn, unless the Place card has a wind rose: then the arrow points from the rose's most frequent direction.
-- **Place fallback:** `description`, `oceanSide` and `windFromDegrees` left unset here are taken from the course's `Place.json` in the output folder (the Studio Place card). Values set in this file always win.
+- **Wind:** the course file stores no wind. When the Place card has a wind rose, the course data card's arrow and "prevailing wind" note point from the rose's most frequent direction, the one the Wind Card prints, named the same way (16 points, e.g. WNW). The rose always wins, so the two cards agree: a `windFromDegrees`, `--wind` or Place "Prevailing wind from" that differs is reported (INFO) and not drawn. Without a rose, the arrow points from `--wind`, then `windFromDegrees`, then the Place card's prevailing wind; with none of them no arrow is drawn.
+- **Place fallback:** `description` and `oceanSide` left unset here are taken from the course's `Place.json` in the output folder (the Studio Place card). Values set in this file always win.
 - **Logo:** an optional square PNG or JPG. Cassimbo's Voronoi roundel is course art and isn't generated here.
 
 ## Type
@@ -103,13 +105,14 @@ The approved cards set titles, totals and markers in the regular weight, and so 
 
 `src/Pga2K25.CourseCard`:
 
-- `CourseCardData`: per-hole data from the course file, totals and validation
+- `CourseCardData`: per-hole data from the course file and the Holes card, totals and validation
 - `CourseCardConfig`: settings and `OceanFinder`
 - `CourseCardRenderer`: the three pages, drawn in points
-- `CourseCardBuilder`: validation and PNG / PDF / SVG output
+- `CourseCardBuilder`: validation, the wind direction (`WindFrom`) and PNG / PDF / SVG output
 
 Tests are in `tests/Pga2K25.Tests/CourseCardTests.cs`. They cover:
 - the compass convention
 - Sagan-Khushun data and live header totals
-- Cassimbo's inverted tees and stale workbook being reported but not corrected
+- Cassimbo's inverted tees being reported but not corrected, and tee names, hole names and hand-written notes from the Holes card
 - ERRORs stopping the build unless forced
+- the course data card's wind agreeing with the Wind Card (fetched record, climate model, no rose)

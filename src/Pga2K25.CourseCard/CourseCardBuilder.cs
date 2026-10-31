@@ -4,7 +4,11 @@ using SkiaSharp;
 
 namespace Pga2K25.CourseCard;
 
-public sealed record CourseCardResult(CourseCardData Data, IReadOnlyList<CardIssue> Issues, string? OceanSide, IReadOnlyList<string> Files);
+public sealed record CourseCardResult(CourseCardData Data, IReadOnlyList<CardIssue> Issues, string? OceanSide, IReadOnlyList<string> Files)
+{
+    /// <summary>The prevailing wind the course data card drew (see <see cref="CourseCardBuilder.WindFrom"/>), or null for none.</summary>
+    public int? WindFromDegrees { get; init; }
+}
 
 public static class CourseCardBuilder
 {
@@ -15,20 +19,21 @@ public static class CourseCardBuilder
     /// </summary>
     /// <param name="force">Draw even with ERRORs (drafts only): the errors are still reported and written to the validation file.</param>
     public static CourseCardResult Build(string coursePath, string outputDir, CourseCardConfig config,
-        string? workbookPath = null, IProgress<string>? log = null, bool force = false)
+        IProgress<string>? log = null, bool force = false)
     {
         var course = CourseFile.Load(coursePath).ReadModel();
         // The card settings file wins; the course's Place.json fills what it leaves unset.
         var place = CoursePlaces.Load(outputDir);
         var wind = place.Rose(OceanFinder.SeaBearing(place, course));
+        int? handWind = config.WindFromDegrees ?? place.WindFromDegrees;
         config = config with
         {
             Description = string.IsNullOrWhiteSpace(config.Description) && place.Description.Trim().Length > 0 ? place.Description.Trim() : config.Description,
             OceanSide = config.OceanSide ?? place.SeaSide,
-            // With a rose and no wind set by hand, the arrow points from the rose's most frequent direction.
-            WindFromDegrees = config.WindFromDegrees ?? place.WindFromDegrees ?? wind?.PrevailingFrom,
+            WindFromDegrees = WindFrom(config, place, wind),
         };
-        var workbook = workbookPath is null ? null : HoleData.Load(workbookPath);
+        // Tee names, hole names and hand-written notes from the Studio's Holes card.
+        var entries = CourseHolesFile.Load(outputDir);
         var issues = new List<CardIssue>();
         IReadOnlyList<HoleNote>? notes = null;
         if (config.AutoHoleNotes)
@@ -36,15 +41,15 @@ public static class CourseCardBuilder
             log?.Report("Reading hazards and greens from the course file for the hole data card…");
             notes = HoleNotes.For(course, log);
         }
-        var data = CourseCardData.From(course, workbook, config.TeeNames, issues, notes);
+        var data = CourseCardData.From(course, entries, config.TeeNames, issues, notes);
         if (notes is not null)
         {
-            var blank = workbook is null ? [] : course.Holes.Where(h => workbook.For(h.Number) is not { } r || r.Hazards.Count == 0 || string.IsNullOrWhiteSpace(r.GreenNotes)).ToList();
-            issues.Add(new(Severity.Info, workbook is null
-                ? "Hazards and green notes written from the course file (no workbook)."
-                : $"Hazards and green notes written from the course file where the workbook leaves them blank ({blank.Count} hole{(blank.Count == 1 ? "" : "s")})."));
+            int hand = course.Holes.Count(h => entries.For(h.Number) is { } e && (e.Hazards.Any(z => z.Trim().Length > 0) || e.GreenNotes.Trim().Length > 0));
+            issues.Add(new(Severity.Info, hand == 0
+                ? "Hazards and green notes written from the course file."
+                : $"Hazards and green notes written from the course file, except where written by hand on the Holes card ({hand} hole{(hand == 1 ? "" : "s")})."));
         }
-        issues.AddRange(data.Validate(workbook));
+        issues.AddRange(data.Validate());
 
         string? ocean = config.OceanSide switch
         {
@@ -62,6 +67,9 @@ public static class CourseCardBuilder
                                           "have no green spline (estimated outline); left out of the green size figures."));
         if (config.WindFromDegrees is null)
             issues.Add(new(Severity.Info, "No prevailing wind set (the course file has none); no wind arrow drawn."));
+        else if (wind is not null && handWind is int hand && WindRose.SectorOf(hand) != WindRose.SectorOf(wind.PrevailingFrom))
+            issues.Add(new(Severity.Info, $"Wind set by hand ({WindRose.SectorNames[WindRose.SectorOf(hand)]}) differs from the wind rose's prevailing " +
+                                          $"{WindRose.SectorNames[WindRose.SectorOf(wind.PrevailingFrom)]}; the rose is used, as on the Wind Card."));
         if (wind is null)
             issues.Add(new(Severity.Info, "No wind rose on the Place card; the Wind Card is not drawn."));
 
@@ -125,6 +133,14 @@ public static class CourseCardBuilder
             }
         }
         log?.Report($"Course cards ({files.Count} files, {renderer.FontFamily}): {outputDir}");
-        return new CourseCardResult(data, issues, ocean, files);
+        return new CourseCardResult(data, issues, ocean, files) { WindFromDegrees = config.WindFromDegrees };
     }
+
+    /// <summary>
+    /// The prevailing wind the course data card draws. With a wind rose on the Place card it is the rose's most
+    /// frequent direction, the one the Wind Card prints; only without a rose does the wind set by hand count
+    /// (--wind or the card settings, then the Place card's prevailing wind).
+    /// </summary>
+    public static int? WindFrom(CourseCardConfig config, CoursePlace place, WindRose? rose) =>
+        rose?.PrevailingFrom ?? config.WindFromDegrees ?? place.WindFromDegrees;
 }

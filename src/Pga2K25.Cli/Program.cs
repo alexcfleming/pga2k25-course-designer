@@ -12,7 +12,7 @@ const string Usage = """
     pga2k25 info <file.course>
     pga2k25 greensbook <file.course> [-o <dir>] [--studies] [--pdf] [--no-sheet] [--mono]
                        [--holes 1,2,3] [--hardness 0.85] [--blur 1.0] [--credit "NAME"]
-    pga2k25 yardage <file.course> [-o <dir>] [--holes 1,2] [--data holes.xlsx] [--png] [--no-pdf]
+    pga2k25 yardage <file.course> [-o <dir>] [--holes 1,2] [--png] [--no-pdf]
                     [--verbose] [--credit "NAME"]
       default output: one PDF workbook, a portrait 4.25 x 11 in page per hole
       --png       also write a 1275 x 3300 px PNG per hole
@@ -38,11 +38,11 @@ const string Usage = """
       scan and sketches.json, tied to world coordinates) for the Studio's terrain map
     pga2k25 hole-notes <file.course>
         Prints the hazards and green notes the hole data card writes from the course file.
-    pga2k25 cards <file.course> [-o <dir>] [--config course-card.json] [--data holes.xlsx]
+    pga2k25 cards <file.course> [-o <dir>] [--config course-card.json]
                   [--formats png,pdf,svg] [--dpi 300] [--wind 225] [--ocean WEST|none] [--force]
-      compass rose, hole data card, course data card and green size card (when the course has
-      drawn greens) from the course file; a workbook only
-      adds tee names, hazard tags and green notes (its yardages/bearings are checked, not used);
+      compass rose, hole data card, course data card, green size card (when the course has
+      drawn greens) and Wind Card (when Place.json has a wind rose) from the course file;
+      --wind is used only when there is no wind rose (the rose's prevailing wind always wins);
       ERRORs stop the build unless --force (drafts only; errors are still reported)
     pga2k25 estimate <file.course> [-o <dir>] [--holes 3,7|all] [--cell 1.0]
       construction estimate: cut/fill against an assumed starting ground (play splines are
@@ -58,8 +58,11 @@ const string Usage = """
       value; --holes adds the per-hole table; --json writes the whole report
     pga2k25 calibrate <file.course> <captures.json> [--hardness 0.85] [--blur 1.0]
     pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|illustrated|plansheet|both|all] [--landscape|--portrait]
-                      [--north-up] [--data holes.xlsx|.csv] [--waste] [--raw-bunkers] [--no-paths]
+                      [--north-up] [--waste] [--raw-bunkers] [--no-paths]
                       [--pdf] [--credit "NAME"] [--subtitle "TEXT"]
+
+      yardage, cards and scorecard read tee names, hole names and hand-written hazards and
+      green notes from Holes.json in the output folder (the Studio's Holes card)
 
       default output: one PNG page with every green ("<course> - Greens Book.png")
       --studies   also write a high-res study PNG per green (3300 x 2550 px)
@@ -316,7 +319,6 @@ static int Yardage(string path, string[] rest)
         {
             case "-o": case "--out": outDir = Next(); break;
             case "--holes": holes = Next().Split(',').Select(int.Parse).ToList(); break;
-            case "--data": options = options with { TeeNames = HoleData.Load(Next()).TeeNames }; break;   // names only
             case "--verbose": verbose = true; break;
             case "--png": outputs = outputs with { Pngs = true }; break;
             case "--no-pdf": outputs = outputs with { Pdf = false }; break;
@@ -443,7 +445,6 @@ static int Cards(string path, string[] rest)
 {
     var config = new CourseCardConfig();
     string outDir = Path.GetDirectoryName(Path.GetFullPath(path))!;
-    string? workbook = null;
     bool force = false;
     for (int i = 0; i < rest.Length; i++)
     {
@@ -452,7 +453,6 @@ static int Cards(string path, string[] rest)
         {
             case "-o": case "--out": outDir = Next(); break;
             case "--config": config = CourseCardConfig.Load(Next()) with { }; break;
-            case "--data": workbook = Next(); break;
             case "--formats": config = config with { Formats = Next().Split(',') }; break;
             case "--dpi": config = config with { Dpi = double.Parse(Next(), CultureInfo.InvariantCulture) }; break;
             case "--wind": config = config with { WindFromDegrees = int.Parse(Next(), CultureInfo.InvariantCulture) }; break;
@@ -462,7 +462,7 @@ static int Cards(string path, string[] rest)
             default: throw new ArgumentException($"unknown option {rest[i]}");
         }
     }
-    CourseCardBuilder.Build(path, outDir, config, workbook, new SyncProgress(Console.WriteLine), force);
+    CourseCardBuilder.Build(path, outDir, config, new SyncProgress(Console.WriteLine), force);
     return 0;
 }
 
@@ -494,7 +494,6 @@ static int Scorecard(string path, string[] rest)
             case "--landscape": options = options with { Orientation = PageOrientation.Landscape }; break;
             case "--portrait": options = options with { Orientation = PageOrientation.Portrait }; break;
             case "--north-up": options = options with { AutoRotate = false }; break;
-            case "--data": options = options with { Data = HoleData.Load(Next()) }; break;
             case "--waste": options = options with { ShowWaste = true }; break;
             case "--raw-bunkers": options = options with { MergeBunkers = false }; break;
             case "--bunker-merge": options = options with { BunkerMergeMetres = double.Parse(Next(), System.Globalization.CultureInfo.InvariantCulture) }; break;

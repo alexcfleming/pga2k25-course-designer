@@ -28,10 +28,10 @@ public sealed record ScorecardMapOptions
     public double BunkerMergeMetres { get; init; } = 10;
 
     /// <summary>
-    /// Designer hole data. Supplies only what the course file lacks (tee set names); the course
-    /// file is always treated as the most correct source for pars and yardages.
+    /// The Studio's hole entries (Holes.json): tee set names and hole names, what the course file lacks. Null reads
+    /// them from the output folder. Pars and yardages always come from the course file.
     /// </summary>
-    public HoleData? Data { get; init; }
+    public CourseHoles? Holes { get; init; }
     public string Credit { get; init; } = "";
     public string Subtitle { get; init; } = "PGA TOUR 2K25";
 
@@ -351,13 +351,14 @@ public sealed partial class ScorecardMapRenderer : IDisposable
 
     /// <summary>
     /// Tee set columns (shortest → longest). Sets and yardages always come from the course file
-    /// (the game's rule: tee → waypoints[1] → green); hole data only names the columns.
+    /// (the game's rule: tee → waypoints[1] → green); the Holes card only names the columns.
     /// </summary>
     (List<string> Names, Func<Hole, int, int> Yards) TeeColumns(CourseModel course)
     {
         int sets = course.Holes.Count == 0 ? 1 : course.Holes.Max(h => Math.Max(1, h.Tees.Count));
+        var tees = _o.Holes?.Tees ?? [];
         var names = Enumerable.Range(0, sets)
-            .Select(i => _o.Data?.TeeNames.ElementAtOrDefault(i) is { Length: > 0 } n ? n : sets == 1 ? "Yards" : $"Tee {i + 1}").ToList();
+            .Select(i => tees.ElementAtOrDefault(i) is { Length: > 0 } n ? n : sets == 1 ? "Yards" : $"Tee {i + 1}").ToList();
         int Yards(Hole h, int set) => (int)Math.Round(h.TeeSetLength(set) / Yard);
         return (names, Yards);
     }
@@ -373,12 +374,18 @@ public sealed partial class ScorecardMapRenderer : IDisposable
     {
         var (names, yards) = TeeColumns(course);
         var holes = course.Holes;
+        // A Name column only when the Holes card names at least one hole; it takes up to 40% of the table.
+        string? NameOf(Hole h) => _o.Holes?.NameOf(h.Number);
+        bool named = holes.Any(h => NameOf(h) is not null);
 
         float DrawBlock(IReadOnlyList<Hole> block, string totalLabel, SKRect r, bool grandTotal)
         {
             float y = r.Top, w = r.Width;
-            float holeW = 34, parW = 30, teeW = (w - holeW - parW) / names.Count;
-            float ColRight(int i) => r.Left + holeW + teeW * (i + 1) - 6;
+            float holeW = 34, parW = 30;
+            float nameW = !named ? 0 : Math.Min(w * 0.4f, Math.Max(Measure("Name", size, _bodyBold),
+                holes.Select(NameOf).Where(n => n is not null).Max(n => Measure(n!, size, _italic))) + 12);
+            float teeW = (w - holeW - nameW - parW) / names.Count;
+            float ColRight(int i) => r.Left + holeW + nameW + teeW * (i + 1) - 6;
             float parRight = r.Right - 8;
             int rows = block.Count + (grandTotal ? 3 : 2);
             using var line = Stroke(_t.Kind != MapThemeKind.Modern ? _t.Ink : _t.MutedInk.WithAlpha(160), 0.7f);
@@ -388,6 +395,7 @@ public sealed partial class ScorecardMapRenderer : IDisposable
                 canvas.DrawRect(new SKRect(r.Left, y - 2, r.Right, y + rowH * rows + 4), box);
             }
             Text(canvas, "Hole", r.Left + 5, y + rowH * 0.71f, size, _bodyBold, _t.Ink);
+            if (named) Text(canvas, "Name", r.Left + holeW + 5, y + rowH * 0.71f, size, _bodyBold, _t.Ink);
             for (int i = 0; i < names.Count; i++)
             {
                 Text(canvas, names[i], ColRight(i), y + rowH * 0.71f, size, _bodyBold, _t.Ink, SKTextAlign.Right);
@@ -403,16 +411,25 @@ public sealed partial class ScorecardMapRenderer : IDisposable
             y += rowH;
             canvas.DrawLine(r.Left, y - 2, r.Right, y - 2, line);
 
-            void Row(string label, Func<int, int> yardsFor, int par, bool bold)
+            void Row(string label, Func<int, int> yardsFor, int par, bool bold, string? name = null)
             {
                 var face = bold ? _bodyBold : _body;
                 Text(canvas, label, bold ? r.Left + 5 : r.Left + holeW / 2, y + rowH * 0.68f, size, face, _t.Ink, bold ? SKTextAlign.Left : SKTextAlign.Center);
+                if (name is not null)
+                {
+                    // Shrink a long name to fit, then cut it.
+                    float room = nameW - 10, s = size;
+                    while (s > size * 0.75f && Measure(name, s, _italic) > room) s -= 0.25f;
+                    string fit = name;
+                    while (fit.Length > 1 && Measure(fit, s, _italic) > room) fit = fit[..^2] + "…";
+                    Text(canvas, fit, r.Left + holeW + 5, y + rowH * 0.68f, s, _italic, _t.Ink);
+                }
                 for (int i = 0; i < names.Count; i++)
                     Text(canvas, yardsFor(i).ToString("N0"), ColRight(i), y + rowH * 0.68f, size, face, _t.Ink, SKTextAlign.Right);
                 Text(canvas, par.ToString(), parRight, y + rowH * 0.68f, size, face, _t.Ink, SKTextAlign.Right);
                 y += rowH;
             }
-            foreach (var h in block) Row(h.Number.ToString(), i => yards(h, i), h.Par, false);
+            foreach (var h in block) Row(h.Number.ToString(), i => yards(h, i), h.Par, false, NameOf(h));
             canvas.DrawLine(r.Left, y - 2, r.Right, y - 2, line);
             Row(totalLabel, i => block.Sum(h => yards(h, i)), block.Sum(h => h.Par), true);
             if (grandTotal) Row("Total", i => holes.Sum(h => yards(h, i)), holes.Sum(h => h.Par), true);
@@ -420,6 +437,7 @@ public sealed partial class ScorecardMapRenderer : IDisposable
             using var frame = Stroke(_t.Kind != MapThemeKind.Modern ? _t.Ink : _t.MutedInk, 0.9f);
             canvas.DrawRect(new SKRect(r.Left, r.Top - 2, r.Right, y + 2), frame);
             canvas.DrawLine(r.Left + holeW, r.Top - 2, r.Left + holeW, y + 2, line);
+            if (named) canvas.DrawLine(r.Left + holeW + nameW, r.Top - 2, r.Left + holeW + nameW, y + 2, line);
             canvas.DrawLine(r.Right - parW, r.Top - 2, r.Right - parW, y + 2, line);
             return y;
         }

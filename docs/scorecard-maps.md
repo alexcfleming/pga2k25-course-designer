@@ -11,7 +11,6 @@ Options:
 - `--theme vintage|modern|illustrated|plansheet|both|all` (default `all`; `both` is Vintage and Modern)
 - `--landscape` / `--portrait` (default: whichever fits better)
 - `--north-up`: disable auto-rotation
-- `--data holes.xlsx|.csv`: designer hole data. It supplies only what the course file lacks (tee set names). The course file is always treated as the most correct source for pars and yardages; any disagreement is logged, never applied.
 - `--waste`: draw stippled waste areas (off by default; on desert courses everything off the fairway is waste)
 - `--raw-bunkers` / `--bunker-merge M`: draw raw bunker pieces, or change the merge distance (default 10 m)
 - `--no-paths`
@@ -19,7 +18,9 @@ Options:
 - `--credit "NAME"`, `--subtitle "TEXT"`
 - `--location "PLACE, REGION"`: Plan Sheet only, printed under the course name, one line per comma-separated part. Without it the place lines come from the course's `Place.json` (the Studio Place card); with neither, nothing prints.
 
-[Course Designer Studio](studio.md) builds all four themes as PNG and PDF, using the course's hole-data workbook if one is set. The other options are on the command line.
+Tee set names and hole names come from `Holes.json` in the output folder (`-o`), which the Studio's Holes card writes. Pars and yardages always come from the course file. (Earlier releases took tee names from a `--data holes.xlsx|.csv` workbook; it is retired.)
+
+[Course Designer Studio](studio.md) builds all four themes as PNG and PDF, with the names from the course's Holes card. The other options are on the command line.
 
 ## Themes
 
@@ -68,7 +69,7 @@ The landscape is built once per map and shared by the PNG and the PDF. On Sagan-
 - **Zoom.** The fit uses hole routes, tees, and the parts of features within 60 m of a hole, so outlying shapes don't shrink the map. Paths and roads are drawn only within 45 m of a hole.
 - **Landscape** puts the map on the left, with a panel on the right for the title, front- and back-nine scorecard tables, course totals, credit and legend.
 - **Portrait** puts the title across the top, the map in the middle, and the two tables side by side at the bottom.
-- **Scorecard:** one column per tee set, named from the hole data (Red / Green / White / Blue, with colour dots) or Tee 1..n. Yardages always come from the course file using the game's own rule, `|tee - waypoints[1]| + route to the green`, which matches `CourseMetadata.teeSetInfos` exactly.
+- **Scorecard:** one column per tee set, named from the Holes card (Red / Green / White / Blue, with colour dots) or Tee 1..n. When the Holes card names at least one hole, a Name column follows the hole number in every theme (up to 40% of the table's width; a long name shrinks, then is cut with "…"); with no names there is no Name column. Yardages always come from the course file using the game's own rule, `|tee - waypoints[1]| + route to the green`, which matches `CourseMetadata.teeSetInfos` exactly.
 - **Hole numbers** sit on the middle of each hole, halfway along the back-tee to green route. If two numbers collide, a label slides along its own hole until it's clear.
 - **Scale bar** in yards.
 

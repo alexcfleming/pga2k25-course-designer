@@ -77,16 +77,37 @@ public class ScorecardMapTests
     }
 
     [Fact]
-    public void HoleData_ReadsTheDesignerSpreadsheet()
+    public void HolesCard_RoundTripsAndNamesTheTable()
     {
-        var data = HoleData.Load(Path.Combine(TestPaths.RepoRoot, "samples", "data", "cassimbo-hole-data.xlsx"));
-        Assert.Equal(["Red", "Green", "White", "Blue"], data.TeeNames);
-        Assert.Equal(18, data.Rows.Count);
-        var h1 = data.For(1)!;
-        Assert.Equal(4, h1.Par);
-        Assert.Equal([360, 361, 365, 374], h1.Yards.Select(y => y ?? 0));
-        Assert.Equal(175, h1.TeeBearing);
-        Assert.Equal(7178, data.Rows.Sum(r => r.Yards[3] ?? 0));
+        string dir = Path.Combine(Path.GetTempPath(), "pga2k25-maps-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var holes = new CourseHoles { TeeNames = ["Red", "Green", "White", "Blue"] };
+            holes.Entry(3).Name = "  Fog Bank ";
+            holes.Entry(1).Name = "Cacimbo";
+            CourseHolesFile.Save(dir, holes);
+            var back = CourseHolesFile.Load(dir);
+            Assert.Equal(["Red", "Green", "White", "Blue"], back.Tees);
+            Assert.Equal([1, 3], back.Holes.Select(h => h.Hole));
+            Assert.Equal("Fog Bank", back.NameOf(3));
+            Assert.Null(back.NameOf(2));
+            Assert.True(back.HasNames);
+            Assert.False(new CourseHoles { TeeNames = ["Red"] }.HasNames);
+
+            // The Plan Sheet's table gains a Name column with names, and is unchanged without.
+            string course = Path.Combine(TestPaths.SamplesDir, "cassimbo.course");
+            byte[] Draw(CourseHoles h) => File.ReadAllBytes(ScorecardMapBuilder.Build(course, dir, new ScorecardMapOptions { Holes = h },
+                [MapThemeKind.PlanSheet], scale: 1).Files[0]);
+            var named = Draw(back);
+            var plain = Draw(new CourseHoles { TeeNames = back.TeeNames });
+            var plainAgain = Draw(new CourseHoles { TeeNames = back.TeeNames, Holes = [new HoleEntry { Hole = 1, GreenNotes = "not a name" }] });
+            Assert.NotEqual(named, plain);
+            Assert.Equal(plain, plainAgain);
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
     }
 
     [Fact]

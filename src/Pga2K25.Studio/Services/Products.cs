@@ -48,7 +48,6 @@ public static class Products
         new("Yardage book", " - Yardage Book.pdf", c =>
         {
             var options = new YardageOptions { Credit = c.Settings.Credit };
-            if (c.Extras.Workbook is { } wb && File.Exists(wb)) options = options with { TeeNames = HoleData.Load(wb).TeeNames };
             return YardageBookBuilder.Build(c.CoursePath, c.OutputDir, options, new YardageBookOutputs { Pdf = true, Pngs = true }, log: c.Log).PdfPath;
         })
         {
@@ -56,8 +55,7 @@ public static class Products
         },
         new("Scorecard map", " - Scorecard Map (Vintage).png", c =>
         {
-            var data = c.Extras.Workbook is { } wb && File.Exists(wb) ? HoleData.Load(wb) : null;
-            var options = new ScorecardMapOptions { Data = data, Credit = c.Settings.Credit };
+            var options = new ScorecardMapOptions { Credit = c.Settings.Credit };
             return ScorecardMapBuilder.Build(c.CoursePath, c.OutputDir, options, Enum.GetValues<MapThemeKind>(), pdf: true, log: c.Log)
                 .Files.FirstOrDefault();
         })
@@ -68,8 +66,7 @@ public static class Products
         new("Course cards", " - Course Data Card.png", c =>
         {
             var config = c.Extras.CardConfig is { } cfg && File.Exists(cfg) ? CourseCardConfig.Load(cfg) : new CourseCardConfig();
-            var workbook = c.Extras.Workbook is { } wb && File.Exists(wb) ? wb : null;
-            return CourseCardBuilder.Build(c.CoursePath, c.OutputDir, config, workbook, c.Log).Files
+            return CourseCardBuilder.Build(c.CoursePath, c.OutputDir, config, c.Log).Files
                 .FirstOrDefault(f => f.EndsWith("Course Data Card.png", StringComparison.OrdinalIgnoreCase));
         })
         {

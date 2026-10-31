@@ -29,7 +29,7 @@ public sealed record CourseCardConfig
 
     public CardPalette Palette { get; init; } = new();
 
-    /// <summary>Tee set names, shortest → longest; otherwise from the workbook, else "Back" / "Tee n".</summary>
+    /// <summary>Tee set names, shortest → longest; otherwise from the Studio's Holes card, else "Back" / "Tee n".</summary>
     public IReadOnlyList<string>? TeeNames { get; init; }
 
     /// <summary>"WEST", "NORTH-EAST", … or "none". Null detects it from the sea on the plot.</summary>
@@ -38,7 +38,10 @@ public sealed record CourseCardConfig
     /// <summary>Text set along the ocean margin of the rose, e.g. "OCEAN & CACIMBO FOG".</summary>
     public string OceanLabel { get; init; } = "OCEAN";
 
-    /// <summary>Prevailing wind blows FROM this bearing. The course file stores no wind, so null draws no arrow.</summary>
+    /// <summary>
+    /// Prevailing wind blows FROM this bearing, for a course with no wind rose on its Place card (a rose always wins, so
+    /// the course data card and the Wind Card agree). The course file stores no wind; with neither, no arrow is drawn.
+    /// </summary>
     public int? WindFromDegrees { get; init; }
 
     /// <summary>Optional note after the wind direction, e.g. "onshore".</summary>
@@ -46,7 +49,7 @@ public sealed record CourseCardConfig
 
     /// <summary>
     /// Write the hole data card's Hazards and Green Contours &amp; Hole Positions from the course file
-    /// (<see cref="HoleNotes"/>) wherever the workbook leaves them blank.
+    /// (<see cref="HoleNotes"/>) wherever the Studio's Holes card leaves them blank.
     /// </summary>
     public bool AutoHoleNotes { get; init; } = true;
 
@@ -79,11 +82,5 @@ public sealed record CourseCardConfig
     {
         string[] names = ["NORTH", "NORTH-EAST", "EAST", "SOUTH-EAST", "SOUTH", "SOUTH-WEST", "WEST", "NORTH-WEST"];
         return names[(int)Math.Round(((bearing % 360) + 360) % 360 / 45) % 8];
-    }
-
-    public static string CompassAbbreviation(double bearing)
-    {
-        string[] names = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
-        return names[(int)Math.Round(((bearing % 360) + 360) % 360 / 22.5) % 16];
     }
 }

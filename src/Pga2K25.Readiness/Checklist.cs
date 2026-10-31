@@ -89,7 +89,7 @@ public static class Checklist
         new("pg.wind", "Every wind direction played at high intensity (H) at least once with each player profile (compass grids complete)", P, "playtest-winds"),
         new("pg.tees", "Every tee set and all four pin positions played with both player profiles", N, "playtest-tees"),
         new("pg.par", "Par check: hole pars add up to the course par, OUT and IN totals match the in-game scorecard", P, "par"),
-        new("pg.names", "Hole names, yardages and pars match across the workbook, plates and in-game scorecard", D),
+        new("pg.names", "Hole names, yardages and pars match across the Holes card, plates and in-game scorecard", D),
         new("pg.proof", "All narrative text proofread", D),
         new("pg.atm", "Lighting, cloud and fog settings in the game match the values recorded from the file", N),
         new("pg.shots", "Hero shots and plate captures retaken after the last terrain or planting change", D),

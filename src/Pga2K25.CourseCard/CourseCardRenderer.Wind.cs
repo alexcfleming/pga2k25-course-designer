@@ -45,7 +45,12 @@ public sealed partial class CourseCardRenderer
         var rows = HoleWinds;
         float[] cols = [0, 0.07f, 0.13f, 0.27f, 0.36f, 0.45f, 0.54f, 0.63f, 0.84f];
         string[] heads = ["HOLE", "PAR", "PLAYS TO", "INTO", "ACROSS L", "ACROSS R", "DOWN", "MIX", "CHARACTER"];
+        // Hole names, when the Holes card has any, follow the number; the mix bar gives up the room.
+        string? NameOf(int hole) => _d.Holes.FirstOrDefault(x => x.Number == hole)?.Name;
+        bool named = rows.Any(hw => NameOf(hw.Hole) is not null);
+        if (named) cols = [0, 0.20f, 0.25f, 0.37f, 0.455f, 0.54f, 0.625f, 0.71f, 0.86f];
         float X(int c) => r.Left + cols[c] * r.Width;
+        float numW = 0.035f * r.Width;
         float rowH = Math.Min(24, (r.Height - 110) / rows.Count), y = r.Top + 14;
         for (int c = 0; c < heads.Length; c++)
             Text(canvas, heads[c], X(c) + (c is >= 3 and <= 6 ? 0.07f * r.Width : 0), y, 8, _serif, Muted, c is >= 3 and <= 6 ? SKTextAlign.Right : SKTextAlign.Left, tracking: 0.8f);
@@ -56,6 +61,11 @@ public sealed partial class CourseCardRenderer
             float base_ = y + rowH * 0.68f;
             if (hw.Hole % 2 == 0) using (var band = Fill(_fog.WithAlpha(45))) canvas.DrawRect(r.Left, y, r.Width, rowH, band);
             Text(canvas, hw.Hole.ToString(), X(0), base_, 10.5f, _bold, _ink);
+            if (NameOf(hw.Hole) is { } name)
+            {
+                var (fit, size) = FitLine(name, 10f, 7.5f, (cols[1] - 0.015f) * r.Width - numW, _italic);
+                Text(canvas, fit, X(0) + numW, base_, size, _italic, _ink);
+            }
             Text(canvas, hw.Par.ToString(), X(1), base_, 10.5f, _serif, _ink);
             Text(canvas, $"{WindRose.SectorNames[WindRose.SectorOf(hw.Bearing)]}  {hw.Bearing}°", X(2), base_, 10.5f, _serif, _ink);
             double[] v = [hw.Into, hw.FromLeft, hw.FromRight, hw.Down];

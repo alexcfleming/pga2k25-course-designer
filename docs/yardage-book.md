@@ -25,7 +25,7 @@ Since 1.8 the page has its own look. Earlier versions followed a familiar commer
 | `<Course> - Yardage Book/Hole_NN.png` | off | One PNG per hole, 1275 × 3300 px (300 dpi). |
 
 ```bash
-dotnet run --project src/Pga2K25.Cli -- yardage samples/courses/cassimbo.course -o out --data samples/data/cassimbo-hole-data.xlsx
+dotnet run --project src/Pga2K25.Cli -- yardage samples/courses/cassimbo.course -o out
 ```
 
 ```bash
@@ -34,13 +34,14 @@ dotnet run --project src/Pga2K25.Cli -- yardage samples/courses/cassimbo.course 
 
 CLI options:
 - `--holes 1,2`: a subset of holes.
-- `--data`: tee names only. Yardages always come from the course file.
 - `--png`: also write PNGs.
 - `--no-pdf`: PNGs only, together with `--png`.
 - `--verbose`: explains why each hazard was or wasn't labelled.
 - `--credit "NAME"`.
 
-[Course Designer Studio](studio.md) builds every hole as the PDF and PNGs, with tee names from the course's hole-data workbook if one is set. Hole subsets and `--verbose` are on the command line.
+Tee set names and hole names come from `Holes.json` in the output folder (`-o`), which the Studio's Holes card writes: the tee names label the tee table (T1…Tn without them) and a hole's name goes in its page header after the number. Yardages always come from the course file. (Earlier releases took tee names from a `--data` workbook; it is retired.)
+
+[Course Designer Studio](studio.md) builds every hole as the PDF and PNGs, with the names from the course's Holes card. Hole subsets and `--verbose` are on the command line.
 
 ## Page contents
 
@@ -90,4 +91,3 @@ Together these bring the 18-hole Cassimbo workbook from 39 MB down to about 6 MB
 
 - Par 3s under about 175 yds get no spot heights or widths. The page is mostly tee, green and arcs.
 - Rock and tree footprints are estimates. A prefab that is much wider than its clearance suggests will be drawn too small.
-- Hole data spreadsheets supply names only. Any yardage differences are left for the course file to settle.

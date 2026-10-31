@@ -28,6 +28,7 @@ public static class YardageBookBuilder
         YardageBookOutputs? outputs = null, IEnumerable<int>? holeNumbers = null, IProgress<string>? log = null, bool verbose = false)
     {
         outputs ??= new YardageBookOutputs();
+        if (options.Holes is null) options = options with { Holes = CourseHolesFile.Load(outputDir) };
         var course = CourseFile.Load(coursePath).ReadModel();
         course.NotWater = NotWaterMarks.Points(outputDir);
         var layers = CourseLayers.From(course);

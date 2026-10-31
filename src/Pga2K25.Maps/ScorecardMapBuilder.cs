@@ -29,21 +29,10 @@ public static class ScorecardMapBuilder
                     $"{layers.WaterAreas.Count + layers.WaterRibbons.Count} water shapes + {layers.WaterBodies.Count} ponds/creeks from water entries, " +
                     $"{layers.Paths.Count + layers.Roads.Count} paths/roads.");
 
-        if (options.Data is { } holeData)
-        {
-            int fileSets = course.Holes.Max(h => Math.Max(1, h.Tees.Count));
-            log?.Report($"Hole data: {holeData.Rows.Count} holes, tees {string.Join(" / ", holeData.TeeNames)}.");
-            foreach (var h in course.Holes)
-            {
-                var row = holeData.For(h.Number);
-                if (row is null) { log?.Report($"  hole {h.Number}: not in hole data (using course file)."); continue; }
-                if (row.Par is int par && par != h.Par) log?.Report($"  hole {h.Number}: par {par} in hole data vs {h.Par} in course file (using course file).");
-                var diffs = row.Yards.Select((y, i) => (y, i, file: (int)Math.Round(h.TeeSetLength(Math.Min(i, fileSets - 1)) / 0.9144)))
-                    .Where(t => t.y is int v && Math.Abs(v - t.file) > 1)
-                    .Select(t => $"{holeData.TeeNames.ElementAtOrDefault(t.i)} {t.y} vs {t.file}").ToList();
-                if (diffs.Count > 0) log?.Report($"  hole {h.Number}: hole-data yards differ from course file: {string.Join(", ", diffs)} (using course file).");
-            }
-        }
+        if (options.Holes is null) options = options with { Holes = CourseHolesFile.Load(outputDir) };
+        if (options.Holes.Tees.Count > 0 && options.Holes.Tees.Count != course.Holes.Max(h => Math.Max(1, h.Tees.Count)))
+            log?.Report($"Holes card names {options.Holes.Tees.Count} tee sets but the course file has {course.Holes.Max(h => Math.Max(1, h.Tees.Count))}; " +
+                        "extra names are not used, missing ones print as \"Tee n\".");
 
         Directory.CreateDirectory(outputDir);
         string baseName = SafeFileName(string.IsNullOrWhiteSpace(course.Name) ? Path.GetFileNameWithoutExtension(coursePath) : course.Name);
