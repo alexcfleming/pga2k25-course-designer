@@ -29,7 +29,7 @@ public static class HoleNotes
         var yardage = new YardageOptions();
         var greens = new GreensBookOptions();
         var rocks = new RockFootprints(course);
-        var water = course.Water.Count > 0 ? WaterTracer.Trace(course, yardage.Terrain) : null;
+        var water = course.HasWater ? WaterTracer.Trace(course, yardage.Terrain) : null;
         var notes = new List<HoleNote>();
         foreach (var hole in course.Holes.OrderBy(h => h.Number))
         {

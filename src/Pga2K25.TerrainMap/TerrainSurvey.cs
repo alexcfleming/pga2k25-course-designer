@@ -409,7 +409,7 @@ public sealed class TerrainSurvey
         double minFragment = o.MinContourSpacingPixels > 0 ? 6 * o.MinContourSpacingPixels / o.PixelsPerMetre : 0;
         var contours = TraceContours(field, datum, minFeet, maxFeet, interval, indexEvery, maxMinorSlope)
             .Where(c => c.Index || Length(c.Points) >= minFragment).ToList();
-        var inland = o.ShowWater && course.Water.Count > 0 ? WaterTracer.Trace(course, field) : null;
+        var inland = o.ShowWater && course.HasWater ? WaterTracer.Trace(course, field) : null;
         var survey = new TerrainSurvey
         {
             Course = course, Layers = layers, Min = min, Max = max, Field = field, DatumMetres = datum, MaxFeet = maxFeet,

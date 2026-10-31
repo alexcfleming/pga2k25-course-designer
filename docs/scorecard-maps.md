@@ -76,18 +76,18 @@ The landscape is built once per map and shared by the PNG and the PDF. On Sagan-
 
 | Map layer | Source in the `.course` file |
 |---|---|
-| Fairway / tee corridor | Closed `surfaceSplines2` with surface 2 (fairway), 18 (inner fairway cut), 3 (rough) or 4 (heavy rough) |
+| Fairway / tee corridor | Closed `surfaceSplines2` with surface 2 (fairway), 3 (rough) or 4 (heavy rough) |
 | Greens | Closed surface-1 splines |
 | Bunkers | Closed surface-0 splines, open surface-0 splines (ribbons) and surface-0 paint brushes, **merged**: rasterised at 0.35 m, morphologically closed (grow by R, fuse, shrink by R; R = half the merge distance) so gaps and pinholes under about 10 m fill, lightly rounded, and traced back to smooth outlines. The closing may not bridge across fairways or greens, except within 1 m of a real bunker piece |
 | Waste areas | Surface-15 splines, ribbons and brushes (drawn only with `--waste`) |
-| Water | Closed surface-10 splines and open ones at least 4 m wide (narrower ones are walking paths). Also ponds and creeks from `water[]` (water planes and painted streams, traced by `WaterTracer`): those reaching within 60 m of play are drawn whole with dry islands and count towards the page extent, and ponds out in the scenery are left off. Cassimbo has none. |
+| Water | Closed surface-10 splines and open ones at least 4 m wide (narrower ones are walking paths). Also ponds and creeks from `water[]` (water planes and painted streams) and from the designer's running-water and body-of-water tools (object paths), all traced by `WaterTracer`: those reaching within 60 m of play are drawn whole with dry islands and count towards the page extent, and ponds out in the scenery are left off. Cassimbo has none. |
 | Cart paths / roads | Open surface-7 / surface-8 splines |
 | Tee pads | A 5 × 9 m pad at each tee marker, aligned with the hole |
 | Ball flight | Back tee → `holes3[].waypoints[1..]` |
 
-**How the surface IDs were identified.** Surfaces 0/1/2/3/4/7/10 come from the reference Course Finisher. Surfaces 8, 15 and 18 were identified by matching Cassimbo's layers against an in-game overhead capture:
+**How the surface IDs were identified.** Surfaces 0/1/2/3/4/7/10 come from the reference Course Finisher. Surfaces 8 and 15 were identified by matching Cassimbo's layers against an in-game overhead capture; 18 comes from the designers who use it:
 
-- **18** is the lighter inner fairway cut drawn inside the surface-2 shapes. Surface-18 *brushes* are not drawn, because the reference tool uses brush category 18 for terrain weathering.
+- **18** is surface weathering, splines and brushes alike: a colour tint over the ground beneath, not a playing surface, so it is not drawn. drgnslyr221 uses it for bare ground on Devil's Perch. On Cassimbo, "reverse weathering" splines along the fairway edges carry the green out over brown heavy rough. From overhead they look like a lighter fairway cut, which is how this page first read them.
 - **15** is the grey waste scrub.
 - **8** is the winding service road.
 

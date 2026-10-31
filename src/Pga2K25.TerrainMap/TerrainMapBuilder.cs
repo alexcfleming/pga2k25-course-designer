@@ -38,7 +38,7 @@ public static class TerrainMapBuilder
         log?.Report(survey.SeaLevelMetres is { } sea
             ? $"Sea level {sea:0.##} m ({(TerrainSurvey.OceanPropLevel(course) is null ? "the game's sea plane" : "ocean props")}); shoreline traced in {survey.Shoreline.Count} piece(s){ShoreCheck(survey)}; elevations above sea level."
             : "No sea on the sheet; elevations above the lowest point.");
-        if (course.Water.Count > 0 && options.ShowWater) log?.Report(PaintedWaterNote(survey));
+        if (course.HasWater && options.ShowWater) log?.Report(PaintedWaterNote(survey));
         if (survey.Holes.Count == 0)
             log?.Report($"No holes routed: whole plot mapped; landmarks: {string.Join(", ", survey.Landmarks.Where(l => !l.Minor).Select(l => l.Name).DefaultIfEmpty("none"))}.");
         foreach (var h in survey.Holes)
@@ -108,14 +108,18 @@ public static class TerrainMapBuilder
         if (s.InlandWater is not { } water)
         {
             var levels = s.Course.Water.Select(w => Math.Round(Feet(w.Level))).Distinct().Order();
-            return $"Water: {s.Course.Water.Count} entr{(s.Course.Water.Count == 1 ? "y" : "ies")} at {string.Join(", ", levels)} ft, none on the sheet.";
+            return $"Water: {s.Course.Water.Count} entr{(s.Course.Water.Count == 1 ? "y" : "ies")} at {string.Join(", ", levels)} ft" +
+                   $" and {s.Course.WaterPaths.Count} water-tool path(s), none on the sheet.";
         }
         int planes = water.Strokes.Where(k => k.Kind == WaterKind.Plane).Sum(k => k.Members.Count);
         int strokes = water.Strokes.Count(k => k.Kind == WaterKind.CutStroke);
+        int ponds = s.Course.WaterPaths.Count(p => p.IsBody), streams = s.Course.WaterPaths.Count - ponds;
         string kinds = string.Join(", ", new[]
         {
             planes > 0 ? $"{planes} water plane{(planes == 1 ? "" : "s")}" : null,
             strokes > 0 ? $"{strokes} painted stroke{(strokes == 1 ? "" : "s")}" : null,
+            ponds > 0 ? $"{ponds} body-of-water outline{(ponds == 1 ? "" : "s")}" : null,
+            streams > 0 ? $"{streams} running-water path{(streams == 1 ? "" : "s")}" : null,
         }.Where(t => t is not null));
         var bodies = water.Bodies.OrderByDescending(b => b.AreaM2).Select(b =>
             $"{Feet(b.Level):0} ft {b.AreaM2:N0} m²" +

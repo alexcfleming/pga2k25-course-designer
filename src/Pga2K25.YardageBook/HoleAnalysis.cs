@@ -40,6 +40,9 @@ public sealed record YardageOptions
     /// <summary>In-fairway rocks/vegetation within this distance fuse into one hazard (e.g. a dividing outcrop).</summary>
     public double InPlayMergeMetres { get; init; } = 12;
 
+    /// <summary>A piece with the hole's fairway within this distance (m) on both sides, across the line, divides it and is in play.</summary>
+    public double DividerReachMetres { get; init; } = 35;
+
     /// <summary>In-play hazards smaller than this (m²) are drawn but not given carry numbers.</summary>
     public double MinLabelledHazardArea { get; init; } = 30;
     public TerrainModelOptions Terrain { get; init; } = new() { CellMetres = 0.5 };
@@ -117,7 +120,7 @@ public sealed class HoleAnalysis
         RockFootprints? rockSizes = null, WaterMap? inlandWater = null)
     {
         rockSizes ??= new RockFootprints(course);
-        inlandWater ??= course.Water.Count > 0 ? WaterTracer.Trace(course, o.Terrain) : null;
+        inlandWater ??= course.HasWater ? WaterTracer.Trace(course, o.Terrain) : null;
         var back = hole.Tees.Count > 0 ? hole.Tees[^1] : hole.Route[0];
         var green = hole.GreenAnchor;
         var route = new List<Vec2> { back };
@@ -145,7 +148,7 @@ public sealed class HoleAnalysis
         List<List<Vec2>> Closed(params int[] surfaces) => course.SurfaceSplines
             .Where(s => s.Closed && s.Points.Count >= 3 && surfaces.Contains(s.Surface))
             .Select(s => Geometry.SampleSpline(s, 12)).Where(AnyInView).ToList();
-        var fairways = Closed(Surfaces.Fairway, Surfaces.FairwayCut);
+        var fairways = Closed(Surfaces.Fairway);
         var rough = Closed(Surfaces.Rough, Surfaces.HeavyRough);
         var greens = Closed(Surfaces.Green);
         var water = Closed(Surfaces.Water);
@@ -226,7 +229,27 @@ public sealed class HoleAnalysis
                 if (ownFairways.Any(f => Geometry.Contains(f, m[i]))) inside++;
             return total > 0 && inside * 2 >= total;
         }
-        var inPlayPieces = vegetation.Concat(outcrops).Where(MostlyInFairway).ToList();
+        // A divider splits the fairway rather than sitting in it: Cassimbo hole 4's island lies between two fairway
+        // lobes, and was only "inside" while its weathering apron counted as fairway. So a piece with this hole's
+        // fairway on both sides, across the line of play, for most of its outline is in play too.
+        bool Divides(List<Vec2> m)
+        {
+            bool Reaches(Vec2 p, Vec2 dir)
+            {
+                for (double t = 1; t <= o.DividerReachMetres; t += 1)
+                    if (ownFairways.Any(f => Geometry.Contains(f, p + dir * t))) return true;
+                return false;
+            }
+            int stride = Math.Max(1, m.Count / 24), between = 0, total = 0;
+            for (int i = 0; i < m.Count; i += stride, total++)
+            {
+                var along = PointAtDistance(route, ProjectOnto(route, m[i])).Direction;
+                var side = new Vec2(-along.Z, along.X);
+                if (Reaches(m[i], side) && Reaches(m[i], side * -1)) between++;
+            }
+            return total > 0 && between * 2 >= total;
+        }
+        var inPlayPieces = vegetation.Concat(outcrops).Where(m => MostlyInFairway(m) || Divides(m)).ToList();
         vegetation = vegetation.Where(v => !inPlayPieces.Contains(v)).ToList();
         outcrops = outcrops.Where(v => !inPlayPieces.Contains(v)).ToList();
         var hazards = inPlayPieces.Count == 0 ? [] : ShapeMerger.Merge(inPlayPieces.Select(p => (IReadOnlyList<Vec2>)p).ToList(), [], [],

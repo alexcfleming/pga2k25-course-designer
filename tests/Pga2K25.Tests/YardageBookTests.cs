@@ -18,7 +18,10 @@ public class YardageBookTests
             YardagePageRenderer.MapRect.Width / YardagePageRenderer.MapRect.Height, Rocks.Value);
 
     static void AssertLabel(HoleAnalysis a, bool front, int fromTee, int toGreen) =>
-        Assert.Contains(a.BunkerLabels, l => l.IsFront == front && Math.Abs(l.FromTeeYards - fromTee) <= 2 && Math.Abs(l.ToGreenYards - toGreen) <= 2);
+        Assert.True(a.BunkerLabels.Any(l => l.IsFront == front && Math.Abs(l.FromTeeYards - fromTee) <= 2 && Math.Abs(l.ToGreenYards - toGreen) <= 2),
+            $"no {(front ? "front" : "carry")} label at {fromTee}/{toGreen}; have " +
+            string.Join(", ", a.BunkerLabels.Select(l => $"{(l.IsFront ? "front" : "carry")} {l.FromTeeYards:0}/{l.ToGreenYards:0}")) +
+            "; " + string.Join("; ", a.Diagnostics));
 
     [Fact]
     public void RockFootprints_AreEstimatedFromTheCourseAndOrderedBySize()

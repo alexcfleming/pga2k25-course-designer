@@ -135,9 +135,29 @@ public sealed record PlacedArea(string AssetPath, IReadOnlyList<Vec2> Outline, d
 public sealed record ObjectPath(string AssetPath, IReadOnlyList<Vec2> Points);
 
 /// <summary>
+/// Water drawn with the designer's own water tools, stored as <c>GeneratedRiverSetupPrefab</c> object paths flagged
+/// <c>isWater</c> rather than in <c>water[]</c>. "Running water" is an open path that follows the ground, as wide as
+/// the path (Sangoma's are 3–12.7 m); "create a body of water" is a closed outline filled to <paramref name="Level"/>
+/// (the path's absolute height). The game digs the bed for both, so the whole ribbon or outline is water.
+/// </summary>
+/// <param name="Path">The path as a spline (surface <see cref="Surfaces.Water"/>; <see cref="SurfaceSpline.Width"/> is the water's width).</param>
+/// <param name="Level">Water level (m) of a body of water; null for running water.</param>
+public sealed record WaterPath(SurfaceSpline Path, double? Level)
+{
+    public bool IsBody => Path.Closed;
+
+    /// <summary>
+    /// Running water whose <c>height</c> is below this holds no visible water, and is left out. Read as how full the
+    /// channel is (inferred): Devil's Perch's streams are all 1.0 and show in game; Sangoma's three are 0.01–0.08 and
+    /// don't (no river beside the hole 14 pond, and a distance marker stands on dry ground 0.4 m from one's centre line).
+    /// </summary>
+    public const double MinStreamHeight = 0.25;
+}
+
+/// <summary>
 /// Surface ids used by surfaceSplines2[].surface and surfaceBrushes2[].surfaceCategory.
-/// 0/1/2/3/4/7/10 are confirmed by the reference Course Finisher. 8, 15 and 18 were identified by
-/// matching Cassimbo's layers against an in-game overhead capture (see docs/scorecard-maps.md).
+/// 0/1/2/3/4/7/10 are confirmed by the reference Course Finisher. 8 and 15 were identified by
+/// matching Cassimbo's layers against an in-game overhead capture, 18 from the designers who paint it (see docs/scorecard-maps.md).
 /// </summary>
 public static class Surfaces
 {
@@ -149,9 +169,12 @@ public static class Surfaces
     /// <summary>Waste area (grey sand/gravel scrub).</summary>
     public const int Waste = 15;
 
-    /// <summary>Inner fairway cut drawn inside Fairway shapes (splines). As a brush category the
-    /// reference tool uses 18 for terrain weathering, so 18 brushes are not treated as fairway.</summary>
-    public const int FairwayCut = 18;
+    /// <summary>
+    /// Surface weathering, splines and brushes alike: a tint over the ground beneath, not a playing surface.
+    /// drgnslyr221 paints bare ground with it on Devil's Perch; Cassimbo's "reverse weathering" splines carry the
+    /// fairway green out over brown heavy rough, which is why an overhead capture once read them as fairway cut.
+    /// </summary>
+    public const int Weathering = 18;
 
     /// <summary>
     /// Open surface-10 splines narrower than this (m) are walking paths, not streams: on Luke Muscat's course
@@ -186,6 +209,12 @@ public sealed class CourseModel
 
     /// <summary>The same <c>water[]</c> entries with both footprint axes (<see cref="WaterBrushes"/> keeps scale.x only).</summary>
     public IReadOnlyList<WaterPlane> Water { get; init; } = [];
+
+    /// <summary>Streams and ponds made with the designer's water tools (object paths, not <c>water[]</c>).</summary>
+    public IReadOnlyList<WaterPath> WaterPaths { get; init; } = [];
+
+    /// <summary>True when the course has any inland water to trace: <see cref="Water"/> entries or <see cref="WaterPaths"/>.</summary>
+    public bool HasWater => Water.Count > 0 || WaterPaths.Count > 0;
 
     /// <summary>
     /// Spots the designer marked as dry in game though the model shows water (<see cref="NotWaterMarks"/>). Not in the
@@ -233,6 +262,7 @@ public sealed class CourseModel
             ObjectPaths = ReadObjectPaths(desc["placedObjects4"] as JsonArray),
             WaterBrushes = ReadBrushes(desc["water"] as JsonArray),
             Water = ReadWater(desc["water"] as JsonArray),
+            WaterPaths = ReadWaterPaths(desc["placedObjects4"] as JsonArray),
             DistanceMarkers = Array(desc["distanceMarkers"]).Select(m => m?["position"])
                 .Where(p => p is not null && double.IsFinite(Num(p["y"], double.NaN)))
                 .Select(p => new DistanceMarker(ReadVec(p), Num(p!["y"]))).ToList(),
@@ -264,9 +294,13 @@ public sealed class CourseModel
             var h = holes[i]!.AsObject();
             var route = new List<Vec2>();
             // The routing tool can leave a waypoint on top of the next (Devil's Perch's par 3s put their aim point on
-            // the green), which carries no length and would make the approach a zero vector.
+            // the green), which carries no length and would make the approach a zero vector. The later point stays: the
+            // last one is the green anchor the pins hang from.
             foreach (var p in Array(h["waypoints"]).Select(ReadVec))
-                if (route.Count == 0 || Vec2.Distance(route[^1], p) > 0.05) route.Add(p);
+            {
+                if (route.Count > 0 && Vec2.Distance(route[^1], p) <= 0.05) route[^1] = p;
+                else route.Add(p);
+            }
             if (route.Count == 0) continue;
             var anchor = route[^1];
             var tees = Array(h["tees"]).Select(t => ReadVec(t!["position"])).ToList();
@@ -283,15 +317,33 @@ public sealed class CourseModel
         for (int i = 0; i < splines.Count; i++)
         {
             var s = splines[i]!.AsObject();
-            var points = Array(s["waypoints"]).Select(w => new SplinePoint(
-                ReadVec(w!["pointOne"]), ReadVec(w["waypoint"]), ReadVec(w["pointTwo"]), Num(w["width"]))).ToList();
-            bool closed = s.TryGetPropertyValue("state", out var state) && state is not null
-                ? Num(state) != 0
-                : (s["isClosed"]?.GetValue<bool>() ?? false) || (s["isFilled"]?.GetValue<bool>() ?? false);
-            result.Add(new SurfaceSpline(i, (int)Num(s["surface"], -1), closed, Num(s["width"]), points));
+            result.Add(new SurfaceSpline(i, (int)Num(s["surface"], -1), IsClosed(s), Num(s["width"]), SplinePoints(s)));
         }
         return result;
     }
+
+    static List<SplinePoint> SplinePoints(JsonObject s) => Array(s["waypoints"]).Select(w => new SplinePoint(
+        ReadVec(w!["pointOne"]), ReadVec(w["waypoint"]), ReadVec(w["pointTwo"]), Num(w["width"]))).ToList();
+
+    static bool IsClosed(JsonObject s) => s.TryGetPropertyValue("state", out var state) && state is not null
+        ? Num(state) != 0
+        : (s["isClosed"]?.GetValue<bool>() ?? false) || (s["isFilled"]?.GetValue<bool>() ?? false);
+
+    static List<WaterPath> ReadWaterPaths(JsonArray? groups) =>
+        Entries(groups, "objectPaths2")
+            .Where(e => e.Entry["isWater"]?.GetValue<bool>() == true && e.Entry["path"] is JsonObject)
+            .Select((e, i) =>
+            {
+                var path = e.Entry["path"]!.AsObject();
+                var spline = new SurfaceSpline(i, Surfaces.Water, IsClosed(path), Num(path["width"], 3), SplinePoints(path));
+                // A body of water sits at the path's own height (heightRule 1); running water follows the ground.
+                bool level = Num(e.Entry["heightRule"]) == 1 || path["absoluteY"]?.GetValue<bool>() == true;
+                double height = Num(e.Entry["height"], double.NaN);
+                if (!level && !spline.Closed && !(height >= WaterPath.MinStreamHeight)) return null;
+                return new WaterPath(spline, level ? height : null);
+            })
+            .OfType<WaterPath>()
+            .Where(p => p.Path.Points.Count >= (p.IsBody ? 3 : 2)).ToList();
 
     static List<HeightStamp> ReadStamps(JsonArray? height)
     {

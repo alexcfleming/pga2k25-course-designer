@@ -96,21 +96,26 @@ public sealed class WaterMap
 /// leaves the ground alone and the water shows where the land dips below the plane). The record fields are
 /// identical and the ground doesn't separate them either (about a third of Berwick Coast's stream footprint lies
 /// below its level, against a quarter of Luke Muscat's planes), so the kind goes by size: see
-/// <see cref="WaterOptions.PlaneMinHalfSize"/>.
+/// <see cref="WaterOptions.PlaneMinHalfSize"/>. Water made with the designer's own tools is stored apart, as object
+/// paths (<see cref="CourseModel.WaterPaths"/>), and is traced alongside: a body of water fills its outline, running
+/// water is a ribbon of its width.
 /// </summary>
 public static class WaterTracer
 {
-    /// <summary>Replays the ground over every water entry (plus a margin) and traces it.</summary>
+    /// <summary>Replays the ground over every water entry and water-tool path (plus a margin) and traces it.</summary>
     public static WaterMap Trace(CourseModel course, TerrainModelOptions terrain, WaterOptions? options = null)
     {
-        var water = Usable(course);
-        if (water.Count == 0)
+        var reach = Usable(course).Select(w => (w.Position, w.Reach))
+            .Concat(course.WaterPaths.SelectMany(p => Sample(p).Select(q => (q, p.Path.Width / 2)))).ToList();
+        if (reach.Count == 0)
             return Trace(course, new Heightfield(new Vec2(0, 0), terrain.CellMetres, 1, 1), options);
         double pad = 10;
-        var min = new Vec2(water.Min(w => w.Position.X - w.Reach) - pad, water.Min(w => w.Position.Z - w.Reach) - pad);
-        var max = new Vec2(water.Max(w => w.Position.X + w.Reach) + pad, water.Max(w => w.Position.Z + w.Reach) + pad);
+        var min = new Vec2(reach.Min(w => w.Item1.X - w.Item2) - pad, reach.Min(w => w.Item1.Z - w.Item2) - pad);
+        var max = new Vec2(reach.Max(w => w.Item1.X + w.Item2) + pad, reach.Max(w => w.Item1.Z + w.Item2) + pad);
         return Trace(course, TerrainReplay.Build(course, min, max, terrain), options);
     }
+
+    static List<Vec2> Sample(WaterPath p) => Geometry.SampleSpline(p.Path, 8);
 
     /// <summary>Traces water over an existing ground raster (a sheet's or page's own window).</summary>
     public static WaterMap Trace(CourseModel course, Heightfield ground, WaterOptions? options = null)
@@ -135,6 +140,13 @@ public static class WaterTracer
             });
         foreach (var s in strokes.Where(s => s.Kind == WaterKind.CutStroke)) PaintStroke(ground, s, wet);
 
+        // Water-tool paths: the game digs their bed, so a body's whole outline and a stream's whole ribbon are water.
+        // Kept out of level[] so a small pond isn't taken for a plane's edge sliver.
+        var pathLevel = new double[n];
+        Array.Fill(pathLevel, double.NaN);
+        var stream = new bool[n];
+        foreach (var p in course.WaterPaths) PaintPath(ground, p, wet, depth, pathLevel, stream);
+
         var comp = Label(ground, wet, out var sizes);
         DropSlivers(ground, planes, level, wet, depth, comp, sizes, o);
         comp = Label(ground, wet, out sizes);
@@ -152,18 +164,23 @@ public static class WaterTracer
             double area = sizes[id] * cellArea;
             if (area < o.MinBodyM2) continue;
             bodyOf[id] = bodies.Count;
-            double deepest = 0, lvl = double.NaN;
-            int best = -1, channelCells = 0, x0 = w, x1 = -1, z0 = h, z1 = -1;
+            double deepest = 0, lvl = double.NaN, bodyLvl = double.NaN;
+            int best = -1, channelCells = 0, streamCells = 0, x0 = w, x1 = -1, z0 = h, z1 = -1;
             for (int k = 0; k < n; k++)
             {
                 if (comp[k] != id) continue;
                 int ix = k % w, iz = k / w;
                 x0 = Math.Min(x0, ix); x1 = Math.Max(x1, ix); z0 = Math.Min(z0, iz); z1 = Math.Max(z1, iz);
                 if (channel[k]) channelCells++;
+                if (stream[k]) streamCells++;
                 if (!double.IsNaN(level[k]) && (double.IsNaN(lvl) || level[k] > lvl)) lvl = level[k];
+                if (!double.IsNaN(pathLevel[k]) && (double.IsNaN(bodyLvl) || pathLevel[k] > bodyLvl)) bodyLvl = pathLevel[k];
                 if (best < 0 || depth[k] > deepest) { deepest = depth[k]; best = k; }
             }
-            if (double.IsNaN(lvl)) lvl = StrokeLevelAt(strokes, ground.CellCentre(best % w, best / w));
+            if (double.IsNaN(lvl)) lvl = bodyLvl;
+            // Running water has no one level: a stream on its own reads the ground at its label point.
+            if (double.IsNaN(lvl)) lvl = streamCells == sizes[id] - channelCells
+                ? ground.Values[best] : StrokeLevelAt(strokes, ground.CellCentre(best % w, best / w));
             // Label at the deepest water, which is well inside the shoreline even for rings and bends.
             bodies.Add(new WaterBody(lvl, area, deepest, ground.CellCentre(best % w, best / w), channelCells * cellArea / o.ChannelWidthMetres,
                 Shores(ground, comp, id, x0, x1, z0, z1)));
@@ -240,15 +257,40 @@ public static class WaterTracer
         }
     }
 
-    static void Capsule(Heightfield ground, Vec2 a, Vec2 b, double r, bool[] wet)
+    static void Capsule(Heightfield ground, Vec2 a, Vec2 b, double r, bool[] wet, Action<int>? also = null)
     {
         var ab = b - a;
         double len2 = ab.X * ab.X + ab.Z * ab.Z;
         ForEachCell(ground, (a + b) * 0.5, r + Math.Sqrt(len2) / 2, (k, c) =>
         {
             double t = len2 > 0 ? Math.Clamp(((c.X - a.X) * ab.X + (c.Z - a.Z) * ab.Z) / len2, 0, 1) : 0;
-            if (Vec2.Distance(c, a + ab * t) <= r) wet[k] = true;
+            if (Vec2.Distance(c, a + ab * t) <= r) { wet[k] = true; also?.Invoke(k); }
         });
+    }
+
+    /// <summary>
+    /// A water-tool path: a body fills its outline (depth = level − ground where the replay has ground below it), a
+    /// stream is a ribbon of the path's width along the ground. At least one cell wide so a narrow stream stays joined.
+    /// </summary>
+    static void PaintPath(Heightfield ground, WaterPath p, bool[] wet, double[] depth, double[] pathLevel, bool[] stream)
+    {
+        var pts = Sample(p);
+        if (p.IsBody)
+        {
+            double lvl = p.Level ?? double.NaN;
+            double minX = pts.Min(q => q.X), maxX = pts.Max(q => q.X), minZ = pts.Min(q => q.Z), maxZ = pts.Max(q => q.Z);
+            ForEachCell(ground, new Vec2((minX + maxX) / 2, (minZ + maxZ) / 2), Math.Max(maxX - minX, maxZ - minZ) / 2, (k, c) =>
+            {
+                if (!Geometry.Contains(pts, c)) return;
+                wet[k] = true;
+                if (double.IsNaN(lvl)) return;
+                pathLevel[k] = double.IsNaN(pathLevel[k]) ? lvl : Math.Max(pathLevel[k], lvl);
+                depth[k] = Math.Max(depth[k], lvl - ground.Values[k]);
+            });
+            return;
+        }
+        double r = Math.Max(p.Path.Width, ground.Cell) / 2;
+        for (int i = 0; i + 1 < pts.Count; i++) Capsule(ground, pts[i], pts[i + 1], r, wet, k => stream[k] = true);
     }
 
     static double StrokeLevelAt(IReadOnlyList<WaterStroke> strokes, Vec2 p) =>

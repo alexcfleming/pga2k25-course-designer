@@ -40,9 +40,9 @@ public static class YardageBookBuilder
         log?.Report("Rock footprints (radius per unit scale): " + string.Join(", ", rockSizes.Report.Select(kv =>
             $"{kv.Key} {kv.Value.Radius:0.0} m ({(kv.Value.Measured ? $"from {kv.Value.Samples} rocks" : "default")})")));
         // Ponds and creeks once for the whole course: every page shares the same shorelines.
-        var water = course.Water.Count > 0 ? GreensBook.WaterTracer.Trace(course, options.Terrain) : null;
+        var water = course.HasWater ? GreensBook.WaterTracer.Trace(course, options.Terrain) : null;
         if (water is not null)
-            log?.Report($"Water: {water.Bodies.Count} bod{(water.Bodies.Count == 1 ? "y" : "ies")} from {course.Water.Count} water entr{(course.Water.Count == 1 ? "y" : "ies")}.");
+            log?.Report($"Water: {water.Bodies.Count} bod{(water.Bodies.Count == 1 ? "y" : "ies")} from {course.Water.Count} water entr{(course.Water.Count == 1 ? "y" : "ies")} and {course.WaterPaths.Count} water-tool path{(course.WaterPaths.Count == 1 ? "" : "s")}.");
         var analyses = new List<HoleAnalysis>();
         foreach (var h in holes)
         {

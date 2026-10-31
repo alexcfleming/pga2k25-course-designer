@@ -39,7 +39,7 @@ public sealed class RockFootprints
     public RockFootprints(CourseModel course)
     {
         var play = course.SurfaceSplines
-            .Where(s => s.Closed && s.Points.Count >= 3 && (s.Surface is Surfaces.Green or Surfaces.Fairway or Surfaces.FairwayCut))
+            .Where(s => s.Closed && s.Points.Count >= 3 && (s.Surface is Surfaces.Green or Surfaces.Fairway))
             .Select(s => Geometry.SampleSpline(s, 8)).ToList();
         var probes = course.PlacedObjects
             .Where(p => p.AssetPath.Contains("/Bushes/", StringComparison.OrdinalIgnoreCase)

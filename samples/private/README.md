@@ -8,5 +8,6 @@ Course files other designers have shared for testing, kept out of the public rep
 | `sangoma.course` (+ `sangoma-screenshots/`) | Scrabby, "Sangoma", with in-game shots of the ponds at holes 1–2, 4, 11 and 14 | Water planes over 103,803 stamps; 2,290 distance markers with in-game heights; stamps centred on the plot edge (`SangomaTests`) |
 | `sagan-khushun-2026-10-26.course` | Alex's own Sagan-Khushun, as saved 2026-10-26 (newer than the public `samples/courses/sagan-khushun.course`) | Green 9 pin 1 crown from two small flatten dabs (`FlattenSampleTests`) |
 | `devils-perch.course` | drgnslyr221 (beta tester), "M@hr C.C: Devil's Perch" (reported 2026-10-29: par 3 greens missing, pins off the green) | Par 3 aim points on the green; greens drawn as overlapping splines (`GreenOutlineTests`) |
+| `devils-perch-2026-10-31.course` | drgnslyr221, updated save (reported 2026-10-30: streams and ponds missing from the maps, weathering drawn as fairway) | Running-water and body-of-water paths (`WaterPathTests`); 1,203 surface-18 weathering brushes |
 
 Ask the file's owner for a copy; don't commit it.
