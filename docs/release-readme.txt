@@ -230,6 +230,10 @@ NEW SINCE 2.1.0
   hand there; blank boxes show, faintly, what is read from the course
   file. It saves as you type in Holes.json beside the products. Tee names
   typed on the Publish readiness page carry over and stay in step.
+- The scorecard maps' table now shows only the championship (longest)
+  tees, so hole names have room; the yardage book and hole data card
+  still list every tee set. Tee headers and the Out / In / Total figures
+  no longer run together in narrow tables.
 - The hole-data workbook (.xlsx / .csv) is retired, and its box has gone
   from Course settings. Tee names and hole names come from the Holes
   card; pars, yardages and bearings from the course file; hazards and
