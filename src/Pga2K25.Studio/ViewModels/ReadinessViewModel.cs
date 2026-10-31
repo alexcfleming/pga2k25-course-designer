@@ -413,6 +413,8 @@ public partial class ReadinessViewModel : ObservableObject
         _signNotes = _state.SignOff.Notes;
         _designer = _state.Info.Designer;
         _version = _state.Info.Version;
+        // The Holes card in Course settings is where the products read tee names; this box shares them.
+        if (CourseHolesFile.Load(_outputDir).Tees is { Count: > 0 } tees) _state.Info.TeeNames = [.. tees];
         _teeNames = string.Join(", ", _state.Info.TeeNames);
         foreach (var p in new[] { nameof(SignName), nameof(SignDate), nameof(SignNotes), nameof(Designer), nameof(Version), nameof(TeeNames) }) OnPropertyChanged(p);
     }
@@ -426,6 +428,16 @@ public partial class ReadinessViewModel : ObservableObject
     {
         _state.Info.TeeNames = value.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
         Save();
+        try
+        {
+            var holes = CourseHolesFile.Load(_outputDir);
+            if (!holes.Tees.SequenceEqual(_state.Info.TeeNames))
+            {
+                holes.TeeNames = [.. _state.Info.TeeNames];
+                CourseHolesFile.Save(_outputDir, holes);
+            }
+        }
+        catch (Exception ex) { Show($"Tee names not saved to {CourseHolesFile.FileName}: {ex.Message}", error: true); }
     }
 
     /// <summary>Ties the sign-off to this version of the course file; a later change re-opens the gate.</summary>

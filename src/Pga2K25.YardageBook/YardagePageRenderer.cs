@@ -438,7 +438,8 @@ public sealed class YardagePageRenderer : IDisposable
     {
         using (var rule = Fill(Gold)) canvas.DrawRect(MapRect.Left, 8, MapRect.Width, 2.6f, rule);
         Label(canvas, courseName, MapRect.Left, 31, 15.5f, _heavy, DeepGreen);
-        Label(canvas, $"Hole {a.Hole.Number}  ·  Par {a.Hole.Par}  ·  {a.LengthYards} yds", MapRect.Left, 46, 9.5f, _regular, Muted);
+        string name = _o.Holes?.NameOf(a.Hole.Number) is { } holeName ? $"  ·  {holeName}" : "";
+        Label(canvas, $"Hole {a.Hole.Number}{name}  ·  Par {a.Hole.Par}  ·  {a.LengthYards} yds", MapRect.Left, 46, 9.5f, _regular, Muted);
 
         // North arrow, top right.
         var d = p.MapDirection(MapProjection.North);

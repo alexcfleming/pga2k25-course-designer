@@ -50,7 +50,7 @@ dotnet run --project src/Pga2K25.Cli -- scorecard samples/courses/cassimbo.cours
 ```
 
 ```bash
-dotnet run --project src/Pga2K25.Cli -- yardage samples/courses/cassimbo.course -o out --data samples/data/cassimbo-hole-data.xlsx --png
+dotnet run --project src/Pga2K25.Cli -- yardage samples/courses/cassimbo.course -o out --png
 ```
 
 ```bash

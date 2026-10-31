@@ -47,6 +47,7 @@ public partial class WorkspaceViewModel
         OnPropertyChanged(nameof(IsEstimateInputs));
         OnPropertyChanged(nameof(IsReadiness));
         if (value == EstimateInputsSection) OpenEstimateInputs();
+        if (value == SettingsSection) LoadCourseFileNotes();
         if (value == ReadinessSection)
             Readiness ??= new ReadinessViewModel(Entry.Path, OutputFolder, Entry.Name, hole =>
             {
@@ -84,9 +85,9 @@ public partial class WorkspaceViewModel
             ProductSections.Add(new NavItemViewModel(p.Name, false, () => Section = p.Name));
         RefreshProductSections();
         var extras = Settings.ExtrasFor(Entry.Path);
-        WorkbookPath = extras.Workbook ?? "";
         CardConfigPath = extras.CardConfig ?? "";
         InitPlace();
+        InitHoles();
 
         var recent = Settings.Recent.Where(p => !string.Equals(p, Entry.Path, StringComparison.OrdinalIgnoreCase) && File.Exists(p)).Take(5).ToList();
         Task.Run(() =>
@@ -177,17 +178,9 @@ public partial class WorkspaceViewModel
 
     // ───────────────────────── course settings ─────────────────────────
 
-    [ObservableProperty] private string _workbookPath = "";
     [ObservableProperty] private string _cardConfigPath = "";
     public string OutputFolder => Products.OutputDir(Settings, Entry.Name);
     public string CoursePath => Entry.Path;
-
-    public void SetWorkbook(string? path)
-    {
-        Settings.ExtrasFor(Entry.Path).Workbook = string.IsNullOrWhiteSpace(path) ? null : path;
-        Settings.Save();
-        WorkbookPath = path ?? "";
-    }
 
     public void SetCardConfig(string? path)
     {
@@ -216,7 +209,6 @@ public partial class WorkspaceViewModel
         }
     }
 
-    [RelayCommand] private void ClearWorkbook() => SetWorkbook(null);
     [RelayCommand] private void ClearCardConfig() => SetCardConfig(null);
 }
 

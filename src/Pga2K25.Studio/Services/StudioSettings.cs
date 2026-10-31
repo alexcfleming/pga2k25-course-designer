@@ -31,7 +31,7 @@ public sealed class StudioSettings
     /// <summary>Course files added by hand from outside the courses folder (e.g. a published course's saved copy).</summary>
     public List<string> ExtraCourses { get; set; } = [];
 
-    /// <summary>Per course file: hole-data workbook and course-card settings.</summary>
+    /// <summary>Per course file: course-card settings and terrain map options.</summary>
     public Dictionary<string, CourseExtras> Courses { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
     public CourseExtras ExtrasFor(string coursePath) =>
@@ -60,7 +60,6 @@ public sealed class StudioSettings
 
 public sealed class CourseExtras
 {
-    public string? Workbook { get; set; }
     public string? CardConfig { get; set; }
     public TerrainSettings Terrain { get; set; } = new();
 }

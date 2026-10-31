@@ -123,11 +123,6 @@ public partial class WorkspaceView : UserControl
         if (paths.Count > 0) await _vm.ImportScansAsync(paths);
     }
 
-    async void BrowseWorkbook_Click(object? sender, RoutedEventArgs e)
-    {
-        if (await PickFile("Choose the hole-data workbook", "Workbook", ["*.xlsx", "*.csv"]) is { } path) _vm?.SetWorkbook(path);
-    }
-
     async void BrowseCardConfig_Click(object? sender, RoutedEventArgs e)
     {
         if (await PickFile("Choose course card settings", "Card settings", ["*.json"]) is { } path) _vm?.SetCardConfig(path);
