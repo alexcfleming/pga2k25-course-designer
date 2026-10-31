@@ -378,33 +378,50 @@ public sealed partial class ScorecardMapRenderer : IDisposable
         string? NameOf(Hole h) => _o.Holes?.NameOf(h.Number);
         bool named = holes.Any(h => NameOf(h) is not null);
 
+        float baseSize = size;
+
         float DrawBlock(IReadOnlyList<Hole> block, string totalLabel, SKRect r, bool grandTotal)
         {
             float y = r.Top, w = r.Width;
-            float holeW = 34, parW = 30;
-            float nameW = !named ? 0 : Math.Min(w * 0.4f, Math.Max(Measure("Name", size, _bodyBold),
-                holes.Select(NameOf).Where(n => n is not null).Max(n => Measure(n!, size, _italic))) + 12);
+            // The tee columns are measured first, so headers and totals never touch; the name takes what is left
+            // (up to 40%). When even a narrow name won't fit, the whole table shrinks: type, padding and the fixed
+            // Hole and Par columns together.
+            string widest = holes.Count == 0 ? "0" : Enumerable.Range(0, names.Count)
+                .Select(i => holes.Sum(h => yards(h, i)).ToString("N0")).MaxBy(t => t.Length)!;
+            float TeeNeed(float s, float k) => Math.Max(names.Max(n => Measure(n, s, _bodyBold) + (TeeColour(n) is null ? 0 : 11 * k)),
+                Measure(widest, s, _bodyBold)) + 10 * k;
+            float NameWant(float s) => !named ? 0 : Math.Max(Measure("Name", s, _bodyBold),
+                holes.Select(NameOf).Where(n => n is not null).Max(n => Measure(n!, s, _italic))) + 12;
+            float k = size / baseSize;
+            while (size > 5f && (34 + 30 + (named ? 60 : 0)) * k + TeeNeed(size, k) * names.Count > w)
+            {
+                size -= 0.25f;
+                k = size / baseSize;
+                rowH = Math.Max(rowH - 0.4f, size * 1.35f);
+            }
+            float holeW = 34 * k, parW = 30 * k, pad = 6 * k, minName = named ? 60 * k : 0;
+            float nameW = !named ? 0 : Math.Max(Math.Min(Math.Min(w * 0.4f, NameWant(size)), w - holeW - parW - TeeNeed(size, k) * names.Count), minName);
             float teeW = (w - holeW - nameW - parW) / names.Count;
-            float ColRight(int i) => r.Left + holeW + nameW + teeW * (i + 1) - 6;
-            float parRight = r.Right - 8;
+            float ColRight(int i) => r.Left + holeW + nameW + teeW * (i + 1) - pad;
+            float parRight = r.Right - 8 * k;
             int rows = block.Count + (grandTotal ? 3 : 2);
             using var line = Stroke(_t.Kind != MapThemeKind.Modern ? _t.Ink : _t.MutedInk.WithAlpha(160), 0.7f);
             if (_t.Kind == MapThemeKind.Modern)
             {
                 using var box = Fill(_t.Background);
-                canvas.DrawRect(new SKRect(r.Left, y - 2, r.Right, y + rowH * rows + 4), box);
+                canvas.DrawRect(new SKRect(r.Left, y - 2, r.Right, y + rowH * rows + 7), box);
             }
-            Text(canvas, "Hole", r.Left + 5, y + rowH * 0.71f, size, _bodyBold, _t.Ink);
-            if (named) Text(canvas, "Name", r.Left + holeW + 5, y + rowH * 0.71f, size, _bodyBold, _t.Ink);
+            Text(canvas, "Hole", r.Left + 5 * k, y + rowH * 0.71f, size, _bodyBold, _t.Ink);
+            if (named) Text(canvas, "Name", r.Left + holeW + 5 * k, y + rowH * 0.71f, size, _bodyBold, _t.Ink);
             for (int i = 0; i < names.Count; i++)
             {
                 Text(canvas, names[i], ColRight(i), y + rowH * 0.71f, size, _bodyBold, _t.Ink, SKTextAlign.Right);
                 if (TeeColour(names[i]) is { } tc)
                 {
                     float tw = Measure(names[i], size, _bodyBold);
-                    var dot = new SKPoint(ColRight(i) - tw - 6, y + rowH * 0.48f);
-                    using (var f = Fill(tc)) canvas.DrawCircle(dot, 3.2f, f);
-                    using (var ring = Stroke(_t.Ink, 0.6f)) canvas.DrawCircle(dot, 3.2f, ring);
+                    var dot = new SKPoint(ColRight(i) - tw - 6 * k, y + rowH * 0.48f);
+                    using (var f = Fill(tc)) canvas.DrawCircle(dot, 3.2f * k, f);
+                    using (var ring = Stroke(_t.Ink, 0.6f)) canvas.DrawCircle(dot, 3.2f * k, ring);
                 }
             }
             Text(canvas, "Par", parRight, y + rowH * 0.71f, size, _bodyBold, _t.Ink, SKTextAlign.Right);
@@ -414,15 +431,15 @@ public sealed partial class ScorecardMapRenderer : IDisposable
             void Row(string label, Func<int, int> yardsFor, int par, bool bold, string? name = null)
             {
                 var face = bold ? _bodyBold : _body;
-                Text(canvas, label, bold ? r.Left + 5 : r.Left + holeW / 2, y + rowH * 0.68f, size, face, _t.Ink, bold ? SKTextAlign.Left : SKTextAlign.Center);
+                Text(canvas, label, bold ? r.Left + 5 * k : r.Left + holeW / 2, y + rowH * 0.68f, size, face, _t.Ink, bold ? SKTextAlign.Left : SKTextAlign.Center);
                 if (name is not null)
                 {
                     // Shrink a long name to fit, then cut it.
-                    float room = nameW - 10, s = size;
+                    float room = nameW - 10 * k, s = size;
                     while (s > size * 0.75f && Measure(name, s, _italic) > room) s -= 0.25f;
                     string fit = name;
                     while (fit.Length > 1 && Measure(fit, s, _italic) > room) fit = fit[..^2] + "…";
-                    Text(canvas, fit, r.Left + holeW + 5, y + rowH * 0.68f, s, _italic, _t.Ink);
+                    Text(canvas, fit, r.Left + holeW + 5 * k, y + rowH * 0.68f, s, _italic, _t.Ink);
                 }
                 for (int i = 0; i < names.Count; i++)
                     Text(canvas, yardsFor(i).ToString("N0"), ColRight(i), y + rowH * 0.68f, size, face, _t.Ink, SKTextAlign.Right);
@@ -430,7 +447,9 @@ public sealed partial class ScorecardMapRenderer : IDisposable
                 y += rowH;
             }
             foreach (var h in block) Row(h.Number.ToString(), i => yards(h, i), h.Par, false, NameOf(h));
-            canvas.DrawLine(r.Left, y - 2, r.Right, y - 2, line);
+            // Old-style figures and italics descend below the row, so the totals rule sits a little lower.
+            canvas.DrawLine(r.Left, y + 1, r.Right, y + 1, line);
+            y += 3;
             Row(totalLabel, i => block.Sum(h => yards(h, i)), block.Sum(h => h.Par), true);
             if (grandTotal) Row("Total", i => holes.Sum(h => yards(h, i)), holes.Sum(h => h.Par), true);
 
