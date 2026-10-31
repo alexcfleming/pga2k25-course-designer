@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 2.1.0
+COURSE DESIGNER STUDIO - release 2.2.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -221,7 +221,7 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
-NEW SINCE 2.1.0
+NEW IN 2.2.0
 - Holes card (in Course settings, under Place): tee set names, and a
   name for each hole. The names add a Name column to every scorecard
   table (the four scorecard maps, the hole data card and the Wind Card)
