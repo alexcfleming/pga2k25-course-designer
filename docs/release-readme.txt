@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 2.2.0
+COURSE DESIGNER STUDIO - release 2.3.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -221,7 +221,7 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
-NEW SINCE 2.2.0
+NEW IN 2.3.0
 - Modern Illustrated scorecard map: a fifth scorecard style. It keeps
   Modern's colours and paints the land in: soft hill shading, the sea
   shaded by depth, mown stripes on the fairways, and every tree, bush,
