@@ -113,6 +113,12 @@ public sealed record TerrainMapOptions
 
     public string Credit { get; init; } = "";
 
+    /// <summary>
+    /// The course's logo set (Logos.json); null reads it from the output folder. The colour seal fills the foot of the
+    /// terrain map's panel; the ink mark leads each hole sheet's header.
+    /// </summary>
+    public GreensBook.CourseLogoArt? Logos { get; init; }
+
     /// <summary>Where the course is, printed before the subtitle. Blank takes the course's Place.json.</summary>
     public string Place { get; init; } = "";
 

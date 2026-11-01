@@ -93,7 +93,7 @@ Everything is optional. Nothing in it is hole data.
   - Text too long for one line wraps to two smaller lines in the same row, broken at a " · ".
 - **Wind:** the course file stores no wind. When the Place card has a wind rose, the course data card's arrow and "prevailing wind" note point from the rose's most frequent direction, the one the Wind Card prints, named the same way (16 points, e.g. WNW). The rose always wins, so the two cards agree: a `windFromDegrees`, `--wind` or Place "Prevailing wind from" that differs is reported (INFO) and not drawn. Without a rose, the arrow points from `--wind`, then `windFromDegrees`, then the Place card's prevailing wind; with none of them no arrow is drawn.
 - **Place fallback:** `description` and `oceanSide` left unset here are taken from the course's `Place.json` in the output folder (the Studio Place card). Values set in this file always win.
-- **Logo:** an optional square PNG or JPG. Cassimbo's Voronoi roundel is course art and isn't generated here.
+- **Logo:** an optional square PNG or JPG. Without `logoPath`, the colour seal from the course's logo set (`Logos.json`, the Studio's Logo card) is used; see [Course logo](course-logo.md). Cassimbo's Voronoi roundel is course art and isn't generated here.
 
 ## Type
 

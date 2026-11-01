@@ -88,6 +88,7 @@ public partial class WorkspaceViewModel
         CardConfigPath = extras.CardConfig ?? "";
         InitPlace();
         InitHoles();
+        InitLogos();
 
         var recent = Settings.Recent.Where(p => !string.Equals(p, Entry.Path, StringComparison.OrdinalIgnoreCase) && File.Exists(p)).Take(5).ToList();
         Task.Run(() =>

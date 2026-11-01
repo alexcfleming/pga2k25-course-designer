@@ -45,6 +45,9 @@ Tee set names and hole names come from `Holes.json` in the output folder (`-o`),
 
 ## Page contents
 
+With a course logo (`Logos.json`, see [Course logo](course-logo.md)), the header is one line: the colour mark, the course name in spaced capitals, a gold divider and the hole line. Without one, the name sits above the hole line.
+
+
 - **View:** the page is cut along the line of play, from 22 m behind the back tee to 32 m past the green, and rotated so play runs up the page. A north arrow in the header shows the true bearing (north = −Z).
 - **Surfaces:**
   - Drawing order: rough, paths, water, fairways, bunkers, vegetation and rock masses, in-play hazards, tee pads, greens.

@@ -31,6 +31,8 @@ public static class ScorecardMapBuilder
                     $"{layers.Paths.Count + layers.Roads.Count} paths/roads.");
 
         if (options.Holes is null) options = options with { Holes = CourseHolesFile.Load(outputDir) };
+        using var ownLogos = options.Logos is null ? GreensBook.CourseLogoArt.Load(outputDir) : null;
+        if (ownLogos is not null) options = options with { Logos = ownLogos };
         if (options.Holes.Tees.Count > 0 && options.Holes.Tees.Count != course.Holes.Max(h => Math.Max(1, h.Tees.Count)))
             log?.Report($"Holes card names {options.Holes.Tees.Count} tee sets but the course file has {course.Holes.Max(h => Math.Max(1, h.Tees.Count))}; " +
                         "extra names are not used, missing ones print as \"Tee n\".");

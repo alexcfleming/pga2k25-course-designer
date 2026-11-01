@@ -128,6 +128,13 @@ public partial class WorkspaceView : UserControl
         if (await PickFile("Choose course card settings", "Card settings", ["*.json"]) is { } path) _vm?.SetCardConfig(path);
     }
 
+    async void ChooseLogo_Click(object? sender, RoutedEventArgs e)
+    {
+        if ((sender as Control)?.Tag is not LogoSlotViewModel slot) return;
+        if (await PickFile($"Choose the {slot.Tip.ToLowerInvariant()} logo", "Images", ["*.png", "*.jpg", "*.jpeg", "*.webp"]) is { } path)
+            _vm?.ImportLogo(slot, path);
+    }
+
     async void ImportReadiness_Click(object? sender, RoutedEventArgs e)
     {
         if (await PickFile("Choose the course QA checklist backup", "Checklist backup", ["*.json"]) is { } path) _vm?.Readiness?.ImportBackup(path);

@@ -13,6 +13,9 @@ public sealed record YardageOptions
 
     /// <summary>The Studio's hole entries (Holes.json) for tee and hole names; null reads them from the output folder.</summary>
     public CourseHoles? Holes { get; init; }
+
+    /// <summary>The course's logo set (Logos.json); null reads it from the output folder. Its colour mark leads each page header.</summary>
+    public CourseLogoArt? Logos { get; init; }
     public double MetresBehindTee { get; init; } = 22;
     public double MetresBeyondGreen { get; init; } = 32;
     /// <summary>Fairway widths are measured at these distances from the back tee (yards).</summary>

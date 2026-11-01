@@ -1086,6 +1086,49 @@
                 <Run Text=". The course file is never changed."/>
               </TextBlock>
             </StackPanel>
+            <StackPanel Spacing="8">
+              <TextBlock Classes="h2" Text="Logo"/>
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Optional. The course's logo, in as many versions as you have: a seal (round, with the name), a mark (no text) and a lockup (mark beside the name), each in colour, ink (one dark colour) and light (for dark backgrounds). Each product prints the version that suits its paper: colour on the Modern maps, cards, greens and yardage books and the terrain map; ink on the engraved maps and the hole sketch sheets. A missing version falls back to the nearest one you gave. PNG with a transparent background works best."/>
+              <Grid ColumnDefinitions="64,*" Margin="0,4,0,0">
+                <StackPanel Grid.Column="0" Margin="0,22,0,0">
+                  <TextBlock Text="Seal" Classes="muted small" Height="118" VerticalAlignment="Top" Padding="0,34,0,0"/>
+                  <TextBlock Text="Mark" Classes="muted small" Height="118" VerticalAlignment="Top" Padding="0,34,0,0"/>
+                  <TextBlock Text="Lockup" Classes="muted small" Height="118" VerticalAlignment="Top" Padding="0,34,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1">
+                  <UniformGrid Columns="3" Height="22">
+                    <TextBlock Text="Colour" Classes="muted small"/>
+                    <TextBlock Text="Ink (one dark colour)" Classes="muted small"/>
+                    <TextBlock Text="Light (on dark)" Classes="muted small"/>
+                  </UniformGrid>
+                  <ItemsControl ItemsSource="{Binding LogoSlots}">
+                    <ItemsControl.ItemsPanel>
+                      <ItemsPanelTemplate><UniformGrid Columns="3"/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:LogoSlotViewModel">
+                        <StackPanel Spacing="2" Margin="0,0,10,6" Height="112">
+                          <Button Click="ChooseLogo_Click" Tag="{Binding}" Height="84" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                  Background="{Binding Swatch}" ToolTip.Tip="{Binding Tip}" AutomationProperties.Name="{Binding Tip}">
+                            <Panel>
+                              <Image Source="{Binding Thumbnail}" Stretch="Uniform" MaxHeight="72" IsVisible="{Binding HasImage}"/>
+                              <TextBlock Text="+ Add…" Foreground="{Binding PromptBrush}" VerticalAlignment="Center" IsVisible="{Binding !HasImage}"/>
+                            </Panel>
+                          </Button>
+                          <Button Content="Remove" Command="{Binding RemoveCommand}" IsVisible="{Binding HasImage}" Padding="6,1" FontSize="11"/>
+                        </StackPanel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </StackPanel>
+              </Grid>
+              <TextBlock Classes="muted small" Foreground="#8E2F1E" Text="{Binding LogoError}" IsVisible="{Binding LogoError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" TextWrapping="Wrap"/>
+              <TextBlock Classes="muted small" TextWrapping="Wrap">
+                <Run Text="Copied into the Logos folder in "/>
+                <Run Text="{Binding OutputFolder}"/>
+                <Run Text=" and listed in Logos.json, so the course keeps them."/>
+              </TextBlock>
+            </StackPanel>
             <StackPanel Spacing="4">
               <TextBlock Classes="h2" Text="Course card settings"/>
               <TextBlock Classes="muted" TextWrapping="Wrap" Text="Optional. A card settings file (wind, ocean side, formats) for the course cards."/>

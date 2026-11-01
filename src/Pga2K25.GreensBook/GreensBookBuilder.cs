@@ -31,6 +31,8 @@ public static class GreensBookBuilder
         GreensBookOutputs? outputs = null, IEnumerable<int>? holeNumbers = null, IProgress<string>? log = null)
     {
         outputs ??= new GreensBookOutputs();
+        using var ownLogos = options.Logos is null ? CourseLogoArt.Load(outputDir) : null;
+        if (ownLogos is not null) options = options with { Logos = ownLogos };
         var course = CourseFile.Load(coursePath).ReadModel();
         var selected = holeNumbers?.ToHashSet();
         var holes = course.Holes.Where(h => selected is null || selected.Contains(h.Number)).ToList();

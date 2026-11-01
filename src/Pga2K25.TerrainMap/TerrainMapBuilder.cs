@@ -20,6 +20,8 @@ public static class TerrainMapBuilder
     {
         var course = CourseFile.Load(coursePath).ReadModel();
         course.NotWater = NotWaterMarks.Points(outputDir);
+        using var ownLogos = options.Logos is null ? GreensBook.CourseLogoArt.Load(outputDir) : null;
+        if (ownLogos is not null) options = options with { Logos = ownLogos };
         var place = CoursePlaces.Load(outputDir);
         if (string.IsNullOrWhiteSpace(options.Place)) options = options with { Place = place.Line };
         if (place.ShowsSite) options = options with { SiteInset = true };
@@ -169,6 +171,8 @@ public static class HoleSheetBuilder
     {
         var course = CourseFile.Load(coursePath).ReadModel();
         course.NotWater = NotWaterMarks.Points(outputDir);
+        using var ownLogos = options.Map.Logos is null ? GreensBook.CourseLogoArt.Load(outputDir) : null;
+        if (ownLogos is not null) options = options with { Map = options.Map with { Logos = ownLogos } };
         var selected = holeNumbers?.ToHashSet();
         var holes = course.Holes.Where(h => selected is null || selected.Contains(h.Number)).ToList();
         if (holes.Count == 0) throw new InvalidOperationException("No matching holes found in the course.");
