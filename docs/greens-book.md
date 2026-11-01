@@ -26,6 +26,8 @@ Each green is oriented so the approach comes from the bottom. The linework follo
 - on colour, arrows and labels get white halos so they stay legible
 - a single world→page transform shared by every renderer, so the y-flip bug can't recur
 
+With a course logo (see [Course logo](course-logo.md)), the colour seal leads the greens sheet's title and the colour mark each green study page's.
+
 ## Running it
 
 ```bash

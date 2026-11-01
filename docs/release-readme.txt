@@ -242,6 +242,17 @@ NEW IN 2.3.0
   card has one, each in the corner of the map with the least course
   under it. The Plan Sheet shows the wind rose in its title column,
   with the front and back nines side by side above it.
+- Course logo (new Logo card in Course settings, under Holes): add your
+  course's logo in as many versions as you have - a seal (round, with
+  the name), a mark (no text) and a lockup (mark beside the name), each
+  in colour, ink (one dark colour) and light. Every product prints the
+  version that suits its paper: the seal before the title on the
+  scorecard maps (ink on Vintage, Illustrated and the Plan Sheet),
+  greens book and course cards, and at the foot of the terrain map's
+  panel; the mark in each yardage page's header, on green studies, hole
+  sheets and the readiness record; the lockup on the estimate. A missing
+  version falls back to the nearest one. The files are copied into a
+  Logos folder beside the products.
 
 NEW IN 2.2.0
 - Holes card (in Course settings, under Place): tee set names, and a

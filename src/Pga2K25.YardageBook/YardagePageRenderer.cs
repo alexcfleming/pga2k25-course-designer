@@ -437,9 +437,15 @@ public sealed class YardagePageRenderer : IDisposable
     void DrawHeader(SKCanvas canvas, string courseName, HoleAnalysis a, MapProjection p)
     {
         using (var rule = Fill(Gold)) canvas.DrawRect(MapRect.Left, 8, MapRect.Width, 2.6f, rule);
-        Label(canvas, courseName, MapRect.Left, 31, 15.5f, _heavy, DeepGreen);
         string name = _o.Holes?.NameOf(a.Hole.Number) is { } holeName ? $"  ·  {holeName}" : "";
-        Label(canvas, $"Hole {a.Hole.Number}{name}  ·  Par {a.Hole.Par}  ·  {a.LengthYards} yds", MapRect.Left, 46, 9.5f, _regular, Muted);
+        string holeLine = $"Hole {a.Hole.Number}{name}  ·  Par {a.Hole.Par}  ·  {a.LengthYards} yds";
+        if (_o.Logos?.Get(LogoKind.Mark, LogoTone.Colour) is { } mark)
+            DrawLogoHeader(canvas, courseName, holeLine, mark.Image);
+        else
+        {
+            Label(canvas, courseName, MapRect.Left, 31, 15.5f, _heavy, DeepGreen);
+            Label(canvas, holeLine, MapRect.Left, 46, 9.5f, _regular, Muted);
+        }
 
         // North arrow, top right.
         var d = p.MapDirection(MapProjection.North);
@@ -456,6 +462,44 @@ public sealed class YardagePageRenderer : IDisposable
         using var head = b.Detach();
         using (var f = Fill(DeepGreen)) canvas.DrawPath(head, f);
         Label(canvas, "N", tip.X + d.X * 7, tip.Y + d.Y * 7 + 3, 7.5f, _bold, DeepGreen, SKTextAlign.Center);
+    }
+
+    /// <summary>
+    /// With a course logo, the header is one line: the colour mark, the course name in spaced capitals, a gold divider,
+    /// then the hole line. The name and hole line shrink together if the course name is long.
+    /// </summary>
+    void DrawLogoHeader(SKCanvas canvas, string courseName, string holeLine, SKImage mark)
+    {
+        const float markSize = 32, baseline = 37, right = PageWidth - 52;   // clear of the north arrow
+        var at = GreensBook.CourseLogoArt.Draw(canvas, mark, new SKRect(MapRect.Left, 15, MapRect.Left + markSize, 15 + markSize));
+        string caps = courseName.ToUpperInvariant();
+        float nameSize = 12, lineSize = 10.5f, tracking = 1.8f;
+        float Width(float k) => Spaced(caps, nameSize * k, tracking * k) + 18 * k + Measure(holeLine, lineSize * k, _regular);
+        float k = Math.Min(1, (right - at.Right - 10) / Width(1));
+        float x = at.Right + 10;
+        x += DrawSpaced(canvas, caps, x, baseline, nameSize * k, tracking * k, Ink) + 9 * k;
+        using (var divider = Stroke(Gold, 0.8f)) canvas.DrawLine(x, baseline - 13, x, baseline + 4, divider);
+        Label(canvas, holeLine, x + 9 * k, baseline, lineSize * k, _regular, Muted);
+    }
+
+    float Spaced(string text, float size, float tracking)
+    {
+        using var font = new SKFont(_regular, size);
+        return text.Sum(ch => font.MeasureText(ch.ToString())) + tracking * Math.Max(0, text.Length - 1);
+    }
+
+    /// <summary>Text in letter-spaced capitals; returns its width.</summary>
+    float DrawSpaced(SKCanvas canvas, string text, float x, float y, float size, float tracking, SKColor colour)
+    {
+        using var font = new SKFont(_regular, size) { Subpixel = true };
+        using var paint = new SKPaint { Color = colour, IsAntialias = true };
+        float start = x;
+        foreach (char ch in text)
+        {
+            canvas.DrawText(ch.ToString(), x, y, SKTextAlign.Left, font, paint);
+            x += font.MeasureText(ch.ToString()) + tracking;
+        }
+        return x - tracking - start;
     }
 
     void DrawFooter(SKCanvas canvas, HoleAnalysis a)

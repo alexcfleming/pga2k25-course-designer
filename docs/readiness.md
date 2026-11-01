@@ -23,6 +23,8 @@ The library is `src/Pga2K25.Readiness`; the Studio's **Publish readiness** secti
 - **The gate** opens when every course-file check is cleared, every item, hole cell, pin difficulty and playtest square is closed, and the sign-off is complete and matches the current file.
 - **The record** (`ReadinessRecord`) is a dated JSON of the report and state, plus a printable HTML page of the same. It's written when the work on a course is done, replacing the HTML checklist's final export.
 
+The record's HTML embeds the course's colour mark before its title when the course has a logo set (see [Course logo](course-logo.md)).
+
 ## Command
 
 ```bash

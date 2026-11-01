@@ -72,6 +72,14 @@ public sealed partial class ScorecardMapRenderer
             y = box.Bottom;
         }
 
+        // The title column is full, so the ink seal sits on a parchment disc in the emptiest top corner of the map.
+        if (_logo is { } seal)
+        {
+            const float d = 96;
+            var spot = new[] { (0f, 0f), (1f, 0f) }.Select(f => SpotBox(map, f, d + 12, d + 12)).MinBy(bx => PlayUnder(layers, proj, bx));
+            using (var disc = Fill(_t.Background)) canvas.DrawCircle(spot.MidX, spot.MidY, d / 2 + 5, disc);
+            GreensBook.CourseLogoArt.Draw(canvas, seal, SKRect.Inflate(spot, -6, -6));
+        }
         DrawDirectionDial(canvas, layers, proj, y + 14, PlanCreditsTop - 14);
         DrawPlanCredits(canvas, page);
 

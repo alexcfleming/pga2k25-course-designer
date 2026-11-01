@@ -21,6 +21,9 @@ public sealed record GreensBookOptions
     public int OutlineHarmonics { get; init; } = 8;
     public string Credit { get; init; } = "";
 
+    /// <summary>The course's logo set (Logos.json); null reads it from the output folder. The seal leads the sheet, the mark each green page.</summary>
+    public CourseLogoArt? Logos { get; init; }
+
     /// <summary>Statistics ignore the band this close to the green edge (collar roll-off).</summary>
     public double EdgeExclusionMetres { get; init; } = 1.0;
 

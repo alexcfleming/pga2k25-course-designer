@@ -29,6 +29,8 @@ public static class YardageBookBuilder
     {
         outputs ??= new YardageBookOutputs();
         if (options.Holes is null) options = options with { Holes = CourseHolesFile.Load(outputDir) };
+        using var ownLogos = options.Logos is null ? GreensBook.CourseLogoArt.Load(outputDir) : null;
+        if (ownLogos is not null) options = options with { Logos = ownLogos };
         var course = CourseFile.Load(coursePath).ReadModel();
         course.NotWater = NotWaterMarks.Points(outputDir);
         var layers = CourseLayers.From(course);

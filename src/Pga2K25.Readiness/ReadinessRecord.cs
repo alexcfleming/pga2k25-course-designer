@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Pga2K25.CourseFormat;
 
 namespace Pga2K25.Readiness;
 
@@ -28,8 +29,17 @@ public static class ReadinessRecord
         Directory.CreateDirectory(outputDir);
         string stem = Path.Combine(outputDir, $"{Safe(report.CourseName)} - Readiness record {when:yyyy-MM-dd}");
         File.WriteAllText(stem + ".json", JsonSerializer.Serialize(snap, ReadinessStore.Json));
-        File.WriteAllText(stem + ".html", Html(snap));
+        File.WriteAllText(stem + ".html", Html(snap, MarkDataUri(outputDir)));
         return new RecordFiles(stem + ".json", stem + ".html");
+    }
+
+    /// <summary>The course's colour mark as a data URI, so the record stays one self-contained file; null without a logo.</summary>
+    static string? MarkDataUri(string outputDir)
+    {
+        if (CourseLogosFile.Load(outputDir).Pick(LogoKind.Mark, LogoTone.Colour) is not { } mark) return null;
+        string path = CourseLogosFile.ImagePath(outputDir, mark.File);
+        string mime = Path.GetExtension(path).ToLowerInvariant() switch { ".jpg" or ".jpeg" => "image/jpeg", ".webp" => "image/webp", _ => "image/png" };
+        return $"data:{mime};base64,{Convert.ToBase64String(File.ReadAllBytes(path))}";
     }
 
     static string Safe(string name) => string.Concat(name.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
@@ -47,7 +57,8 @@ public static class ReadinessRecord
         ItemStatus.NotApplicable => "<td class=\"na\">n/a</td>", _ => "<td class=\"open\">·</td>",
     };
 
-    public static string Html(Snapshot s)
+    /// <param name="mark">The course mark as a data URI, shown before the title; null for none.</param>
+    public static string Html(Snapshot s, string? mark = null)
     {
         var r = s.Report;
         var st = s.State;
@@ -65,9 +76,11 @@ public static class ReadinessRecord
             th{background:var(--tint)}.wrap{overflow-x:auto}td.done{color:var(--ok);text-align:center}td.delib{color:var(--info);text-align:center}td.na,td.open{color:var(--muted);text-align:center}
             .sev{font-weight:600;font-size:12px;padding:1px 6px;border-radius:4px;white-space:nowrap}.Pass{background:var(--okbg);color:var(--ok)}.Info,.Confirm{background:var(--infobg);color:var(--info)}
             .Flag{background:var(--flagbg);color:var(--flag)}.High{background:var(--highbg);color:var(--high)}
+            .mark{width:56px;height:56px;object-fit:contain;float:left;margin:0 14px 0 0}
             @media print{main{padding:0}h2{break-after:avoid}tr{break-inside:avoid}}
             </style></head><body><main>
             """);
+        if (mark is not null) b.Append($"<img class=\"mark\" src=\"{mark}\" alt=\"\">");
         b.Append($"<h1>{E(s.Course)}: publish readiness record</h1>");
         b.Append($"<div class=\"muted\">Exported {s.Exported:d MMMM yyyy, HH:mm} · course file {E(Path.GetFileName(s.CourseFile))} · fingerprint {E(s.CourseStamp)}</div>");
         b.Append(s.Ready

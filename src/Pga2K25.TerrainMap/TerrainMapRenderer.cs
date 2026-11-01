@@ -522,6 +522,12 @@ public sealed class TerrainMapRenderer : TerrainInk
         ];
         foreach (var n in notes) { Text(canvas, n, r.Left, y + 4 * u, 6.8f * u, _sansItalic, Grey); y += 10 * u; }
         Text(canvas, Attribution.Text, r.Left, y + 10 * u, 6 * u, _sans, Grey);
+        y += 30 * u;
+
+        // The course seal, centred in what is left of the panel (when there's room for it to read).
+        float size = Math.Min(r.Width * 0.9f, r.Bottom - y);
+        if (size >= 60 * u && _o.Logos?.Get(LogoKind.Seal, LogoTone.Colour) is { } seal)
+            GreensBook.CourseLogoArt.Draw(canvas, seal.Image, new SKRect(r.MidX - size / 2, y, r.MidX + size / 2, y + size));
     }
 
     /// <summary>Legend rows for the planting layers that are on and have something in them.</summary>

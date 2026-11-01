@@ -15,6 +15,7 @@ A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer
 - [Course Designer Studio](docs/studio.md): the desktop app, with a course library, a live terrain map, measurements, product viewers and builds.
 - [Routing test](docs/routing-test.md): sketch a routing in Studio with par 3, 4 and 5 arrows and add up par and approximate yards.
 - [Course cards](docs/course-cards.md): compass rose, hole data card (hazards and green notes read from the course file), course data card, green size card and wind card; validation rules, settings, the 180° blind spot.
+- [Course logo](docs/course-logo.md): a course's logo set (seal, mark and lockup, in colour, ink and light) and where each product prints it.
 - [Publish readiness](docs/readiness.md): QA and tour-readiness checks from the course file (drive tests, scale, corridors, elevation, green relief, speed, fringe, lighting) with editable limits.
 
 ## Solution layout

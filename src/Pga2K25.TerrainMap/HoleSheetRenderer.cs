@@ -223,6 +223,9 @@ public sealed class HoleSheetRenderer : TerrainInk
         float u = _u, left = 36 * u, right = (HoleSheet.PageWidth - 36) * u, top = 30 * u;
         var h = sheet.Routing;
         var s = sheet.Survey;
+        // The course's ink mark (the sheets are for pencil and photocopying) before the hole title.
+        if (_o.Logos?.Get(LogoKind.Mark, LogoTone.Ink) is { } mark)
+            left = GreensBook.CourseLogoArt.Draw(canvas, mark.Image, new SKRect(left, top - 4 * u, left + 44 * u, top + 40 * u)).Right + 10 * u;
         Text(canvas, $"HOLE {h.Hole.Number}", left, top + 22 * u, 26 * u, _serifBold, Ink, tracking: 1.5f * u);
         float x = left + Measure($"HOLE {h.Hole.Number}", 26 * u, _serifBold) + 1.5f * u * 6 + 14 * u;
         Text(canvas, $"Par {h.Hole.Par}  ·  {h.Yards} yds", x, top + 21 * u, 13 * u, _serif, Ink);
@@ -236,7 +239,7 @@ public sealed class HoleSheetRenderer : TerrainInk
         Text(canvas, $"{courseName}  ·  terrain sketch sheet  ·  {s.IntervalFeet:0.##} ft contours, index every {s.IntervalFeet * s.IndexEvery:0.##} ft  ·  {datum}",
             left, top + 38 * u, 8 * u, _serifItalic, Grey);
         using var rule = Stroke(Ink, 0.7f * u);
-        canvas.DrawLine(left, top + 44 * u, right, top + 44 * u, rule);
+        canvas.DrawLine(36 * u, top + 44 * u, right, top + 44 * u, rule);
     }
 
     void DrawFooter(SKCanvas canvas, HoleSheet sheet, MapProjection p, SKRect map)

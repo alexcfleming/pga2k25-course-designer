@@ -54,10 +54,12 @@ public static class EstimateBuilder
             log?.Report(string.Format(CultureInfo.InvariantCulture, "Hole {0}: cut {1:N0} cu yd, fill {2:N0} cu yd, priced ${3:N0} ({4:P0} on placeholder prices)",
                 e.Hole.Number, e.Earthwork.CutCuYd, e.Earthwork.FillCuYd, e.Total, e.PlaceholderShare));
 
+        using var logos = GreensBook.CourseLogoArt.Load(outputDir);
         var report = new EstimateReport
         {
             CourseName = course.Name, Date = DateOnly.FromDateTime(DateTime.Now), Likely = likely, Scenarios = runs,
             ScenarioSettings = scenarioFile, Sweep = sweep, Costs = costs, Partial = partial, CourseHoles = course.Holes.Count,
+            Logos = logos,
         };
         var (pdf, pngs) = WriteReport(report, outputDir, stem);
         log?.Report($"Report: {Path.GetFileName(pdf)} ({pngs.Count} pages)");

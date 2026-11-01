@@ -44,6 +44,8 @@ The output is `<course> - Terrain Map.png`. At the default 4 px per metre, a 1.5
 
 Elevations are in **feet above sea level** when the plot has a sea, otherwise above the lowest point on the sheet. Yardages follow the game's rule: back tee → second waypoint → … → green, the same as the scorecard; the course file is the source of truth.
 
+With a course logo (see [Course logo](course-logo.md)), the colour seal fills the empty foot of the side panel, and the ink mark leads each hole sheet's title.
+
 ## Blank plots (no holes yet)
 
 A plot with no holes, such as one with only a clubhouse, range and practice area, is mapped whole. Use it to sketch routings.

@@ -49,9 +49,21 @@ public sealed partial class ScorecardMapRenderer
             lines = [name[..cut], name[(cut + 1)..]];
             size = 21;
         }
-        size = Math.Max(12, Math.Min(size, lines.Min(l => size * r.Width / Math.Max(1, Measure(l, size, _title)))));
-        float y = r.Top + size * 0.92f;
-        foreach (var line in lines) { Text(canvas, line, r.Left, y, size, _title, _t.Ink); y += size * 1.1f; }
+        // The course seal at the left of the title column, the name beside it.
+        float seal = _logo is null ? 0 : 58, nameLeft = r.Left + (seal > 0 ? seal + 10 : 0), nameWidth = r.Right - nameLeft;
+        if (_logo is { } logo) GreensBook.CourseLogoArt.Draw(canvas, logo, new SKRect(r.Left, r.Top, r.Left + seal, r.Top + seal));
+        if (seal > 0 && lines.Count == 1 && name.Contains(' ') && Measure(name, size, _title) > nameWidth)
+        {
+            int mid = name.Length / 2;
+            int cut = Enumerable.Range(0, name.Length).Where(i => name[i] == ' ').MinBy(i => Math.Abs(i - mid));
+            lines = [name[..cut], name[(cut + 1)..]];
+            size = 21;
+        }
+        size = Math.Max(12, Math.Min(size, lines.Min(l => size * nameWidth / Math.Max(1, Measure(l, size, _title)))));
+        float block = size * 1.1f * lines.Count;
+        float y = r.Top + (seal > 0 ? Math.Max(0, (seal - block) / 2) : 0) + size * 0.92f;
+        foreach (var line in lines) { Text(canvas, line, nameLeft, y, size, _title, _t.Ink); y += size * 1.1f; }
+        if (seal > 0) y = Math.Max(y, r.Top + seal + size * 0.1f + 9);
         string sub = string.IsNullOrWhiteSpace(_o.Credit) ? _o.Subtitle : $"{_o.Subtitle}  ·  Designed by {_o.Credit}";
         float subSize = 10;
         while (subSize > 7 && Measure(sub, subSize, _body) > r.Width) subSize -= 0.25f;

@@ -31,6 +31,9 @@ public static class CourseCardBuilder
             Description = string.IsNullOrWhiteSpace(config.Description) && place.Description.Trim().Length > 0 ? place.Description.Trim() : config.Description,
             OceanSide = config.OceanSide ?? place.SeaSide,
             WindFromDegrees = WindFrom(config, place, wind),
+            // The card settings' logo wins; otherwise the colour seal from the course's logo set.
+            LogoPath = config.LogoPath ?? (CourseLogosFile.Load(outputDir).Pick(LogoKind.Seal, LogoTone.Colour) is { } seal
+                ? CourseLogosFile.ImagePath(outputDir, seal.File) : null),
         };
         // Tee names, hole names and hand-written notes from the Studio's Holes card.
         var entries = CourseHolesFile.Load(outputDir);

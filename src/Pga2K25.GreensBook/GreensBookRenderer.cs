@@ -55,8 +55,12 @@ public sealed class GreensBookRenderer : IDisposable
         var greenRect = new SKRect(margin, 92, PageWidth - 236, PageHeight - 78);
         var panel = new SKRect(PageWidth - 216, 92, PageWidth - margin, PageHeight - 78);
 
-        Text(canvas, $"HOLE {a.Hole.Number}", margin, 52, 30, _bold, Ink);
-        Text(canvas, $"{courseName}  ·  Par {a.Hole.Par}", margin, 72, 12, _italic, Grey);
+        // The course mark, when there is one, before the hole title.
+        float titleX = margin;
+        if (_options.Logos?.Get(CourseFormat.LogoKind.Mark, CourseFormat.LogoTone.Colour) is { } mark)
+            titleX = CourseLogoArt.Draw(canvas, mark.Image, new SKRect(margin, 24, margin + 54, 78)).Right + 12;
+        Text(canvas, $"HOLE {a.Hole.Number}", titleX, 52, 30, _bold, Ink);
+        Text(canvas, $"{courseName}  ·  Par {a.Hole.Par}", titleX, 72, 12, _italic, Grey);
         // The credit and terrain note sit right of the title, the note on two short lines so it clears "HOLE 18".
         Text(canvas, _options.Credit, PageWidth - margin, 40, 11.5f, _regular, Grey, SKTextAlign.Right, tracking: 1.5f);
         Text(canvas, "Terrain rebuilt from the brush stamps with the designer's brush shapes", PageWidth - margin, 56, 8, _italic, Grey, SKTextAlign.Right);
@@ -88,9 +92,13 @@ public sealed class GreensBookRenderer : IDisposable
         canvas.Clear(SKColors.White);
         float u = width / SheetWidth;          // typographic unit
         float margin = 44 * u;
-        Text(canvas, courseName.ToUpperInvariant(), margin, 62 * u, 38 * u, _bold, Ink);
+        // The course seal, when there is one, before the title.
+        float titleX = margin;
+        if (_options.Logos?.Get(CourseFormat.LogoKind.Seal, CourseFormat.LogoTone.Colour) is { } seal)
+            titleX = CourseLogoArt.Draw(canvas, seal.Image, new SKRect(margin, 20 * u, margin + 80 * u, 100 * u)).Right + 16 * u;
+        Text(canvas, courseName.ToUpperInvariant(), titleX, 62 * u, 38 * u, _bold, Ink);
         Text(canvas, "Greens book  ·  all greens to one scale  ·  slope colour, half-foot contours  ·  approach from bottom of each green",
-            margin, 90 * u, 15 * u, _italic, Grey);
+            titleX, 90 * u, 15 * u, _italic, Grey);
         Header(canvas, width - margin, 52 * u, u);
 
         int cols = greens.Count <= 9 ? 3 : 6;

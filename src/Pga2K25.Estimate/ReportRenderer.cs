@@ -16,6 +16,9 @@ public sealed record EstimateReport
     public required UnitCostFile Costs { get; init; }
     public required bool Partial { get; init; }
     public required int CourseHoles { get; init; }
+
+    /// <summary>The course's logo set: the lockup on the summary page, the mark in every page's running header.</summary>
+    public GreensBook.CourseLogoArt Logos { get; init; } = GreensBook.CourseLogoArt.None;
 }
 
 /// <summary>One page: a title for the viewer and a draw call (run once for the PDF, once for the PNG).</summary>
@@ -72,7 +75,10 @@ public static class ReportRenderer
         using var small = Font(9);
         using var big = Font(24);
         using var sub = Font(11, italic: true);
-        c.DrawText($"{r.CourseName.ToUpperInvariant()}  ·  CONSTRUCTION ESTIMATE", M, M + 6, SKTextAlign.Left, small, gold);
+        float headX = M;
+        if (r.Logos.Get(CourseFormat.LogoKind.Mark, CourseFormat.LogoTone.Colour) is { } mark)
+            headX = GreensBook.CourseLogoArt.Draw(c, mark.Image, new SKRect(M, M - 7, M + 16, M + 9)).Right + 6;
+        c.DrawText($"{r.CourseName.ToUpperInvariant()}  ·  CONSTRUCTION ESTIMATE", headX, M + 6, SKTextAlign.Left, small, gold);
         c.DrawText(r.Date.ToString("d MMMM yyyy", Inv), W - M, M + 6, SKTextAlign.Right, small, gray);
         c.DrawText(title, M, M + 40, SKTextAlign.Left, big, ink);
         c.DrawText(subtitle, M, M + 58, SKTextAlign.Left, sub, gray);
@@ -140,6 +146,13 @@ public static class ReportRenderer
         var s = r.Likely.Summary;
         string scope = r.Partial ? $"{s.Holes} of {r.CourseHoles} holes only (partial)" : $"{s.Holes} holes";
         Frame(c, r, "Summary", $"{scope} · total project budget, low / likely / high");
+        // The course lockup (or seal) on the summary page, right of the title, under the date.
+        if (r.Logos.Get(CourseFormat.LogoKind.Lockup, CourseFormat.LogoTone.Colour) is { } lockup)
+        {
+            const float lh = 46;
+            float lw = Math.Min(170, lh * lockup.Image.Width / lockup.Image.Height);
+            GreensBook.CourseLogoArt.Draw(c, lockup.Image, new SKRect(W - M - lw, M + 16, W - M, M + 16 + lh));
+        }
         double low = r.Scenarios.TryGetValue("low", out var lo) ? lo.Summary.Total : s.Total;
         double high = r.Scenarios.TryGetValue("high", out var hi) ? hi.Summary.Total : s.Total;
 

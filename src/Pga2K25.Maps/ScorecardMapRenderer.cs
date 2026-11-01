@@ -46,6 +46,9 @@ public sealed record ScorecardMapOptions
 
     /// <summary>The course's wind rose (Place.json): drawn in a map corner, or in the Plan Sheet's title column; null for none.</summary>
     public WindRose? Wind { get; init; }
+
+    /// <summary>The course's logo set (Logos.json); null reads it from the output folder. The builder owns and disposes it.</summary>
+    public GreensBook.CourseLogoArt? Logos { get; init; }
 }
 
 /// <summary>Draws a one-page scorecard map: traced course features, hole routes and numbers, scorecard table.</summary>
@@ -72,7 +75,12 @@ public sealed partial class ScorecardMapRenderer : IDisposable
         _bodyBold = SKTypeface.FromFamilyName(bodyFamily, SKFontStyle.Bold);
         _italic = SKTypeface.FromFamilyName(bodyFamily, SKFontStyle.Italic);
         (_display, _label) = PlanSheetFaces();
+        // The seal before the course name: in colour on Modern's flat colour, in ink on the engraved styles.
+        _logo = options.Logos?.Get(LogoKind.Seal, _t.Kind is MapThemeKind.Modern or MapThemeKind.ModernIllustrated ? LogoTone.Colour : LogoTone.Ink)?.Image;
     }
+
+    /// <summary>The course seal, or null without a logo set (the set owns the image).</summary>
+    readonly SKImage? _logo;
 
     static string Resolve(string[] families) =>
         families.FirstOrDefault(f => string.Equals(SKTypeface.FromFamilyName(f)?.FamilyName, f, StringComparison.OrdinalIgnoreCase))
@@ -144,7 +152,9 @@ public sealed partial class ScorecardMapRenderer : IDisposable
         if (landscape) DrawStrip(canvas, courseName, course, page);
         else
         {
-            DrawTitle(canvas, courseName, 40, 76, page.Width - 80);
+            float seal = _logo is null ? 0 : 64;
+            if (_logo is { } logo) GreensBook.CourseLogoArt.Draw(canvas, logo, new SKRect(40, 34, 40 + seal, 34 + seal));
+            DrawTitle(canvas, courseName, 40 + (seal > 0 ? seal + 12 : 0), 76, page.Width - 80 - (seal > 0 ? seal + 12 : 0));
             DrawPortraitStrip(canvas, course, new SKRect(40, page.Height - 40 - PortraitBand(_teeSets) + 14, page.Width - 40, page.Height - 40));
         }
         if (_t.Frame) DrawFrame(canvas, page);
