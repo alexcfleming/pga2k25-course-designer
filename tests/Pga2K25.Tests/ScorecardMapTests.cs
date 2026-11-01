@@ -237,4 +237,156 @@ public class ScorecardMapTests
             if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
         }
     }
+    [Fact]
+    public void ModernIllustrated_IsModernPaintedIn()
+    {
+        var (m, mi) = (MapTheme.Modern, MapTheme.ModernIllustrated);
+        Assert.Same(mi, MapTheme.For(MapThemeKind.ModernIllustrated));
+        Assert.Equal("Modern Illustrated", mi.Name);
+        Assert.Equal((m.Ink, m.TitleFonts, m.BodyFonts), (mi.Ink, mi.TitleFonts, mi.BodyFonts));
+        Assert.False(mi.Landscape);   // not the engraved landscape: it has its own scenery
+    }
+
+    [Fact]
+    public void StripTeeSets_AreUpToFiveLongestFirst()
+    {
+        Assert.Equal([5, 4, 3, 2, 1], ScorecardMapRenderer.StripTeeSets(6));
+        Assert.Equal([4, 3, 2, 1, 0], ScorecardMapRenderer.StripTeeSets(5));   // Devil's Perch has five
+        Assert.Equal([3, 2, 1, 0], ScorecardMapRenderer.StripTeeSets(4));
+        Assert.Equal([1, 0], ScorecardMapRenderer.StripTeeSets(2));
+        Assert.Equal([0], ScorecardMapRenderer.StripTeeSets(1));
+    }
+
+    [Fact]
+    public void Layers_Fairways_AreTheFairwayAreasOnly()
+    {
+        var course = Cassimbo();
+        var layers = CourseLayers.From(course);
+        Assert.NotEmpty(layers.Fairways);
+        Assert.True(layers.Fairways.Count < layers.Grass.Count);
+        Assert.All(layers.Fairways, f => Assert.Contains(f, layers.Grass));
+        Assert.Equal(course.SurfaceSplines.Count(s => s.Closed && s.Surface == Surfaces.Fairway && s.Points.Count >= 2), layers.Fairways.Count);
+    }
+
+    static Scenery SceneryOf(string sample)
+    {
+        var course = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, sample)).ReadModel();
+        var layers = CourseLayers.From(course);
+        var rect = new SKRect(30, 30, 1070, 640);
+        var proj = MapProjection.Fit(layers.ExtentPoints().ToList(), rect, MapProjection.NorthUpRotation);
+        return Scenery.Build(course, proj, rect);
+    }
+
+    [Fact]
+    public void Scenery_Cassimbo_HasTheSeaBushesAndGrassButNoTrees()
+    {
+        using var s = SceneryOf("cassimbo.course");
+        Assert.True(s.HasSea);                // the sea off the west of the links
+        Assert.True(s.Bushes.Count > 1000);   // 4,810 placed, plus scatter groups
+        Assert.NotEmpty(s.Tufts);
+        Assert.Empty(s.Trees);
+        Assert.Equal(((int)Math.Ceiling(1040 * 1.5f), (int)Math.Ceiling(610 * 1.5f)), (s.Ground.Width, s.Ground.Height));
+    }
+
+    [Fact]
+    public void Scenery_MurrayEstate_FillsItsPlantedAreasWithTreesInland()
+    {
+        // Murray Estate's 371 trees are all in four planted areas, and its ground never reaches the sea plane.
+        using var s = SceneryOf("murray-estate.course");
+        Assert.False(s.HasSea);
+        Assert.InRange(s.Trees.Count, 100, 371);
+        Assert.Equal(s.Trees.OrderBy(t => t.At.Y).Select(t => t.At), s.Trees.Select(t => t.At));   // back to front
+    }
+
+    [Fact]
+    public void Build_ModernIllustrated_IsAlwaysLandscapeWithThePlantingDrawn()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "pga2k25-maps-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            string path = Path.Combine(TestPaths.SamplesDir, "cassimbo.course");
+            var options = new ScorecardMapOptions { Orientation = PageOrientation.Portrait, Credit = "Test Designer" };
+            var result = ScorecardMapBuilder.Build(path, dir, options, [MapThemeKind.ModernIllustrated], pdf: true, scale: 1);
+            Assert.True(result.Landscape);
+            Assert.Contains(result.Files, f => f.EndsWith("Scorecard Map (Modern Illustrated).pdf"));
+            using var bmp = SKBitmap.Decode(result.Files.Single(f => f.EndsWith("Scorecard Map (Modern Illustrated).png")));
+            Assert.Equal((1100, 850), (bmp.Width, bmp.Height));
+            static int Near(SKBitmap b, SKColor c) => b.Pixels.Count(p => Math.Abs(p.Red - c.Red) + Math.Abs(p.Green - c.Green) + Math.Abs(p.Blue - c.Blue) < 12);
+            Assert.True(Near(bmp, Scenery.Bush) > 2000, "bushes drawn");
+            Assert.True(Near(bmp, MapTheme.ModernIllustrated.GreenFill) > 2000, "greens and the table header drawn");
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+    static SKBitmap Render(MapThemeKind theme, ScorecardMapOptions options)
+    {
+        var course = Cassimbo();
+        var layers = CourseLayers.From(course);
+        using var renderer = new ScorecardMapRenderer(options with { Theme = theme, Holes = new CourseHoles() });
+        var (page, _, _) = renderer.Plan(layers);
+        var bmp = new SKBitmap((int)page.Width, (int)page.Height);
+        using var canvas = new SKCanvas(bmp);
+        renderer.Draw(canvas, course.Name, course, layers);
+        return bmp;
+    }
+
+    [Fact]
+    public void Strip_LandscapeMapsSpanThePageWithEveryTeeSetUnderneath()
+    {
+        // Cassimbo's four tee sets: the strip under a full-width map, a row each (Tee 4 … Tee 1) and Par.
+        foreach (var theme in new[] { MapThemeKind.Vintage, MapThemeKind.Modern, MapThemeKind.Illustrated })
+        {
+            using var bmp = Render(theme, new ScorecardMapOptions { Orientation = PageOrientation.Landscape });
+            Assert.Equal((1100, 850), (bmp.Width, bmp.Height));
+            // The map reaches the right of the page (no side panel): grass colour near the right margin.
+            var grass = MapTheme.For(theme).GrassFill;
+            bool Near(SKColor c) => Math.Abs(c.Red - grass.Red) + Math.Abs(c.Green - grass.Green) + Math.Abs(c.Blue - grass.Blue) < 8;
+            Assert.Contains(Enumerable.Range(40, 600).SelectMany(y => Enumerable.Range(900, 150).Select(x => bmp.GetPixel(x, y))), Near);
+        }
+    }
+
+    [Fact]
+    public void Strip_PortraitPageKeepsTheStripUnderTheMap()
+    {
+        using var bmp = Render(MapThemeKind.Vintage, new ScorecardMapOptions { Orientation = PageOrientation.Portrait });
+        Assert.Equal((850, 1100), (bmp.Width, bmp.Height));
+    }
+
+    [Fact]
+    public void Roses_WindRoseIsDrawnOnlyWhenTheCourseHasOne()
+    {
+        var wind = WindClimate.Generate("west", 270, null, 1, 1, 1);
+        using var plain = Render(MapThemeKind.Modern, new ScorecardMapOptions { Orientation = PageOrientation.Landscape });
+        using var windy = Render(MapThemeKind.Modern, new ScorecardMapOptions { Orientation = PageOrientation.Landscape, Wind = wind });
+        int changed = 0;
+        for (int y = 0; y < plain.Height; y++)
+            for (int x = 0; x < plain.Width; x++)
+                if (plain.GetPixel(x, y) != windy.GetPixel(x, y)) changed++;
+        // The wind rose's 170 × 150 panel, and the compass rose moving to the next emptiest corner.
+        Assert.InRange(changed, 5_000, 60_000);
+    }
+
+    [Fact]
+    public void Build_TakesTheWindRoseFromThePlaceCard()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "pga2k25-maps-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            string path = Path.Combine(TestPaths.SamplesDir, "cassimbo.course");
+            byte[] Build(string sub)
+            {
+                var result = ScorecardMapBuilder.Build(path, Path.Combine(dir, sub), new ScorecardMapOptions(), [MapThemeKind.Vintage], scale: 1);
+                return File.ReadAllBytes(result.Files[0]);
+            }
+            var before = Build("none");
+            CoursePlaces.Save(Path.Combine(dir, "windy"), new CoursePlace { WindSource = "model", Climate = "west" });
+            Assert.NotEqual(before, Build("windy"));
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
 }

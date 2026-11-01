@@ -63,7 +63,14 @@ public sealed partial class ScorecardMapRenderer
             y += 16;
             Text(canvas, line.ToUpperInvariant(), ColumnMid, y, 11, _display, _t.Ink, SKTextAlign.Center, tracking: 2.4f);
         }
-        y = DrawTable(canvas, course, new SKRect(ColumnLeft + 16, y + 18, ColumnRight - 16, y + 18), splitNines: false, rowH: 12, size: 8f);
+        y = DrawTable(canvas, course, new SKRect(ColumnLeft + 16, y + 18, ColumnRight - 16, y + 18), splitNines: true, rowH: 12, size: 8f);
+        // With the nines side by side there is room for the wind rose above the dial.
+        if (_o.Wind is { } wind)
+        {
+            var box = new SKRect(ColumnLeft + 30, y + 12, ColumnRight - 30, y + 12 + 150);
+            WindRoseDrawing.Draw(canvas, box, wind, _label, _t.Ink, _t.Background, 0.85f);
+            y = box.Bottom;
+        }
 
         DrawDirectionDial(canvas, layers, proj, y + 14, PlanCreditsTop - 14);
         DrawPlanCredits(canvas, page);

@@ -2,7 +2,7 @@ using SkiaSharp;
 
 namespace Pga2K25.Maps;
 
-public enum MapThemeKind { Vintage, Modern, Illustrated, PlanSheet }
+public enum MapThemeKind { Vintage, Modern, Illustrated, PlanSheet, ModernIllustrated }
 
 /// <summary>Colours, strokes and type for a scorecard map style.</summary>
 public sealed record MapTheme
@@ -106,9 +106,29 @@ public sealed record MapTheme
         TitleFonts = ["Federo", "Bahnschrift", "Georgia"],
     };
 
+    /// <summary>
+    /// Modern with the land painted in: a soft hillshade, the sea by depth, every placed tree, bush, grass and flower,
+    /// mown fairways, and a scorecard strip of up to four tee sets under a full-width map
+    /// (<see cref="Maps.Scenery"/>). Always landscape.
+    /// </summary>
+    public static MapTheme ModernIllustrated { get; } = Modern with
+    {
+        Kind = MapThemeKind.ModernIllustrated, Name = "Modern Illustrated",
+        Background = SKColor.Parse("#f4e6bd"),
+        GrassFill = SKColor.Parse("#9fb05b"),
+        GreenFill = SKColor.Parse("#4b5e22"),
+        TeeFill = SKColor.Parse("#c6d382"),
+        TeeOutline = SKColor.Parse("#7f9640"),
+        BunkerFill = SKColor.Parse("#e3974a"),
+        WaterFill = SKColor.Parse("#5f9f93"),
+        PathColour = SKColor.Parse("#efe3bf"),
+        NumberCircles = true,
+    };
+
     public static MapTheme For(MapThemeKind kind) => kind switch
     {
         MapThemeKind.Modern => Modern,
+        MapThemeKind.ModernIllustrated => ModernIllustrated,
         MapThemeKind.Illustrated => Illustrated,
         MapThemeKind.PlanSheet => PlanSheet,
         _ => Vintage,
