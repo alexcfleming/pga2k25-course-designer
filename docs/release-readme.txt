@@ -8,7 +8,7 @@ Reads your .course files and makes printable products from them:
     (PNG and PDF)
   - Hole sheets: a terrain sketch sheet per hole (PNG and PDF)
   - Greens book: slope and fall of every green
-  - Yardage book, scorecard maps (four styles) and course cards
+  - Yardage book, scorecard maps (five styles) and course cards
     (including a Wind Card when the course has a wind rose)
   - Construction estimate: what the course might cost to build as a real
     course, with a low / likely / high range (illustrative, not a bid)
@@ -220,6 +220,28 @@ USING IT
   Building the course cards takes about a minute longer for it.
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
+
+NEW SINCE 2.2.0
+- Modern Illustrated scorecard map: a fifth scorecard style. It keeps
+  Modern's colours and paints the land in: soft hill shading, the sea
+  shaded by depth, mown stripes on the fairways, and every tree, bush,
+  grass and flower you placed (conifers as darker stars, each tree with
+  a shadow). Ponds and streams get a pale shore. The map runs across the
+  whole page, with a scorecard strip underneath like the other styles.
+  Plants the game scatters in groups or planted areas are spread at
+  random inside them, right in number but not plant by plant. Building
+  the scorecard map now makes all five styles.
+- Scorecard map layout: every style except the Plan Sheet now puts the
+  map across the whole page with a scorecard strip underneath: holes
+  1-9, Out, 10-18, In, Total, a row for each tee set (up to five,
+  longest first) and Par. The map is larger than before and no longer
+  shares the page with a tall table of one column. Tall courses still
+  get a portrait page, with the strip under the map.
+- Compass rose and wind rose on every scorecard map: a compass rose
+  turned to the map's north, and the course's wind rose when the Place
+  card has one, each in the corner of the map with the least course
+  under it. The Plan Sheet shows the wind rose in its title column,
+  with the front and back nines side by side above it.
 
 NEW IN 2.2.0
 - Holes card (in Course settings, under Place): tee set names, and a

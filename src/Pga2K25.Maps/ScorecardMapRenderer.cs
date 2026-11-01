@@ -43,6 +43,9 @@ public sealed record ScorecardMapOptions
 
     /// <summary>Plan Sheet only: a generated region drawn faint behind the map, the course on its mark.</summary>
     public Region? Watermark { get; init; }
+
+    /// <summary>The course's wind rose (Place.json): drawn in a map corner, or in the Plan Sheet's title column; null for none.</summary>
+    public WindRose? Wind { get; init; }
 }
 
 /// <summary>Draws a one-page scorecard map: traced course features, hole routes and numbers, scorecard table.</summary>
@@ -54,8 +57,10 @@ public sealed partial class ScorecardMapRenderer : IDisposable
     readonly MapTheme _t;
     readonly ScorecardMapOptions _o;
     readonly SKTypeface _title, _body, _bodyBold, _italic, _display, _label;
-    // The Illustrated landscape, built on the first draw and reused (PNG and PDF share a renderer).
+    // The Illustrated landscape and the Modern Illustrated scenery, built on the first draw and reused (PNG and PDF
+    // share a renderer).
     Landscape? _landscape;
+    Scenery? _scenery;
 
     public ScorecardMapRenderer(ScorecardMapOptions options)
     {
@@ -73,40 +78,51 @@ public sealed partial class ScorecardMapRenderer : IDisposable
         families.FirstOrDefault(f => string.Equals(SKTypeface.FromFamilyName(f)?.FamilyName, f, StringComparison.OrdinalIgnoreCase))
         ?? SKTypeface.Default.FamilyName;
 
-    public void Dispose() { _title.Dispose(); _body.Dispose(); _bodyBold.Dispose(); _italic.Dispose(); _display.Dispose(); _label.Dispose(); _landscape?.Dispose(); }
+    public void Dispose() { _title.Dispose(); _body.Dispose(); _bodyBold.Dispose(); _italic.Dispose(); _display.Dispose(); _label.Dispose(); _landscape?.Dispose(); _scenery?.Dispose(); }
 
     /// <summary>Chooses page orientation and rotation, returning the page size in logical units.</summary>
     public (SKSize Page, bool Landscape, double Rotation) Plan(CourseLayers layers)
     {
+        _teeSets = layers.Holes.Count == 0 ? 1 : layers.Holes.Max(h => Math.Max(1, h.Hole.Tees.Count));
         var pts = layers.ExtentPoints().ToList();
         (double scale, double rot) Try(bool landscape)
         {
-            var rect = MapRect(landscape ? new SKSize(LongSide, ShortSide) : new SKSize(ShortSide, LongSide), landscape, IsPlanSheet);
+            var rect = MapRectFor(landscape ? new SKSize(LongSide, ShortSide) : new SKSize(ShortSide, LongSide), landscape);
             double rot = _o.AutoRotate ? MapProjection.BestRotation(pts, rect) : MapProjection.NorthUpRotation;
             return (MapProjection.FitScale(pts, rect, rot), rot);
         }
         var land = Try(true);
         var port = Try(false);
-        bool useLandscape = IsPlanSheet || _o.Orientation switch
+        bool useLandscape = IsPlanSheet || IsModernIllustrated || _o.Orientation switch
         {
             PageOrientation.Landscape => true,
             PageOrientation.Portrait => false,
-            _ => land.scale >= port.scale,
+            // Landscape gives the strip its full width, so portrait has to draw the course clearly larger to win.
+            _ => land.scale * PortraitAdvantage >= port.scale,
         };
         return useLandscape ? (new SKSize(LongSide, ShortSide), true, land.rot) : (new SKSize(ShortSide, LongSide), false, port.rot);
     }
 
-    static SKRect MapRect(SKSize page, bool landscape, bool planSheet = false) =>
-        planSheet ? PlanSheetMapRect(page)
-        : landscape ? new SKRect(40, 40, page.Width - 40 - 250 - 16, page.Height - 40)
-        : new SKRect(40, 118, page.Width - 40, page.Height - 40 - 262);
+    /// <summary>How much larger (map scale) a portrait page must draw the course before it is chosen over landscape.</summary>
+    const double PortraitAdvantage = 1.15;
+
+    int _teeSets = 1;
+
+    SKRect MapRectFor(SKSize page, bool landscape) =>
+        IsPlanSheet ? PlanSheetMapRect(page) : landscape ? StripMapRect(page)
+        : new SKRect(40, 118, page.Width - 40, page.Height - 40 - PortraitBand(_teeSets));
 
     public void Draw(SKCanvas canvas, string courseName, CourseModel course, CourseLayers layers)
     {
         var (page, landscape, rotation) = Plan(layers);
         canvas.Clear(_t.Background);
-        var mapRect = MapRect(page, landscape, IsPlanSheet);
+        var mapRect = MapRectFor(page, landscape);
         var proj = MapProjection.Fit(layers.ExtentPoints().ToList(), mapRect, rotation);
+        if (IsModernIllustrated)
+        {
+            DrawModernIllustrated(canvas, courseName, course, layers, proj, page, mapRect);
+            return;
+        }
         if (_t.Landscape) _landscape ??= Landscape.Build(course, proj, mapRect);
 
         canvas.Save();
@@ -123,24 +139,13 @@ public sealed partial class ScorecardMapRenderer : IDisposable
             DrawPlanSheet(canvas, courseName, course, layers, proj, page, mapRect);
             return;
         }
-        if (_t.Landscape) DrawCompassRose(canvas, proj, RoseCorner(layers, proj, mapRect), 34);
-        else DrawNorthArrow(canvas, proj, new SKPoint(mapRect.Left + 24, mapRect.Bottom - 34));
+        DrawRoses(canvas, layers, proj, mapRect);
         DrawScaleBar(canvas, proj, new SKPoint(mapRect.Left + 56, mapRect.Bottom - 12));
-
-        if (landscape)
-        {
-            var panel = new SKRect(page.Width - 40 - 250, 40, page.Width - 40, page.Height - 40);
-            float y = DrawTitle(canvas, courseName, panel.Left, panel.Top + 30, panel.Width);
-            y = DrawTable(canvas, course, new SKRect(panel.Left, y + 14, panel.Right, y + 14), splitNines: false);
-            DrawFooter(canvas, course, new SKRect(panel.Left, y + 16, panel.Right, panel.Bottom));
-        }
+        if (landscape) DrawStrip(canvas, courseName, course, page);
         else
         {
             DrawTitle(canvas, courseName, 40, 76, page.Width - 80);
-            var bottom = new SKRect(40, page.Height - 40 - 246, page.Width - 40, page.Height - 40);
-            float tableW = bottom.Width * 0.62f;
-            DrawTable(canvas, course, new SKRect(bottom.Left, bottom.Top, bottom.Left + tableW, bottom.Top), splitNines: true);
-            DrawFooter(canvas, course, new SKRect(bottom.Left + tableW + 24, bottom.Top, bottom.Right, bottom.Bottom));
+            DrawPortraitStrip(canvas, course, new SKRect(40, page.Height - 40 - PortraitBand(_teeSets) + 14, page.Width - 40, page.Height - 40));
         }
         if (_t.Frame) DrawFrame(canvas, page);
     }
@@ -151,20 +156,7 @@ public sealed partial class ScorecardMapRenderer : IDisposable
     {
         float k = p.PointsPerMetre;
 
-        // Waste: filled, then stippled only where the fill landed.
-        if (_o.ShowWaste)
-        {
-        canvas.SaveLayer();
-        using (var fill = Fill(_t.WasteFill))
-        {
-            foreach (var a in l.WasteAreas) { using var path = p.Path(a, true); canvas.DrawPath(path, fill); }
-            foreach (var d in l.WasteBrushes) canvas.DrawCircle(p.Map(d.Centre), (float)(d.Radius * k), fill);
-            using var stroke = Stroke(_t.WasteFill, 1);
-            foreach (var r in l.WasteRibbons) { stroke.StrokeWidth = (float)(r.Width * k); using var path = p.Path(r.Points, false); canvas.DrawPath(path, stroke); }
-        }
-        Stipple(canvas, canvas.DeviceClipBounds, _t.WasteStipple, spacing: 3.2f, radius: 0.45f);
-        canvas.Restore();
-        }
+        if (_o.ShowWaste) DrawWaste(canvas, l, p);
 
         // Water.
         using (var fill = Fill(_t.WaterFill))
@@ -233,6 +225,22 @@ public sealed partial class ScorecardMapRenderer : IDisposable
         if (_t.RouteDash is { } dash) route.PathEffect = SKPathEffect.CreateDash(dash, 0);
         if (IsPlanSheet) { foreach (var h in l.Holes) DrawFlightArrows(canvas, h.Route.Select(p.Map).ToList()); return; }
         foreach (var h in l.Holes) { using var path = p.Path(h.Route, false); canvas.DrawPath(path, route); }
+    }
+
+    /// <summary>Waste: filled, then stippled only where the fill landed.</summary>
+    void DrawWaste(SKCanvas canvas, CourseLayers l, MapProjection p)
+    {
+        float k = p.PointsPerMetre;
+        canvas.SaveLayer();
+        using (var fill = Fill(_t.WasteFill))
+        {
+            foreach (var a in l.WasteAreas) { using var path = p.Path(a, true); canvas.DrawPath(path, fill); }
+            foreach (var d in l.WasteBrushes) canvas.DrawCircle(p.Map(d.Centre), (float)(d.Radius * k), fill);
+            using var stroke = Stroke(_t.WasteFill, 1);
+            foreach (var r in l.WasteRibbons) { stroke.StrokeWidth = (float)(r.Width * k); using var path = p.Path(r.Points, false); canvas.DrawPath(path, stroke); }
+        }
+        Stipple(canvas, canvas.DeviceClipBounds, _t.WasteStipple, spacing: 3.2f, radius: 0.45f);
+        canvas.Restore();
     }
 
     void FillUnion(SKCanvas canvas, List<List<Vec2>> shapes, MapProjection p, SKColor fill, SKColor? outline, float width)
@@ -481,63 +489,6 @@ public sealed partial class ScorecardMapRenderer : IDisposable
         return yEnd;
     }
 
-    void DrawFooter(SKCanvas canvas, CourseModel course, SKRect r)
-    {
-        var (names, yards) = TeeColumns(course);
-        int longest = names.Count - 1;
-        int total = course.Holes.Sum(h => yards(h, longest));
-        float y = r.Top + 12;
-        Text(canvas, $"Par {course.Holes.Sum(h => h.Par)}  ·  {total:N0} yards ({names[longest]})", r.Left, y, 10.5f, _body, _t.Ink); y += 16;
-        if (!string.IsNullOrWhiteSpace(_o.Credit)) { Text(canvas, $"Designed by {_o.Credit}", r.Left, y, 10.5f, _italic, _t.MutedInk); y += 14; }
-        Text(canvas, Attribution.Text, r.Left, y, 7.5f, _body, _t.MutedInk); y += 20;
-
-        // Legend.
-        void Swatch(Action<SKRect> draw, string label)
-        {
-            var box = new SKRect(r.Left, y - 9, r.Left + 22, y + 1);
-            draw(box);
-            Text(canvas, label, r.Left + 30, y, 9.5f, _body, _t.Ink);
-            y += 15;
-        }
-        Swatch(b => { using var f = Fill(_t.GrassFill); canvas.DrawRoundRect(b, 3, 3, f); if (_t.GrassOutline is { } o) { using var s = Stroke(o, 0.9f); canvas.DrawRoundRect(b, 3, 3, s); } }, "Fairway / tee");
-        Swatch(b => { using var f = Fill(_t.GreenFill); canvas.DrawOval(b, f); if (_t.GreenOutline is { } o) { using var s = Stroke(o, 0.9f); canvas.DrawOval(b, s); } }, "Green");
-        Swatch(b => { using var f = Fill(_t.BunkerFill); canvas.DrawOval(new SKRect(b.Left + 4, b.Top + 1, b.Right - 4, b.Bottom - 1), f); }, "Bunker");
-        if (_o.ShowWaste)
-            Swatch(b => { canvas.Save(); canvas.ClipRect(b); canvas.SaveLayer(); using var f = Fill(_t.WasteFill); canvas.DrawRect(b, f); Stipple(canvas, b, _t.WasteStipple, 2.6f, 0.5f); canvas.Restore(); canvas.Restore(); }, "Waste area");
-        Swatch(b => { using var s = Stroke(_t.RouteColour, 0.9f); if (_t.RouteDash is { } d) s.PathEffect = SKPathEffect.CreateDash(d, 0); canvas.DrawLine(b.Left, b.MidY, b.Right, b.MidY, s); }, "Ball flight");
-        if (_landscape is { Trees.Count: > 0 })
-            Swatch(b =>
-            {
-                using var shadow = Fill(_t.Ink.WithAlpha(150));
-                using var crown = Fill(_t.CrownFill);
-                using var edge = Stroke(_t.Ink, 0.5f);
-                foreach (var (x, r) in new[] { (b.Left + 5f, 4.2f), (b.Left + 13f, 5f) })
-                {
-                    canvas.DrawCircle(x + r * 0.35f, b.MidY + r * 0.4f, r, shadow);
-                    canvas.DrawCircle(x, b.MidY, r, crown);
-                    canvas.DrawCircle(x, b.MidY, r, edge);
-                }
-            }, "Trees");
-        if (_landscape is { HasHills: true })
-            Swatch(b =>
-            {
-                using var s = Stroke(_t.Ink, 0.45f);
-                for (float x = b.Left + 2; x < b.Right - 1; x += 2.6f) canvas.DrawLine(x, b.Top + 1, x + 0.6f, b.Bottom - 1, s);
-            }, "Hills");
-    }
-
-    /// <summary>
-    /// The map corner (top left, top right or bottom right; the scale bar has bottom left) with the least of the
-    /// course near it, for the compass rose.
-    /// </summary>
-    static SKPoint RoseCorner(CourseLayers l, MapProjection p, SKRect map)
-    {
-        const float inset = 50;
-        SKPoint[] corners = [new(map.Left + inset, map.Top + inset), new(map.Right - inset, map.Top + inset), new(map.Right - inset, map.Bottom - inset)];
-        var play = l.Grass.Concat(l.Greens).SelectMany(s => s).Concat(l.Holes.SelectMany(h => h.Route)).Select(p.Map).ToList();
-        return corners.MinBy(c => play.Count(q => Math.Abs(q.X - c.X) < inset + 20 && Math.Abs(q.Y - c.Y) < inset + 20));
-    }
-
     /// <summary>A 32-point engraved compass rose turned to game north, on a parchment disc.</summary>
     void DrawCompassRose(SKCanvas canvas, MapProjection p, SKPoint at, float r)
     {
@@ -575,25 +526,6 @@ public sealed partial class ScorecardMapRenderer : IDisposable
         }
         Text(canvas, "N", 0, -r * 1.06f, r * 0.28f, _bodyBold, _t.Ink, SKTextAlign.Center);
         canvas.Restore();
-    }
-
-    void DrawNorthArrow(SKCanvas canvas, MapProjection p, SKPoint at)
-    {
-        var d = p.MapDirection(MapProjection.North);      // page direction of compass north
-        var n = new SKPoint(-d.Y, d.X);
-        const float len = 26, head = 8;
-        var tip = new SKPoint(at.X + d.X * len / 2, at.Y + d.Y * len / 2);
-        var tail = new SKPoint(at.X - d.X * len / 2, at.Y - d.Y * len / 2);
-        var headBase = new SKPoint(tip.X - d.X * head, tip.Y - d.Y * head);
-        using (var shaft = Stroke(_t.Ink, 1.3f)) canvas.DrawLine(tail, headBase, shaft);
-        using var b = new SKPathBuilder();
-        b.MoveTo(tip);
-        b.LineTo(headBase.X + n.X * head * 0.45f, headBase.Y + n.Y * head * 0.45f);
-        b.LineTo(headBase.X - n.X * head * 0.45f, headBase.Y - n.Y * head * 0.45f);
-        b.Close();
-        using var path = b.Detach();
-        using (var f = Fill(_t.Ink)) canvas.DrawPath(path, f);
-        Text(canvas, "N", tip.X + d.X * 9, tip.Y + d.Y * 9 + 4, 10, _bodyBold, _t.Ink, SKTextAlign.Center);
     }
 
     void DrawScaleBar(SKCanvas canvas, MapProjection p, SKPoint at)

@@ -57,7 +57,7 @@ const string Usage = """
       fringe and lighting. Yardages from the back tees. --limits overrides any ReadinessLimits
       value; --holes adds the per-hole table; --json writes the whole report
     pga2k25 calibrate <file.course> <captures.json> [--hardness 0.85] [--blur 1.0]
-    pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|illustrated|plansheet|both|all] [--landscape|--portrait]
+    pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|illustrated|plansheet|modernillustrated|both|all] [--landscape|--portrait]
                       [--north-up] [--waste] [--raw-bunkers] [--no-paths]
                       [--pdf] [--credit "NAME"] [--subtitle "TEXT"]
 
@@ -486,6 +486,7 @@ static int Scorecard(string path, string[] rest)
                     "modern" => [MapThemeKind.Modern],
                     "illustrated" => [MapThemeKind.Illustrated],
                     "plansheet" or "plan-sheet" or "plan" => [MapThemeKind.PlanSheet],
+                    "modernillustrated" or "modern-illustrated" => [MapThemeKind.ModernIllustrated],
                     "both" => [MapThemeKind.Vintage, MapThemeKind.Modern],
                     "all" => Enum.GetValues<MapThemeKind>(),
                     var t => throw new ArgumentException($"unknown theme {t}"),

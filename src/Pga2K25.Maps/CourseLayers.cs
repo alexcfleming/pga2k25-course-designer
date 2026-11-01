@@ -16,6 +16,8 @@ public sealed record HoleLayout(Hole Hole, IReadOnlyList<Vec2> Route, Vec2 BackT
 public sealed class CourseLayers
 {
     public required List<List<Vec2>> Grass { get; init; }      // fairway, rough & heavy-rough areas
+    /// <summary>The fairway (surface 2) areas among <see cref="Grass"/>, for themes that mow them lighter than the rough.</summary>
+    public List<List<Vec2>> Fairways { get; } = [];
     public required List<List<Vec2>> Greens { get; init; }
     public required List<List<Vec2>> BunkerAreas { get; init; }
     public required List<Ribbon> BunkerRibbons { get; init; }
@@ -81,6 +83,7 @@ public sealed class CourseLayers
             if (s.Closed && pts.Count >= 3)
             {
                 if (GrassSurfaces.Contains(s.Surface)) layers.Grass.Add(pts);
+                if (s.Surface == Surfaces.Fairway) layers.Fairways.Add(pts);
                 else if (s.Surface == Surfaces.Green) layers.Greens.Add(pts);
                 else if (s.Surface == Surfaces.Bunker) layers.BunkerAreas.Add(pts);
                 else if (s.Surface == Surfaces.Water) layers.WaterAreas.Add(pts);

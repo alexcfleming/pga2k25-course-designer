@@ -18,6 +18,7 @@ public static class ScorecardMapBuilder
         course.NotWater = NotWaterMarks.Points(outputDir);
         var place = CoursePlaces.Load(outputDir);
         if (options.PlaceLines.Count == 0) options = options with { PlaceLines = place.PlaceLines };
+        if (options.Wind is null && place.Rose(OceanFinder.SeaBearing(place, course)) is { } wind) options = options with { Wind = wind };
         if (options.Watermark is null && place.ShowsRegion && place.Watermark)
             options = options with { Watermark = RegionGenerator.Generate(RegionGenerator.Parse(place.Shape), place.Seed, OceanFinder.SeaBearing(place, course), place.SizeKm) };
         var layers = CourseLayers.From(course);
