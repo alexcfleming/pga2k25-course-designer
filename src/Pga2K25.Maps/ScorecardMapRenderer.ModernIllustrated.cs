@@ -45,10 +45,8 @@ public sealed partial class ScorecardMapRenderer
 
         // Rough, then the fairways mown lighter with diagonal stripes.
         FillUnion(canvas, l.Grass, p, _t.GrassFill, null, 0);
-        using (var b = new SKPathBuilder())
         {
-            foreach (var f in l.Fairways) p.AddPolyline(b, f, true);
-            using var fairways = b.Detach();
+            using var fairways = UnionPath(l.Fairways, p);
             using (var fill = Fill(Fairway)) canvas.DrawPath(fairways, fill);
             canvas.Save();
             canvas.ClipPath(fairways, antialias: true);
@@ -156,6 +154,21 @@ public sealed partial class ScorecardMapRenderer
             if (outline is not null) b.AddPath(outline);
         }
         return b.Detach();
+    }
+
+    /// <summary>
+    /// Closed outlines filled as one shape. Each is unioned in on its own: in a single path, the overlap of two
+    /// splines drawn round opposite ways would cancel and leave a hole (Sangoma's overlapping fairways).
+    /// </summary>
+    public static SKPath UnionPath(IEnumerable<IReadOnlyList<Vec2>> shapes, MapProjection p)
+    {
+        var union = new SKPath();
+        foreach (var s in shapes)
+        {
+            using var one = p.Path(s, true);
+            if (union.Op(one, SKPathOp.Union) is { } next) { union.Dispose(); union = next; }
+        }
+        return union;
     }
 
     void DrawStripLegend(SKCanvas canvas, SKRect r)

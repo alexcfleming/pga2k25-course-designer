@@ -221,6 +221,21 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
+NEW SINCE 2.3.0
+- Bunker merge (Course settings): painted bunker dabs closer than this
+  print as one bunker on the scorecard maps. 10 m is the default and
+  suits sand painted as scattered dabs. Choose 4 m for a course built
+  from tight pot bunker complexes, so each pot stays separate. Rebuild
+  the scorecard maps after changing it.
+
+FIXED IN 2.4.0
+- Modern Illustrated scorecard map: fairways no longer show darker
+  rough-coloured patches. Where two fairway shapes overlapped, the
+  overlap was drawn as rough; it is fairway now.
+- Terrain map: with a small margin (even 0), green sites at the edge of
+  the sheet were cut in half. The sheet now always keeps 20 m round every
+  tee and green site. The default 150 m margin map is unchanged.
+
 NEW IN 2.3.0
 - Modern Illustrated scorecard map: a fifth scorecard style. It keeps
   Modern's colours and paints the land in: soft hill shading, the sea

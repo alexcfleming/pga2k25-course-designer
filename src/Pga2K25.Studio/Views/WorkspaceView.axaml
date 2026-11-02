@@ -1130,6 +1130,11 @@
               </TextBlock>
             </StackPanel>
             <StackPanel Spacing="4">
+              <TextBlock Classes="h2" Text="Scorecard maps"/>
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Bunker merge: painted bunker dabs closer than this are drawn as one bunker. 10 m suits sand painted as scattered dabs; 4 m keeps pots in a complex apart. Rebuild the scorecard maps to see it."/>
+              <ComboBox ItemsSource="{Binding BunkerMerges}" SelectedItem="{Binding BunkerMerge}" MinWidth="160" Margin="0,6,0,0" AutomationProperties.Name="Bunker merge"/>
+            </StackPanel>
+            <StackPanel Spacing="4">
               <TextBlock Classes="h2" Text="Course card settings"/>
               <TextBlock Classes="muted" TextWrapping="Wrap" Text="Optional. A card settings file (wind, ocean side, formats) for the course cards."/>
               <DockPanel Margin="0,6,0,0">

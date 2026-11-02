@@ -62,4 +62,13 @@ public sealed class CourseExtras
 {
     public string? CardConfig { get; set; }
     public TerrainSettings Terrain { get; set; } = new();
+
+    /// <summary>
+    /// The scorecard maps' bunker merge distance (m). 10 suits bunkers painted as scattered dabs (Cassimbo's sand);
+    /// courses built from tight pot complexes read better at 4 (Sangoma).
+    /// </summary>
+    public double BunkerMergeMetres { get; set; } = DefaultBunkerMerge;
+
+    public const double DefaultBunkerMerge = 10;
+    public static readonly IReadOnlyList<double> BunkerMergeChoices = [10, 6, 4, 2];
 }

@@ -43,7 +43,14 @@ public sealed record TerrainMapOptions
     public double SmoothMetres { get; init; }
 
     public MapExtent Extent { get; init; } = MapExtent.Routing;
+    /// <summary>Metres round the routing (tees and route points) for <see cref="MapExtent.Routing"/>.</summary>
     public double MarginMetres { get; init; } = 150;
+
+    /// <summary>
+    /// However small <see cref="MarginMetres"/> is, the sheet keeps this much round every tee and every green site's
+    /// circle, so the sites, tees and hole numbers stay whole.
+    /// </summary>
+    public double MinMarginMetres { get; init; } = 20;
 
     /// <summary>Margin round the buildable ground for <see cref="MapExtent.Buildable"/>: enough to show where it falls away.</summary>
     public double BuildableMarginMetres { get; init; } = 40;
@@ -474,7 +481,19 @@ public sealed class TerrainSurvey
         var list = pts.ToList();
         if (list.Count == 0) throw new InvalidOperationException("The course has no holes or terrain to map.");
         double m = full ? 0 : o.MarginMetres;
-        return (new Vec2(list.Min(p => p.X) - m, list.Min(p => p.Z) - m), new Vec2(list.Max(p => p.X) + m, list.Max(p => p.Z) + m));
+        var min = new Vec2(list.Min(p => p.X) - m, list.Min(p => p.Z) - m);
+        var max = new Vec2(list.Max(p => p.X) + m, list.Max(p => p.Z) + m);
+        if (full) return (min, max);
+
+        // A small margin still keeps the tees and the whole of each green site (Sangoma at 0 m cut sites in half).
+        var floor = layers.Holes.SelectMany(h => h.Hole.Tees.Select(t => (P: t, R: o.MinMarginMetres))
+            .Concat(h.Route.Count > 0 ? [(h.Route[^1], o.GreenSiteRadiusMetres + o.MinMarginMetres)] : []));
+        foreach (var (p, r) in floor)
+        {
+            min = new Vec2(Math.Min(min.X, p.X - r), Math.Min(min.Z, p.Z - r));
+            max = new Vec2(Math.Max(max.X, p.X + r), Math.Max(max.Z, p.Z + r));
+        }
+        return (min, max);
     }
 
     /// <summary>

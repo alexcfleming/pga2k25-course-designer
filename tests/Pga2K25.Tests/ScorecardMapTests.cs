@@ -6,6 +6,8 @@ namespace Pga2K25.Tests;
 
 public class ScorecardMapTests
 {
+    const string SangomaScrabby = "sangoma-scrabby-2026-11-01.course";
+
     static CourseModel Cassimbo() => CourseFile.Load(Path.Combine(TestPaths.SamplesDir, "cassimbo.course")).ReadModel();
 
     [Fact]
@@ -266,6 +268,55 @@ public class ScorecardMapTests
         Assert.True(layers.Fairways.Count < layers.Grass.Count);
         Assert.All(layers.Fairways, f => Assert.Contains(f, layers.Grass));
         Assert.Equal(course.SurfaceSplines.Count(s => s.Closed && s.Surface == Surfaces.Fairway && s.Points.Count >= 2), layers.Fairways.Count);
+    }
+
+    [Fact]
+    public void UnionPath_FillsWhereOppositelyWoundOutlinesOverlap()
+    {
+        // Two overlapping squares, one drawn round each way. In one path the overlap cancels to a hole, which is
+        // how Modern Illustrated painted rough-coloured patches on Sangoma's fairways.
+        List<Vec2> a = [new(0, 0), new(20, 0), new(20, 20), new(0, 20)];
+        List<Vec2> b = [new(10, 10), new(10, 30), new(30, 30), new(30, 10)];
+        var proj = MapProjection.Fit([.. a, .. b], new SKRect(0, 0, 300, 300), 0, padding: 1);
+        var mid = proj.Map(new Vec2(15, 15));
+
+        using var builder = new SKPathBuilder();
+        proj.AddPolyline(builder, a, true);
+        proj.AddPolyline(builder, b, true);
+        using var single = builder.Detach();
+        Assert.False(single.Contains(mid.X, mid.Y));
+
+        using var union = ScorecardMapRenderer.UnionPath([a, b], proj);
+        Assert.True(union.Contains(mid.X, mid.Y));
+        Assert.True(union.Contains(proj.Map(new Vec2(5, 5)).X, proj.Map(new Vec2(5, 5)).Y));
+        Assert.False(union.Contains(proj.Map(new Vec2(25, 5)).X, proj.Map(new Vec2(25, 5)).Y));
+    }
+
+    [PrivateSampleFact(SangomaScrabby)]
+    public void ModernIllustrated_SangomaFairwayOverlaps_AreMownFairway()
+    {
+        var layers = CourseLayers.From(CourseFile.Load(Path.Combine(TestPaths.PrivateDir, SangomaScrabby)).ReadModel());
+        var proj = MapProjection.Fit(layers.ExtentPoints().ToList(), new SKRect(0, 0, 3000, 2000), 0);
+        using var union = ScorecardMapRenderer.UnionPath(layers.Fairways, proj);
+        using var builder = new SKPathBuilder();
+        foreach (var f in layers.Fairways) proj.AddPolyline(builder, f, true);
+        using var single = builder.Detach();
+
+        // Points inside two fairways at once: some fell in a hole of the one-path fill, none of the union's.
+        var overlaps = new List<SKPoint>();
+        for (int i = 0; i < layers.Fairways.Count; i++)
+            for (int j = i + 1; j < layers.Fairways.Count; j++)
+            {
+                var (fi, fj) = (layers.Fairways[i], layers.Fairways[j]);
+                var box = (MinX: Math.Max(fi.Min(p => p.X), fj.Min(p => p.X)), MaxX: Math.Min(fi.Max(p => p.X), fj.Max(p => p.X)),
+                    MinZ: Math.Max(fi.Min(p => p.Z), fj.Min(p => p.Z)), MaxZ: Math.Min(fi.Max(p => p.Z), fj.Max(p => p.Z)));
+                for (double x = box.MinX; x < box.MaxX; x += 2)
+                    for (double z = box.MinZ; z < box.MaxZ; z += 2)
+                        if (Geometry.Contains(fi, new Vec2(x, z)) && Geometry.Contains(fj, new Vec2(x, z))) overlaps.Add(proj.Map(new Vec2(x, z)));
+            }
+        Assert.NotEmpty(overlaps);
+        Assert.Contains(overlaps, q => !single.Contains(q.X, q.Y));
+        Assert.All(overlaps, q => Assert.True(union.Contains(q.X, q.Y)));
     }
 
     static Scenery SceneryOf(string sample)

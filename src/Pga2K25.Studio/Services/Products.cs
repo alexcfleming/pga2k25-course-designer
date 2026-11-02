@@ -55,7 +55,7 @@ public static class Products
         },
         new("Scorecard map", " - Scorecard Map (Vintage).png", c =>
         {
-            var options = new ScorecardMapOptions { Credit = c.Settings.Credit };
+            var options = new ScorecardMapOptions { Credit = c.Settings.Credit, BunkerMergeMetres = c.Extras.BunkerMergeMetres };
             return ScorecardMapBuilder.Build(c.CoursePath, c.OutputDir, options, Enum.GetValues<MapThemeKind>(), pdf: true, log: c.Log)
                 .Files.FirstOrDefault();
         })

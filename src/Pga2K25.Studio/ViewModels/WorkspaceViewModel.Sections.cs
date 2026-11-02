@@ -86,6 +86,7 @@ public partial class WorkspaceViewModel
         RefreshProductSections();
         var extras = Settings.ExtrasFor(Entry.Path);
         CardConfigPath = extras.CardConfig ?? "";
+        _bunkerMerge = BunkerMergeLabel(extras.BunkerMergeMetres);
         InitPlace();
         InitHoles();
         InitLogos();
@@ -211,6 +212,21 @@ public partial class WorkspaceViewModel
     }
 
     [RelayCommand] private void ClearCardConfig() => SetCardConfig(null);
+
+    public IReadOnlyList<string> BunkerMerges { get; } = CourseExtras.BunkerMergeChoices.Select(BunkerMergeLabel).ToList();
+    [ObservableProperty] private string _bunkerMerge = BunkerMergeLabel(CourseExtras.DefaultBunkerMerge);
+
+    static string BunkerMergeLabel(double metres) =>
+        metres == CourseExtras.DefaultBunkerMerge ? $"{metres:0} m (default)" : $"{metres:0.#} m";
+
+    partial void OnBunkerMergeChanged(string value)
+    {
+        double metres = CourseExtras.BunkerMergeChoices.FirstOrDefault(m => BunkerMergeLabel(m) == value, CourseExtras.DefaultBunkerMerge);
+        var extras = Settings.ExtrasFor(Entry.Path);
+        if (extras.BunkerMergeMetres == metres) return;
+        extras.BunkerMergeMetres = metres;
+        Settings.Save();
+    }
 }
 
 public partial class NavItemViewModel(string label, bool selected, Action select) : ObservableObject

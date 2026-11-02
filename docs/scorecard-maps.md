@@ -20,7 +20,7 @@ Options:
 
 Tee set names and hole names come from `Holes.json` in the output folder (`-o`), which the Studio's Holes card writes. The course seal comes from `Logos.json` there (see [Course logo](course-logo.md)): in colour on Modern and Modern Illustrated, in ink on Vintage and Illustrated, before the course name in the strip; on the Plan Sheet, on a parchment disc in the emptiest top corner of the map. The wind rose comes from `Place.json` there (the Studio Place card's Wind rose), when it has one. Pars and yardages always come from the course file. (Earlier releases took tee names from a `--data holes.xlsx|.csv` workbook; it is retired.)
 
-[Course Designer Studio](studio.md) builds all five themes as PNG and PDF, with the names from the course's Holes card. The other options are on the command line.
+[Course Designer Studio](studio.md) builds all five themes as PNG and PDF, with the names from the course's Holes card and the bunker merge from its Course settings (**Bunker merge**: 10, 6, 4 or 2 m, saved per course). The other options are on the command line.
 
 ## Themes
 
@@ -56,7 +56,7 @@ Modern with the land painted in, and room for every tee set in the table. Everyt
 - **Always landscape**, with the scorecard strip every theme uses (see [Layout](#layout)), drawn as a card with a green header and the Out / In / Total columns banded. Its legend lists just what the map shows.
 - **Ground:** a soft hillshade on sand from the replayed terrain (2 m cells, slope across 12 m), lit from the upper left of the page whatever the map's rotation. It is a raster at 1.5 samples per page unit under the vector course, drawn smoothed.
 - **Sea:** ground below the sea level (ocean props' height, else 0 m) is tinted from pale shallows to deep blue-green over 8 m of depth.
-- **Grass:** rough and heavy rough in one green, then the fairways (closed surface-2 splines, `CourseLayers.Fairways`) mown lighter with diagonal stripes. Greens have a lighter collar. Bunkers (merged as on the other themes) have a dark lip and a lit far edge. Tee pads are pale with a fine edge.
+- **Grass:** rough and heavy rough in one green, then the fairways (closed surface-2 splines, `CourseLayers.Fairways`) mown lighter with diagonal stripes. Overlapping fairway splines are unioned into one mown area (in one path, two outlines drawn round opposite ways would cancel where they overlap and leave rough-coloured patches, as on Sangoma before 2.4.0). Greens have a lighter collar. Bunkers (merged as on the other themes) have a dark lip and a lit far edge. Tee pads are pale with a fine edge.
 - **Water:** ponds, creeks and water areas get a pale shore band and short ripple strokes; streams are drawn at their width with the same band.
 - **Planting:** every placed tree is a canopy sized by its scale (4 m radius at scale 1). Broadleaf trees are round and lit on the upper left. Conifers (pine, larch, cedar, spruce and the like, by species) are darker seven-point stars. Each tree throws a soft shadow to the lower right, and all the shadows are drawn first, so woods read as massed crowns. Bushes are small lit blobs, grasses three-stroke tufts and flowers coloured dots. Walls are grey lines and fences dashed brown.
 - **Scatter groups and planted areas:** the game places those plants itself, so they are spread at random (seeded, so every build is the same) inside the group's circle or the area's outline. They are right in number and area, but not plant by plant. A group is capped at 0.6 plants per square page unit, so a 250,000-plant grass area prints as a texture.
@@ -115,6 +115,6 @@ Surfaces 14, 16 and 17 appear only as a few brushes and are not drawn yet.
 ## Known limits
 
 - Brush footprints are treated as circles, since the game's brush shapes aren't stored in the file. Merging hides this at map scale.
-- A 10 m merge can join two genuinely separate bunkers that sit very close together. Lower `--bunker-merge` if that happens.
+- A 10 m merge can join genuinely separate bunkers that sit close together: Sangoma's pot complexes, painted as dabs, print as one big bunker. Choose 4 m for such a course (Studio: Course settings, Bunker merge; CLI: `--bunker-merge 4`). It can't be the default: Cassimbo's sand areas are painted as scattered dabs and turn to lace below about 8 m, and some of Devil's Perch's bunkers break into dots at 4 m.
 - Game-generated greens (no spline) aren't drawn.
 - Hole-number placement is greedy. Very crowded junctions can still sit close together.
