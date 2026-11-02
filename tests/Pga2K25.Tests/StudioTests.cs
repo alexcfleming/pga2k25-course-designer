@@ -1,3 +1,4 @@
+using Pga2K25.Maps;
 using Pga2K25.Studio.Services;
 
 namespace Pga2K25.Tests;
@@ -118,6 +119,21 @@ public class StudioTests
         var cli = new Pga2K25.TerrainMap.TerrainMapOptions();
         Assert.Equal((cli.Extent, cli.MarginMetres, cli.ContourIntervalFeet, cli.IndexEvery, cli.GridYards, cli.Shading, cli.PixelsPerMetre),
                      (d.Extent, d.MarginMetres, d.ContourIntervalFeet, d.IndexEvery, d.GridYards, d.Shading, d.PixelsPerMetre));
+    }
+
+    [Fact]
+    public void BunkerMerge_IsPerCourse_AndOlderSettingsKeepTen()
+    {
+        var s = new StudioSettings();
+        s.ExtrasFor("sangoma.course").BunkerMergeMetres = 4;
+        var back = System.Text.Json.JsonSerializer.Deserialize<StudioSettings>(System.Text.Json.JsonSerializer.Serialize(s))!;
+        Assert.Equal(4, back.ExtrasFor("sangoma.course").BunkerMergeMetres);
+        Assert.Equal(10, back.ExtrasFor("cassimbo.course").BunkerMergeMetres);
+
+        // A settings file from 2.3.0 has no BunkerMergeMetres: the scorecard maps merge at 10 m as before.
+        var old = System.Text.Json.JsonSerializer.Deserialize<StudioSettings>("""{ "Courses": { "a.course": { "Terrain": {} } } }""")!;
+        Assert.Equal(10, old.ExtrasFor("a.course").BunkerMergeMetres);
+        Assert.Equal(new ScorecardMapOptions().BunkerMergeMetres, CourseExtras.DefaultBunkerMerge);
     }
 
     [Fact]

@@ -162,7 +162,7 @@ The images come from screenshots of the palette icons, so fine detail is approxi
 | CLI | Default | |
 |---|---|---|
 | `--full-plot` | routing + 150 m | Map every terrain stamp instead (the whole plot) |
-| `--margin` | 150 | Metres around the routing |
+| `--margin` | 150 | Metres around the routing. However small, the sheet keeps 20 m round every tee and every green site's circle, so the sites stay whole |
 | `--interval` | auto | Contour interval in feet |
 | `--index` | 5 | Every n-th contour is an index contour |
 | `--shading` | relief | `relief`, `slope` or `none` |

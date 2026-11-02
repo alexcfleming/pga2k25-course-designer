@@ -23,6 +23,27 @@ public class TerrainMapTests
         Assert.Equal(expected, TerrainSurvey.ChooseInterval(relief, levels));
 
     [Fact]
+    public void ZeroMargin_StillKeepsEveryGreenSiteAndTeeOnTheSheet()
+    {
+        // Scrabby's Sangoma map at a margin of 0 cut green sites in half at the sheet's edge.
+        var o = new TerrainMapOptions { MarginMetres = 0, Terrain = new TerrainMapOptions().Terrain with { CellMetres = 4 } };
+        var s = Survey(o);
+        double r = o.GreenSiteRadiusMetres + o.MinMarginMetres - 4;   // less a cell for the raster's snapping
+        foreach (var h in Course.Value.Holes)
+        {
+            var g = h.Route[^1];
+            Assert.True(g.X - r >= s.Min.X && g.X + r <= s.Max.X && g.Z - r >= s.Min.Z && g.Z + r <= s.Max.Z, $"hole {h.Number} green site");
+            Assert.All(h.Tees, t => Assert.True(t.X - o.MinMarginMetres + 4 >= s.Min.X && t.X + o.MinMarginMetres - 4 <= s.Max.X));
+        }
+
+        // The default margin already holds them: the sheet is the routing plus 150 m, as before.
+        var d = Survey(o with { MarginMetres = 150 });
+        var pts = Course.Value.Holes.SelectMany(h => h.Route.Concat(h.Tees)).ToList();
+        Assert.Equal(pts.Min(p => p.X) - 150, d.Min.X, 4.0);
+        Assert.Equal(pts.Max(p => p.Z) + 150, d.Max.Z, 4.0);
+    }
+
+    [Fact]
     public void Survey_RoutesEveryHoleWithScorecardYards()
     {
         var s = Survey();
