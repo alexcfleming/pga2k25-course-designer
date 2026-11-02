@@ -227,6 +227,24 @@ NEW SINCE 2.3.0
   suits sand painted as scattered dabs. Choose 4 m for a course built
   from tight pot bunker complexes, so each pot stays separate. Rebuild
   the scorecard maps after changing it.
+- Publish readiness, Hole QA: the "By hole" tab is now Hole QA, one
+  compact grid of every hole's checks. Each check is a small square you
+  click through Open, Done, Deliberate, N/A. The three per-hole stages
+  are one list of 39 checks in six groups, with your earlier ticks kept.
+  Next to each hole, short notes show only the course-file figures that
+  are outside a limit. Click a hole number for its card: every figure,
+  its pins, every check written out, and a note.
+- TGC Tours' published minimums are in the checks: 14 per hole (marked
+  with a dot; "TGC minimums" shows only those) and a new course-level
+  checklist. From the course file: total par 69-74 with par 3, 4 and 5
+  holes only, a range of yardages for each par, and each pin's distance
+  from the edge and slope at the cup.
+- Provisional checks (warnings only, never a pass or fail): where the
+  main fairway starts from the back tee (150-225 yds), par 4s of 380 yds
+  or less, fairway width steadiness, small greens and par 3 green size
+  against length. Type your own fairway start on a hole's card, or mark
+  its fairway as shared, and the checks run again. Every limit can be
+  changed. Green size against the course median is a warning now too.
 
 FIXED IN 2.4.0
 - Modern Illustrated scorecard map: fairways no longer show darker

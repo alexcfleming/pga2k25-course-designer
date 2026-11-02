@@ -1344,7 +1344,7 @@
 
       <!-- Publish readiness -->
       <ScrollViewer Grid.Row="1" Grid.ColumnSpan="2" IsVisible="{Binding IsReadiness}" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Spacing="16" MaxWidth="1400" HorizontalAlignment="Left" DataContext="{Binding Readiness}" x:DataType="vm:ReadinessViewModel"
+        <StackPanel Spacing="16" MaxWidth="1720" HorizontalAlignment="Left" DataContext="{Binding Readiness}" x:DataType="vm:ReadinessViewModel"
                     IsVisible="{Binding $self.DataContext, Converter={x:Static ObjectConverters.IsNotNull}}">
 
           <!-- Gate -->
@@ -1493,76 +1493,238 @@
             </StackPanel>
           </Grid>
 
-          <!-- By hole -->
-          <Border Classes="card" Padding="16" IsVisible="{Binding IsHoles}">
-            <StackPanel Spacing="10">
-              <DockPanel>
-                <ComboBox DockPanel.Dock="Right" ItemsSource="{Binding HoleStageNames}" SelectedItem="{Binding HoleStageName}" Width="220"/>
-                <StackPanel Spacing="2">
-                  <TextBlock Classes="h2" Text="Hole by hole"/>
-                  <TextBlock Classes="muted small" TextWrapping="Wrap" Text="Shaded cells come from the course file and sit outside a limit. Click a status to cycle Open, Done, Deliberate, N/A."/>
-                  <TextBlock Classes="muted small" Text="{Binding HoleStageLede}"/>
-                </StackPanel>
-              </DockPanel>
-              <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                <StackPanel Spacing="2">
-                  <StackPanel Orientation="Horizontal" Spacing="4">
-                    <TextBlock Width="40" Text="Hole" Classes="muted small" VerticalAlignment="Bottom"/>
-                    <TextBlock Width="70" Text="Par · yds" Classes="muted small" VerticalAlignment="Bottom"/>
-                    <TextBlock Width="96" Text="Test drive" Classes="muted small" VerticalAlignment="Bottom"/>
-                    <TextBlock Width="122" Text="Green sq ft" Classes="muted small" VerticalAlignment="Bottom"/>
-                    <TextBlock Width="100" Text="Landing yds" Classes="muted small" VerticalAlignment="Bottom"/>
-                    <TextBlock Width="74" Text="Tee → green" Classes="muted small" VerticalAlignment="Bottom"/>
-                    <TextBlock Width="62" Text="Relief" Classes="muted small" VerticalAlignment="Bottom"/>
-                    <TextBlock Width="130" Text="Nearest other green" Classes="muted small" VerticalAlignment="Bottom"/>
-                    <TextBlock Width="64" Text="Size deliberate" Classes="muted small" TextWrapping="Wrap" VerticalAlignment="Bottom"/>
-                    <ItemsControl ItemsSource="{Binding HoleColumns}">
-                      <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4"/></ItemsPanelTemplate>
-                      </ItemsControl.ItemsPanel>
+          <!-- Hole QA -->
+          <Grid ColumnDefinitions="*,420" ColumnSpacing="16" IsVisible="{Binding IsHoles}">
+            <Border Classes="card" Padding="16" VerticalAlignment="Top">
+              <StackPanel Spacing="10">
+                <DockPanel>
+                  <StackPanel DockPanel.Dock="Right" Spacing="6" HorizontalAlignment="Right">
+                    <StackPanel Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+                      <Button Classes="pill" Classes.selected="{Binding !MinimumsOnly}" Content="All checks" Command="{Binding ShowAllChecksCommand}"/>
+                      <Button Classes="pill" Classes.selected="{Binding MinimumsOnly}" Content="TGC minimums" Command="{Binding ShowMinimumsCommand}"/>
+                      <Border Width="8"/>
+                      <Button Classes="pill" Classes.selected="{Binding !OpenHolesOnly}" Content="All holes" Command="{Binding ShowAllHolesCommand}"/>
+                      <Button Classes="pill" Classes.selected="{Binding OpenHolesOnly}" Content="Holes with open checks" Command="{Binding ShowOpenHolesCommand}"/>
+                    </StackPanel>
+                    <TextBlock Classes="mono small" Text="{Binding HoleQaTotals}" HorizontalAlignment="Right"/>
+                  </StackPanel>
+                  <StackPanel Spacing="2">
+                    <TextBlock Classes="h2" Text="Hole QA"/>
+                    <TextBlock Classes="muted small" TextWrapping="Wrap" Text="{Binding HoleQaLede}"/>
+                  </StackPanel>
+                </DockPanel>
+                <WrapPanel ItemSpacing="14" LineSpacing="4">
+                  <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="14" Height="14" CornerRadius="4" Background="White" BorderBrush="#8C958E" BorderThickness="1"/><TextBlock Classes="small" Text="Open" VerticalAlignment="Center"/></StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="14" Height="14" CornerRadius="4" Background="#2D6A42"/><TextBlock Classes="small" Text="Done" VerticalAlignment="Center"/></StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="14" Height="14" CornerRadius="4" Background="#3D6E9A"/><TextBlock Classes="small" Text="Deliberate" VerticalAlignment="Center"/></StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="14" Height="14" CornerRadius="4" Background="#E6E8E3" BorderBrush="#8C958E" BorderThickness="1"/><TextBlock Classes="small" Text="N/A" VerticalAlignment="Center"/></StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="6"><Ellipse Width="6" Height="6" Fill="#7A4A00"/><TextBlock Classes="small" Text="TGC minimum" VerticalAlignment="Center"/></StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="6"><Border CornerRadius="4" Background="#FBEFD9" Padding="6,1"><TextBlock Classes="small" Foreground="#7A4A00" Text="Relief 0.5 ft"/></Border><TextBlock Classes="small" Text="outside a limit" VerticalAlignment="Center"/></StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Panel><Rectangle RadiusX="4" RadiusY="4" Fill="White" Stroke="#B07A1E" StrokeThickness="1" StrokeDashArray="3,2"/><TextBlock Classes="small" Foreground="#7A4A00" Text="Start 90" Margin="6,1"/></Panel>
+                    <TextBlock Classes="small" Text="provisional: a warning only" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </WrapPanel>
+                <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                  <StackPanel Grid.IsSharedSizeScope="True">
+                    <StackPanel Orientation="Horizontal" Spacing="10" Margin="6,0,6,6">
+                      <TextBlock Width="30" Text="Hole" Classes="muted small" VerticalAlignment="Bottom"/>
+                      <TextBlock Width="60" Text="Par · yds" Classes="muted small" VerticalAlignment="Bottom"/>
+                      <TextBlock Width="236" Text="Course file" Classes="muted small" VerticalAlignment="Bottom"/>
+                      <ItemsControl ItemsSource="{Binding HoleQaHeader}">
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="12"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:HoleGroupHeaderViewModel">
+                            <Grid VerticalAlignment="Bottom">
+                              <Grid.ColumnDefinitions><ColumnDefinition SharedSizeGroup="{Binding SizeGroup}"/></Grid.ColumnDefinitions>
+                            <StackPanel Spacing="4">
+                              <TextBlock Text="{Binding Name}" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource AccentInk}"/>
+                              <ItemsControl ItemsSource="{Binding Columns}">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="3"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                  <DataTemplate x:DataType="vm:HoleColumnViewModel">
+                                    <StackPanel Width="16" Spacing="3" Background="Transparent" ToolTip.Tip="{Binding Tip}">
+                                      <LayoutTransformControl Height="84">
+                                        <LayoutTransformControl.LayoutTransform><RotateTransform Angle="-90"/></LayoutTransformControl.LayoutTransform>
+                                        <TextBlock Text="{Binding Label}" FontSize="11" Foreground="#3F4A43" VerticalAlignment="Center"/>
+                                      </LayoutTransformControl>
+                                      <Ellipse Width="6" Height="6" Fill="#7A4A00" IsVisible="{Binding Minimum}" HorizontalAlignment="Center"/>
+                                      <Border Height="6" IsVisible="{Binding !Minimum}"/>
+                                    </StackPanel>
+                                  </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                              </ItemsControl>
+                            </StackPanel>
+                            </Grid>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                      <TextBlock Width="44" Text="Done" Classes="muted small" TextAlignment="Right" VerticalAlignment="Bottom"/>
+                    </StackPanel>
+                    <ItemsControl ItemsSource="{Binding HoleQaRows}">
                       <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="x:String">
-                          <TextBlock Width="96" Text="{Binding}" Classes="muted small" TextWrapping="Wrap" VerticalAlignment="Bottom"/>
+                        <DataTemplate x:DataType="vm:HoleQaRowViewModel">
+                          <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="6,4" CornerRadius="6"
+                                  Background="{Binding IsSelected, Converter={x:Static vm:HoleQaLook.RowFill}}">
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                              <Button Width="30" Padding="0" Background="Transparent" BorderThickness="0" Content="{Binding Hole}" FontWeight="Bold" FontSize="14"
+                                      Command="{Binding SelectCommand}" ToolTip.Tip="{Binding SelectTip}" AutomationProperties.Name="{Binding SelectTip}" VerticalAlignment="Center"/>
+                              <TextBlock Width="60" Text="{Binding ParYards}" Classes="mono small" VerticalAlignment="Center"/>
+                              <Panel Width="236" VerticalAlignment="Center">
+                                <ItemsControl ItemsSource="{Binding Flags}">
+                                  <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel ItemSpacing="3" LineSpacing="3"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                  <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:FlagChipViewModel">
+                                      <Panel>
+                                        <Rectangle RadiusX="4" RadiusY="4" Fill="{Binding Fill}" Stroke="{Binding Edge}" StrokeThickness="1" StrokeDashArray="{Binding Dashes}"/>
+                                        <TextBlock Text="{Binding Text}" FontSize="11" Foreground="{Binding Ink}" Margin="6,1"/>
+                                      </Panel>
+                                    </DataTemplate>
+                                  </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="all within limits" FontSize="11" Classes="muted" IsVisible="{Binding Clean}"/>
+                              </Panel>
+                              <ItemsControl ItemsSource="{Binding Groups}" VerticalAlignment="Center">
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="12"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                  <DataTemplate x:DataType="vm:QaCellGroupViewModel">
+                                    <Grid>
+                                      <Grid.ColumnDefinitions><ColumnDefinition SharedSizeGroup="{Binding SizeGroup}"/></Grid.ColumnDefinitions>
+                                    <ItemsControl ItemsSource="{Binding Cells}" HorizontalAlignment="Left">
+                                      <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="3"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                      <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:QaCellViewModel">
+                                          <Button Width="16" Height="16" MinHeight="0" MinWidth="0" Padding="0" CornerRadius="4" Background="{Binding Fill}" BorderBrush="{Binding Edge}" BorderThickness="1"
+                                                  Command="{Binding CycleCommand}" ToolTip.Tip="{Binding Tip}" AutomationProperties.Name="{Binding Tip}"/>
+                                        </DataTemplate>
+                                      </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    </Grid>
+                                  </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                              </ItemsControl>
+                              <TextBlock Width="44" Text="{Binding Count}" Classes="mono small" TextAlignment="Right" VerticalAlignment="Center"/>
+                            </StackPanel>
+                          </Border>
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    <TextBlock Classes="muted small" Margin="0,8,0,0" TextWrapping="Wrap" Text="Relief, tee to green and pin slopes come from the terrain model: confirm in game. Provisional figures come from a small sample of reviewed courses and only ever warn."/>
                   </StackPanel>
-                  <ItemsControl ItemsSource="{Binding HoleRows}">
+                </ScrollViewer>
+              </StackPanel>
+            </Border>
+
+            <Border Grid.Column="1" Classes="card" Padding="16" VerticalAlignment="Top" IsVisible="{Binding Card, Converter={x:Static ObjectConverters.IsNotNull}}">
+              <StackPanel Spacing="12" DataContext="{Binding Card}" x:DataType="vm:HoleCardViewModel">
+                <DockPanel>
+                  <TextBlock DockPanel.Dock="Right" Classes="muted" Text="{Binding Sub}" VerticalAlignment="Bottom"/>
+                  <TextBlock Classes="h2" FontSize="20" Text="{Binding Title}"/>
+                </DockPanel>
+                <ItemsControl ItemsSource="{Binding Measures}">
+                  <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="2" ColumnSpacing="6" RowSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:MeasureBoxViewModel">
+                      <Panel>
+                        <Rectangle RadiusX="6" RadiusY="6" Fill="{Binding Fill}" Stroke="{Binding Edge}" StrokeThickness="1" StrokeDashArray="{Binding Dashes}"/>
+                        <StackPanel Margin="8,6" Spacing="1">
+                          <TextBlock Text="{Binding Label}" FontSize="11" Classes="muted" TextWrapping="Wrap"/>
+                          <TextBlock Text="{Binding Value}" Classes="mono small"/>
+                        </StackPanel>
+                      </Panel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Panel IsVisible="{Binding IsLong}">
+                  <Rectangle RadiusX="8" RadiusY="8" Stroke="#B07A1E" StrokeThickness="1" StrokeDashArray="3,2"/>
+                  <StackPanel Margin="12,10" Spacing="8">
+                    <DockPanel>
+                      <TextBlock DockPanel.Dock="Right" FontSize="11" Foreground="#7A4A00" Text="{Binding StartBand}" VerticalAlignment="Bottom"/>
+                      <TextBlock Text="Main fairway start" FontWeight="SemiBold"/>
+                    </DockPanel>
+                    <TextBlock Classes="mono small" Text="{Binding StartFromFile}"/>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Text="Yours (yds)" VerticalAlignment="Center" Classes="small"/>
+                      <TextBox Width="70" Text="{Binding OverrideText}" Watermark="from file">
+                        <TextBox.KeyBindings><KeyBinding Gesture="Enter" Command="{Binding ApplyOverrideCommand}"/></TextBox.KeyBindings>
+                      </TextBox>
+                      <Button Content="Apply and re-check" Command="{Binding ApplyOverrideCommand}"/>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <CheckBox Content="Shared fairway" IsChecked="{Binding Shared}"/>
+                      <TextBlock Text="with holes" VerticalAlignment="Center" Classes="small"/>
+                      <TextBox Width="90" Text="{Binding SharedWith}" Watermark="e.g. 6, 9"/>
+                    </StackPanel>
+                    <TextBlock Classes="muted small" TextWrapping="Wrap" Text="A shared fairway is left out of the width figures and the course median. Clear the box to use the file's figure."/>
+                  </StackPanel>
+                </Panel>
+
+                <CheckBox Content="Green size and landing width are deliberate on this hole" IsChecked="{Binding SizeDeliberate}"/>
+
+                <StackPanel Spacing="4" IsVisible="{Binding HasPins}">
+                  <TextBlock Text="Pins" FontWeight="SemiBold"/>
+                  <Grid ColumnDefinitions="40,60,*,*">
+                    <TextBlock Classes="muted" FontSize="11" Text="Pin"/>
+                    <TextBlock Grid.Column="1" Classes="muted" FontSize="11" Text="Where"/>
+                    <TextBlock Grid.Column="2" Classes="muted" FontSize="11" Text="From edge"/>
+                    <TextBlock Grid.Column="3" Classes="muted" FontSize="11" Text="Slope at cup"/>
+                  </Grid>
+                  <ItemsControl ItemsSource="{Binding Pins}">
                     <ItemsControl.ItemTemplate>
-                      <DataTemplate x:DataType="vm:HoleRowViewModel">
-                        <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,3">
-                          <StackPanel Orientation="Horizontal" Spacing="4">
-                            <TextBlock Width="40" Text="{Binding Hole}" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            <TextBlock Width="70" Text="{Binding ParYards}" Classes="mono small" VerticalAlignment="Center"/>
-                            <Border Width="96" Background="{Binding DriveFill}" CornerRadius="4" Padding="6,4"><TextBlock Text="{Binding Drive}" Classes="mono small"/></Border>
-                            <Border Width="122" Background="{Binding GreenFill}" CornerRadius="4" Padding="6,4"><TextBlock Text="{Binding Green}" Classes="mono small"/></Border>
-                            <Border Width="100" Background="{Binding WidthFill}" CornerRadius="4" Padding="6,4"><TextBlock Text="{Binding Width}" Classes="mono small"/></Border>
-                            <Border Width="74" Background="{Binding ChangeFill}" CornerRadius="4" Padding="6,4"><TextBlock Text="{Binding Change}" Classes="mono small"/></Border>
-                            <Border Width="62" Background="{Binding ReliefFill}" CornerRadius="4" Padding="6,4"><TextBlock Text="{Binding Relief}" Classes="mono small"/></Border>
-                            <Border Width="130" Background="{Binding NearFill}" CornerRadius="4" Padding="6,4"><TextBlock Text="{Binding Near}" Classes="mono small"/></Border>
-                            <CheckBox Width="64" IsChecked="{Binding SizeDeliberate}" HorizontalAlignment="Center" ToolTip.Tip="Green size and landing width on this hole are deliberate"/>
-                            <ItemsControl ItemsSource="{Binding Cells}">
-                              <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4"/></ItemsPanelTemplate>
-                              </ItemsControl.ItemsPanel>
-                              <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:StatusCellViewModel">
-                                  <Button Width="96" MinHeight="28" Padding="4,0" CornerRadius="999" HorizontalContentAlignment="Center" FontSize="12"
-                                          Content="{Binding Label}" Background="{Binding Fill}" Foreground="{Binding Ink}" BorderBrush="{Binding Edge}"
-                                          Command="{Binding CycleCommand}" ToolTip.Tip="{Binding Tip}" AutomationProperties.Name="{Binding Tip}"/>
-                                </DataTemplate>
-                              </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                          </StackPanel>
-                        </Border>
+                      <DataTemplate x:DataType="vm:PinLineViewModel">
+                        <Grid ColumnDefinitions="40,60,*,*" Margin="0,1">
+                          <TextBlock FontWeight="SemiBold" Text="{Binding Number}"/>
+                          <TextBlock Grid.Column="1" Classes="mono small" Text="{Binding Where}"/>
+                          <Border Grid.Column="2" Background="{Binding EdgeFill}" CornerRadius="4" Padding="4,1" HorizontalAlignment="Left"><TextBlock Classes="mono small" Text="{Binding Edge}"/></Border>
+                          <Border Grid.Column="3" Background="{Binding SlopeFill}" CornerRadius="4" Padding="4,1" HorizontalAlignment="Left"><TextBlock Classes="mono small" Text="{Binding Slope}"/></Border>
+                        </Grid>
                       </DataTemplate>
                     </ItemsControl.ItemTemplate>
                   </ItemsControl>
-                  <TextBlock Classes="muted small" Margin="0,6,0,0" TextWrapping="Wrap" Text="* the tee shot lands off the fairway; the nearest fairway's width is shown. Relief and tee → green come from the terrain model: confirm in game."/>
                 </StackPanel>
-              </ScrollViewer>
-            </StackPanel>
-          </Border>
+
+                <ItemsControl ItemsSource="{Binding Groups}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:CardGroupViewModel">
+                      <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,8,0,4">
+                        <StackPanel Spacing="2">
+                          <DockPanel>
+                            <Button DockPanel.Dock="Right" Content="Mark the rest done" Command="{Binding FinishCommand}" Background="Transparent" BorderThickness="0"
+                                    Foreground="{StaticResource Accent}" FontSize="12" Padding="2,0"/>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                              <TextBlock Text="{Binding Name}" FontWeight="SemiBold" Foreground="{StaticResource AccentInk}"/>
+                              <TextBlock Text="{Binding Count}" Classes="mono small muted" VerticalAlignment="Center"/>
+                            </StackPanel>
+                          </DockPanel>
+                          <ItemsControl ItemsSource="{Binding Items}">
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate x:DataType="vm:CardItemViewModel">
+                                <DockPanel Margin="0,1" MinHeight="28">
+                                  <Button DockPanel.Dock="Right" Width="88" MinHeight="26" Padding="4,0" CornerRadius="999" HorizontalContentAlignment="Center" FontSize="12"
+                                          Content="{Binding Label}" Background="{Binding Fill}" Foreground="{Binding Ink}" BorderBrush="{Binding Edge}"
+                                          Command="{Binding CycleCommand}" AutomationProperties.Name="{Binding Text}"/>
+                                  <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" ToolTip.Tip="{Binding Tip}" Background="Transparent">
+                                    <Ellipse Width="6" Height="6" Fill="#7A4A00" Opacity="{Binding Minimum, Converter={x:Static vm:HoleQaLook.Shown}}" VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Text}" TextWrapping="Wrap" MaxWidth="260"/>
+                                  </StackPanel>
+                                </DockPanel>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <StackPanel Spacing="4">
+                  <TextBlock Classes="muted small" Text="Note on this hole"/>
+                  <TextBox Text="{Binding Note}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60"/>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </Grid>
 
           <!-- Checklists -->
           <Grid ColumnDefinitions="240,*" ColumnSpacing="16" IsVisible="{Binding IsChecklists}">

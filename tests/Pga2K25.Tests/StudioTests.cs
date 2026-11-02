@@ -133,7 +133,7 @@ public class StudioTests
         // A settings file from 2.3.0 has no BunkerMergeMetres: the scorecard maps merge at 10 m as before.
         var old = System.Text.Json.JsonSerializer.Deserialize<StudioSettings>("""{ "Courses": { "a.course": { "Terrain": {} } } }""")!;
         Assert.Equal(10, old.ExtrasFor("a.course").BunkerMergeMetres);
-        Assert.Equal(new ScorecardMapOptions().BunkerMergeMetres, CourseExtras.DefaultBunkerMerge);
+        Assert.Equal(CourseExtras.DefaultBunkerMerge, new ScorecardMapOptions().BunkerMergeMetres);
     }
 
     [Fact]

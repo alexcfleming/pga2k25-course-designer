@@ -75,7 +75,7 @@ public static class ReadinessRecord
             table{border-collapse:collapse;width:100%;margin:6px 0;font-size:13px}th,td{border-bottom:1px solid var(--line);padding:4px 6px;text-align:left;vertical-align:top}
             th{background:var(--tint)}.wrap{overflow-x:auto}td.done{color:var(--ok);text-align:center}td.delib{color:var(--info);text-align:center}td.na,td.open{color:var(--muted);text-align:center}
             .sev{font-weight:600;font-size:12px;padding:1px 6px;border-radius:4px;white-space:nowrap}.Pass{background:var(--okbg);color:var(--ok)}.Info,.Confirm{background:var(--infobg);color:var(--info)}
-            .Flag{background:var(--flagbg);color:var(--flag)}.High{background:var(--highbg);color:var(--high)}
+            .Warning{color:var(--flag);border:1px dashed var(--flag)}.Flag{background:var(--flagbg);color:var(--flag)}.High{background:var(--highbg);color:var(--high)}
             .mark{width:56px;height:56px;object-fit:contain;float:left;margin:0 14px 0 0}
             @media print{main{padding:0}h2{break-after:avoid}tr{break-inside:avoid}}
             </style></head><body><main>
@@ -113,16 +113,17 @@ public static class ReadinessRecord
         }
         b.Append("</table>");
 
-        b.Append("<h2>Hole by hole</h2><div class=\"wrap\"><table><tr><th>Hole</th><th>Par</th><th>Yds</th><th>Drive</th><th>Green sq ft</th><th>Landing yds</th><th>Tee → green</th><th>Relief</th><th>Nearest other green</th><th>Pins (difficulty)</th></tr>");
+        b.Append("<h2>Hole by hole</h2><div class=\"wrap\"><table><tr><th>Hole</th><th>Par</th><th>Yds</th><th>Drive</th><th>Green sq ft</th><th>Landing yds</th><th>Fairway start</th><th>Tee → green</th><th>Relief</th><th>Nearest other green</th><th>Pins (difficulty)</th></tr>");
         foreach (var h in r.Holes)
         {
             string drive = h.DriveClass ?? (h.LeftAfterDrive is int left ? $"{left} left" : "");
             string green = h.GreenEstimated ? "not drawn" : $"{h.GreenSquareFeet:N0} ({h.GreenRatio:0.00}×)";
             string width = h.LandingWidthYards is double w ? $"{w:0} ({h.WidthRatio:0.00}×){(h.LandingOffFairway ? " off fairway" : "")}" : "";
             string near = h.NearGreenYards is double ny ? $"{ny:0} yds, {(h.NearGreenOf == 0 ? "practice green" : $"hole {h.NearGreenOf}")}" : "";
+            string start = h.FairwayStartYards is double fs ? $"{fs:0}{(h.FairwayStartOverrideYards is not null ? " (yours)" : "")}{(h.SharedFairway ? ", shared" : "")}" : h.SharedFairway ? "shared" : "";
             string pins = string.Join(" ", h.Pins.Select(p => $"{p.Depth}{p.Side}" +
                 (st.Pins.TryGetValue($"{h.Number}.{p.Number}", out var ps) && ps.Difficulty is { Length: > 0 } diff ? $"({diff})" : "")));
-            b.Append($"<tr><td>{h.Number}</td><td>{h.Par}</td><td>{h.Yards}</td><td>{E(drive)}</td><td>{green}</td><td>{width}</td><td>{h.ChangeFeet:+0;-0;0} ft</td><td>{(h.GreenReliefFeet is double rf ? $"{rf:0.0} ft" : "")}</td><td>{E(near)}</td><td>{E(pins)}</td></tr>");
+            b.Append($"<tr><td>{h.Number}</td><td>{h.Par}</td><td>{h.Yards}</td><td>{E(drive)}</td><td>{green}</td><td>{width}</td><td>{E(start)}</td><td>{h.ChangeFeet:+0;-0;0} ft</td><td>{(h.GreenReliefFeet is double rf ? $"{rf:0.0} ft" : "")}</td><td>{E(near)}</td><td>{E(pins)}</td></tr>");
         }
         b.Append("</table></div>");
 
@@ -138,17 +139,21 @@ public static class ReadinessRecord
             b.Append("</table>");
         }
 
-        foreach (var hs in Checklist.HoleStages)
+        b.Append("<h2>Hole QA</h2><p class=\"muted\">✓ done · D deliberate · n/a not applicable · · open. * a TGC published minimum.</p>");
+        foreach (var g in Checklist.HoleQa)
         {
-            b.Append($"<h2>{E(hs.Title)}</h2><div class=\"wrap\"><table><tr><th>Hole</th>{string.Concat(hs.Columns.Select(c => $"<th>{E(c.Label)}</th>"))}</tr>");
+            b.Append($"<h3>{E(g.Name)}</h3><div class=\"wrap\"><table><tr><th>Hole</th>{string.Concat(g.Checks.Select(c => $"<th title=\"{E(c.Text)}\">{E(c.Label)}{(c.Minimum ? "*" : "")}</th>"))}</tr>");
             foreach (var h in r.Holes)
-                b.Append($"<tr><td>{h.Number}</td>{string.Concat(hs.Columns.Select(c => Cell(st.StatusOf(hs.Key(h.Number, c.Id)))))}</tr>");
+                b.Append($"<tr><td>{h.Number}</td>{string.Concat(g.Checks.Select(c => Cell(Checklist.StatusOf(c, h.Number, st))))}</tr>");
             b.Append("</table></div>");
-            var noted = r.Holes.SelectMany(h => hs.Columns.Select(c => (h.Number, c.Label, Key: hs.Key(h.Number, c.Id))))
-                .Where(x => st.Items.TryGetValue(x.Key, out var i) && i.Note.Length > 0).ToList();
-            if (noted.Count > 0)
-                b.Append("<ul>" + string.Concat(noted.Select(n => $"<li>Hole {n.Number}, {E(n.Label)}: {E(st.Items[n.Key].Note)}</li>")) + "</ul>");
         }
+        var noted = r.Holes.SelectMany(h => Checklist.HoleChecks.SelectMany(c => new[] { c.Key(h.Number), c.AlsoKey(h.Number) }
+                .OfType<string>().Select(k => (h.Number, c.Text, Key: k))))
+            .Where(x => st.Items.TryGetValue(x.Key, out var i) && i.Note.Length > 0).ToList();
+        var holeNotes = st.Holes.Where(kv => kv.Value.Note.Length > 0).OrderBy(kv => kv.Key).ToList();
+        if (noted.Count + holeNotes.Count > 0)
+            b.Append("<ul>" + string.Concat(holeNotes.Select(n => $"<li>Hole {n.Key}: {E(n.Value.Note)}</li>")) +
+                     string.Concat(noted.Select(n => $"<li>Hole {n.Number}, {E(n.Text)}: {E(st.Items[n.Key].Note)}</li>")) + "</ul>");
 
         b.Append("<h2>Playtest coverage</h2><table><tr><th>Profile</th><th>Winds played (high)</th><th>Tee sets</th><th>Pins</th></tr>");
         for (int i = 0; i < Math.Min(2, st.Playtest.Count); i++)

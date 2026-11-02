@@ -142,7 +142,7 @@ static int Readiness(string path, string[] rest)
     if (table)
     {
         Console.WriteLine();
-        Console.WriteLine("Hole Par  Yds  Drive          Green sq ft      Landing yd      Tee>green  Relief  Nearest other green  Pins");
+        Console.WriteLine("Hole Par  Yds  Drive          Green sq ft      Landing yd      Start Narrow Steady  Tee>green  Relief  Nearest other green  Pins (edge yds, slope %)");
         foreach (var h in report.Holes)
         {
             string drv = h.DriveClass ?? (h.LeftAfterDrive is int left ? $"{left} left" : "");
@@ -150,11 +150,16 @@ static int Readiness(string path, string[] rest)
             string width = h.LandingWidthYards is double w ? string.Format(inv, "{0,4:0}{1} {2,5:0.00}x", w, h.LandingOffFairway ? "*" : " ", h.WidthRatio ?? 0) : "";
             string near = h.NearGreenYards is double ny ? string.Format(inv, "{0,4:0} yds ({1})", ny, h.NearGreenOf == 0 ? "practice" : $"hole {h.NearGreenOf}") : "";
             string relief = h.GreenReliefFeet is double r ? string.Format(inv, "{0:0.0} ft", r) : "";
-            string pins = string.Join(" ", h.Pins.Select(p => $"{p.Depth}{p.Side}"));
-            Console.WriteLine(string.Format(inv, "{0,4} {1,3} {2,4}  {3,-14} {4,-16} {5,-15} {6,7:+0;-0;0} ft {7,7}  {8,-20} {9}",
-                h.Number, h.Par, h.Yards, drv, green, width, h.ChangeFeet, relief, near, pins));
+            string pins = string.Join(" ", h.Pins.Select(p => $"{p.Depth}{p.Side}" +
+                (p.EdgeYards is double e ? string.Format(inv, "({0:0.0},{1})", e, p.SlopePct is double sl ? sl.ToString("0.0", inv) : "flat") : "")));
+            string start = h.FairwayStartYards is double fs ? fs.ToString("0", inv) + (h.FairwayStartOverrideYards is not null ? "!" : "") : "";
+            string narrow = h.NarrowestFairwayYards is double nw ? nw.ToString("0", inv) : "";
+            string steady = h.WidthSteadiness is double sd ? sd.ToString("0.0", inv) + "x" : "";
+            Console.WriteLine(string.Format(inv, "{0,4} {1,3} {2,4}  {3,-14} {4,-16} {5,-15} {6,5} {7,6} {8,6} {9,7:+0;-0;0} ft {10,7}  {11,-20} {12}",
+                h.Number, h.Par, h.Yards, drv, green, width, start, narrow, steady, h.ChangeFeet, relief, near, pins));
         }
         Console.WriteLine("  * the tee shot lands off the fairway; the nearest fairway's width is shown");
+        Console.WriteLine("  Start: where the main fairway starts from the back tee (60 = 60 or less). Steady: wide over narrow past 200 yds.");
     }
 
     if (json is not null)

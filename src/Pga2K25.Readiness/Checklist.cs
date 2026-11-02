@@ -1,7 +1,7 @@
 namespace Pga2K25.Readiness;
 
 /// <summary>Where a checklist item comes from, as the HTML checklist labelled it.</summary>
-public enum ItemSource { YourNotes, OtherPublisher, DesignPrinciples, TourFeedback }
+public enum ItemSource { YourNotes, OtherPublisher, DesignPrinciples, TourFeedback, TgcMinimums }
 
 /// <summary>
 /// One judgement-call item. <paramref name="Key"/> is the HTML checklist's own key (<c>pre.score</c>, <c>b.fringe</c>),
@@ -16,11 +16,20 @@ public sealed record ChecklistItem(string Key, string Text, ItemSource Source, I
 /// <summary>A course-level stage: a list of items, done once for the course.</summary>
 public sealed record ChecklistStage(string Id, string Title, string Lede, string Prefix, IReadOnlyList<ChecklistItem> Items);
 
-/// <summary>A per-hole stage: the same columns ticked on every hole (key <c>{Prefix}.{hole}.{column}</c>).</summary>
-public sealed record HoleStage(string Id, string Title, string Lede, string Prefix, IReadOnlyList<(string Id, string Label, ItemSource Source)> Columns)
+/// <summary>
+/// One Hole QA check, ticked on every hole. Its key on a hole is <c>{Prefix}.{hole}.{Id}</c>; the prefixes are the HTML
+/// checklist's own (<c>hc</c>, <c>tr</c>, <c>pl</c>) or <c>hq</c> for checks added since. <paramref name="Also"/> is a
+/// second key read as the same check (two of the HTML checklist's checks merged into one).
+/// </summary>
+public sealed record HoleCheck(string Prefix, string Id, string Label, string Text, ItemSource Source, bool Minimum = false,
+    (string Prefix, string Id)? Also = null)
 {
-    public string Key(int hole, string column) => $"{Prefix}.{hole}.{column}";
+    public string Key(int hole) => $"{Prefix}.{hole}.{Id}";
+    public string? AlsoKey(int hole) => Also is { } a ? $"{a.Prefix}.{hole}.{a.Id}" : null;
 }
+
+/// <summary>A group of Hole QA checks.</summary>
+public sealed record HoleGroup(string Name, IReadOnlyList<HoleCheck> Checks);
 
 /// <summary>
 /// The course QA and publish checklist (Alex's <c>course_qa_checklist.html</c>), with the items the course file
@@ -28,7 +37,7 @@ public sealed record HoleStage(string Id, string Title, string Lede, string Pref
 /// </summary>
 public static class Checklist
 {
-    const ItemSource N = ItemSource.YourNotes, P = ItemSource.OtherPublisher, D = ItemSource.DesignPrinciples, F = ItemSource.TourFeedback;
+    const ItemSource N = ItemSource.YourNotes, P = ItemSource.OtherPublisher, D = ItemSource.DesignPrinciples, F = ItemSource.TourFeedback, M = ItemSource.TgcMinimums;
 
     /// <summary>Linked to every course-file check: done when none is left open.</summary>
     public const string AllChecks = "*";
@@ -48,7 +57,16 @@ public static class Checklist
         new("pre.restraint", "Per-hole concept notes say what to leave out as well as what to build (for example \"consider zero bunkers\"), and the build brief carries them", F),
     ]);
 
-    public static readonly ChecklistStage TourCourse = new("tourc", "Tour readiness", "Course-level checks from Section 11. The per-hole checks are on the hole table.", "tcl",
+    public static readonly ChecklistStage Minimums = new("tgcm", "TGC minimums", "The course-level minimum approval requirements TGC Tours publishes. The per-hole ones are in Hole QA.", "tgm",
+    [
+        new("tgm.par", "Total par 69 to 74; every hole a par 3, 4 or 5; 18 holes", M, "par-range"),
+        new("tgm.range", "Holes of the same par have a range of yardages", M, "same-par-range"),
+        new("tgm.width", "Fairways at least 25 yds wide (recommended, not required)", M, "narrow-fairway"),
+        new("tgm.pins", "Pins clear of the green's edge and off red slope at the cup", M, "pins"),
+        new("tgm.real", "A real-course recreation is very accurate (N/A for an original course)", M),
+    ]);
+
+    public static readonly ChecklistStage TourCourse = new("tourc", "Course review", "Course-level checks from Section 11. The per-hole checks are in Hole QA.", "tcl",
     [
         new("tcl.scale", "Scale audit: green size and fairway width numbers reviewed; every outlier is deliberate", F, "green-scale", "landing-width"),
         new("tcl.variety", "Variety audit: drivable and near-drivable par 4s within the per-nine limit; every par 5 passes the test-drive check", F, "drivable-front", "drivable-back", "par5"),
@@ -93,40 +111,100 @@ public static class Checklist
         new("pg.proof", "All narrative text proofread", D),
         new("pg.atm", "Lighting, cloud and fog settings in the game match the values recorded from the file", N),
         new("pg.shots", "Hero shots and plate captures retaken after the last terrain or planting change", D),
-        new("pg.tour", "Tour-readiness section complete: every flag cleared or marked deliberate", F, AllChecks),
+        new("pg.tour", "Course review complete: every course-file flag cleared or marked deliberate", F, AllChecks),
         new("pg.outside", "Someone other than me, or me with fresh eyes, played the whole course from default settings", F),
         new("pg.files", "Final files saved and uploaded to the Project", D),
     ]);
 
-    public static readonly IReadOnlyList<ChecklistStage> Stages = [PreBuild, TourCourse, Build, Publish];
+    public static readonly IReadOnlyList<ChecklistStage> Stages = [PreBuild, Minimums, TourCourse, Build, Publish];
 
-    public static readonly HoleStage TourHoles = new("tour-holes", "Tour readiness", "Judgement calls from Section 11 on every hole.", "tr",
+    /// <summary>
+    /// Hole QA: every check done on every hole, in six groups. The HTML checklist's three per-hole stages (per-hole
+    /// checks, tour readiness, planting passes) keep their keys, so a backup or saved progress carries straight over;
+    /// its bunker and transition checks each merge with their tour-readiness twin. The minimums are TGC Tours' own.
+    /// </summary>
+    public static readonly IReadOnlyList<HoleGroup> HoleQa =
     [
-        ("wp", "Waypoints and default club checked from every tee", F),
-        ("aim", "Aim line at this hole's own green; no shot over another green", F),
-        ("opt", "Every route viable and readable from the tee", F),
-        ("sand", "Bunker sand sculpting even and in the course's style", F),
-        ("blend", "Fairway-to-sand and bunker surfaces blended, not stark", F),
-        ("real", "Rocks, cliffs and props plausible, not fantasy scale", F),
-        ("cam", "Hole camera and transition into the hole smooth", F),
-        ("concept", "Built hazards match the concept doc's restraint", F),
-    ]);
+        new("Lines and views",
+        [
+            new("hc", "sightTee", "Tee view", "Sightline from the tee", P),
+            new("hc", "vApp", "Approach", "Approach views", N),
+            new("hc", "vBail", "Bail-out", "Bail-out views", N),
+            new("hc", "back", "Look back", "Looking back from green and at tee", P),
+            new("tr", "aim", "Aim line", "Aim line at its own green; no shot over another green", F),
+            new("tr", "wp", "Waypoints", "Waypoints and default club checked from every tee", F),
+            new("hq", "block", "No blocker", "No unavoidable obstruction on the tee shot or approach", M, true),
+        ]),
+        new("Shaping",
+        [
+            new("hc", "gcont", "Green", "Green contour study", N),
+            new("hc", "fcont", "Fairway", "Fairway contour heights", N),
+            new("hc", "teeflat", "Tees flat", "Tee boxes flat", P, true),
+            new("hc", "multi", "Multi tees", "Multiple tees", P),
+            new("hc", "bunk", "Bunkers", "Bunkers: sand even and in the course's style", P, Also: ("tr", "sand")),
+            new("hc", "trans", "Edges", "Edges blended: fairway, sand and rough, not stark", P, Also: ("tr", "blend")),
+            new("hq", "lrough", "Light rough", "Light rough mostly symmetrical with the fairway and green", M, true),
+            new("hq", "bcut", "Bunker cuts", "Bunkers don't cut straight into several layers of rough or fairway (recommended)", M, true),
+        ]),
+        new("Play",
+        [
+            new("hc", "hazard", "Hazards", "Played out of every hazard", N),
+            new("tr", "opt", "Routes", "Every route works and reads from the tee", F),
+            new("tr", "concept", "Concept", "Built hazards match the concept notes' restraint", F),
+            new("hc", "img", "Image", "Hole image test and draw", N),
+            new("hq", "wind", "Any wind", "Fairway reachable in any wind, from every tee", M, true),
+            new("hq", "front", "Front holds", "A shot carried onto the front of the green doesn't roll off the back", M, true),
+            new("hq", "bfair", "Bunkers fair", "Bunkers fair", M, true),
+        ]),
+        new("Pins",
+        [
+            new("hq", "pvary", "Varied", "Pin locations varied within each pin set", M, true),
+            new("hq", "pclose", "Can get close", "Every pin gives a fair chance to hit an approach close: playtested", M, true),
+            new("hq", "pslope", "Off big slopes", "No pin in the middle of a large yellow or red slope", M, true),
+        ]),
+        new("Look",
+        [
+            new("hc", "grass", "Grasses", "Highlight grasses", P),
+            new("tr", "real", "Rocks", "Rocks, cliffs and props believable, not fantasy scale", F),
+            new("tr", "cam", "Camera", "Hole camera and the transition into the hole smooth", F),
+            new("hq", "noplant", "No plants", "No plants on the fairway, green, tees or cart path", M, true),
+            new("hq", "stock", "Stock shapes", "Stock shapes blended and not overused", M, true),
+            new("hq", "repeat", "Repeats", "The same tree or rock isn't repeated over and over", M, true),
+            new("hq", "paths", "Paths, splines", "Cart paths smoothed; spline kinks cleaned up", M, true),
+        ]),
+        new("Planting",
+        [
+            new("pl", "waste", "Open waste", "Open waste", N),
+            new("pl", "cliff", "Cliff edge", "Cliff edge and hole edge", N),
+            new("pl", "g360", "Green 360", "Green 360", N),
+            new("pl", "t360", "Tee 360", "Tee 360", N),
+            new("pl", "hwaste", "Hole waste", "Hole wastes", N),
+            new("pl", "hill", "Hill light", "Open hill light", N),
+            new("pl", "bunk", "By bunkers", "Around bunkers", N),
+        ]),
+    ];
 
-    public static readonly HoleStage HoleChecks = new("hole-checks", "Per-hole checks", "Tick each check as it's finished on that hole.", "hc",
-    [
-        ("sightTee", "Sightline from tee", P), ("vApp", "Approach visibility views", N), ("vBail", "Bail-out visibility views", N),
-        ("gcont", "Green contour study", N), ("fcont", "Fairway contour check (height)", N), ("hazard", "Played out of all hazards", N),
-        ("img", "Hole image test and draw", N), ("back", "Looking back from green and at tee", P), ("trans", "Transitions", P),
-        ("bunk", "Bunkers", P), ("grass", "Highlight grasses", P), ("teeflat", "Tees flat", P), ("multi", "Multiple tees", P),
-    ]);
+    public static IEnumerable<HoleCheck> HoleChecks => HoleQa.SelectMany(g => g.Checks);
 
-    public static readonly HoleStage Planting = new("planting", "Planting passes", "Each pass done on each hole.", "pl",
-    [
-        ("waste", "Open waste", N), ("cliff", "Cliff edge / hole edge", N), ("g360", "Green 360", N), ("t360", "Tee 360", N),
-        ("hwaste", "Hole wastes", N), ("hill", "Open hill light", N), ("bunk", "Around bunkers", N),
-    ]);
+    /// <summary>
+    /// A Hole QA check's status on a hole. A merged check reads both of its keys; the more closed one wins
+    /// (Done, then Deliberate, then N/A, then Open).
+    /// </summary>
+    public static ItemStatus StatusOf(HoleCheck c, int hole, ReadinessState s)
+    {
+        var a = s.StatusOf(c.Key(hole));
+        if (c.AlsoKey(hole) is not { } also) return a;
+        var b = s.StatusOf(also);
+        static int Rank(ItemStatus x) => x switch { ItemStatus.Done => 3, ItemStatus.Deliberate => 2, ItemStatus.NotApplicable => 1, _ => 0 };
+        return Rank(b) > Rank(a) ? b : a;
+    }
 
-    public static readonly IReadOnlyList<HoleStage> HoleStages = [TourHoles, HoleChecks, Planting];
+    /// <summary>Sets a check on a hole. A merged check keeps its status on its own key and drops the twin's.</summary>
+    public static void Set(HoleCheck c, int hole, ItemStatus status, ReadinessState s)
+    {
+        s.Set(c.Key(hole), status);
+        if (c.AlsoKey(hole) is { } also) s.Items.Remove(also);
+    }
 
     /// <summary>Wind directions in the in-game setting's sense: N blows from the south towards the north.</summary>
     public static readonly IReadOnlyList<string> WindDirections = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
@@ -136,6 +214,7 @@ public static class Checklist
         ItemSource.YourNotes => "your notes",
         ItemSource.OtherPublisher => "other publisher",
         ItemSource.DesignPrinciples => "design principles",
-        _ => "tour feedback",
+        ItemSource.TgcMinimums => "TGC minimums",
+        _ => "reviewer feedback",
     };
 }

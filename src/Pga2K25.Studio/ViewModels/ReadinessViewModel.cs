@@ -17,7 +17,7 @@ namespace Pga2K25.Studio.ViewModels;
 /// </summary>
 public partial class ReadinessViewModel : ObservableObject
 {
-    public const string OverviewTab = "Overview", HolesTab = "By hole", ChecklistsTab = "Checklists", PinsTab = "Pins and playtest", GateTab = "Publish gate";
+    public const string OverviewTab = "Overview", HolesTab = "Hole QA", ChecklistsTab = "Checklists", PinsTab = "Pins and playtest", GateTab = "Publish gate";
     static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
 
     readonly string _coursePath, _outputDir, _courseName;
@@ -56,12 +56,15 @@ public partial class ReadinessViewModel : ObservableObject
     [ObservableProperty] private string _passCount = "";
     [ObservableProperty] private string _openCount = "";
 
-    // By hole.
-    public IReadOnlyList<string> HoleStageNames { get; } = Checklist.HoleStages.Select(s => s.Title).ToList();
-    [ObservableProperty] private string _holeStageName = Checklist.TourHoles.Title;
-    [ObservableProperty] private string _holeStageLede = Checklist.TourHoles.Lede;
-    public ObservableCollection<string> HoleColumns { get; } = [];
-    public ObservableCollection<HoleRowViewModel> HoleRows { get; } = [];
+    // Hole QA.
+    public ObservableCollection<HoleGroupHeaderViewModel> HoleQaHeader { get; } = [];
+    public ObservableCollection<HoleQaRowViewModel> HoleQaRows { get; } = [];
+    [ObservableProperty] private HoleCardViewModel? _card;
+    [ObservableProperty] private bool _minimumsOnly;
+    [ObservableProperty] private bool _openHolesOnly;
+    [ObservableProperty] private string _holeQaTotals = "";
+    [ObservableProperty] private string _holeQaLede = "";
+    int _selectedHole = 1;
 
     // Checklists.
     public ObservableCollection<StageNavViewModel> StageNav { get; } = [];
@@ -139,12 +142,13 @@ public partial class ReadinessViewModel : ObservableObject
         Busy = true;
         Show("Checking the course file…");
         var limits = _state.Limits;
+        var overrides = _state.Overrides();
         Task.Run(() =>
         {
             try
             {
                 var course = CourseFile.Load(_coursePath).ReadModel();
-                var report = ReadinessChecker.Run(course, limits);
+                var report = ReadinessChecker.Run(course, limits, overrides: overrides);
                 string stamp = ReadinessStore.Stamp(_coursePath);
                 Dispatcher.UIThread.Post(() =>
                 {
@@ -242,6 +246,20 @@ public partial class ReadinessViewModel : ObservableObject
         Add("reliefMax", "Green relief to (ft)", L.GreenReliefMaxFeet);
         Add("teeMin", "Tee set total from (yds)", L.TeeTotalMinYards);
         Add("teeMax", "Tee set total to (yds)", L.TeeTotalMaxYards);
+        Add("parMin", "Total par from (TGC)", L.ParMin);
+        Add("parMax", "Total par to (TGC)", L.ParMax);
+        Add("sameParSpread", "Same-par spread at least (yds)", L.SameParSpreadYards);
+        Add("fairwayMin", "Fairway width note under (yds)", L.FairwayMinWidthYards);
+        Add("pinEdge", "Pin from edge at least (yds; 3 grid squares)", L.PinEdgeYards);
+        Add("pinSteep", "Pin slope at the cup under (%)", L.PinSteepPct);
+        Add("startMin", "Fairway start from (yds, provisional)", L.FairwayStartMinYards);
+        Add("startMax", "Fairway start to (yds, provisional)", L.FairwayStartMaxYards);
+        Add("startWidth", "Fairway start: width (yds)", L.FairwayStartWidthYards);
+        Add("startHold", "Fairway start: held for (yds)", L.FairwayStartHoldYards);
+        Add("shortPar4", "Short par 4 up to (yds, provisional)", L.ShortPar4Yards);
+        Add("maxShort", "Short par 4s, at most", L.MaxShortPar4s);
+        Add("steady", "Width steadiness up to (×, provisional)", L.WidthSteadinessMax);
+        Add("smallGreen", "Small green under (sq ft, provisional)", L.SmallGreenSquareFeet);
     }
 
     [RelayCommand] private void ApplyLimits()
@@ -273,6 +291,20 @@ public partial class ReadinessViewModel : ObservableObject
             GreenReliefMaxFeet = Get("reliefMax") ?? L.GreenReliefMaxFeet,
             TeeTotalMinYards = Get("teeMin") ?? L.TeeTotalMinYards,
             TeeTotalMaxYards = Get("teeMax") ?? L.TeeTotalMaxYards,
+            ParMin = (int)(Get("parMin") ?? L.ParMin),
+            ParMax = (int)(Get("parMax") ?? L.ParMax),
+            SameParSpreadYards = Get("sameParSpread") ?? L.SameParSpreadYards,
+            FairwayMinWidthYards = Get("fairwayMin") ?? L.FairwayMinWidthYards,
+            PinEdgeYards = Get("pinEdge") ?? L.PinEdgeYards,
+            PinSteepPct = Get("pinSteep") ?? L.PinSteepPct,
+            FairwayStartMinYards = Get("startMin") ?? L.FairwayStartMinYards,
+            FairwayStartMaxYards = Get("startMax") ?? L.FairwayStartMaxYards,
+            FairwayStartWidthYards = Get("startWidth") ?? L.FairwayStartWidthYards,
+            FairwayStartHoldYards = Get("startHold") ?? L.FairwayStartHoldYards,
+            ShortPar4Yards = Get("shortPar4") ?? L.ShortPar4Yards,
+            MaxShortPar4s = (int)(Get("maxShort") ?? L.MaxShortPar4s),
+            WidthSteadinessMax = Get("steady") ?? L.WidthSteadinessMax,
+            SmallGreenSquareFeet = Get("smallGreen") ?? L.SmallGreenSquareFeet,
         };
         if (bad.Count > 0) { Show($"Not applied. Check: {string.Join(", ", bad)}.", error: true); return; }
         _state.Limits = next;
@@ -288,23 +320,74 @@ public partial class ReadinessViewModel : ObservableObject
         Rerun();
     }
 
-    // ───────────────────────── by hole ─────────────────────────
+    // ───────────────────────── hole QA ─────────────────────────
 
-    partial void OnHoleStageNameChanged(string value)
-    {
-        HoleStageLede = Checklist.HoleStages.First(s => s.Title == value).Lede;
-        RebuildHoleTable();
-    }
+    partial void OnMinimumsOnlyChanged(bool value) => RebuildHoleTable();
+    partial void OnOpenHolesOnlyChanged(bool value) => RebuildHoleTable();
+
+    [RelayCommand] private void ShowAllChecks() => MinimumsOnly = false;
+    [RelayCommand] private void ShowMinimums() => MinimumsOnly = true;
+    [RelayCommand] private void ShowAllHoles() => OpenHolesOnly = false;
+    [RelayCommand] private void ShowOpenHoles() => OpenHolesOnly = true;
+
+    /// <summary>The groups and checks on show: every check, or only TGC's minimums.</summary>
+    List<(string Name, IReadOnlyList<HoleCheck> Checks)> VisibleGroups() =>
+        Checklist.HoleQa.Select(g => (g.Name, (IReadOnlyList<HoleCheck>)g.Checks.Where(c => !MinimumsOnly || c.Minimum).ToList()))
+            .Where(g => g.Item2.Count > 0).ToList();
 
     void RebuildHoleTable()
     {
-        HoleRows.Clear();
-        HoleColumns.Clear();
-        if (_report is null) return;
-        var stage = Checklist.HoleStages.First(s => s.Title == HoleStageName);
-        foreach (var c in stage.Columns) HoleColumns.Add(c.Label);
+        HoleQaHeader.Clear();
+        HoleQaRows.Clear();
+        if (_report is null) { Card = null; return; }
+        var groups = VisibleGroups();
+        for (int i = 0; i < groups.Count; i++) HoleQaHeader.Add(new HoleGroupHeaderViewModel(Checklist.HoleQa.First(x => x.Name == groups[i].Name), groups[i].Checks, i));
+        int perHole = groups.Sum(g => g.Checks.Count);
+        HoleQaLede = MinimumsOnly
+            ? $"The {perHole} TGC published minimums on every hole. Click a square to cycle Open, Done, Deliberate, N/A; click a hole for its card."
+            : $"{perHole} checks on every hole; a dot marks a TGC published minimum. Click a square to cycle Open, Done, Deliberate, N/A; click a hole for its card.";
         foreach (var h in _report.Holes)
-            HoleRows.Add(new HoleRowViewModel(h, _report, stage, _state, () => { Save(); RefreshSummary(); RebuildFindings(); }));
+        {
+            var row = new HoleQaRowViewModel(h, _report.Limits, _state, groups.Select(g => g.Checks).ToList(), HoleQaChanged, SelectHole);
+            if (OpenHolesOnly && row.AllClosed) continue;
+            row.IsSelected = h.Number == _selectedHole;
+            HoleQaRows.Add(row);
+        }
+        BuildCard();
+        UpdateHoleQaTotals();
+    }
+
+    void SelectHole(int hole)
+    {
+        _selectedHole = hole;
+        foreach (var r in HoleQaRows) r.IsSelected = r.Hole == hole;
+        BuildCard();
+    }
+
+    void BuildCard()
+    {
+        var h = _report?.Holes.FirstOrDefault(x => x.Number == _selectedHole) ?? _report?.Holes.FirstOrDefault();
+        Card = h is null || _report is null ? null : new HoleCardViewModel(h, _report, _state, VisibleGroups(), HoleQaChanged, Save, Rerun);
+    }
+
+    /// <summary>A check changed on a hole: save, and redraw that hole's row and card and the counts.</summary>
+    void HoleQaChanged(int hole)
+    {
+        Save();
+        foreach (var r in HoleQaRows.Where(r => r.Hole == hole)) r.Refresh();
+        if (Card?.Hole == hole) Card.Refresh();
+        UpdateHoleQaTotals();
+        RefreshSummary();
+        RebuildItemStates();
+    }
+
+    void UpdateHoleQaTotals()
+    {
+        if (_report is null) return;
+        var checks = VisibleGroups().SelectMany(g => g.Checks).ToList();
+        var statuses = _report.Holes.SelectMany(h => checks.Select(c => Checklist.StatusOf(c, h.Number, _state))).ToList();
+        int done = statuses.Count(x => x == ItemStatus.Done), closed = statuses.Count(x => x != ItemStatus.Open);
+        HoleQaTotals = $"{done} of {statuses.Count} done · {closed - done} deliberate or N/A";
     }
 
     // ───────────────────────── checklists ─────────────────────────
@@ -531,6 +614,7 @@ static class Look
     {
         Severity.High => (Brush.Parse("#F6E0DA"), Brush.Parse("#8E2F1E")),
         Severity.Flag => (Brush.Parse("#FBEFD9"), Brush.Parse("#7A4A00")),
+        Severity.Warning => (Brushes.White, Brush.Parse("#7A4A00")),
         Severity.Pass => (Brush.Parse("#E4EFE6"), Brush.Parse("#1F4D30")),
         _ => (Brush.Parse("#E3EDF5"), Brush.Parse("#1E4A70")),
     };
@@ -624,106 +708,6 @@ public partial class LimitRowViewModel(string key, string label, string value) :
     public string Key { get; } = key;
     public string Label { get; } = label;
     [ObservableProperty] private string _value = value;
-}
-
-/// <summary>One cell of the hole table: a judgement call on one hole, clicked through Open → Done → Deliberate → N/A.</summary>
-public partial class StatusCellViewModel : ObservableObject
-{
-    readonly string _key;
-    readonly ReadinessState _state;
-    readonly Action _changed;
-    public string Tip { get; }
-
-    [ObservableProperty] private string _label = "";
-    [ObservableProperty] private IBrush _fill = Brushes.White;
-    [ObservableProperty] private IBrush _ink = Brushes.Black;
-    [ObservableProperty] private IBrush _edge = Brushes.Gray;
-
-    public StatusCellViewModel(string key, string tip, ReadinessState state, Action changed)
-    {
-        _key = key;
-        _state = state;
-        _changed = changed;
-        Tip = tip;
-        Refresh();
-    }
-
-    void Refresh()
-    {
-        var s = _state.StatusOf(_key);
-        Label = Look.Label(s);
-        (Fill, Ink, Edge) = Look.Of(s);
-    }
-
-    [RelayCommand] private void Cycle()
-    {
-        _state.Set(_key, Look.Next(_state.StatusOf(_key)));
-        Refresh();
-        _changed();
-    }
-}
-
-/// <summary>A hole's row: what the file measured (flagged cells shaded) and the stage's judgement calls.</summary>
-public partial class HoleRowViewModel : ObservableObject
-{
-    static readonly IBrush Plain = Brush.Parse("#F7F8F5"), Flagged = Brush.Parse("#FBEFD9"), Worse = Brush.Parse("#F6E0DA");
-    readonly int _hole;
-    readonly ReadinessState _state;
-    readonly Action _changed;
-
-    public int Hole { get; }
-    public string ParYards { get; }
-    public string Drive { get; }
-    public IBrush DriveFill { get; }
-    public string Green { get; }
-    public IBrush GreenFill { get; }
-    public string Width { get; }
-    public IBrush WidthFill { get; }
-    public string Change { get; }
-    public IBrush ChangeFill { get; }
-    public string Relief { get; }
-    public IBrush ReliefFill { get; }
-    public string Near { get; }
-    public IBrush NearFill { get; }
-    public ObservableCollection<StatusCellViewModel> Cells { get; } = [];
-
-    [ObservableProperty] private bool _sizeDeliberate;
-
-    public HoleRowViewModel(HoleMeasures h, ReadinessReport r, HoleStage stage, ReadinessState state, Action changed)
-    {
-        _hole = h.Number;
-        _state = state;
-        _changed = changed;
-        var L = r.Limits;
-        Hole = h.Number;
-        ParYards = $"{h.Par} · {h.Yards}";
-        Drive = h.DriveClass ?? (h.LeftAfterDrive is int left ? $"{left} left" : "—");
-        DriveFill = h.DriveClass == "Drivable" || h.LeftAfterDrive < L.Par5MinLeftYards ? Worse : h.DriveClass is not null ? Flagged : Plain;
-        Green = h.GreenEstimated ? "not drawn" : $"{h.GreenSquareFeet:N0} · {h.GreenRatio:0.00}×";
-        GreenFill = h.GreenRatio is double g && (g < L.ScaleLow || g > L.ScaleHigh) ? Flagged : Plain;
-        Width = h.LandingWidthYards is double w ? $"{w:0}{(h.LandingOffFairway ? "*" : "")} · {h.WidthRatio:0.00}×" : h.Par == 3 ? "par 3" : "—";
-        WidthFill = h.LandingOffFairway || h.WidthRatio is double wr && (wr < L.ScaleLow || wr > L.ScaleHigh) ? Flagged : Plain;
-        Change = $"{h.ChangeFeet:+0;-0;0} ft";
-        ChangeFill = h.ChangeFeet > L.MaxClimbFeet || -h.ChangeFeet > L.MaxDropFeet ? Flagged : Plain;
-        Relief = h.GreenReliefFeet is double rf ? $"{rf:0.0} ft" : "—";
-        ReliefFill = h.GreenReliefFeet is double rr && (Math.Round(rr, 1) < L.GreenReliefMinFeet || Math.Round(rr, 1) > L.GreenReliefMaxFeet) ? Flagged : Plain;
-        Near = h.NearGreenYards is double ny ? $"{ny:0} yds · {(h.NearGreenOf == 0 ? "practice" : $"hole {h.NearGreenOf}")}" : "—";
-        NearFill = h.NearGreenYards is double n2 && Math.Round(n2) < L.CorridorYards ? (n2 < 0.5 ? Worse : Flagged) : Plain;
-        foreach (var c in stage.Columns) Cells.Add(new StatusCellViewModel(stage.Key(h.Number, c.Id), c.Label, state, changed));
-        _sizeDeliberate = state.Deliberate.ContainsKey($"green-scale@{h.Number}");
-    }
-
-    /// <summary>"Size is deliberate" on this hole, as in the HTML checklist: covers green size and landing width here.</summary>
-    partial void OnSizeDeliberateChanged(bool value)
-    {
-        foreach (var check in new[] { "green-scale", "landing-width" })
-        {
-            string key = $"{check}@{_hole}";
-            if (value) _state.Deliberate.TryAdd(key, new DeliberateMark { Reason = "Size is deliberate on this hole" });
-            else _state.Deliberate.Remove(key);
-        }
-        _changed();
-    }
 }
 
 /// <summary>A checklist item with its status, source, note and, when the file answers it, the evidence.</summary>
