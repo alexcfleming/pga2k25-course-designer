@@ -39,6 +39,19 @@ public sealed class PlaytestProfile
     public List<int> Pins { get; set; } = [];
 }
 
+/// <summary>
+/// What the designer says about one hole beyond the checks: a fairway start typed over the file's, a fairway shared
+/// with other holes (left out of the width figures), and a note.
+/// </summary>
+public sealed class HoleState
+{
+    public double? FairwayStartYards { get; set; }
+    public bool SharedFairway { get; set; }
+    /// <summary>The holes it shares with, as typed ("6, 9").</summary>
+    public string SharedWith { get; set; } = "";
+    public string Note { get; set; } = "";
+}
+
 public sealed class CustomItem
 {
     public string Stage { get; set; } = "";
@@ -80,6 +93,7 @@ public sealed class ReadinessState
     public Dictionary<string, PinState> Pins { get; set; } = [];
     public List<PlaytestProfile> Playtest { get; set; } = [new(), new()];
     public List<CustomItem> Custom { get; set; } = [];
+    public Dictionary<int, HoleState> Holes { get; set; } = [];
     public SignOff SignOff { get; set; } = new();
     /// <summary>Values kept from an imported checklist that the course file now supplies (lighting as typed, etc.).</summary>
     public Dictionary<string, string> Imported { get; set; } = [];
@@ -94,6 +108,13 @@ public sealed class ReadinessState
         if (note is not null) s.Note = note;
         s.Updated = DateTime.Now;
     }
+
+    public HoleState Hole(int number) => Holes.TryGetValue(number, out var h) ? h : Holes[number] = new HoleState();
+
+    /// <summary>The per-hole overrides the course-file checks take into account.</summary>
+    public IReadOnlyDictionary<int, HoleOverride> Overrides() =>
+        Holes.Where(kv => kv.Value.FairwayStartYards is not null || kv.Value.SharedFairway)
+            .ToDictionary(kv => kv.Key, kv => new HoleOverride(kv.Value.FairwayStartYards, kv.Value.SharedFairway));
 
     public PlaytestProfile Profile(int i)
     {
@@ -199,12 +220,9 @@ public static class ReadinessEvaluator
             int auto = stage.Items.Count(i => i.Checks.Count > 0);
             list.Add(new(stage.Id, stage.Title, done, items.Count, auto > 0 ? $"{auto} answered from the file" : ""));
         }
-        foreach (var hs in Checklist.HoleStages)
-        {
-            int total = holes.Count * hs.Columns.Count;
-            int done = holes.Sum(h => hs.Columns.Count(c => IsClosed(s.StatusOf(hs.Key(h, c.Id)))));
-            list.Add(new(hs.Id, hs.Title, done, total, $"{hs.Columns.Count} per hole"));
-        }
+        var checks = Checklist.HoleChecks.ToList();
+        int closed = holes.Sum(h => checks.Count(c => IsClosed(Checklist.StatusOf(c, h, s))));
+        list.Add(new("holes", "Hole QA", closed, holes.Count * checks.Count, $"{checks.Count} per hole"));
         int pinsSet = holes.Sum(h => Enumerable.Range(1, 4).Count(p => s.Pins.TryGetValue($"{h}.{p}", out var ps) && ps.Difficulty is { Length: > 0 }));
         list.Add(new("pins", "Pin difficulty", pinsSet, holes.Count * 4, "Positions from the file; difficulty is yours"));
         int tees = Math.Max(1, r.TeeSets.Count);

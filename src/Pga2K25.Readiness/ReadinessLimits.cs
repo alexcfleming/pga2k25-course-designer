@@ -1,8 +1,9 @@
 namespace Pga2K25.Readiness;
 
 /// <summary>
-/// The numbers the course-file checks judge against. They come from the design principles (§3, §7, §9) and the
-/// proposed tour-readiness limits (§11.4); none of them is a rule, so every one can be changed per course.
+/// The numbers the course-file checks judge against. They come from the design principles (§3, §7, §9), the proposed
+/// review limits (§11.4), TGC Tours' published minimums and a few provisional bands; none of them is a rule, so every
+/// one can be changed per course.
 /// </summary>
 public sealed record ReadinessLimits
 {
@@ -54,4 +55,42 @@ public sealed record ReadinessLimits
     /// <summary>Section 7: a two-hole same-par run is narrow under this spread and safe from this spread (yds).</summary>
     public double RunNarrowYards { get; init; } = 40;
     public double RunWideYards { get; init; } = 60;
+
+    // TGC Tours' published minimums.
+
+    /// <summary>Total par allowed.</summary>
+    public int ParMin { get; init; } = 69;
+    public int ParMax { get; init; } = 74;
+
+    /// <summary>Holes of the same par should span at least this many yards.</summary>
+    public double SameParSpreadYards { get; init; } = 30;
+
+    /// <summary>Fairway width TGC recommends (yds); narrower is noted, not flagged.</summary>
+    public double FairwayMinWidthYards { get; init; } = 25;
+
+    /// <summary>A pin this close to the green's edge (yds) is flagged: three of the in-game grid squares.</summary>
+    public double PinEdgeYards { get; init; } = 2;
+
+    /// <summary>A pin with slope this steep (%) within its grid square is flagged: the greens book's red (3.3°).</summary>
+    public double PinSteepPct { get; init; } = 5.8;
+
+    // Provisional: warnings only, from a small sample of reviewed courses.
+
+    /// <summary>Main fairway start from the back tee on par 4s and 5s (yds).</summary>
+    public double FairwayStartMinYards { get; init; } = 150;
+    public double FairwayStartMaxYards { get; init; } = 225;
+
+    /// <summary>The main fairway starts where the strip by the line is this wide (yds) and stays so this far (yds).</summary>
+    public double FairwayStartWidthYards { get; init; } = 25;
+    public double FairwayStartHoldYards { get; init; } = 35;
+
+    /// <summary>Par 4s this long or shorter (yds) are counted; more than <see cref="MaxShortPar4s"/> warns.</summary>
+    public double ShortPar4Yards { get; init; } = 380;
+    public int MaxShortPar4s { get; init; } = 2;
+
+    /// <summary>Past 200 yds, wide stretches more than this many times the narrow ones warn.</summary>
+    public double WidthSteadinessMax { get; init; } = 3;
+
+    /// <summary>Greens smaller than this (sq ft) warn.</summary>
+    public double SmallGreenSquareFeet { get; init; } = 3000;
 }

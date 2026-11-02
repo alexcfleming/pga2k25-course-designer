@@ -27,6 +27,10 @@ public class ReadinessStateTests
         s.Pins["3.2"] = new PinState { Difficulty = "R" };
         s.Profile(1).Winds.Add("NE");
         s.Custom.Add(new CustomItem { Stage = "build", Key = "b.xfence", Text = "Fence by 14 looks right" });
+        s.Hole(7).FairwayStartYards = 180;
+        s.Hole(7).SharedFairway = true;
+        s.Hole(7).SharedWith = "6, 9";
+        s.Hole(7).Note = "Waste left of the green";
         s.SignOff.Name = "Alex";
         ReadinessStore.Save(path, s);
 
@@ -41,6 +45,10 @@ public class ReadinessStateTests
         Assert.Equal("R", back.Pins["3.2"].Difficulty);
         Assert.Equal(["NE"], back.Playtest[1].Winds);
         Assert.Equal("b.xfence", Assert.Single(back.Custom).Key);
+        Assert.Equal(180, back.Holes[7].FairwayStartYards);
+        Assert.Equal("6, 9", back.Holes[7].SharedWith);
+        Assert.Equal("Waste left of the green", back.Holes[7].Note);
+        Assert.Equal(new HoleOverride(180, true), back.Overrides()[7]);
         Assert.Contains("\"done\"", File.ReadAllText(path).ToLowerInvariant());   // statuses saved as words
         Directory.Delete(dir, recursive: true);
     }
@@ -63,11 +71,11 @@ public class ReadinessStateTests
     public void DeliberateMarks_ClearAFlag_WholeOrHoleByHole()
     {
         var s = new ReadinessState();
-        var scale = Report.Check("green-scale")!;
+        var scale = Report.Check("landing-width")!;
         Assert.False(ReadinessEvaluator.IsCleared(scale, s));
-        foreach (int h in scale.Holes.SkipLast(1)) s.Deliberate[$"green-scale@{h}"] = new DeliberateMark();
+        foreach (int h in scale.Holes.SkipLast(1)) s.Deliberate[$"landing-width@{h}"] = new DeliberateMark();
         Assert.False(ReadinessEvaluator.IsCleared(scale, s));
-        s.Deliberate[$"green-scale@{scale.Holes[^1]}"] = new DeliberateMark();
+        s.Deliberate[$"landing-width@{scale.Holes[^1]}"] = new DeliberateMark();
         Assert.True(ReadinessEvaluator.IsCleared(scale, s));
 
         s.Deliberate["landing-width"] = new DeliberateMark { Reason = "Width is the strategy here" };
@@ -86,7 +94,7 @@ public class ReadinessStateTests
         // Close everything.
         foreach (var c in Report.Checks.Where(c => !c.Passed)) s.Deliberate[c.Id] = new DeliberateMark();
         foreach (var stage in Checklist.Stages) foreach (var i in stage.Items) s.Set(i.Key, ItemStatus.Done);
-        foreach (var hs in Checklist.HoleStages) foreach (var h in Report.Holes) foreach (var c in hs.Columns) s.Set(hs.Key(h.Number, c.Id), ItemStatus.Done);
+        foreach (var c in Checklist.HoleChecks) foreach (var h in Report.Holes) Checklist.Set(c, h.Number, ItemStatus.Done, s);
         foreach (var h in Report.Holes) for (int p = 1; p <= 4; p++) s.Pins[$"{h.Number}.{p}"] = new PinState { Difficulty = "G" };
         for (int i = 0; i < 2; i++)
         {
@@ -210,13 +218,38 @@ public class ReadinessStateTests
         Assert.Equal(16, Checklist.Build.Items.Count);
         Assert.Equal(10, Checklist.TourCourse.Items.Count);
         Assert.Equal(12, Checklist.Publish.Items.Count);
-        Assert.Equal(13, Checklist.HoleChecks.Columns.Count);
-        Assert.Equal(8, Checklist.TourHoles.Columns.Count);
-        Assert.Equal(7, Checklist.Planting.Columns.Count);
+        Assert.Equal(5, Checklist.Minimums.Items.Count);
+        // Hole QA: the HTML checklist's 28 per-hole keys (13 per-hole checks, 8 tour, 7 planting) all still read,
+        // two of them as a merged twin, plus 13 TGC minimums added since; tees flat is a minimum too.
+        var holeKeys = Checklist.HoleChecks.SelectMany(c => new[] { c.Key(1), c.AlsoKey(1) }).OfType<string>().ToList();
+        Assert.Equal(holeKeys.Count, holeKeys.Distinct().Count());
+        Assert.Equal(28, holeKeys.Count(k => !k.StartsWith("hq.", StringComparison.Ordinal)));
+        Assert.Equal(39, Checklist.HoleChecks.Count());
+        Assert.Equal(14, Checklist.HoleChecks.Count(c => c.Minimum));
+        Assert.All(new[] { "hc.1.sightTee", "tr.1.sand", "tr.1.blend", "tr.1.cam", "pl.1.bunk" }, k => Assert.Contains(k, holeKeys));
         // Every check an item points at exists (or is one of the evaluator's own).
         var own = new[] { Checklist.AllChecks, "drive-entered", "playtest-winds", "playtest-tees", "drive" };
         var ids = Report.Checks.Select(c => c.Id).Concat(own).Concat(["drivable-front", "drivable-back", "par5"]).ToHashSet();
         Assert.All(Checklist.Stages.SelectMany(s => s.Items).SelectMany(i => i.Checks), id => Assert.Contains(id, ids));
         Assert.Equal(Severity.High, Report.Checks.Max(c => c.Severity));
+    }
+
+    [Fact]
+    public void HoleQa_MergedChecks_ReadEitherKey_AndWriteTheirOwn()
+    {
+        var bunkers = Checklist.HoleChecks.Single(c => c.Key(5) == "hc.5.bunk");
+        var s = new ReadinessState();
+        s.Set("tr.5.sand", ItemStatus.Done);                                   // ticked as "Bunker sand sculpting" before
+        Assert.Equal(ItemStatus.Done, Checklist.StatusOf(bunkers, 5, s));
+        s.Set("hc.5.bunk", ItemStatus.NotApplicable);
+        Assert.Equal(ItemStatus.Done, Checklist.StatusOf(bunkers, 5, s));      // the more closed one wins
+
+        Checklist.Set(bunkers, 5, ItemStatus.Deliberate, s);
+        Assert.Equal(ItemStatus.Deliberate, Checklist.StatusOf(bunkers, 5, s));
+        Assert.False(s.Items.ContainsKey("tr.5.sand"));
+
+        var progress = ReadinessEvaluator.Progress(Report, s).Single(p => p.Id == "holes");
+        Assert.Equal(1, progress.Done);
+        Assert.Equal(18 * 39, progress.Total);
     }
 }
