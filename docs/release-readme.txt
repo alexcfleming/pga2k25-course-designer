@@ -239,12 +239,29 @@ NEW SINCE 2.3.0
   checklist. From the course file: total par 69-74 with par 3, 4 and 5
   holes only, a range of yardages for each par, and each pin's distance
   from the edge and slope at the cup.
-- Provisional checks (warnings only, never a pass or fail): where the
-  main fairway starts from the back tee (150-225 yds), par 4s of 380 yds
-  or less, fairway width steadiness, small greens and par 3 green size
-  against length. Type your own fairway start on a hole's card, or mark
-  its fairway as shared, and the checks run again. Every limit can be
-  changed. Green size against the course median is a warning now too.
+- Design tee shot: one course setting, 300-350 yds by default. Yards
+  left, fairway widths and the yardage book's width stations all follow
+  it. The test drive stays as a record to check it against.
+- Length and width checks (provisional: warnings only, never a pass or
+  fail): median par 4 430+, at most 3 par 4s under 400, shortest par 5
+  560+, and fairway width at 300, 325 and 350 yds between 25 and 70
+  (35-50 is the target; over 60 needs a reason written on the hole).
+  Shared fairways count. Also: width swings past 200 yds, and holes
+  wider in the landing zone than the lay-up.
+- Hole design notes on par 4s and 5s: what a miss costs, what changes
+  if you go left, right or over each hazard, the par 5 second shot, and
+  why a fairway is over 60 yds. Each is required and closes once
+  written. New ticks for hazards a 350 drive flies, blind hazards in the
+  landing area, unused fairway, pin run-out, and a Finish group.
+- Prompts with no limit: hazards near the line in the landing zone,
+  green size against the approach, forward tees reaching the fairway,
+  card against straight-line yards, the main fairway start, and green
+  size against the course median. Every limit can be changed.
+- Retired: drivable par 4s per nine, par 5s leaving 220 after the test
+  drive, every tee set 6,500-7,500, and landing width against the
+  course median.
+- Yardage book: fairway widths at 250 yds and across the design tee
+  shot (300, 325 and 350 by default), instead of 200, 250 and 300.
 
 FIXED IN 2.4.0
 - Modern Illustrated scorecard map: fairways no longer show darker

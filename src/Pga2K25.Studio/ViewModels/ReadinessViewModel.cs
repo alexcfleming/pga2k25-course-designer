@@ -157,7 +157,7 @@ public partial class ReadinessViewModel : ObservableObject
                     HasReport = true;
                     Busy = false;
                     SourceText = $"Checked against {Path.GetFileName(_coursePath)} · read {DateTime.Now:d MMM, HH:mm} · back tees" +
-                                 (limits.TestDriveYards is double d ? $" · {d:0}-yd test drive" : " · no test drive entered");
+                                 $" · {limits.DesignDriveMinYards:0}–{limits.DesignDriveMaxYards:0}-yd design tee shot" + (limits.TestDriveYards is double d ? $", {d:0}-yd test drive" : "");
                     Show($"{report.Checks.Count(c => c.Passed)} of {report.Checks.Count} course-file checks pass.");
                     RebuildAll();
                 });
@@ -229,13 +229,31 @@ public partial class ReadinessViewModel : ObservableObject
         var L = _state.Limits;
         Limits.Clear();
         void Add(string key, string label, double? v) => Limits.Add(new LimitRowViewModel(key, label, v is double x ? x.ToString("0.##", Inv) : ""));
-        Add("drive", "Test drive (yds)", L.TestDriveYards);
-        Add("par5", "Par 5 left after it (yds)", L.Par5MinLeftYards);
-        Add("drivable", "Drivable within (yds)", L.DrivableWithinYards);
-        Add("near", "Near-drivable within (yds)", L.NearDrivableWithinYards);
-        Add("perNine", "Drivable per nine, at most", L.MaxDrivablePerNine);
-        Add("scaleLow", "Scale low (× median)", L.ScaleLow);
-        Add("scaleHigh", "Scale high (× median)", L.ScaleHigh);
+        Add("teeMin", "Design tee shot from (yds)", L.DesignDriveMinYards);
+        Add("teeMax", "Design tee shot to (yds)", L.DesignDriveMaxYards);
+        Add("drive", "Test drive, recorded (yds)", L.TestDriveYards);
+        Add("medianFour", "Median par 4 at least (yds)", L.MedianPar4MinYards);
+        Add("shortPar4", "Par 4s under (yds)", L.ShortPar4Yards);
+        Add("maxShort", "Par 4s under it, at most", L.MaxShortPar4s);
+        Add("shortFive", "Shortest par 5 at least (yds)", L.ShortestPar5MinYards);
+        Add("backMin", "Back tee range from (yds, shown only)", L.BackTeeMinYards);
+        Add("backMax", "Back tee range to (yds, shown only)", L.BackTeeMaxYards);
+        Add("targetMin", "Landing width target from (yds)", L.LandingTargetMinYards);
+        Add("targetMax", "Landing width target to (yds)", L.LandingTargetMaxYards);
+        Add("reason", "Reason needed over (yds)", L.WidthReasonYards);
+        Add("widthHigh", "Width warning over (yds)", L.WidthHighYards);
+        Add("widthLow", "Width warning under (yds)", L.WidthLowYards);
+        Add("steady", "Width swing past 200 (×)", L.WidthSteadinessMax);
+        Add("hazReach", "Landing hazards within (yds of the line)", L.LandingHazardReachYards);
+        Add("hazFrom", "Landing hazards from (yds)", L.LandingHazardFromYards);
+        Add("hazTo", "Landing hazards to (yds)", L.LandingHazardToYards);
+        Add("straight", "Card and straight shown apart from (yds)", L.StraightDiffYards);
+        Add("scaleLow", "Green prompt under (× median)", L.ScaleLow);
+        Add("scaleHigh", "Green prompt over (× median)", L.ScaleHigh);
+        Add("startMin", "Fairway start note from (yds)", L.FairwayStartMinYards);
+        Add("startMax", "Fairway start note to (yds)", L.FairwayStartMaxYards);
+        Add("startWidth", "Fairway start: width (yds)", L.FairwayStartWidthYards);
+        Add("startHold", "Fairway start: held for (yds)", L.FairwayStartHoldYards);
         Add("corridor", "Corridor (yds)", L.CorridorYards);
         Add("aim", "Aim points apart (yds)", L.AimSpacingYards);
         Add("drop", "Largest drop (ft)", L.MaxDropFeet);
@@ -244,22 +262,11 @@ public partial class ReadinessViewModel : ObservableObject
         Add("rangeMax", "Plot range to (ft)", L.PlotRangeMaxFeet);
         Add("reliefMin", "Green relief from (ft)", L.GreenReliefMinFeet);
         Add("reliefMax", "Green relief to (ft)", L.GreenReliefMaxFeet);
-        Add("teeMin", "Tee set total from (yds)", L.TeeTotalMinYards);
-        Add("teeMax", "Tee set total to (yds)", L.TeeTotalMaxYards);
         Add("parMin", "Total par from (TGC)", L.ParMin);
         Add("parMax", "Total par to (TGC)", L.ParMax);
         Add("sameParSpread", "Same-par spread at least (yds)", L.SameParSpreadYards);
-        Add("fairwayMin", "Fairway width note under (yds)", L.FairwayMinWidthYards);
         Add("pinEdge", "Pin from edge at least (yds; 3 grid squares)", L.PinEdgeYards);
         Add("pinSteep", "Pin slope at the cup under (%)", L.PinSteepPct);
-        Add("startMin", "Fairway start from (yds, provisional)", L.FairwayStartMinYards);
-        Add("startMax", "Fairway start to (yds, provisional)", L.FairwayStartMaxYards);
-        Add("startWidth", "Fairway start: width (yds)", L.FairwayStartWidthYards);
-        Add("startHold", "Fairway start: held for (yds)", L.FairwayStartHoldYards);
-        Add("shortPar4", "Short par 4 up to (yds, provisional)", L.ShortPar4Yards);
-        Add("maxShort", "Short par 4s, at most", L.MaxShortPar4s);
-        Add("steady", "Width steadiness up to (×, provisional)", L.WidthSteadinessMax);
-        Add("smallGreen", "Small green under (sq ft, provisional)", L.SmallGreenSquareFeet);
     }
 
     [RelayCommand] private void ApplyLimits()
@@ -274,13 +281,31 @@ public partial class ReadinessViewModel : ObservableObject
         }
         var next = L with
         {
+            DesignDriveMinYards = Get("teeMin") ?? L.DesignDriveMinYards,
+            DesignDriveMaxYards = Get("teeMax") ?? L.DesignDriveMaxYards,
             TestDriveYards = Get("drive", optional: true),
-            Par5MinLeftYards = Get("par5") ?? L.Par5MinLeftYards,
-            DrivableWithinYards = Get("drivable") ?? L.DrivableWithinYards,
-            NearDrivableWithinYards = Get("near") ?? L.NearDrivableWithinYards,
-            MaxDrivablePerNine = (int)(Get("perNine") ?? L.MaxDrivablePerNine),
+            MedianPar4MinYards = Get("medianFour") ?? L.MedianPar4MinYards,
+            ShortPar4Yards = Get("shortPar4") ?? L.ShortPar4Yards,
+            MaxShortPar4s = (int)(Get("maxShort") ?? L.MaxShortPar4s),
+            ShortestPar5MinYards = Get("shortFive") ?? L.ShortestPar5MinYards,
+            BackTeeMinYards = Get("backMin") ?? L.BackTeeMinYards,
+            BackTeeMaxYards = Get("backMax") ?? L.BackTeeMaxYards,
+            LandingTargetMinYards = Get("targetMin") ?? L.LandingTargetMinYards,
+            LandingTargetMaxYards = Get("targetMax") ?? L.LandingTargetMaxYards,
+            WidthReasonYards = Get("reason") ?? L.WidthReasonYards,
+            WidthHighYards = Get("widthHigh") ?? L.WidthHighYards,
+            WidthLowYards = Get("widthLow") ?? L.WidthLowYards,
+            WidthSteadinessMax = Get("steady") ?? L.WidthSteadinessMax,
+            LandingHazardReachYards = Get("hazReach") ?? L.LandingHazardReachYards,
+            LandingHazardFromYards = Get("hazFrom") ?? L.LandingHazardFromYards,
+            LandingHazardToYards = Get("hazTo") ?? L.LandingHazardToYards,
+            StraightDiffYards = Get("straight") ?? L.StraightDiffYards,
             ScaleLow = Get("scaleLow") ?? L.ScaleLow,
             ScaleHigh = Get("scaleHigh") ?? L.ScaleHigh,
+            FairwayStartMinYards = Get("startMin") ?? L.FairwayStartMinYards,
+            FairwayStartMaxYards = Get("startMax") ?? L.FairwayStartMaxYards,
+            FairwayStartWidthYards = Get("startWidth") ?? L.FairwayStartWidthYards,
+            FairwayStartHoldYards = Get("startHold") ?? L.FairwayStartHoldYards,
             CorridorYards = Get("corridor") ?? L.CorridorYards,
             AimSpacingYards = Get("aim") ?? L.AimSpacingYards,
             MaxDropFeet = Get("drop") ?? L.MaxDropFeet,
@@ -289,22 +314,11 @@ public partial class ReadinessViewModel : ObservableObject
             PlotRangeMaxFeet = Get("rangeMax") ?? L.PlotRangeMaxFeet,
             GreenReliefMinFeet = Get("reliefMin") ?? L.GreenReliefMinFeet,
             GreenReliefMaxFeet = Get("reliefMax") ?? L.GreenReliefMaxFeet,
-            TeeTotalMinYards = Get("teeMin") ?? L.TeeTotalMinYards,
-            TeeTotalMaxYards = Get("teeMax") ?? L.TeeTotalMaxYards,
             ParMin = (int)(Get("parMin") ?? L.ParMin),
             ParMax = (int)(Get("parMax") ?? L.ParMax),
             SameParSpreadYards = Get("sameParSpread") ?? L.SameParSpreadYards,
-            FairwayMinWidthYards = Get("fairwayMin") ?? L.FairwayMinWidthYards,
             PinEdgeYards = Get("pinEdge") ?? L.PinEdgeYards,
             PinSteepPct = Get("pinSteep") ?? L.PinSteepPct,
-            FairwayStartMinYards = Get("startMin") ?? L.FairwayStartMinYards,
-            FairwayStartMaxYards = Get("startMax") ?? L.FairwayStartMaxYards,
-            FairwayStartWidthYards = Get("startWidth") ?? L.FairwayStartWidthYards,
-            FairwayStartHoldYards = Get("startHold") ?? L.FairwayStartHoldYards,
-            ShortPar4Yards = Get("shortPar4") ?? L.ShortPar4Yards,
-            MaxShortPar4s = (int)(Get("maxShort") ?? L.MaxShortPar4s),
-            WidthSteadinessMax = Get("steady") ?? L.WidthSteadinessMax,
-            SmallGreenSquareFeet = Get("smallGreen") ?? L.SmallGreenSquareFeet,
         };
         if (bad.Count > 0) { Show($"Not applied. Check: {string.Join(", ", bad)}.", error: true); return; }
         _state.Limits = next;
@@ -314,7 +328,12 @@ public partial class ReadinessViewModel : ObservableObject
 
     [RelayCommand] private void ResetLimits()
     {
-        _state.Limits = new ReadinessLimits { TestDriveYards = _state.Limits.TestDriveYards };
+        _state.Limits = new ReadinessLimits
+        {
+            TestDriveYards = _state.Limits.TestDriveYards,
+            DesignDriveMinYards = _state.Limits.DesignDriveMinYards,
+            DesignDriveMaxYards = _state.Limits.DesignDriveMaxYards,
+        };
         Save();
         LoadLimits();
         Rerun();
@@ -345,10 +364,10 @@ public partial class ReadinessViewModel : ObservableObject
         int perHole = groups.Sum(g => g.Checks.Count);
         HoleQaLede = MinimumsOnly
             ? $"The {perHole} TGC published minimums on every hole. Click a square to cycle Open, Done, Deliberate, N/A; click a hole for its card."
-            : $"{perHole} checks on every hole; a dot marks a TGC published minimum. Click a square to cycle Open, Done, Deliberate, N/A; click a hole for its card.";
+            : $"Up to {perHole} checks a hole; a dot marks a TGC published minimum. Dashed green squares are hole design notes: write them on the hole's card. Click a square to cycle Open, Done, Deliberate, N/A; click a hole for its card.";
         foreach (var h in _report.Holes)
         {
-            var row = new HoleQaRowViewModel(h, _report.Limits, _state, groups.Select(g => g.Checks).ToList(), HoleQaChanged, SelectHole);
+            var row = new HoleQaRowViewModel(h, _report, _state, groups.Select(g => g.Checks).ToList(), HoleQaChanged, SelectHole);
             if (OpenHolesOnly && row.AllClosed) continue;
             row.IsSelected = h.Number == _selectedHole;
             HoleQaRows.Add(row);
@@ -385,7 +404,7 @@ public partial class ReadinessViewModel : ObservableObject
     {
         if (_report is null) return;
         var checks = VisibleGroups().SelectMany(g => g.Checks).ToList();
-        var statuses = _report.Holes.SelectMany(h => checks.Select(c => Checklist.StatusOf(c, h.Number, _state))).ToList();
+        var statuses = _report.Holes.SelectMany(h => checks.Where(c => c.Applies(h, _report.Limits)).Select(c => Checklist.StatusOf(c, h.Number, _state))).ToList();
         int done = statuses.Count(x => x == ItemStatus.Done), closed = statuses.Count(x => x != ItemStatus.Open);
         HoleQaTotals = $"{done} of {statuses.Count} done · {closed - done} deliberate or N/A";
     }

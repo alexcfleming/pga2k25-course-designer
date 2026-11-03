@@ -50,6 +50,8 @@ public sealed class HoleState
     /// <summary>The holes it shares with, as typed ("6, 9").</summary>
     public string SharedWith { get; set; } = "";
     public string Note { get; set; } = "";
+    /// <summary>The hole design notes (Principles §12), keyed by the Hole QA note's id: miss, hazards, second, width.</summary>
+    public Dictionary<string, string> Notes { get; set; } = [];
 }
 
 public sealed class CustomItem
@@ -198,7 +200,8 @@ public static class ReadinessEvaluator
         fromFile = false;
         var own = s.StatusOf(item.Key);
         if (own != ItemStatus.Open) return own;
-        if (item.Checks.Count > 0 && item.Checks.All(id => Cleared(id, r, s))) { fromFile = true; return ItemStatus.Done; }
+        // A provisional warning doesn't hold the gate, but it doesn't tick an item for the designer either.
+        if (item.Checks.Count > 0 && item.Checks.All(id => Cleared(id, r, s) && r.Check(id)?.Severity != Severity.Warning)) { fromFile = true; return ItemStatus.Done; }
         return ItemStatus.Open;
     }
 
@@ -221,8 +224,9 @@ public static class ReadinessEvaluator
             list.Add(new(stage.Id, stage.Title, done, items.Count, auto > 0 ? $"{auto} answered from the file" : ""));
         }
         var checks = Checklist.HoleChecks.ToList();
-        int closed = holes.Sum(h => checks.Count(c => IsClosed(Checklist.StatusOf(c, h, s))));
-        list.Add(new("holes", "Hole QA", closed, holes.Count * checks.Count, $"{checks.Count} per hole"));
+        var asked = r.Holes.SelectMany(h => checks.Where(c => c.Applies(h, r.Limits)).Select(c => (c, h.Number))).ToList();
+        int closed = asked.Count(x => IsClosed(Checklist.StatusOf(x.c, x.Number, s)));
+        list.Add(new("holes", "Hole QA", closed, asked.Count, $"Up to {checks.Count} per hole; notes count once written"));
         int pinsSet = holes.Sum(h => Enumerable.Range(1, 4).Count(p => s.Pins.TryGetValue($"{h}.{p}", out var ps) && ps.Difficulty is { Length: > 0 }));
         list.Add(new("pins", "Pin difficulty", pinsSet, holes.Count * 4, "Positions from the file; difficulty is yours"));
         int tees = Math.Max(1, r.TeeSets.Count);

@@ -9,8 +9,8 @@ namespace Pga2K25.Readiness;
 /// <summary>
 /// The publish-readiness checks a course file can answer by itself: scorecard and routing (§7), the review measures
 /// (§11: drive tests, scale, corridors), elevation and green relief (§3), the green speed, fringe and lighting
-/// settings, the TGC Tours minimums a file can show (par, yardage range, pins, fairway width) and a few provisional
-/// warnings (fairway start, short par 4s, width steadiness, small greens). Judgement calls (waypoints, sand,
+/// settings, the TGC Tours minimums a file can show (par, yardage range, pins) and the provisional §12 length and
+/// width warnings, measured from a 300–350 yd design tee shot. Judgement calls (waypoints, sand,
 /// realism, cameras) stay with the designer. Terrain figures come from the replayed brushes, so they say "confirm in game".
 /// </summary>
 public static class ReadinessChecker
@@ -59,25 +59,16 @@ public static class ReadinessChecker
         var greensOptions = new GreensBookOptions();
 
         var measures = new List<HoleMeasures>();
+        var layers = CourseLayers.From(course);
+        var hazards = Hazards(layers, survey);
         foreach (var h in holes)
         {
             var outline = outlines[h.Number];
             var size = sizes.For(h.Number);
             var tee = BackTee(h);
             int yards = Yards(h);
-
-            string? driveClass = null;
-            int? left = null;
-            if (L.TestDriveYards is double drive)
-            {
-                if (h.Par == 4 && yards - drive <= L.DrivableWithinYards) driveClass = "Drivable";
-                else if (h.Par == 4 && yards - drive <= L.NearDrivableWithinYards) driveClass = "Near-drivable";
-                if (h.Par == 5) left = (int)Math.Round(yards - drive);
-            }
-
-            var (width, off) = h.Par >= 4 ? LandingWidth(h, tee, fairways, L) : (null, false);
-            var (start, narrowest, steadiness) = h.Par >= 4 ? FairwayLine(h, tee, fairways, L) : (null, null, null);
             var own = overrides.TryGetValue(h.Number, out var given) ? given : null;
+            var fig = h.Par >= 4 ? LineFigures(h, tee, fairways, hazards, L) : null;
 
             double? relief = null, slope = null;
             GreenAnalysis? analysis = null;
@@ -109,11 +100,13 @@ public static class ReadinessChecker
             var routing = survey.Holes.FirstOrDefault(r => r.Hole.Number == h.Number);
             measures.Add(new HoleMeasures
             {
-                Number = h.Number, Par = h.Par, Yards = yards, DriveClass = driveClass, LeftAfterDrive = left,
+                Number = h.Number, Par = h.Par, Yards = yards,
+                StraightYards = (int)Math.Round(Vec2.Distance(tee, h.Route[^1]) * YardsPerMetre),
                 GreenSquareFeet = size?.SquareFeet ?? 0, GreenEstimated = outline.Estimated,
-                LandingWidthYards = width, LandingOffFairway = off,
-                FairwayStartFileYards = start, FairwayStartOverrideYards = h.Par >= 4 ? own?.FairwayStartYards : null,
-                SharedFairway = own?.SharedFairway ?? false, NarrowestFairwayYards = narrowest, WidthSteadiness = steadiness,
+                Stations = fig?.Stations ?? [], LayupWidthYards = fig?.Layup, LandingWidthYards = fig?.Landing,
+                LandingHazards = fig?.Hazards ?? [], ForwardCarryYards = fig is null ? null : ForwardCarry(h, fig.StartPoint),
+                FairwayStartFileYards = fig?.Start, FairwayStartOverrideYards = h.Par >= 4 ? own?.FairwayStartYards : null,
+                SharedFairway = own?.SharedFairway ?? false, WidthSteadiness = fig?.Steadiness,
                 ChangeFeet = routing?.ChangeFeet ?? 0,
                 GreenReliefFeet = relief, GreenMedianSlopePct = slope,
                 NearGreenOf = nearOf, NearGreenYards = nearYards,
@@ -123,13 +116,11 @@ public static class ReadinessChecker
         }
 
         double medGreen = sizes.MedianSquareFeet;
-        // A shared fairway's widths belong to more than one hole, so they stay out of the medians.
-        double medWidth = Median(measures.Where(m => m.LandingWidthYards > 0 && !m.SharedFairway).Select(m => m.LandingWidthYards!.Value));
+        // A shared fairway's start belongs to more than one hole, so it stays out of the median. Its widths count.
         double medStart = Median(measures.Where(m => m.FairwayStartYards is not null && !m.SharedFairway).Select(m => m.FairwayStartYards!.Value));
         measures = measures.Select(m => m with
         {
             GreenRatio = !m.GreenEstimated && medGreen > 0 ? m.GreenSquareFeet / medGreen : null,
-            WidthRatio = m.LandingWidthYards is double w && w > 0 && medWidth > 0 ? w / medWidth : null,
         }).ToList();
 
         var playPoints = holes.SelectMany(h => h.Tees.Concat(h.Route))
@@ -141,19 +132,19 @@ public static class ReadinessChecker
         double? stimp = Stimp(course.GreenSpeed);
 
         var checks = new List<ReadinessCheck>();
-        checks.AddRange(ScorecardChecks(measures, teeSets, runs, L));
-        checks.AddRange(DriveChecks(measures, L));
-        checks.AddRange(ScaleChecks(measures, medGreen, medWidth, L));
+        checks.AddRange(ScorecardChecks(measures, runs));
+        checks.AddRange(MinimumChecks(measures, L));
+        checks.AddRange(LengthChecks(measures, teeSets, L));
+        checks.AddRange(WidthChecks(measures, L));
         checks.AddRange(TerrainChecks(measures, plotRange, L));
         checks.AddRange(CorridorChecks(holes, measures, outlines, L));
         checks.AddRange(SettingChecks(course, stimp, L));
-        checks.AddRange(MinimumChecks(measures, L));
-        checks.AddRange(ProvisionalChecks(measures, medStart, L));
+        checks.AddRange(PromptChecks(measures, medGreen, medStart, L));
 
         return new ReadinessReport
         {
             CourseName = course.Name, Limits = L, Holes = measures, TeeSets = teeSets, Runs = runs, Checks = checks,
-            Atmosphere = course.Atmosphere, Stimp = stimp, MedianGreenSquareFeet = medGreen, MedianLandingYards = medWidth,
+            Atmosphere = course.Atmosphere, Stimp = stimp, MedianGreenSquareFeet = medGreen,
             PlotRangeFeet = plotRange, MedianFairwayStartYards = medStart,
         };
     }
@@ -197,43 +188,6 @@ public static class ReadinessChecker
     }
 
     /// <summary>
-    /// Fairway width across the line through the landing zone: the 40 yds up to where the tee shot lands (the test
-    /// drive, or the first aim point if that's shorter, or 260 yds with no drive entered), measured every 5 yds
-    /// and the median taken, since one cross-section can sit on a neck or a fairway's edge. At each step the fairway
-    /// run under the line counts; where the line is in the rough the nearest run does, and if that's so at most
-    /// steps the hole is marked as landing off the fairway.
-    /// </summary>
-    static (double? Yards, bool Off) LandingWidth(Hole h, Vec2 tee, List<List<Vec2>> fairways, ReadinessLimits L)
-    {
-        if (fairways.Count == 0) return (null, false);
-        bool hasAim = h.Route.Count > 2;
-        var aim = hasAim ? h.Route[1] : h.Route[^1];
-        double toAim = Vec2.Distance(tee, aim);
-        double land = Math.Min((L.TestDriveYards ?? 260) / YardsPerMetre, hasAim ? toAim : toAim - 30);
-        if (land <= 0) return (null, false);
-        var dir = (aim - tee).Normalized();
-        var across = new Vec2(-dir.Z, dir.X);
-
-        var widths = new List<double>();
-        int offSteps = 0;
-        for (double back = 0; back <= 40 / YardsPerMetre + 1e-9; back += 5 / YardsPerMetre)
-        {
-            if (land - back <= 0) break;
-            var (w, off) = CrossSection(tee + dir * (land - back), across, fairways);
-            widths.Add(w);
-            if (off) offSteps++;
-        }
-        if (widths.Count == 0) return (null, false);
-        return (Median(widths) * YardsPerMetre, offSteps * 2 > widths.Count);
-    }
-
-    static (double Metres, bool Off) CrossSection(Vec2 p, Vec2 across, List<List<Vec2>> fairways)
-    {
-        var (w, gap) = Strip(p, across, fairways);
-        return (w, gap > 0 || w == 0);
-    }
-
-    /// <summary>
     /// The fairway run across the line at <paramref name="p"/>: the one under it, else the nearest, as its width and
     /// how far its edge is from the line (0 when under it). No fairway within 90 m is (0, ∞).
     /// </summary>
@@ -268,19 +222,57 @@ public static class ReadinessChecker
         return (line[^1], new Vec2(0, 1));
     }
 
+    /// <summary>What the line of play shows on a par 4 or 5 (see <see cref="LineFigures"/>).</summary>
+    sealed record LineFigure(double? Start, Vec2? StartPoint, double? Steadiness, IReadOnlyList<StationWidth> Stations,
+        double? Layup, double? Landing, IReadOnlyList<LandingHazard> Hazards);
+
+    /// <summary>A bunker or water outline, with what to call it.</summary>
+    sealed record Hazard(string Kind, IReadOnlyList<Vec2> Outline);
+
     /// <summary>
-    /// The main fairway along the line of play (back tee, aim points, green), sampled every 5 yds from 60 yds out:
+    /// Every bunker (painted dabs merged as the scorecard maps merge them) and every water outline: painted water,
+    /// stream ribbons (their edges) and the ponds the terrain survey traced.
+    /// </summary>
+    static List<Hazard> Hazards(CourseLayers layers, TerrainSurvey survey)
+    {
+        var list = layers.MergedBunkers().Where(b => b.Count >= 3).Select(b => new Hazard("bunker", b)).ToList();
+        list.AddRange(layers.WaterAreas.Where(w => w.Count >= 3).Select(w => new Hazard("water", w)));
+        list.AddRange(survey.PaintedWaterEdges.Where(w => w.Count >= 3).Select(w => new Hazard("water", w)));
+        list.AddRange(layers.WaterRibbons.Where(r => r.Points.Count >= 2).Select(r => new Hazard("water", RibbonOutline(r.Points, r.Width / 2))));
+        return list;
+    }
+
+    /// <summary>A stroke's outline: its points offset by half its width either side, out one side and back the other.</summary>
+    static List<Vec2> RibbonOutline(IReadOnlyList<Vec2> pts, double half)
+    {
+        var left = new List<Vec2>();
+        var right = new List<Vec2>();
+        for (int i = 0; i < pts.Count; i++)
+        {
+            var d = (pts[Math.Min(i + 1, pts.Count - 1)] - pts[Math.Max(i - 1, 0)]).Normalized();
+            var n = new Vec2(-d.Z, d.X) * half;
+            left.Add(pts[i] + n);
+            right.Add(pts[i] - n);
+        }
+        right.Reverse();
+        return [.. left, .. right];
+    }
+
+    /// <summary>
+    /// The line of play (back tee, aim points, green), sampled every 5 yds from 60 yds out:
     /// <list type="bullet">
-    /// <item>where it starts: the first station where the strip by the line is at least the start width and stays so
-    /// for the hold distance (60 means 60 or less; null when it never does)</item>
-    /// <item>the narrowest it gets on the line from there to 40 yds short of the green</item>
+    /// <item>where the main fairway starts: the first station where the strip by the line is at least the start width
+    /// and stays so for the hold distance (60 means 60 or less; null when it never does)</item>
     /// <item>past 200 yds, its wide stretches over its narrow ones (90th over 10th percentile, so one neck or one
     /// gap between two fairways doesn't decide it)</item>
+    /// <item>the width at the design tee shot's short, middle and long distances, and the median width over
+    /// 250–290 yds (the lay-up) and over the design tee shot (the landing)</item>
+    /// <item>bunkers and water within reach of the line between the landing-hazard distances</item>
     /// </list>
     /// </summary>
-    static (double? Start, double? Narrowest, double? Steadiness) FairwayLine(Hole h, Vec2 tee, List<List<Vec2>> fairways, ReadinessLimits L)
+    static LineFigure? LineFigures(Hole h, Vec2 tee, List<List<Vec2>> fairways, List<Hazard> hazards, ReadinessLimits L)
     {
-        if (fairways.Count == 0 || h.Route.Count < 2) return (null, null, null);
+        if (h.Route.Count < 2) return null;
         var line = new List<Vec2> { tee };
         line.AddRange(h.Route.Skip(1));
         double total = 0;
@@ -288,14 +280,22 @@ public static class ReadinessChecker
         double totalYds = total * YardsPerMetre;
         const double step = 5, from = 60;
         int hold = Math.Max(1, (int)Math.Round(L.FairwayStartHoldYards / step));
+        double end = totalYds - 40;
+
+        (double Width, double Gap) At(double yd)
+        {
+            var (p, dir) = Along(line, yd / YardsPerMetre);
+            var (w, gap) = fairways.Count == 0 ? (0, double.PositiveInfinity) : Strip(p, new Vec2(-dir.Z, dir.X), fairways);
+            return (w * YardsPerMetre, gap * YardsPerMetre);
+        }
 
         var stations = new List<(double Yds, double Width, double Gap)>();
         for (double yd = from; yd < totalYds - 20; yd += step)
         {
-            var (p, dir) = Along(line, yd / YardsPerMetre);
-            var (w, gap) = Strip(p, new Vec2(-dir.Z, dir.X), fairways);
-            stations.Add((yd, w * YardsPerMetre, gap * YardsPerMetre));
+            var (w, gap) = At(yd);
+            stations.Add((yd, w, gap));
         }
+        bool Near((double Yds, double Width, double Gap) x) => x.Gap <= FairwayNearLineYards && x.Width > 0;
 
         double? start = null;
         for (int i = 0, run = 0; i < stations.Count; i++)
@@ -304,16 +304,52 @@ public static class ReadinessChecker
             run = st.Width >= L.FairwayStartWidthYards && st.Gap <= FairwayNearLineYards ? run + 1 : 0;
             if (run >= hold) { start = stations[i - hold + 1].Yds; break; }
         }
+        Vec2? startPoint = start is double s0 ? Along(line, s0 / YardsPerMetre).Point : null;
 
-        double end = totalYds - 40;
-        var onLine = stations.Where(x => start is double s0 && x.Yds >= s0 && x.Yds <= end && x.Gap == 0).Select(x => x.Width).ToList();
-        double? narrowest = onLine.Count > 0 ? onLine.Min() : null;
-
-        var past = stations.Where(x => x.Yds >= 200 && x.Yds <= end && x.Gap <= FairwayNearLineYards && x.Width > 0)
-            .Select(x => x.Width).OrderBy(x => x).ToList();
+        var past = stations.Where(x => x.Yds >= 200 && x.Yds <= end && Near(x)).Select(x => x.Width).OrderBy(x => x).ToList();
         double? steadiness = past.Count >= 5 ? Percentile(past, 0.9) / Percentile(past, 0.1) : null;
-        return (start, narrowest, steadiness);
+
+        // The design tee shot's three stations, where the hole is long enough to land short of the green.
+        var marks = new[] { L.DesignDriveMinYards, L.DesignDriveMidYards, L.DesignDriveMaxYards }.Where(y => y <= end).ToList();
+        var widths = marks.Select(y => { var (w, gap) = At(y); return new StationWidth((int)Math.Round(y), gap <= FairwayNearLineYards && w > 0 ? w : null); }).ToList();
+
+        double? MedianOver(double a, double b)
+        {
+            var ws = stations.Where(x => x.Yds >= a && x.Yds <= b && x.Yds <= end).Select(x => Near(x) ? x.Width : 0).ToList();
+            return ws.Count > 0 ? Median(ws) : null;
+        }
+
+        // Hazards within reach of the line through the landing zone: the nearest station each comes to.
+        var near = new List<LandingHazard>();
+        var zone = new List<(double Yds, Vec2 P, Vec2 Dir)>();
+        for (double yd = L.LandingHazardFromYards; yd <= Math.Min(L.LandingHazardToYards, totalYds - 10); yd += step)
+        {
+            var (p, dir) = Along(line, yd / YardsPerMetre);
+            zone.Add((yd, p, dir));
+        }
+        double reach = L.LandingHazardReachYards / YardsPerMetre;
+        foreach (var hz in hazards)
+        {
+            (double D, double Yds, string Side)? best = null;
+            foreach (var (yd, p, dir) in zone)
+            {
+                double d = Geometry.Contains(hz.Outline, p) ? 0 : Geometry.DistanceToEdge(hz.Outline, p);
+                if (d > reach || (best is { } b && b.D <= d)) continue;
+                var c = Centroid(hz.Outline) - p;
+                // Facing along the line, right is (dir.Z, -dir.X): compass north is −Z and east −X.
+                double side = c.X * dir.Z - c.Z * dir.X;
+                best = (d, yd, d == 0 ? "on the line" : side > 0 ? "right" : "left");
+            }
+            if (best is { } hit) near.Add(new LandingHazard(hz.Kind, (int)Math.Round(hit.Yds), hit.D * YardsPerMetre, hit.Side));
+        }
+
+        return new LineFigure(start, startPoint, steadiness, widths,
+            MedianOver(250, 290), MedianOver(L.DesignDriveMinYards, L.DesignDriveMaxYards), near.OrderBy(x => x.FromTeeYards).ToList());
     }
+
+    /// <summary>The longest straight carry from a forward tee to where the main fairway starts (yds).</summary>
+    static double? ForwardCarry(Hole h, Vec2? start) =>
+        start is Vec2 s && h.Tees.Count > 1 ? h.Tees.Take(h.Tees.Count - 1).Max(t => Vec2.Distance(t, s)) * YardsPerMetre : null;
 
     static double Percentile(List<double> sorted, double q)
     {
@@ -387,93 +423,152 @@ public static class ReadinessChecker
         return runs;
     }
 
-    static IEnumerable<ReadinessCheck> ScorecardChecks(List<HoleMeasures> m, List<TeeSetTotal> sets, List<SameParRun> runs, ReadinessLimits L)
+    static IEnumerable<ReadinessCheck> ScorecardChecks(List<HoleMeasures> m, List<SameParRun> runs)
     {
         int par = m.Sum(x => x.Par), outPar = m.Where(x => x.Number <= 9).Sum(x => x.Par), inPar = par - outPar;
         yield return new("par", "Par and hole count", m.Count == 18 ? Severity.Pass : Severity.Flag,
             $"{m.Count} holes, par {par}: {outPar} out, {inPar} in.", "Publish gate · par check", []);
 
-        var outside = sets.Where(s => s.Total < L.TeeTotalMinYards || s.Total > L.TeeTotalMaxYards).ToList();
-        string all = string.Join(" · ", sets.Select(s => N0(s.Total)));
-        yield return new("tee-totals", $"Every tee set {N0(L.TeeTotalMinYards)} to {N0(L.TeeTotalMaxYards)} yds",
-            outside.Count == 0 ? Severity.Pass : Severity.Flag,
-            outside.Count == 0 ? $"Tee sets, front to back: {all}."
-                : $"Outside: {string.Join(", ", outside.Select(s => $"set {s.Index} ({N0(s.Total)})"))}. All sets: {all}.",
-            "Principles §2 · tee and yardage range", []);
-
         var worst = runs.Count == 0 ? Severity.Pass : runs.Max(r => r.Severity);
         yield return new("same-par", "Same-par runs (Section 7)", worst,
             runs.Count == 0 ? "No two consecutive holes share a par."
                 : string.Join(" ", runs.Select(r => $"Holes {r.FirstHole}–{r.LastHole}, par {r.Par}, spread {r.Spread} yds: {r.Finding}")),
-            "Principles §7 · bar chart check", runs.Where(r => r.Severity != Severity.Pass).SelectMany(r => Enumerable.Range(r.FirstHole, r.LastHole - r.FirstHole + 1)).ToList());
+            "Principles §7 · a design habit, not an approval rule", runs.Where(r => r.Severity != Severity.Pass).SelectMany(r => Enumerable.Range(r.FirstHole, r.LastHole - r.FirstHole + 1)).ToList());
     }
 
-    static IEnumerable<ReadinessCheck> DriveChecks(List<HoleMeasures> m, ReadinessLimits L)
+    /// <summary>
+    /// Principles §12.4, card yards from the back tee: the back-tee total as a range, then the median par 4, how many
+    /// par 4s are under 400 and the shortest par 5. Provisional, so they warn.
+    /// </summary>
+    static IEnumerable<ReadinessCheck> LengthChecks(List<HoleMeasures> m, List<TeeSetTotal> sets, ReadinessLimits L)
     {
-        if (L.TestDriveYards is not double drive)
+        const string rule = "Provisional · Principles §12.4 length";
+        int back = sets.Count > 0 ? sets[^1].Total : m.Sum(x => x.Yards);
+        string others = sets.Count > 1 ? $" Forward tees, shortest first: {string.Join(" · ", sets.SkipLast(1).Select(s => N0(s.Total)))} (no limit)." : "";
+        yield return new("length-total", $"Back tee about {N0(L.BackTeeMinYards)}–{N0(L.BackTeeMaxYards)} yds", Severity.Info,
+            $"Back tee {N0(back)} yds{(back < L.BackTeeMinYards || back > L.BackTeeMaxYards ? ", outside the range passing courses span" : "")}. A range seen on passing courses, not a score.{others}",
+            "Principles §2 · tee and yardage range", []);
+
+        var fours = m.Where(x => x.Par == 4).OrderBy(x => x.Yards).ToList();
+        if (fours.Count > 0)
         {
-            yield return new("drive", "Drivable par 4s and the par-5 test", Severity.Confirm,
-                "Enter the test drive measured with the power profile to run these checks.", "Principles §6 · pre-build checklist", []);
-            yield break;
+            double med = Median(fours.Select(x => (double)x.Yards));
+            yield return new("median-par4", $"Median par 4 at least {L.MedianPar4MinYards:0} yds", med < L.MedianPar4MinYards ? Severity.Warning : Severity.Pass,
+                $"Median par 4 {med:0} yds over {fours.Count} par 4s ({fours[0].Yards}–{fours[^1].Yards}).", rule, []);
+
+            var shortFours = fours.Where(x => x.Yards < L.ShortPar4Yards).ToList();
+            yield return new("par4-under400", $"Par 4s under {L.ShortPar4Yards:0} yds: at most {L.MaxShortPar4s}",
+                shortFours.Count > L.MaxShortPar4s ? Severity.Warning : Severity.Pass,
+                shortFours.Count == 0 ? "None." : $"{shortFours.Count}: {string.Join(", ", shortFours.OrderBy(x => x.Number).Select(x => $"{x.Number} ({x.Yards})"))}.",
+                rule, shortFours.Count > L.MaxShortPar4s ? shortFours.Select(x => x.Number).OrderBy(n => n).ToList() : []);
         }
-        foreach (var (id, name, nine) in new[] { ("drivable-front", "front", m.Where(x => x.Number <= 9)), ("drivable-back", "back", m.Where(x => x.Number > 9)) })
+
+        var fives = m.Where(x => x.Par == 5).OrderBy(x => x.Yards).ToList();
+        if (fives.Count > 0)
         {
-            var d = nine.Where(x => x.DriveClass is not null).ToList();
-            string list = d.Count == 0 ? "none" : string.Join(", ", d.Select(x => $"{x.Number} ({x.Yards}{(x.DriveClass == "Near-drivable" ? ", near" : "")})"));
-            yield return new(id, $"Drivable par 4s on the {name} nine: {d.Count} (limit {L.MaxDrivablePerNine})",
-                d.Count > L.MaxDrivablePerNine ? Severity.High : Severity.Pass,
-                $"Within {L.NearDrivableWithinYards:0} yds of the {drive:0}-yd test drive: {list}.",
-                "Principles §11.3 A · repeat hole types", d.Select(x => x.Number).ToList());
+            var shortest = fives[0];
+            var under = fives.Where(x => x.Yards < L.ShortestPar5MinYards).ToList();
+            yield return new("shortest-par5", $"Shortest par 5 at least {L.ShortestPar5MinYards:0} yds", under.Count > 0 ? Severity.Warning : Severity.Pass,
+                (under.Count > 0 ? $"Under {L.ShortestPar5MinYards:0}: {string.Join(", ", under.OrderBy(x => x.Number).Select(x => $"{x.Number} ({x.Yards})"))}. " : $"Shortest: hole {shortest.Number}, {shortest.Yards} yds. ") +
+                    $"After a {L.DesignDriveMaxYards:0}-yd drive the par 5s leave {string.Join(", ", fives.OrderBy(x => x.Number).Select(x => $"{x.Number}: {x.LeftAfter(L.DesignDriveMaxYards)}"))} yds, straight from the back tee.",
+                rule, under.Select(x => x.Number).OrderBy(n => n).ToList());
         }
-        var short5 = m.Where(x => x.LeftAfterDrive < L.Par5MinLeftYards).ToList();
-        yield return new("par5", "Par 5s leave a real second-shot decision", short5.Count > 0 ? Severity.High : Severity.Pass,
-            short5.Count > 0
-                ? Capital($"{string.Join(", ", short5.Select(x => $"hole {x.Number} leaves {x.LeftAfterDrive} yds"))} after the {drive:0}-yd drive (limit {L.Par5MinLeftYards:0}).")
-                : $"Every par 5 leaves at least {L.Par5MinLeftYards:0} yds after the {drive:0}-yd drive.",
-            "Principles §11.3 A · par-5 test", short5.Select(x => x.Number).ToList());
+
+        var bent = m.Where(x => x.StraightYards > 0 && Math.Abs(x.Yards - x.StraightYards) >= L.StraightDiffYards).ToList();
+        if (bent.Count > 0)
+            yield return new("card-straight", "Card yards and straight-line yards", Severity.Info,
+                $"Lengths are judged on card yards; yards left use the straight line from the back tee. They differ by {L.StraightDiffYards:0}+ yds on " +
+                $"{string.Join(", ", bent.Select(x => $"{x.Number} ({x.Yards} card, {x.StraightYards} straight)"))}.",
+                "Principles §12 · design assumption", bent.Select(x => x.Number).ToList());
     }
 
-    static IEnumerable<ReadinessCheck> ScaleChecks(List<HoleMeasures> m, double medGreen, double medWidth, ReadinessLimits L)
+    /// <summary>
+    /// Principles §12.2, across the fairway at the design tee shot: warn above the high width or below the low one at
+    /// any station (shared fairways count), note what needs a written reason, the swing past 200 yds, and whether the
+    /// hole is roomier in the lay-up than in the landing zone.
+    /// </summary>
+    static IEnumerable<ReadinessCheck> WidthChecks(List<HoleMeasures> m, ReadinessLimits L)
+    {
+        const string rule = "Provisional · Principles §12.2 width";
+        string band = $"{L.DesignDriveMinYards:0}–{L.DesignDriveMaxYards:0}";
+        var measured = m.Where(x => x.Stations.Count > 0).ToList();
+        string W(StationWidth s) => s.WidthYards is double w ? $"{w:0}" : "none";
+        string Line(HoleMeasures x) => $"{x.Number} ({string.Join("/", x.Stations.Select(W))})";
+        var wide = measured.Where(x => x.Stations.Any(s => s.WidthYards > L.WidthHighYards)).ToList();
+        var narrow = measured.Where(x => x.Stations.Any(s => (s.WidthYards ?? 0) < L.WidthLowYards)).ToList();
+        var reason = measured.Where(x => x.Stations.Any(s => s.WidthYards > L.WidthReasonYards)).ToList();
+        var parts = new List<string>();
+        if (wide.Count > 0) parts.Add($"Over {L.WidthHighYards:0}: {string.Join(", ", wide.Select(Line))}.");
+        if (narrow.Count > 0) parts.Add($"Under {L.WidthLowYards:0} (or no fairway by the line): {string.Join(", ", narrow.Select(Line))}.");
+        if (reason.Count > 0) parts.Add($"Over {L.WidthReasonYards:0}, so the hole needs its reason written: {List(reason.Select(x => x.Number))}.");
+        string stations = string.Join("/", new[] { L.DesignDriveMinYards, L.DesignDriveMidYards, L.DesignDriveMaxYards }.Select(y => $"{y:0}"));
+        yield return new("landing-widths", $"Landing width {L.WidthLowYards:0}–{L.WidthHighYards:0} yds at {band} (target {L.LandingTargetMinYards:0}–{L.LandingTargetMaxYards:0})",
+            wide.Count + narrow.Count > 0 ? Severity.Warning : Severity.Pass,
+            measured.Count == 0 ? "No par 4s or 5s long enough to measure yet."
+                : (parts.Count > 0 ? string.Join(" ", parts) : $"All {measured.Count} holes between {L.WidthLowYards:0} and {L.WidthHighYards:0} yds.") + $" Widths at {stations} yds; shared fairways count.",
+            rule, wide.Concat(narrow).Select(x => x.Number).Distinct().OrderBy(n => n).ToList());
+
+        var steady = m.Where(x => x.WidthSteadiness is not null).ToList();
+        var uneven = steady.Where(x => x.WidthSteadiness >= L.WidthSteadinessMax).ToList();
+        yield return new("width-steadiness", $"Fairway width steady past 200 yds (under {L.WidthSteadinessMax:0.#}×)",
+            uneven.Count > 0 ? Severity.Warning : Severity.Pass,
+            uneven.Count > 0 ? $"Wide stretches {L.WidthSteadinessMax:0.#}× the narrow ones or more on {string.Join(", ", uneven.Select(x => $"{x.Number} ({x.WidthSteadiness:0.0}×)"))}."
+                : steady.Count > 0 ? $"All {steady.Count} measured fairways under {L.WidthSteadinessMax:0.#}×." : "No fairways past 200 yds to measure yet.",
+            rule, uneven.Select(x => x.Number).ToList());
+
+        var both = m.Where(x => x.LayupWidthYards is not null && x.LandingWidthYards is not null && x.LayupWidthYards > 0).ToList();
+        var reverse = both.Where(x => x.LandingWidthYards > x.LayupWidthYards * 1.1).ToList();
+        yield return new("width-pattern", $"Roomier at 250–290 yds than at {band}",
+            reverse.Count > 0 ? Severity.Warning : Severity.Pass,
+            reverse.Count > 0 ? $"Wider in the landing zone than the lay-up on {string.Join(", ", reverse.Select(x => $"{x.Number} ({x.LayupWidthYards:0} then {x.LandingWidthYards:0})"))}: the safe lay-back should be the roomy one."
+                : both.Count > 0 ? $"All {both.Count} measured holes tighten (or hold) into the landing zone." : "No fairways to measure yet.",
+            rule, reverse.Select(x => x.Number).ToList());
+    }
+
+    /// <summary>Prompts with no limit: things to look at hole by hole, never a pass or a fail.</summary>
+    static IEnumerable<ReadinessCheck> PromptChecks(List<HoleMeasures> m, double medGreen, double medStart, ReadinessLimits L)
     {
         string band = $"{L.ScaleLow:0.0#}–{L.ScaleHigh:0.0#}×";
         var built = m.Where(x => x.GreenRatio is not null).ToList();
-        if (built.Count < 2)
-            yield return new("green-scale", "Green sizes against the median", Severity.Confirm,
-                $"Only {built.Count} green drawn; sizes are compared once the greens are built.", "Principles §11.3 B · scale", []);
-        else
-        {
-            var small = built.Where(x => x.GreenRatio < L.ScaleLow).ToList();
-            var large = built.Where(x => x.GreenRatio > L.ScaleHigh).ToList();
-            string Fmt(List<HoleMeasures> xs) => string.Join(", ", xs.Select(x => $"{x.Number} ({x.GreenRatio:0.00}×)"));
-            // Provisional: the band flags approved courses and clears unapproved ones, so it only warns.
-            yield return new("green-scale", $"Green sizes within {band} the median ({N0(medGreen)} sq ft)",
-                small.Count + large.Count > 0 ? Severity.Warning : Severity.Pass,
-                small.Count + large.Count == 0 ? $"All {built.Count} drawn greens inside the band."
-                    : string.Join(" ", new[] { small.Count > 0 ? $"Small: {Fmt(small)}." : "", large.Count > 0 ? $"Large: {Fmt(large)}." : "" }.Where(s => s.Length > 0)),
-                "Provisional · Principles §11.3 B · scale", small.Concat(large).Select(x => x.Number).OrderBy(n => n).ToList());
-        }
+        var outside = built.Where(x => x.GreenRatio < L.ScaleLow || x.GreenRatio > L.ScaleHigh).ToList();
+        yield return new("green-scale", $"Green sizes against the median ({N0(medGreen)} sq ft)", Severity.Info,
+            built.Count < 2 ? "Greens are compared once they're built."
+                : outside.Count > 0 ? $"Outside {band}: {string.Join(", ", outside.Select(x => $"{x.Number} ({x.GreenRatio:0.00}×)"))}. A prompt to look, not a limit."
+                : $"All {built.Count} drawn greens inside {band}.",
+            "Prompt · Principles §12.3 greens suit the approach", outside.Select(x => x.Number).ToList());
 
-        var widths = m.Where(x => x.WidthRatio is not null && !x.SharedFairway).ToList();
-        var narrow = widths.Where(x => x.WidthRatio < L.ScaleLow).ToList();
-        var wide = widths.Where(x => x.WidthRatio > L.ScaleHigh).ToList();
-        var offFairway = m.Where(x => x.LandingOffFairway && !x.SharedFairway).ToList();
-        if (widths.Count < 2)
-            yield return new("landing-width", "Landing widths against the median", Severity.Confirm,
-                "Fairways aren't drawn on enough holes to compare widths.", "Principles §11.3 B · scale", []);
-        else
-        {
-            string Fmt(List<HoleMeasures> xs) => string.Join(", ", xs.Select(x => $"{x.Number} ({x.LandingWidthYards:0} yds)"));
-            var parts = new[]
-            {
-                narrow.Count > 0 ? $"Narrow: {Fmt(narrow)}." : "", wide.Count > 0 ? $"Wide: {Fmt(wide)}." : "",
-                offFairway.Count > 0 ? $"The tee shot lands off the fairway on {List(offFairway.Select(x => x.Number))} (nearest fairway measured)." : "",
-            }.Where(s => s.Length > 0).ToList();
-            yield return new("landing-width", $"Landing widths within {band} the median ({medWidth:0} yds)",
-                parts.Count > 0 ? Severity.Flag : Severity.Pass,
-                parts.Count > 0 ? string.Join(" ", parts) : $"All {widths.Count} landing widths inside the band.",
-                "Principles §11.3 B · scale", narrow.Concat(wide).Concat(offFairway).Select(x => x.Number).Distinct().OrderBy(n => n).ToList());
-        }
+        var approach = m.Where(x => x.Par >= 4 && !x.GreenEstimated).ToList();
+        yield return new("green-approach", $"Green size against the approach after {L.DesignDriveMidYards:0}", Severity.Info,
+            approach.Count == 0 ? "No drawn greens on par 4s or 5s yet."
+                : string.Join(", ", approach.Select(x => $"{x.Number}: {N0(x.GreenSquareFeet)} sq ft, {x.LeftAfter(L.DesignDriveMidYards)} left")) + ". A short approach wants a smaller or more demanding target.",
+            "Prompt · Principles §12.3 greens suit the approach", []);
+
+        var hz = m.Where(x => x.LandingHazards.Count > 0).ToList();
+        yield return new("landing-hazards", $"Hazards within {L.LandingHazardReachYards:0} yds of the line at {L.LandingHazardFromYards:0}–{L.LandingHazardToYards:0} yds", Severity.Info,
+            hz.Count == 0 ? "None near the line in the landing zone."
+                : string.Join(" ", hz.Select(x => $"{x.Number}: {string.Join(", ", x.LandingHazards.Select(Describe))}.")) +
+                    " For each, write what changes if the player goes left, right or over. Not scored by count.",
+            "Prompt · Principles §12.3 hazards", hz.Select(x => x.Number).ToList());
+
+        var longHoles = m.Where(x => x.Par >= 4).ToList();
+        var started = longHoles.Where(x => x.FairwayStartYards is not null && !x.SharedFairway).ToList();
+        int inBand = started.Count(x => x.FairwayStartYards >= L.FairwayStartMinYards && x.FairwayStartYards <= L.FairwayStartMaxYards);
+        string Yds(HoleMeasures x) => x.FairwayStartYards <= 60 ? "60 or less" : $"{x.FairwayStartYards:0}";
+        yield return new("fairway-start", $"Main fairway start from the back tee (band {L.FairwayStartMinYards:0}–{L.FairwayStartMaxYards:0})", Severity.Info,
+            started.Count == 0 ? "No par 4s or 5s with fairways to measure yet."
+                : $"Median {medStart:0} yds; {inBand} of {started.Count} inside the band. By hole: {string.Join(", ", started.Select(x => $"{x.Number} ({Yds(x)})"))}. A note: no reviewer has mentioned it.",
+            "Note · fairway start", []);
+
+        var carries = m.Where(x => x.ForwardCarryYards is not null).ToList();
+        yield return new("forward-tees", "Every forward tee reaches its fairway", Severity.Info,
+            carries.Count == 0 ? "No forward tees with a main fairway to reach."
+                : $"Longest carry from a forward tee to where the main fairway starts: {string.Join(", ", carries.OrderByDescending(x => x.ForwardCarryYards).Take(6).Select(x => $"{x.Number} ({x.ForwardCarryYards:0})"))} yds. Play the forward tees to confirm.",
+            "Prompt · Principles §2 forward tees", []);
     }
+
+    /// <summary>"bunker at 312, 8 yds right".</summary>
+    public static string Describe(LandingHazard h) =>
+        $"{h.Kind} at {h.FromTeeYards}{(h.Side == "on the line" ? ", on the line" : $", {h.OffLineYards:0} yds {h.Side}")}";
 
     static IEnumerable<ReadinessCheck> TerrainChecks(List<HoleMeasures> m, double plotRange, ReadinessLimits L)
     {
@@ -611,67 +706,5 @@ public static class ReadinessChecker
                 $"{rule} · pins", edge.Concat(steep).Select(p => p.Hole).Distinct().OrderBy(n => n).ToList());
         }
 
-        var measured = m.Where(x => x.NarrowestFairwayYards is not null && !x.SharedFairway).ToList();
-        var narrow = measured.Where(x => x.NarrowestFairwayYards < L.FairwayMinWidthYards).ToList();
-        yield return new("narrow-fairway", $"Fairways at least {L.FairwayMinWidthYards:0} yds wide (recommended)", Severity.Info,
-            measured.Count == 0 ? "No fairways along the lines of play to measure yet."
-                : narrow.Count == 0 ? $"Every line's fairway stays {L.FairwayMinWidthYards:0} yds or wider until 40 yds short of the green."
-                : $"Narrower than {L.FairwayMinWidthYards:0} yds before the green's approach on {string.Join(", ", narrow.Select(x => $"{x.Number} ({x.NarrowestFairwayYards:0})"))}. A note only: TGC recommends it.",
-            $"{rule} · playability", narrow.Select(x => x.Number).ToList());
-    }
-
-    /// <summary>
-    /// Provisional checks from a small sample of reviewed courses: warnings only, never a pass or a fail. Every
-    /// threshold is a limit the designer can change.
-    /// </summary>
-    static IEnumerable<ReadinessCheck> ProvisionalChecks(List<HoleMeasures> m, double medStart, ReadinessLimits L)
-    {
-        const string rule = "Provisional";
-        string band = $"{L.FairwayStartMinYards:0}–{L.FairwayStartMaxYards:0}";
-        var longHoles = m.Where(x => x.Par >= 4 && !x.SharedFairway).ToList();
-        var started = longHoles.Where(x => x.FairwayStartYards is not null).ToList();
-        var outside = started.Where(x => x.FairwayStartYards < L.FairwayStartMinYards || x.FairwayStartYards > L.FairwayStartMaxYards).ToList();
-        var none = longHoles.Where(x => x.FairwayStartYards is null).ToList();
-        string Yds(HoleMeasures x) => x.FairwayStartYards <= 60 ? "60 or less" : $"{x.FairwayStartYards:0}";
-        var sp = new List<string>();
-        if (started.Count > 0) sp.Add($"Median {medStart:0} yds; {started.Count - outside.Count} of {started.Count} par 4s and 5s start inside {band} yds.");
-        if (outside.Count > 0) sp.Add($"Outside: {string.Join(", ", outside.Select(x => $"{x.Number} ({Yds(x)})"))}.");
-        if (none.Count > 0) sp.Add($"No main fairway found along the line on {List(none.Select(x => x.Number))}.");
-        int shared = m.Count(x => x.Par >= 4 && x.SharedFairway);
-        if (shared > 0) sp.Add($"{shared} shared fairway{(shared == 1 ? "" : "s")} left out.");
-        yield return new("fairway-start", $"Main fairway starts {band} yds from the back tee",
-            outside.Count + none.Count > 0 ? Severity.Warning : Severity.Pass,
-            sp.Count > 0 ? string.Join(" ", sp) : "No par 4s or 5s with fairways to measure yet.",
-            $"{rule} · fairway start", outside.Concat(none).Select(x => x.Number).OrderBy(n => n).ToList());
-
-        var shortFours = m.Where(x => x.Par == 4 && x.Yards <= L.ShortPar4Yards).ToList();
-        yield return new("short-par4", $"Par 4s of {L.ShortPar4Yards:0} yds or less: at most {L.MaxShortPar4s}",
-            shortFours.Count > L.MaxShortPar4s ? Severity.Warning : Severity.Pass,
-            shortFours.Count == 0 ? "None." : $"{shortFours.Count}: {string.Join(", ", shortFours.Select(x => $"{x.Number} ({x.Yards})"))}.",
-            $"{rule} · hole lengths", shortFours.Count > L.MaxShortPar4s ? shortFours.Select(x => x.Number).ToList() : []);
-
-        var steady = m.Where(x => x.WidthSteadiness is not null && !x.SharedFairway).ToList();
-        var uneven = steady.Where(x => x.WidthSteadiness > L.WidthSteadinessMax).ToList();
-        yield return new("width-steadiness", $"Fairway width steady past 200 yds (within {L.WidthSteadinessMax:0.#}×)",
-            uneven.Count > 0 ? Severity.Warning : Severity.Pass,
-            uneven.Count > 0 ? $"Wide stretches over {L.WidthSteadinessMax:0.#}× the narrow ones on {string.Join(", ", uneven.Select(x => $"{x.Number} ({x.WidthSteadiness:0.0}×)"))}."
-                : steady.Count > 0 ? $"All {steady.Count} measured fairways within {L.WidthSteadinessMax:0.#}×." : "No fairways past 200 yds to measure yet.",
-            $"{rule} · fairway width", uneven.Select(x => x.Number).ToList());
-
-        var drawn = m.Where(x => !x.GreenEstimated).ToList();
-        var small = drawn.Where(x => x.GreenSquareFeet < L.SmallGreenSquareFeet).ToList();
-        yield return new("small-greens", $"Greens of at least {N0(L.SmallGreenSquareFeet)} sq ft", small.Count > 0 ? Severity.Warning : Severity.Pass,
-            small.Count > 0 ? $"Smaller: {string.Join(", ", small.Select(x => $"{x.Number} ({N0(x.GreenSquareFeet)})"))}."
-                : drawn.Count > 0 ? $"All {drawn.Count} drawn greens are {N0(L.SmallGreenSquareFeet)} sq ft or more." : "No drawn greens yet.",
-            $"{rule} · green size", small.Select(x => x.Number).ToList());
-
-        var threes = drawn.Where(x => x.Par == 3).OrderBy(x => x.Yards).ToList();
-        var shrink = threes.Zip(threes.Skip(1)).Where(p => p.Second.GreenSquareFeet < p.First.GreenSquareFeet).ToList();
-        string all = string.Join(" · ", threes.Select(x => $"{x.Yards} yds {N0(x.GreenSquareFeet)}"));
-        yield return new("par3-greens", "Par 3 greens grow with the hole's length", shrink.Count > 0 ? Severity.Warning : Severity.Pass,
-            threes.Count < 2 ? "Fewer than two drawn par 3 greens."
-                : shrink.Count > 0 ? $"Longer par 3s with smaller greens: {string.Join(", ", shrink.Select(p => $"{p.Second.Number} against {p.First.Number}"))}. By length: {all} sq ft."
-                : $"By length: {all} sq ft.",
-            $"{rule} · green size", shrink.Select(p => p.Second.Number).ToList());
     }
 }

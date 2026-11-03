@@ -1,28 +1,21 @@
 namespace Pga2K25.Readiness;
 
 /// <summary>
-/// The numbers the course-file checks judge against. They come from the design principles (§3, §7, §9), the proposed
-/// review limits (§11.4), TGC Tours' published minimums and a few provisional bands; none of them is a rule, so every
-/// one can be changed per course.
+/// The numbers the course-file checks judge against. They come from the design principles (§3, §7, §12), TGC Tours'
+/// published minimums and a few provisional bands; none of them is a rule, so every one can be changed per course.
+/// The §12 length and width limits are provisional: chosen after seeing a handful of reviewed courses, so they warn.
 /// </summary>
 public sealed record ReadinessLimits
 {
-    /// <summary>Test drive with the power profile (yds), measured per course. Null skips the drive checks.</summary>
+    /// <summary>Design tee shot from the back tee (yds): every landing-zone figure is measured from this range.</summary>
+    public double DesignDriveMinYards { get; init; } = 300;
+    public double DesignDriveMaxYards { get; init; } = 350;
+    public double DesignDriveMidYards => (DesignDriveMinYards + DesignDriveMaxYards) / 2;
+
+    /// <summary>Test drive with the power profile (yds), recorded to check the design tee shot against. Nothing is judged on it.</summary>
     public double? TestDriveYards { get; init; }
 
-    /// <summary>A par 5 must leave at least this many yards after the test drive.</summary>
-    public double Par5MinLeftYards { get; init; } = 220;
-
-    /// <summary>A par 4 within this many yards over the test drive is drivable.</summary>
-    public double DrivableWithinYards { get; init; } = 20;
-
-    /// <summary>A par 4 within this many yards over the test drive is near-drivable.</summary>
-    public double NearDrivableWithinYards { get; init; } = 50;
-
-    /// <summary>Drivable plus near-drivable par 4s allowed per nine.</summary>
-    public int MaxDrivablePerNine { get; init; } = 2;
-
-    /// <summary>Green area and landing width are flagged outside this many times the course median.</summary>
+    /// <summary>Green area against the course median: outside this band is a prompt to look, not a limit.</summary>
     public double ScaleLow { get; init; } = 0.6;
     public double ScaleHigh { get; init; } = 1.6;
 
@@ -44,10 +37,6 @@ public sealed record ReadinessLimits
     public double GreenReliefMinFeet { get; init; } = 1.5;
     public double GreenReliefMaxFeet { get; init; } = 3;
 
-    /// <summary>Every tee set's total (yds).</summary>
-    public double TeeTotalMinYards { get; init; } = 6500;
-    public double TeeTotalMaxYards { get; init; } = 7500;
-
     /// <summary>Normal green speed range (Stimp).</summary>
     public double StimpMin { get; init; } = 8;
     public double StimpMax { get; init; } = 13;
@@ -65,32 +54,59 @@ public sealed record ReadinessLimits
     /// <summary>Holes of the same par should span at least this many yards.</summary>
     public double SameParSpreadYards { get; init; } = 30;
 
-    /// <summary>Fairway width TGC recommends (yds); narrower is noted, not flagged.</summary>
-    public double FairwayMinWidthYards { get; init; } = 25;
-
     /// <summary>A pin this close to the green's edge (yds) is flagged: three of the in-game grid squares.</summary>
     public double PinEdgeYards { get; init; } = 2;
 
     /// <summary>A pin with slope this steep (%) within its grid square is flagged: the greens book's red (3.3°).</summary>
     public double PinSteepPct { get; init; } = 5.8;
 
-    // Provisional: warnings only, from a small sample of reviewed courses.
+    // §12 length (card yards, back tee). Provisional.
 
-    /// <summary>Main fairway start from the back tee on par 4s and 5s (yds).</summary>
+    /// <summary>Back-tee total seen on passing courses: shown as a range, never judged.</summary>
+    public double BackTeeMinYards { get; init; } = 7050;
+    public double BackTeeMaxYards { get; init; } = 7600;
+
+    /// <summary>The median par 4 should be at least this long (yds).</summary>
+    public double MedianPar4MinYards { get; init; } = 430;
+
+    /// <summary>Par 4s under this length (yds): more than <see cref="MaxShortPar4s"/> warns.</summary>
+    public double ShortPar4Yards { get; init; } = 400;
+    public int MaxShortPar4s { get; init; } = 3;
+
+    /// <summary>The shortest par 5 should be at least this long (yds).</summary>
+    public double ShortestPar5MinYards { get; init; } = 560;
+
+    /// <summary>Card and straight-line yards this far apart (yds) are both shown.</summary>
+    public double StraightDiffYards { get; init; } = 15;
+
+    // §12 width, across the fairway at the design tee shot. Provisional.
+
+    /// <summary>The default landing width (yds): shown as the target.</summary>
+    public double LandingTargetMinYards { get; init; } = 35;
+    public double LandingTargetMaxYards { get; init; } = 50;
+
+    /// <summary>Wider than this at any station (yds) needs a written reason on the hole.</summary>
+    public double WidthReasonYards { get; init; } = 60;
+
+    /// <summary>Wider or narrower than these at any station (yds) warns; shared fairways count.</summary>
+    public double WidthHighYards { get; init; } = 70;
+    public double WidthLowYards { get; init; } = 25;
+
+    /// <summary>Past 200 yds, wide stretches more than this many times the narrow ones warn.</summary>
+    public double WidthSteadinessMax { get; init; } = 3;
+
+    /// <summary>Hazards this close (yds) to the line between these distances from the back tee are listed (a prompt only).</summary>
+    public double LandingHazardReachYards { get; init; } = 25;
+    public double LandingHazardFromYards { get; init; } = 275;
+    public double LandingHazardToYards { get; init; } = 360;
+
+    // Notes only.
+
+    /// <summary>Main fairway start from the back tee on par 4s and 5s (yds): shown, never warned.</summary>
     public double FairwayStartMinYards { get; init; } = 150;
     public double FairwayStartMaxYards { get; init; } = 225;
 
     /// <summary>The main fairway starts where the strip by the line is this wide (yds) and stays so this far (yds).</summary>
     public double FairwayStartWidthYards { get; init; } = 25;
     public double FairwayStartHoldYards { get; init; } = 35;
-
-    /// <summary>Par 4s this long or shorter (yds) are counted; more than <see cref="MaxShortPar4s"/> warns.</summary>
-    public double ShortPar4Yards { get; init; } = 380;
-    public int MaxShortPar4s { get; init; } = 2;
-
-    /// <summary>Past 200 yds, wide stretches more than this many times the narrow ones warn.</summary>
-    public double WidthSteadinessMax { get; init; } = 3;
-
-    /// <summary>Greens smaller than this (sq ft) warn.</summary>
-    public double SmallGreenSquareFeet { get; init; } = 3000;
 }

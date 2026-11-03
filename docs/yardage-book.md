@@ -64,7 +64,7 @@ With a course logo (`Logos.json`, see [Course logo](course-logo.md)), the header
   - Long stretches (25 yd or more) also get a front number (a dot marks the point).
   - Carries within 40 yds of the green, or past the green, are left out. Bunker and in-play carries under 120 yds (fronts under 100) are left out too, but water carries are always numbered: a forced carry off the tee is the number a golfer needs (Luke Muscat's hole 1 creek, 54 yds). On a par 3, a water carry is numbered even within 40 yds of the green, because the tee shot is the approach: Sangoma's hole 11 clears its pond 39 yds short of the green.
 - **Arcs:** green-centred distance circles every 25 yds are labelled on the right, in gold. Back-tee circles (dashed) are labelled on the left.
-- **Widths:** fairway width at 200, 250 and 300 yds, measured across the page. Bunkers and in-play hazards are excluded.
+- **Widths:** fairway width at 250 yds (the lay-up) and across the design tee shot, 300, 325 and 350 yds by default, measured across the page. Studio takes the tee shot from the course's Publish readiness limits. Bunkers and in-play hazards are excluded.
 - **Spot heights:** feet relative to the green centre, every 50 yds from 125 yds. The calibrated greens-book terrain is used: hardness 0.85, blur 1 m. A spot height is skipped where it would collide with a number.
 - **Aim points and green:**
   - Aim points (dogleg and lay-up) show the yards from the back tee and to the green.

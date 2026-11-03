@@ -37,7 +37,7 @@ public class ReadinessStateTests
         var back = ReadinessStore.Load(path);
         Assert.Equal(345, back.Limits.TestDriveYards);
         Assert.Equal(30, back.Limits.CorridorYards);
-        Assert.Equal(220, back.Limits.Par5MinLeftYards);
+        Assert.Equal(300, back.Limits.DesignDriveMinYards);
         Assert.Equal(ItemStatus.Done, back.StatusOf("pre.bear"));
         Assert.Equal("locked 12 Oct", back.Items["pre.bear"].Note);
         Assert.Equal(ItemStatus.NotApplicable, back.StatusOf("hc.4.sightTee"));
@@ -59,7 +59,7 @@ public class ReadinessStateTests
         var s = new ReadinessState();
         Assert.Equal(ItemStatus.Done, ReadinessEvaluator.Effective(Item("pre.score"), Report, s, out bool fromFile));
         Assert.True(fromFile);
-        Assert.Equal(ItemStatus.Open, ReadinessEvaluator.Effective(Item("tcl.scale"), Report, s, out _));   // greens and widths flagged
+        Assert.Equal(ItemStatus.Open, ReadinessEvaluator.Effective(Item("tcl.scale"), Report, s, out _));   // a width warning leaves it to you
         Assert.Equal(ItemStatus.Open, ReadinessEvaluator.Effective(Item("pre.drive"), Report, s, out _));   // no drive in these limits
 
         s.Set("pre.score", ItemStatus.NotApplicable);
@@ -71,15 +71,16 @@ public class ReadinessStateTests
     public void DeliberateMarks_ClearAFlag_WholeOrHoleByHole()
     {
         var s = new ReadinessState();
-        var scale = Report.Check("landing-width")!;
+        var scale = Report.Check("corridor")!;
         Assert.False(ReadinessEvaluator.IsCleared(scale, s));
-        foreach (int h in scale.Holes.SkipLast(1)) s.Deliberate[$"landing-width@{h}"] = new DeliberateMark();
+        foreach (int h in scale.Holes.SkipLast(1)) s.Deliberate[$"corridor@{h}"] = new DeliberateMark();
         Assert.False(ReadinessEvaluator.IsCleared(scale, s));
-        s.Deliberate[$"landing-width@{scale.Holes[^1]}"] = new DeliberateMark();
+        s.Deliberate[$"corridor@{scale.Holes[^1]}"] = new DeliberateMark();
         Assert.True(ReadinessEvaluator.IsCleared(scale, s));
 
-        s.Deliberate["landing-width"] = new DeliberateMark { Reason = "Width is the strategy here" };
-        Assert.Equal(ItemStatus.Done, ReadinessEvaluator.Effective(Item("tcl.scale"), Report, s, out bool fromFile));
+        s.Deliberate["corridor"] = new DeliberateMark { Reason = "The practice green sits by the first" };
+        s.Deliberate["aim-spacing"] = new DeliberateMark();
+        Assert.Equal(ItemStatus.Done, ReadinessEvaluator.Effective(Item("tcl.corr"), Report, s, out bool fromFile));
         Assert.True(fromFile);
     }
 
@@ -94,7 +95,9 @@ public class ReadinessStateTests
         // Close everything.
         foreach (var c in Report.Checks.Where(c => !c.Passed)) s.Deliberate[c.Id] = new DeliberateMark();
         foreach (var stage in Checklist.Stages) foreach (var i in stage.Items) s.Set(i.Key, ItemStatus.Done);
-        foreach (var c in Checklist.HoleChecks) foreach (var h in Report.Holes) Checklist.Set(c, h.Number, ItemStatus.Done, s);
+        foreach (var c in Checklist.HoleChecks) foreach (var h in Report.Holes)
+            if (c.Note) s.Hole(h.Number).Notes[c.Id] = "written";
+            else Checklist.Set(c, h.Number, ItemStatus.Done, s);
         foreach (var h in Report.Holes) for (int p = 1; p <= 4; p++) s.Pins[$"{h.Number}.{p}"] = new PinState { Difficulty = "G" };
         for (int i = 0; i < 2; i++)
         {
@@ -154,7 +157,7 @@ public class ReadinessStateTests
         Assert.Equal(ItemStatus.Done, s.StatusOf("b.x1"));
         Assert.Equal("Fence by 14 looks right", Assert.Single(s.Custom).Text);
         Assert.True(s.Deliberate.ContainsKey("green-scale@2"));
-        Assert.True(s.Deliberate.ContainsKey("landing-width@2"));
+        Assert.True(s.Deliberate.ContainsKey("landing-widths@2"));
         Assert.Equal(["NE"], s.Playtest[0].Winds);
         Assert.Equal([2], s.Playtest[0].Tees);
         Assert.Equal([4], s.Playtest[1].Pins);
@@ -163,7 +166,7 @@ public class ReadinessStateTests
         Assert.Equal("B", s.Pins["1.1"].NotedDepth);
         Assert.Equal("G", s.Pins["1.2"].Difficulty);
         Assert.Equal(360, s.Limits.TestDriveYards);
-        Assert.Equal(230, s.Limits.Par5MinLeftYards);
+        Assert.Equal(300, s.Limits.DesignDriveMinYards);              // the checklist's retired "220 left" limit isn't read
         Assert.Equal(["Red", "Green", "White", "Blue"], s.Info.TeeNames);
         Assert.Equal("Alex Fleming", s.Info.Designer);
         Assert.Equal("15:40", s.Imported["atmTime"]);
@@ -205,7 +208,7 @@ public class ReadinessStateTests
         Assert.Equal("Cassimbo", doc.RootElement.GetProperty("course").GetString());
         Assert.False(doc.RootElement.GetProperty("ready").GetBoolean());
         Assert.Contains(doc.RootElement.GetProperty("report").GetProperty("checks").EnumerateArray(),
-            c => c.GetProperty("severity").GetString() == "High");
+            c => c.GetProperty("severity").GetString() == "Warning");
         Directory.Delete(dir, recursive: true);
     }
 
@@ -214,24 +217,25 @@ public class ReadinessStateTests
     {
         var keys = Checklist.Stages.SelectMany(s => s.Items).Select(i => i.Key).ToList();
         Assert.Equal(keys.Count, keys.Distinct().Count());
-        Assert.Equal(11, Checklist.PreBuild.Items.Count);
+        Assert.Equal(12, Checklist.PreBuild.Items.Count);
         Assert.Equal(16, Checklist.Build.Items.Count);
         Assert.Equal(10, Checklist.TourCourse.Items.Count);
         Assert.Equal(12, Checklist.Publish.Items.Count);
         Assert.Equal(5, Checklist.Minimums.Items.Count);
         // Hole QA: the HTML checklist's 28 per-hole keys (13 per-hole checks, 8 tour, 7 planting) all still read,
-        // two of them as a merged twin, plus 13 TGC minimums added since; tees flat is a minimum too.
+        // two of them as a merged twin, plus 13 TGC minimums and the §12 hole design and finish checks added since.
         var holeKeys = Checklist.HoleChecks.SelectMany(c => new[] { c.Key(1), c.AlsoKey(1) }).OfType<string>().ToList();
         Assert.Equal(holeKeys.Count, holeKeys.Distinct().Count());
-        Assert.Equal(28, holeKeys.Count(k => !k.StartsWith("hq.", StringComparison.Ordinal)));
-        Assert.Equal(39, Checklist.HoleChecks.Count());
+        Assert.Equal(28, holeKeys.Count(k => k.StartsWith("hc.", StringComparison.Ordinal) || k.StartsWith("tr.", StringComparison.Ordinal) || k.StartsWith("pl.", StringComparison.Ordinal)));
+        Assert.Equal(50, Checklist.HoleChecks.Count());
+        Assert.Equal(4, Checklist.HoleChecks.Count(c => c.Note));
         Assert.Equal(14, Checklist.HoleChecks.Count(c => c.Minimum));
         Assert.All(new[] { "hc.1.sightTee", "tr.1.sand", "tr.1.blend", "tr.1.cam", "pl.1.bunk" }, k => Assert.Contains(k, holeKeys));
         // Every check an item points at exists (or is one of the evaluator's own).
         var own = new[] { Checklist.AllChecks, "drive-entered", "playtest-winds", "playtest-tees", "drive" };
         var ids = Report.Checks.Select(c => c.Id).Concat(own).Concat(["drivable-front", "drivable-back", "par5"]).ToHashSet();
         Assert.All(Checklist.Stages.SelectMany(s => s.Items).SelectMany(i => i.Checks), id => Assert.Contains(id, ids));
-        Assert.Equal(Severity.High, Report.Checks.Max(c => c.Severity));
+        Assert.Equal(Severity.Flag, Report.Checks.Max(c => c.Severity));   // the drive checks that were High are retired
     }
 
     [Fact]
@@ -250,6 +254,31 @@ public class ReadinessStateTests
 
         var progress = ReadinessEvaluator.Progress(Report, s).Single(p => p.Id == "holes");
         Assert.Equal(1, progress.Done);
-        Assert.Equal(18 * 39, progress.Total);
+        // Every hole is asked the 43 checks that aren't hole design; par 4s and 5s the design ticks and notes too,
+        // par 5s the second-shot note, and holes over 60 yds wide the width reason.
+        int fours = Report.Holes.Count(h => h.Par >= 4), fives = Report.Holes.Count(h => h.Par == 5);
+        int wide = Report.Holes.Count(h => h.Stations.Any(x => x.WidthYards > 60));
+        Assert.Equal(18 * 43 + fours * 5 + fives + wide, progress.Total);
+    }
+
+    [Fact]
+    public void HoleQa_DesignNotes_CloseWhenWritten_AndOnlyWhereAsked()
+    {
+        var s = new ReadinessState();
+        var notes = Checklist.HoleChecks.Where(c => c.Note).ToDictionary(c => c.Id);
+        var h3 = Report.Holes[2];    // par 5, 44–50 yds in the landing zone
+        var h2 = Report.Holes[1];    // par 3
+        var h11 = Report.Holes[10];  // par 4, over 100 yds wide
+        Assert.True(notes["second"].Applies(h3, Report.Limits));
+        Assert.False(notes["second"].Applies(h11, Report.Limits));
+        Assert.False(notes["miss"].Applies(h2, Report.Limits));
+        Assert.False(notes["width"].Applies(h3, Report.Limits));
+        Assert.True(notes["width"].Applies(h11, Report.Limits));
+
+        Assert.Equal(ItemStatus.Open, Checklist.StatusOf(notes["miss"], 11, s));
+        s.Hole(11).Notes["miss"] = "Left: the waste. Right: a blocked angle to a back pin.";
+        Assert.Equal(ItemStatus.Done, Checklist.StatusOf(notes["miss"], 11, s));
+        Checklist.Set(notes["miss"], 11, ItemStatus.NotApplicable, s);       // a note closes only by being written
+        Assert.Equal(ItemStatus.Done, Checklist.StatusOf(notes["miss"], 11, s));
     }
 }

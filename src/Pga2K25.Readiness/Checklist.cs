@@ -17,15 +17,22 @@ public sealed record ChecklistItem(string Key, string Text, ItemSource Source, I
 public sealed record ChecklistStage(string Id, string Title, string Lede, string Prefix, IReadOnlyList<ChecklistItem> Items);
 
 /// <summary>
-/// One Hole QA check, ticked on every hole. Its key on a hole is <c>{Prefix}.{hole}.{Id}</c>; the prefixes are the HTML
-/// checklist's own (<c>hc</c>, <c>tr</c>, <c>pl</c>) or <c>hq</c> for checks added since. <paramref name="Also"/> is a
-/// second key read as the same check (two of the HTML checklist's checks merged into one).
+/// One Hole QA check. Its key on a hole is <c>{Prefix}.{hole}.{Id}</c>; the prefixes are the HTML checklist's own
+/// (<c>hc</c>, <c>tr</c>, <c>pl</c>) or <c>hq</c> for checks added since. <paramref name="Also"/> is a second key read
+/// as the same check (two of the HTML checklist's checks merged into one).
+/// <para>A <paramref name="Note"/> check is a note written on the hole (saved in its <see cref="HoleState"/>): it's
+/// done once written. <paramref name="MinPar"/> limits a check to par 4s or par 5s; <paramref name="WhenWide"/> to
+/// holes wider than the reason limit somewhere in the landing zone.</para>
 /// </summary>
 public sealed record HoleCheck(string Prefix, string Id, string Label, string Text, ItemSource Source, bool Minimum = false,
-    (string Prefix, string Id)? Also = null)
+    (string Prefix, string Id)? Also = null, int MinPar = 3, bool Note = false, bool WhenWide = false)
 {
     public string Key(int hole) => $"{Prefix}.{hole}.{Id}";
     public string? AlsoKey(int hole) => Also is { } a ? $"{a.Prefix}.{hole}.{a.Id}" : null;
+
+    /// <summary>Whether the check is asked of this hole at all.</summary>
+    public bool Applies(HoleMeasures h, ReadinessLimits L) =>
+        h.Par >= MinPar && (!WhenWide || h.Stations.Any(x => x.WidthYards > L.WidthReasonYards));
 }
 
 /// <summary>A group of Hole QA checks.</summary>
@@ -44,7 +51,7 @@ public static class Checklist
 
     public static readonly ChecklistStage PreBuild = new("pre", "Pre-build gate", "Done once per course, before any hole is shaped.", "pre",
     [
-        new("pre.score", "Scorecard locked: par and yardage for every tee set, totals match the in-game screen", D, "par", "tee-totals"),
+        new("pre.score", "Scorecard locked: par and yardage for every tee set, totals match the in-game screen", D, "par", "length-total"),
         new("pre.sec7", "Same-par run check (Section 7 bar chart) run on all 18, every flag resolved or accepted", D, "same-par"),
         new("pre.anom", "Anomalies (very long or short holes, identical tee distances, odd par splits) confirmed as intentional and written down", D),
         new("pre.bear", "Tee and approach compass bearings locked for every hole", D),
@@ -53,7 +60,8 @@ public static class Checklist
         new("pre.marker", "Marker pathways designed for each hole (more than one per hole)", D),
         new("pre.measure", "Every capture includes a MEASURE line of known yardage", D),
         new("pre.sctest", "Scorecard tests run against current plots as holes come online", D),
-        new("pre.drive", "Test drive distance measured with the power profile and entered in the limits (sets the par 4 and par 5 limits)", F, "drive-entered"),
+        new("pre.drive", "Design tee shot set (300 to 350 yds by default) and checked with a test drive from the power profile", D, "drive-entered"),
+        new("pre.hazards", "For each hazard, what changes if the player goes left, right or over is written down", D),
         new("pre.restraint", "Per-hole concept notes say what to leave out as well as what to build (for example \"consider zero bunkers\"), and the build brief carries them", F),
     ]);
 
@@ -61,15 +69,15 @@ public static class Checklist
     [
         new("tgm.par", "Total par 69 to 74; every hole a par 3, 4 or 5; 18 holes", M, "par-range"),
         new("tgm.range", "Holes of the same par have a range of yardages", M, "same-par-range"),
-        new("tgm.width", "Fairways at least 25 yds wide (recommended, not required)", M, "narrow-fairway"),
+        new("tgm.width", "Fairways at least 25 yds wide (recommended, not required)", M, "landing-widths"),
         new("tgm.pins", "Pins clear of the green's edge and off red slope at the cup", M, "pins"),
         new("tgm.real", "A real-course recreation is very accurate (N/A for an original course)", M),
     ]);
 
     public static readonly ChecklistStage TourCourse = new("tourc", "Course review", "Course-level checks from Section 11. The per-hole checks are in Hole QA.", "tcl",
     [
-        new("tcl.scale", "Scale audit: green size and fairway width numbers reviewed; every outlier is deliberate", F, "green-scale", "landing-width"),
-        new("tcl.variety", "Variety audit: drivable and near-drivable par 4s within the per-nine limit; every par 5 passes the test-drive check", F, "drivable-front", "drivable-back", "par5"),
+        new("tcl.scale", "Width audit: landing widths at the design tee shot inside 25 to 70 yds, every fairway over 60 has its reason, every green suits its approach", F, "landing-widths", "width-steadiness"),
+        new("tcl.variety", "Length audit: median par 4, par 4s under 400 and the shortest par 5 reviewed; every par 5 leaves a real second-shot decision after a 350 drive", F, "median-par4", "par4-under400", "shortest-par5"),
         new("tcl.drift", "Concept-to-build drift check: every built hazard and feature compared with its concept entry; anything bigger than the concept is justified or scaled back", F),
         new("tcl.corr", "Corridor check: no overlapping landing zones, and no hole plays over another hole's green", F, "corridor", "aim-spacing"),
         new("tcl.wps", "Waypoints reviewed on all 18 holes from every tee set", F),
@@ -119,9 +127,10 @@ public static class Checklist
     public static readonly IReadOnlyList<ChecklistStage> Stages = [PreBuild, Minimums, TourCourse, Build, Publish];
 
     /// <summary>
-    /// Hole QA: every check done on every hole, in six groups. The HTML checklist's three per-hole stages (per-hole
+    /// Hole QA: every check done on every hole, in eight groups. The HTML checklist's three per-hole stages (per-hole
     /// checks, tour readiness, planting passes) keep their keys, so a backup or saved progress carries straight over;
     /// its bunker and transition checks each merge with their tour-readiness twin. The minimums are TGC Tours' own.
+    /// Hole design (Principles §12) holds the notes a par 4 or 5 needs written, and the landing-zone ticks.
     /// </summary>
     public static readonly IReadOnlyList<HoleGroup> HoleQa =
     [
@@ -134,6 +143,16 @@ public static class Checklist
             new("tr", "aim", "Aim line", "Aim line at its own green; no shot over another green", F),
             new("tr", "wp", "Waypoints", "Waypoints and default club checked from every tee", F),
             new("hq", "block", "No blocker", "No unavoidable obstruction on the tee shot or approach", M, true),
+        ]),
+        new("Hole design",
+        [
+            new("hn", "miss", "Miss cost", "What a miss costs: rough, a hazard, a blocked angle or a harder recovery", D, MinPar: 4, Note: true),
+            new("hn", "hazards", "Hazards", "What changes if the player goes left, right or over each hazard", D, MinPar: 4, Note: true),
+            new("hn", "second", "Second shot", "The second-shot decision after a 350-yd drive", D, MinPar: 5, Note: true),
+            new("hn", "width", "Why wide", "Why the fairway is this wide: what makes each side play differently", D, MinPar: 4, Note: true, WhenWide: true),
+            new("hq", "fly", "No free carry", "No hazard a 350-yd drive flies with no consequence (moved, removed or justified)", D, MinPar: 4),
+            new("hq", "blind", "Not blind", "No blind hazards in the landing area", D, MinPar: 4),
+            new("hq", "lobe", "Every lobe", "Every lobe or extra area of fairway has a sensible play", D, MinPar: 4),
         ]),
         new("Shaping",
         [
@@ -161,6 +180,7 @@ public static class Checklist
             new("hq", "pvary", "Varied", "Pin locations varied within each pin set", M, true),
             new("hq", "pclose", "Can get close", "Every pin gives a fair chance to hit an approach close: playtested", M, true),
             new("hq", "pslope", "Off big slopes", "No pin in the middle of a large yellow or red slope", M, true),
+            new("hq", "runout", "Run-out", "Slope run-out checked for each pin on the longer approaches", D),
         ]),
         new("Look",
         [
@@ -171,6 +191,12 @@ public static class Checklist
             new("hq", "stock", "Stock shapes", "Stock shapes blended and not overused", M, true),
             new("hq", "repeat", "Repeats", "The same tree or rock isn't repeated over and over", M, true),
             new("hq", "paths", "Paths, splines", "Cart paths smoothed; spline kinks cleaned up", M, true),
+        ]),
+        new("Finish",
+        [
+            new("hq", "fsculpt", "Bunker sculpt", "Sculpting around the bunkers finished", D),
+            new("hq", "fsurf", "Surfacing", "Surfacing finished: weathering and transitions", D),
+            new("hq", "fbare", "Bare areas", "No unintended bare areas", D),
         ]),
         new("Planting",
         [
@@ -187,11 +213,14 @@ public static class Checklist
     public static IEnumerable<HoleCheck> HoleChecks => HoleQa.SelectMany(g => g.Checks);
 
     /// <summary>
-    /// A Hole QA check's status on a hole. A merged check reads both of its keys; the more closed one wins
-    /// (Done, then Deliberate, then N/A, then Open).
+    /// A Hole QA check's status on a hole. A note is done once written. A merged check reads both of its keys; the more
+    /// closed one wins (Done, then Deliberate, then N/A, then Open).
     /// </summary>
     public static ItemStatus StatusOf(HoleCheck c, int hole, ReadinessState s)
     {
+        if (c.Note)
+            return s.Holes.TryGetValue(hole, out var h) && h.Notes.TryGetValue(c.Id, out var text) && !string.IsNullOrWhiteSpace(text)
+                ? ItemStatus.Done : ItemStatus.Open;
         var a = s.StatusOf(c.Key(hole));
         if (c.AlsoKey(hole) is not { } also) return a;
         var b = s.StatusOf(also);
@@ -202,6 +231,7 @@ public static class Checklist
     /// <summary>Sets a check on a hole. A merged check keeps its status on its own key and drops the twin's.</summary>
     public static void Set(HoleCheck c, int hole, ItemStatus status, ReadinessState s)
     {
+        if (c.Note) return;   // a note closes by being written
         s.Set(c.Key(hole), status);
         if (c.AlsoKey(hole) is { } also) s.Items.Remove(also);
     }

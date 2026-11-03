@@ -101,8 +101,9 @@ public static class ReadinessRecord
 
         var L = st.Limits;
         b.Append("<h2>From the course file</h2>");
-        b.Append($"<p class=\"muted\">Back tees. Test drive {(L.TestDriveYards is double d ? $"{d:0} yds" : "not entered")}; par 5s leave at least {L.Par5MinLeftYards:0}; " +
-                 $"drivable within {L.DrivableWithinYards:0} / near within {L.NearDrivableWithinYards:0}, at most {L.MaxDrivablePerNine} per nine; scale {L.ScaleLow:0.0#}–{L.ScaleHigh:0.0#}× the median; " +
+        b.Append($"<p class=\"muted\">Back tees. Design tee shot {L.DesignDriveMinYards:0}–{L.DesignDriveMaxYards:0} yds; test drive {(L.TestDriveYards is double d ? $"{d:0} yds" : "not entered")}; " +
+                 $"median par 4 {L.MedianPar4MinYards:0}+, at most {L.MaxShortPar4s} par 4s under {L.ShortPar4Yards:0}, shortest par 5 {L.ShortestPar5MinYards:0}+; " +
+                 $"landing width {L.WidthLowYards:0}–{L.WidthHighYards:0} (target {L.LandingTargetMinYards:0}–{L.LandingTargetMaxYards:0}, reason over {L.WidthReasonYards:0}); " +
                  $"corridor {L.CorridorYards:0} yds; elevation {L.MaxDropFeet:0} ft down, {L.MaxClimbFeet:0} up; plot range {L.PlotRangeMinFeet:0}–{L.PlotRangeMaxFeet:0} ft; green relief {L.GreenReliefMinFeet:0.0}–{L.GreenReliefMaxFeet:0.#} ft.</p>");
         b.Append("<table><tr><th>Result</th><th>Check</th><th>Detail</th><th>Deliberate</th></tr>");
         foreach (var c in r.Checks.OrderByDescending(c => c.Severity))
@@ -113,17 +114,17 @@ public static class ReadinessRecord
         }
         b.Append("</table>");
 
-        b.Append("<h2>Hole by hole</h2><div class=\"wrap\"><table><tr><th>Hole</th><th>Par</th><th>Yds</th><th>Drive</th><th>Green sq ft</th><th>Landing yds</th><th>Fairway start</th><th>Tee → green</th><th>Relief</th><th>Nearest other green</th><th>Pins (difficulty)</th></tr>");
+        b.Append("<h2>Hole by hole</h2><div class=\"wrap\"><table><tr><th>Hole</th><th>Par</th><th>Yds</th><th>Straight</th><th>Green sq ft</th><th>Widths at the tee shot</th><th>Hazards in the landing zone</th><th>Fairway start</th><th>Tee → green</th><th>Relief</th><th>Nearest other green</th><th>Pins (difficulty)</th></tr>");
         foreach (var h in r.Holes)
         {
-            string drive = h.DriveClass ?? (h.LeftAfterDrive is int left ? $"{left} left" : "");
             string green = h.GreenEstimated ? "not drawn" : $"{h.GreenSquareFeet:N0} ({h.GreenRatio:0.00}×)";
-            string width = h.LandingWidthYards is double w ? $"{w:0} ({h.WidthRatio:0.00}×){(h.LandingOffFairway ? " off fairway" : "")}" : "";
+            string width = string.Join(" · ", h.Stations.Select(x => $"{x.FromTeeYards}: {(x.WidthYards is double w ? $"{w:0}" : "none")}"));
+            string hazards = string.Join("; ", h.LandingHazards.Select(ReadinessChecker.Describe));
             string near = h.NearGreenYards is double ny ? $"{ny:0} yds, {(h.NearGreenOf == 0 ? "practice green" : $"hole {h.NearGreenOf}")}" : "";
             string start = h.FairwayStartYards is double fs ? $"{fs:0}{(h.FairwayStartOverrideYards is not null ? " (yours)" : "")}{(h.SharedFairway ? ", shared" : "")}" : h.SharedFairway ? "shared" : "";
             string pins = string.Join(" ", h.Pins.Select(p => $"{p.Depth}{p.Side}" +
                 (st.Pins.TryGetValue($"{h.Number}.{p.Number}", out var ps) && ps.Difficulty is { Length: > 0 } diff ? $"({diff})" : "")));
-            b.Append($"<tr><td>{h.Number}</td><td>{h.Par}</td><td>{h.Yards}</td><td>{E(drive)}</td><td>{green}</td><td>{width}</td><td>{E(start)}</td><td>{h.ChangeFeet:+0;-0;0} ft</td><td>{(h.GreenReliefFeet is double rf ? $"{rf:0.0} ft" : "")}</td><td>{E(near)}</td><td>{E(pins)}</td></tr>");
+            b.Append($"<tr><td>{h.Number}</td><td>{h.Par}</td><td>{h.Yards}</td><td>{h.StraightYards}</td><td>{green}</td><td>{E(width)}</td><td>{E(hazards)}</td><td>{E(start)}</td><td>{h.ChangeFeet:+0;-0;0} ft</td><td>{(h.GreenReliefFeet is double rf ? $"{rf:0.0} ft" : "")}</td><td>{E(near)}</td><td>{E(pins)}</td></tr>");
         }
         b.Append("</table></div>");
 
@@ -144,12 +145,18 @@ public static class ReadinessRecord
         {
             b.Append($"<h3>{E(g.Name)}</h3><div class=\"wrap\"><table><tr><th>Hole</th>{string.Concat(g.Checks.Select(c => $"<th title=\"{E(c.Text)}\">{E(c.Label)}{(c.Minimum ? "*" : "")}</th>"))}</tr>");
             foreach (var h in r.Holes)
-                b.Append($"<tr><td>{h.Number}</td>{string.Concat(g.Checks.Select(c => Cell(Checklist.StatusOf(c, h.Number, st))))}</tr>");
+                b.Append($"<tr><td>{h.Number}</td>{string.Concat(g.Checks.Select(c => c.Applies(h, r.Limits) ? Cell(Checklist.StatusOf(c, h.Number, st)) : "<td></td>"))}</tr>");
             b.Append("</table></div>");
         }
         var noted = r.Holes.SelectMany(h => Checklist.HoleChecks.SelectMany(c => new[] { c.Key(h.Number), c.AlsoKey(h.Number) }
                 .OfType<string>().Select(k => (h.Number, c.Text, Key: k))))
             .Where(x => st.Items.TryGetValue(x.Key, out var i) && i.Note.Length > 0).ToList();
+        var design = Checklist.HoleChecks.Where(c => c.Note).ToList();
+        var written = st.Holes.OrderBy(kv => kv.Key).SelectMany(kv => design
+            .Where(c => kv.Value.Notes.TryGetValue(c.Id, out var t) && t.Trim().Length > 0).Select(c => (Hole: kv.Key, c.Label, Text: kv.Value.Notes[c.Id]))).ToList();
+        if (written.Count > 0)
+            b.Append("<h3>Hole design notes</h3><table><tr><th>Hole</th><th>Note</th><th>What it says</th></tr>" +
+                     string.Concat(written.Select(w => $"<tr><td>{w.Hole}</td><td>{E(w.Label)}</td><td>{E(w.Text)}</td></tr>")) + "</table>");
         var holeNotes = st.Holes.Where(kv => kv.Value.Note.Length > 0).OrderBy(kv => kv.Key).ToList();
         if (noted.Count + holeNotes.Count > 0)
             b.Append("<ul>" + string.Concat(holeNotes.Select(n => $"<li>Hole {n.Key}: {E(n.Value.Note)}</li>")) +

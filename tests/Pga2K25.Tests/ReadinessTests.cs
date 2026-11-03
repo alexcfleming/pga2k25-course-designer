@@ -19,30 +19,30 @@ public class ReadinessTests
     static ReadinessCheck Check(string id) => Report.Value.Check(id) ?? throw new Xunit.Sdk.XunitException($"no check {id}");
 
     [Fact]
-    public void Cassimbo_ShortPar5s_AreTheReviewsHole3()
+    public void Cassimbo_Length_ShortPar4sAndPar5s()
     {
-        var c = Check("par5");
-        Assert.Equal(Severity.High, c.Severity);
-        Assert.Equal([3, 18], c.Holes);
-        Assert.Equal(177, Report.Value.Holes[2].LeftAfterDrive);
-    }
-
-    [Fact]
-    public void Cassimbo_FrontNine_HasAThirdDrivablePar4()
-    {
-        // "Third or fourth drivable par 4 on the front nine."
-        var c = Check("drivable-front");
-        Assert.Equal(Severity.High, c.Severity);
-        Assert.Equal([1, 4, 8], c.Holes);
-        Assert.Equal(Severity.High, Check("drivable-back").Severity);
+        // §12.4, card yards from the back tee: median par 4 387, six par 4s under 400, par 5s of 537 and 548.
+        var median = Check("median-par4");
+        Assert.Equal(Severity.Warning, median.Severity);
+        Assert.Contains("387", median.Detail);
+        var fours = Check("par4-under400");
+        Assert.Equal(Severity.Warning, fours.Severity);
+        Assert.Equal([1, 4, 8, 13, 16, 17], fours.Holes);
+        var fives = Check("shortest-par5");
+        Assert.Equal(Severity.Warning, fives.Severity);
+        Assert.Equal([3, 18], fives.Holes);
+        Assert.Equal(178, Report.Value.Holes[2].LeftAfter(350));             // "very short par 5", straight from the back tee
+        Assert.Equal(Severity.Info, Check("length-total").Severity);         // a range, never judged
+        Assert.Null(Report.Value.Check("drivable-front"));                    // retired (§11.4)
+        Assert.Null(Report.Value.Check("par5"));
     }
 
     [Fact]
     public void Cassimbo_GreenSizes_Two_AgainstSeven()
     {
-        // "Greens wildly different in size (2 versus 7)." Provisional now: the band warns, it doesn't flag.
+        // "Greens wildly different in size (2 versus 7)." A prompt now: the band flagged an approved course.
         var c = Check("green-scale");
-        Assert.Equal(Severity.Warning, c.Severity);
+        Assert.Equal(Severity.Info, c.Severity);
         Assert.True(c.Passed);
         Assert.Contains(2, c.Holes);
         Assert.Contains(7, c.Holes);
@@ -77,7 +77,6 @@ public class ReadinessTests
     public void Cassimbo_Scorecard_AndSettingsPass()
     {
         Assert.Equal(Severity.Pass, Check("par").Severity);
-        Assert.Equal(Severity.Pass, Check("tee-totals").Severity);
         Assert.Equal(Severity.Pass, Check("same-par").Severity);
         Assert.Equal(Severity.Pass, Check("own-green").Severity);
         Assert.Equal([6528, 6785, 7013, 7220], Report.Value.TeeSets.Select(t => t.Total));
@@ -117,18 +116,18 @@ public class ReadinessTests
     [Fact]
     public void Limits_AreTheCoursesToSet()
     {
-        var loose = ReadinessChecker.Run(Cassimbo.Value, new ReadinessLimits { TestDriveYards = 300, ScaleLow = 0.2, ScaleHigh = 3 });
-        Assert.Equal(Severity.Pass, loose.Check("green-scale")!.Severity);
-        Assert.Equal(Severity.Pass, loose.Check("par5")!.Severity);          // 237 yds left on hole 3 after 300
+        var loose = ReadinessChecker.Run(Cassimbo.Value, new ReadinessLimits { ShortestPar5MinYards = 530, MedianPar4MinYards = 380, WidthHighYards = 250 });
+        Assert.Equal(Severity.Pass, loose.Check("shortest-par5")!.Severity);
+        Assert.Equal(Severity.Pass, loose.Check("median-par4")!.Severity);
+        Assert.DoesNotContain(12, loose.Check("landing-widths")!.Holes);
     }
 
     [Fact]
-    public void WithoutATestDrive_TheDriveChecksAskForOne()
+    public void DesignTeeShot_SetsTheWidthStations()
     {
-        var r = ReadinessChecker.Run(Load("murray-estate.course"));
-        Assert.Equal(Severity.Confirm, r.Check("drive")!.Severity);
-        Assert.Null(r.Check("par5"));
-        Assert.All(r.Holes, h => { Assert.Null(h.DriveClass); Assert.Null(h.LeftAfterDrive); });
+        var r = ReadinessChecker.Run(Load("murray-estate.course"), new ReadinessLimits { DesignDriveMinYards = 280, DesignDriveMaxYards = 320 });
+        Assert.All(r.Holes.Where(h => h.Stations.Count > 0), h => Assert.Equal(280, h.Stations[0].FromTeeYards));
+        Assert.All(r.Holes.Where(h => h.Par == 3), h => Assert.Empty(h.Stations));
     }
 
     static HoleMeasures Hole(int n, int par, int yards) => new() { Number = n, Par = par, Yards = yards };
@@ -179,16 +178,16 @@ public class ReadinessTests
         Assert.All(holes, h => Assert.NotNull(h.FairwayStartYards));
         Assert.True(holes.Count(h => Math.Abs(h.FairwayStartYards!.Value - book[h.Number]) <= 15) >= 12);
         var c = Check("fairway-start");
-        Assert.Equal(Severity.Warning, c.Severity);
+        Assert.Equal(Severity.Info, c.Severity);                              // a note: no reviewer has mentioned it
         Assert.Contains("1 of 14", c.Detail);
         Assert.InRange(Report.Value.MedianFairwayStartYards, 85, 110);
         Assert.All(Report.Value.Holes.Where(h => h.Par == 3), h => Assert.Null(h.FairwayStartYards));
     }
 
     [Fact]
-    public void Overrides_TheDesignersStartAndSharedFairwaysCount()
+    public void Overrides_TheDesignersStartAndSharedFairways()
     {
-        var r = ReadinessChecker.Run(Cassimbo.Value, new ReadinessLimits { TestDriveYards = 360 }, overrides: new Dictionary<int, HoleOverride>
+        var r = ReadinessChecker.Run(Cassimbo.Value, overrides: new Dictionary<int, HoleOverride>
         {
             [1] = new(190, false),
             [12] = new(null, true),
@@ -196,21 +195,49 @@ public class ReadinessTests
         Assert.Equal(190, r.Holes[0].FairwayStartYards);
         Assert.True(r.Holes[0].FairwayStartFileYards < 150);
         Assert.Contains("2 of 13", r.Check("fairway-start")!.Detail);         // hole 1 now in band, hole 12 left out
-        Assert.DoesNotContain(12, r.Check("fairway-start")!.Holes);
-        Assert.DoesNotContain(12, r.Check("landing-width")!.Holes);          // its 167-yd landing is shared, not a flag
+        Assert.Contains(12, r.Check("landing-widths")!.Holes);               // a shared fairway's width still counts
+    }
+
+    [Fact]
+    public void Cassimbo_LandingWidths_At300To350()
+    {
+        // §12.2: over 70 on 1, 7, 11 and 12; under 25 or no fairway by the line on 16 and 18. Shared fairways count.
+        var c = Check("landing-widths");
+        Assert.Equal(Severity.Warning, c.Severity);
+        Assert.Equal([1, 7, 11, 12, 16, 18], c.Holes);
+        var h11 = Report.Value.Holes[10];
+        Assert.Equal([300, 325, 350], h11.Stations.Select(s => s.FromTeeYards));
+        Assert.All(h11.Stations, s => Assert.InRange(s.WidthYards!.Value, 100, 130));
+        Assert.Null(Report.Value.Holes[17].Stations[0].WidthYards);          // no fairway by the line at 300 on 18
+        Assert.Empty(Report.Value.Holes[16].Stations);                       // 17 is too short to land 40 yds short of the green
+        Assert.Contains("1, 7, 11, 12, 13", c.Detail);                       // reasons to write: over 60
+        Assert.Equal([1, 11, 12, 13, 14], Check("width-pattern").Holes);
+        Assert.True(Check("width-steadiness").Passed);
+    }
+
+    [Fact]
+    public void Cassimbo_LandingHazards_AreAPromptOnly()
+    {
+        var c = Check("landing-hazards");
+        Assert.Equal(Severity.Info, c.Severity);
+        var h8 = Report.Value.Holes[7];
+        Assert.Contains(h8.LandingHazards, z => z.Kind == "bunker" && z.Side == "on the line" && z.FromTeeYards is >= 320 and <= 340);
+        Assert.Empty(Report.Value.Holes[2].LandingHazards);
+        Assert.Equal(Severity.Info, Check("forward-tees").Severity);
+        Assert.InRange(Report.Value.Holes[6].ForwardCarryYards!.Value, 170, 215);
     }
 
     [Fact]
     public void Cassimbo_ProvisionalChecks_OnlyWarn()
     {
-        var shortFours = Check("short-par4");
-        Assert.Equal(Severity.Warning, shortFours.Severity);
-        Assert.Equal([1, 4, 8, 13, 17], shortFours.Holes);
-        Assert.Equal([2, 4, 10], Check("small-greens").Holes);
-        Assert.Equal(Severity.Pass, Check("par3-greens").Severity);            // 147 to 248 yds, greens grow with them
-        Assert.Equal(Severity.Info, Check("narrow-fairway").Severity);
-        foreach (var id in new[] { "fairway-start", "short-par4", "small-greens", "width-steadiness", "green-scale" })
+        foreach (var id in new[] { "median-par4", "par4-under400", "shortest-par5", "landing-widths", "width-pattern" })
+        {
+            Assert.Equal(Severity.Warning, Check(id).Severity);
             Assert.True(Check(id).Passed, id);                                 // never a fail: the gate isn't held by them
+        }
+        foreach (var id in new[] { "green-scale", "green-approach", "fairway-start", "card-straight" })
+            Assert.Equal(Severity.Info, Check(id).Severity);
+        Assert.Equal([4, 11, 18], Check("card-straight").Holes);
     }
 
     [PrivateSampleFact("sagan-khushun-2026-10-26.course")]

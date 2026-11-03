@@ -20,7 +20,7 @@ public sealed class HoleGroupHeaderViewModel(HoleGroup group, IReadOnlyList<Hole
 public sealed class HoleColumnViewModel(HoleCheck c)
 {
     public string Label { get; } = c.Label;
-    public string Tip { get; } = c.Minimum ? $"{c.Text} (TGC minimum)" : c.Text;
+    public string Tip { get; } = c.Minimum ? $"{c.Text} (TGC minimum)" : c.Note ? $"{c.Text} (a note on the hole's card)" : c.Text;
     public bool Minimum { get; } = c.Minimum;
 }
 
@@ -51,30 +51,24 @@ public sealed class FlagChipViewModel
         Dashes = kind == Kind.Provisional && !deliberate ? [3, 2] : null;
     }
 
-    /// <summary>Every chip for a hole, worst first, from the same limits the course-file checks use.</summary>
-    public static List<FlagChipViewModel> For(HoleMeasures h, ReadinessLimits L, ReadinessState s)
+    /// <summary>Every chip for a hole, from the same limits the course-file checks use.</summary>
+    public static List<FlagChipViewModel> For(HoleMeasures h, ReadinessReport r, ReadinessState s)
     {
+        var L = r.Limits;
         bool Delib(string check) => s.Deliberate.ContainsKey(check) || s.Deliberate.ContainsKey($"{check}@{h.Number}");
         var chips = new List<FlagChipViewModel>();
         void Add(string text, Kind kind, string check) => chips.Add(new FlagChipViewModel(text, kind, Delib(check)));
 
-        if (h.DriveClass == "Drivable") Add("Drivable", Kind.Worse, h.Number <= 9 ? "drivable-front" : "drivable-back");
-        else if (h.DriveClass == "Near-drivable") Add("Near-drivable", Kind.Flag, h.Number <= 9 ? "drivable-front" : "drivable-back");
-        if (h.LeftAfterDrive is int left && left < L.Par5MinLeftYards) Add($"{left} left", Kind.Worse, "par5");
-        if (h.Par >= 4 && !h.SharedFairway)
-        {
-            if (h.FairwayStartYards is double fs && (fs < L.FairwayStartMinYards || fs > L.FairwayStartMaxYards))
-                Add(fs <= 60 ? "Start ≤60" : $"Start {fs:0}", Kind.Provisional, "fairway-start");
-            else if (h.FairwayStartYards is null) Add("No main fairway", Kind.Provisional, "fairway-start");
-        }
-        if (!h.GreenEstimated && h.GreenSquareFeet < L.SmallGreenSquareFeet) Add($"Green {h.GreenSquareFeet.ToString("N0", CultureInfo.InvariantCulture)} sq ft", Kind.Provisional, "small-greens");
-        else if (h.GreenRatio is double g && (g < L.ScaleLow || g > L.ScaleHigh)) Add($"Green {g:0.00}×", Kind.Provisional, "green-scale");
-        if (!h.SharedFairway)
-        {
-            if (h.LandingOffFairway) Add("Lands off fairway", Kind.Flag, "landing-width");
-            else if (h.WidthRatio is double w && (w < L.ScaleLow || w > L.ScaleHigh)) Add($"Landing {w:0.00}×", Kind.Flag, "landing-width");
-            if (h.WidthSteadiness is double sd && sd > L.WidthSteadinessMax) Add($"Width {sd:0.0}×", Kind.Provisional, "width-steadiness");
-        }
+        var widths = h.Stations.Select(x => x.WidthYards).ToList();
+        if (widths.Where(w => w > L.WidthHighYards).Max() is double hi) Add($"Width {hi:0}", Kind.Provisional, "landing-widths");
+        if (h.Stations.FirstOrDefault(x => x.WidthYards is null) is { } none) Add($"No fairway at {none.FromTeeYards}", Kind.Provisional, "landing-widths");
+        else if (widths.Where(w => w < L.WidthLowYards).Min() is double lo) Add($"Width {lo:0}", Kind.Provisional, "landing-widths");
+        if (h.Par == 5 && h.Yards < L.ShortestPar5MinYards) Add($"Par 5 {h.Yards}", Kind.Provisional, "shortest-par5");
+        if (h.Par == 4 && h.Yards < L.ShortPar4Yards && r.Check("par4-under400")?.Severity == Severity.Warning)
+            Add($"Under {L.ShortPar4Yards:0}", Kind.Provisional, "par4-under400");
+        if (h.WidthSteadiness >= L.WidthSteadinessMax) Add($"Swing {h.WidthSteadiness:0.0}×", Kind.Provisional, "width-steadiness");
+        if (h.LayupWidthYards is double lay && h.LandingWidthYards > lay * 1.1)
+            Add($"Wider at {L.DesignDriveMinYards:0}–{L.DesignDriveMaxYards:0}", Kind.Provisional, "width-pattern");
         if (h.ChangeFeet > L.MaxClimbFeet || -h.ChangeFeet > L.MaxDropFeet) Add($"{h.ChangeFeet:+0;-0} ft", Kind.Flag, "elevation");
         if (h.GreenReliefFeet is double rf && (Math.Round(rf, 1) < L.GreenReliefMinFeet || Math.Round(rf, 1) > L.GreenReliefMaxFeet)) Add($"Relief {rf:0.0} ft", Kind.Flag, "green-relief");
         if (h.NearGreenYards is double ny && Math.Round(ny) < L.CorridorYards)
@@ -89,27 +83,37 @@ public sealed class FlagChipViewModel
     }
 }
 
-/// <summary>One square of the Hole QA grid: a check on a hole, clicked through Open → Done → Deliberate → N/A.</summary>
+/// <summary>
+/// One square of the Hole QA grid: a check on a hole, clicked through Open → Done → Deliberate → N/A. A note square is
+/// dashed until the note is written on the hole's card, and clicking it opens the card. A check the hole isn't asked
+/// (a par 5 note on a par 4, say) keeps its place but shows nothing.
+/// </summary>
 public partial class QaCellViewModel : ObservableObject
 {
     static readonly IBrush OpenFill = Brushes.White, OpenEdge = Brush.Parse("#8C958E"), DoneFill = Brush.Parse("#2D6A42"),
         DelibFill = Brush.Parse("#3D6E9A"), NaFill = Brush.Parse("#E6E8E3");
+    static readonly AvaloniaList<double> Dashed = [2, 1.5];
 
     readonly HoleCheck _check;
     readonly int _hole;
     readonly ReadinessState _state;
-    readonly Action<int> _changed;
+    readonly Action<int> _changed, _select;
+
+    public bool Asked { get; }
 
     [ObservableProperty] private IBrush _fill = OpenFill;
     [ObservableProperty] private IBrush _edge = OpenEdge;
+    [ObservableProperty] private AvaloniaList<double>? _dashes;
     [ObservableProperty] private string _tip = "";
 
-    public QaCellViewModel(HoleCheck check, int hole, ReadinessState state, Action<int> changed)
+    public QaCellViewModel(HoleCheck check, HoleMeasures h, ReadinessLimits limits, ReadinessState state, Action<int> changed, Action<int> select)
     {
         _check = check;
-        _hole = hole;
+        _hole = h.Number;
         _state = state;
         _changed = changed;
+        _select = select;
+        Asked = check.Applies(h, limits);
         Refresh();
     }
 
@@ -117,19 +121,29 @@ public partial class QaCellViewModel : ObservableObject
 
     public void Refresh()
     {
+        if (!Asked) { (Fill, Edge, Dashes, Tip) = (Brushes.Transparent, Brushes.Transparent, null, ""); return; }
         var s = Status;
-        (Fill, Edge) = s switch
+        if (_check.Note)
         {
-            ItemStatus.Done => (DoneFill, DoneFill),
-            ItemStatus.Deliberate => (DelibFill, DelibFill),
-            ItemStatus.NotApplicable => (NaFill, OpenEdge),
-            _ => (OpenFill, OpenEdge),
+            bool written = s == ItemStatus.Done;
+            (Fill, Edge, Dashes) = written ? (DoneFill, DoneFill, null) : (OpenFill, DoneFill, Dashed);
+            Tip = $"Hole {_hole}, {_check.Text}: {(written ? "written" : "to write on the hole's card")}";
+            return;
+        }
+        (Fill, Edge, Dashes) = s switch
+        {
+            ItemStatus.Done => (DoneFill, DoneFill, null),
+            ItemStatus.Deliberate => (DelibFill, DelibFill, null),
+            ItemStatus.NotApplicable => (NaFill, OpenEdge, Dashed),
+            _ => (OpenFill, OpenEdge, (AvaloniaList<double>?)null),
         };
         Tip = $"Hole {_hole}, {_check.Text}: {Look.Label(s)}";
     }
 
     [RelayCommand] private void Cycle()
     {
+        if (!Asked) return;
+        if (_check.Note) { _select(_hole); return; }
         Checklist.Set(_check, _hole, Look.Next(Status), _state);
         _changed(_hole);
     }
@@ -156,44 +170,45 @@ public partial class HoleQaRowViewModel : ObservableObject
     [ObservableProperty] private string _count = "";
     [ObservableProperty] private bool _isSelected;
 
-    public HoleQaRowViewModel(HoleMeasures h, ReadinessLimits limits, ReadinessState state, IReadOnlyList<IReadOnlyList<HoleCheck>> groups,
+    public HoleQaRowViewModel(HoleMeasures h, ReadinessReport report, ReadinessState state, IReadOnlyList<IReadOnlyList<HoleCheck>> groups,
         Action<int> changed, Action<int> select)
     {
         _select = select;
         Hole = h.Number;
         ParYards = $"{h.Par} · {h.Yards}";
-        Flags = FlagChipViewModel.For(h, limits, state);
-        Groups = groups.Select((g, i) => new QaCellGroupViewModel(g.Select(c => new QaCellViewModel(c, h.Number, state, changed)).ToList(), i)).ToList();
+        Flags = FlagChipViewModel.For(h, report, state);
+        Groups = groups.Select((g, i) => new QaCellGroupViewModel(g.Select(c => new QaCellViewModel(c, h, report.Limits, state, changed, select)).ToList(), i)).ToList();
         Refresh();
     }
 
-    public IEnumerable<QaCellViewModel> Cells => Groups.SelectMany(g => g.Cells);
+    public IEnumerable<QaCellViewModel> Cells => Groups.SelectMany(g => g.Cells).Where(c => c.Asked);
     public bool AllClosed => Cells.All(c => c.Status != ItemStatus.Open);
 
     public void Refresh()
     {
-        foreach (var c in Cells) c.Refresh();
+        foreach (var c in Groups.SelectMany(g => g.Cells)) c.Refresh();
         Count = $"{Cells.Count(c => c.Status != ItemStatus.Open)}/{Cells.Count()}";
     }
 
     [RelayCommand] private void Select() => _select(Hole);
 }
 
-/// <summary>One figure on the hole card, shaded when outside a limit (dashed when the limit is provisional).</summary>
+/// <summary>One figure on the hole card, shaded when outside a limit (dashed when the limit is provisional, green on target).</summary>
 public sealed class MeasureBoxViewModel
 {
+    static readonly IBrush Plain = Brush.Parse("#F7F8F5"), Shade = Brush.Parse("#FBEFD9"), Amber = Brush.Parse("#B07A1E"), Target = Brush.Parse("#E4EFE6");
+
     public string Label { get; }
     public string Value { get; }
     public IBrush Fill { get; }
     public IBrush Edge { get; }
     public AvaloniaList<double>? Dashes { get; }
 
-    public MeasureBoxViewModel(string label, string value, bool outside, bool provisional = false)
+    public MeasureBoxViewModel(string label, string value, bool outside, bool provisional = false, bool onTarget = false)
     {
         Label = label;
         Value = value;
-        (Fill, Edge) = !outside ? (Brush.Parse("#F7F8F5"), Brush.Parse("#F7F8F5"))
-            : provisional ? (Brushes.White, Brush.Parse("#B07A1E")) : (Brush.Parse("#FBEFD9"), Brush.Parse("#FBEFD9"));
+        (Fill, Edge) = !outside ? (onTarget ? (Target, Target) : (Plain, Plain)) : provisional ? (Brushes.White, Amber) : (Shade, Shade);
         Dashes = outside && provisional ? [3, 2] : null;
     }
 }
@@ -207,6 +222,38 @@ public sealed class PinLineViewModel(PinPlacement p, ReadinessLimits L)
     public IBrush EdgeFill { get; } = p.EdgeYards < L.PinEdgeYards ? Shade : None;
     public string Slope { get; } = p.EdgeYards is null ? "—" : p.SlopePct is double s ? $"{s:0.0}%" : "flat";
     public IBrush SlopeFill { get; } = p.SlopePct >= L.PinSteepPct ? Shade : None;
+}
+
+/// <summary>A hole design note on the card: required while the hole is asked it, closed once written.</summary>
+public partial class NoteBoxViewModel : ObservableObject
+{
+    readonly HoleCheck _check;
+    readonly int _hole;
+    readonly ReadinessState _state;
+    readonly Action<int> _changed;
+
+    public string Label => _check.Text;
+    public string Hint { get; }
+
+    [ObservableProperty] private string _text;
+
+    public NoteBoxViewModel(HoleCheck check, int hole, string hint, ReadinessState state, Action<int> changed)
+    {
+        _check = check;
+        _hole = hole;
+        _state = state;
+        _changed = changed;
+        Hint = hint;
+        _text = state.Holes.TryGetValue(hole, out var h) && h.Notes.TryGetValue(check.Id, out var t) ? t : "";
+    }
+
+    partial void OnTextChanged(string value)
+    {
+        var notes = _state.Hole(_hole).Notes;
+        if (string.IsNullOrWhiteSpace(value)) notes.Remove(_check.Id);
+        else notes[_check.Id] = value;
+        _changed(_hole);
+    }
 }
 
 /// <summary>A check on the hole card: its full wording and a status pill.</summary>
@@ -285,8 +332,10 @@ public partial class CardGroupViewModel : ObservableObject
 }
 
 /// <summary>
-/// One hole on its own: every figure, the main fairway start (with the designer's override and shared-fairway
-/// mark), the pins, every check written out in full by group, and a note.
+/// One hole on its own: its figures (card and straight-line yards, yards left after the design tee shot, the green
+/// against its approach), the landing zone (widths at the design tee shot, lay-up against landing, fairway start,
+/// hazards by the line, the designer's fairway start and shared-fairway mark), the hole design notes, the pins, every
+/// check written out by group, and a note.
 /// </summary>
 public partial class HoleCardViewModel : ObservableObject
 {
@@ -299,8 +348,14 @@ public partial class HoleCardViewModel : ObservableObject
     public string Sub => $"Par {_h.Par} · {_h.Yards} yds";
     public IReadOnlyList<MeasureBoxViewModel> Measures { get; }
     public bool IsLong => _h.Par >= 4;
+    public IReadOnlyList<MeasureBoxViewModel> Stations { get; }
+    public string WidthLimits { get; }
+    public string Pattern { get; }
     public string StartFromFile { get; }
-    public string StartBand { get; }
+    public IReadOnlyList<string> Hazards { get; }
+    public bool NoHazards => Hazards.Count == 0;
+    public string HazardsLabel { get; }
+    public IReadOnlyList<NoteBoxViewModel> Notes { get; }
     public IReadOnlyList<PinLineViewModel> Pins { get; }
     public bool HasPins => Pins.Count > 0;
     public IReadOnlyList<CardGroupViewModel> Groups { get; }
@@ -309,7 +364,6 @@ public partial class HoleCardViewModel : ObservableObject
     [ObservableProperty] private bool _shared;
     [ObservableProperty] private string _sharedWith;
     [ObservableProperty] private string _note;
-    [ObservableProperty] private bool _sizeDeliberate;
 
     public HoleCardViewModel(HoleMeasures h, ReadinessReport r, ReadinessState state, IReadOnlyList<(string Name, IReadOnlyList<HoleCheck> Checks)> groups,
         Action<int> changed, Action save, Action recheck)
@@ -320,59 +374,75 @@ public partial class HoleCardViewModel : ObservableObject
         _recheck = recheck;
         var L = r.Limits;
         string N0(double v) => v.ToString("N0", CultureInfo.InvariantCulture);
-        var m = new List<MeasureBoxViewModel>
-        {
-            new("Test drive", h.DriveClass ?? (h.LeftAfterDrive is int left ? $"{left} left" : h.Par == 3 ? "par 3" : L.TestDriveYards is null ? "no drive entered" : "fine"),
-                h.DriveClass is not null || h.LeftAfterDrive < L.Par5MinLeftYards),
-            new("Green (provisional)", h.GreenEstimated ? "not drawn" : $"{N0(h.GreenSquareFeet)} sq ft · {h.GreenRatio:0.00}×",
-                !h.GreenEstimated && (h.GreenSquareFeet < L.SmallGreenSquareFeet || h.GreenRatio < L.ScaleLow || h.GreenRatio > L.ScaleHigh), provisional: true),
-            new("Landing width", h.LandingWidthYards is double w ? $"{w:0}{(h.LandingOffFairway ? " off fairway" : "")} yds · {h.WidthRatio:0.00}×" : h.Par == 3 ? "par 3" : "—",
-                !h.SharedFairway && (h.LandingOffFairway || h.WidthRatio < L.ScaleLow || h.WidthRatio > L.ScaleHigh)),
-            new("Tee to green", $"{h.ChangeFeet:+0;-0;0} ft", h.ChangeFeet > L.MaxClimbFeet || -h.ChangeFeet > L.MaxDropFeet),
+        int Left(double drive) => Math.Max(0, h.LeftAfter(drive));
+        bool bent = Math.Abs(h.Yards - h.StraightYards) >= L.StraightDiffYards;
+        Measures =
+        [
+            new("Card · straight from the back tee", bent ? $"{h.Yards} · {h.StraightYards} straight" : $"{h.Yards} yds", false),
+            IsLong
+                ? new($"Yards left after {L.DesignDriveMinYards:0} / {L.DesignDriveMidYards:0} / {L.DesignDriveMaxYards:0}",
+                    $"{Left(L.DesignDriveMinYards)} / {Left(L.DesignDriveMidYards)} / {Left(L.DesignDriveMaxYards)}",
+                    h.Par == 5 && h.Yards < L.ShortestPar5MinYards, provisional: true)
+                : new("Par 3", $"{h.Yards} yds", false),
+            new("Green · against the approach", h.GreenEstimated ? "not drawn" : $"{N0(h.GreenSquareFeet)} sq ft" + (IsLong ? $" · {Left(L.DesignDriveMidYards)} left" : ""), false),
             new("Green relief", h.GreenReliefFeet is double rf ? $"{rf:0.0} ft" : "—",
                 h.GreenReliefFeet is double rr && (Math.Round(rr, 1) < L.GreenReliefMinFeet || Math.Round(rr, 1) > L.GreenReliefMaxFeet)),
+            new("Tee to green", $"{h.ChangeFeet:+0;-0;0} ft", h.ChangeFeet > L.MaxClimbFeet || -h.ChangeFeet > L.MaxDropFeet),
             new("Nearest other green", h.NearGreenYards is double ny ? $"{ny:0} yds · {(h.NearGreenOf == 0 ? "practice" : $"hole {h.NearGreenOf}")}" : "—",
                 h.NearGreenYards is double n2 && Math.Round(n2) < L.CorridorYards),
-        };
-        if (IsLong)
+        ];
+
+        Stations = new[] { L.DesignDriveMinYards, L.DesignDriveMidYards, L.DesignDriveMaxYards }.Select(y =>
         {
-            m.Add(new("Narrowest fairway (note)", h.NarrowestFairwayYards is double nw ? $"{nw:0} yds" : "—", h.NarrowestFairwayYards < L.FairwayMinWidthYards, provisional: true));
-            m.Add(new("Wide ÷ narrow past 200 (provisional)", h.WidthSteadiness is double sd ? $"{sd:0.0}×" : "—", !h.SharedFairway && h.WidthSteadiness > L.WidthSteadinessMax, provisional: true));
-        }
-        Measures = m;
-        StartFromFile = h.FairwayStartFileYards is double fs ? (fs <= 60 ? "60 yds or less from the file" : $"{fs:0} yds from the file") : "No main fairway found along the line";
-        StartBand = $"provisional · band {L.FairwayStartMinYards:0}–{L.FairwayStartMaxYards:0} yds";
+            var st = h.Stations.FirstOrDefault(x => x.FromTeeYards == (int)Math.Round(y));
+            if (st is null) return new MeasureBoxViewModel($"At {y:0}", "short of it", false);
+            if (st.WidthYards is not double w) return new MeasureBoxViewModel($"At {y:0}", "no fairway", true, provisional: true);
+            bool warn = w > L.WidthHighYards || w < L.WidthLowYards;
+            string label = !warn && w > L.WidthReasonYards ? $"At {y:0} · needs a reason" : $"At {y:0}";
+            return new MeasureBoxViewModel(label, $"{w:0} yds", warn, provisional: true, onTarget: w >= L.LandingTargetMinYards && w <= L.LandingTargetMaxYards);
+        }).ToList();
+        WidthLimits = $"Target {L.LandingTargetMinYards:0}–{L.LandingTargetMaxYards:0} yds · reason over {L.WidthReasonYards:0} · warn over {L.WidthHighYards:0} or under {L.WidthLowYards:0}";
+        Pattern = h.LayupWidthYards is double lay && h.LandingWidthYards is double land
+            ? $"Lay-up (250–290) {lay:0} yds, landing ({L.DesignDriveMinYards:0}–{L.DesignDriveMaxYards:0}) {land:0} yds: " +
+              (land > lay * 1.1 ? "wider where it should be tighter (provisional warning)." : "roomy then tighter, as it should be.")
+            : "";
+        string start = h.FairwayStartFileYards is double fs ? (fs <= 60 ? "60 yds or less" : $"{fs:0} yds") : "";
+        StartFromFile = (start.Length > 0 ? $"Main fairway starts {start} from the back tee (a note; band {L.FairwayStartMinYards:0}–{L.FairwayStartMaxYards:0})." : "No main fairway found along the line.") +
+                        (h.ForwardCarryYards is double carry ? $" Longest forward-tee carry to it: {carry:0} yds." : "");
+        Hazards = h.LandingHazards.Select(x => Capitalise(ReadinessChecker.Describe(x))).ToList();
+        HazardsLabel = $"Hazards within {L.LandingHazardReachYards:0} yds of the line, {L.LandingHazardFromYards:0}–{L.LandingHazardToYards:0} yds (a prompt, not scored)";
+
+        string Hint(HoleCheck c) => c.Id switch
+        {
+            "miss" => "Each side: rough, a hazard, a blocked angle or a harder recovery.",
+            "hazards" => h.LandingHazards.Count > 0 ? $"{h.LandingHazards.Count} by the line in the landing zone. One line each; a centreline hazard needs a real answer." : "One line per hazard. A centreline hazard is fine only if the answer is real.",
+            "second" => $"{Left(L.DesignDriveMaxYards)} yds left after {L.DesignDriveMaxYards:0}. What does the player weigh?",
+            "width" => $"Over {L.WidthReasonYards:0} yds here: for example a central hazard that makes each side play differently.",
+            _ => "",
+        };
+        var all = groups.SelectMany(g => g.Checks).ToList();
+        Notes = all.Where(c => c.Note && c.Applies(h, L)).Select(c => new NoteBoxViewModel(c, h.Number, Hint(c), state, changed)).ToList();
         Pins = h.Pins.Select(p => new PinLineViewModel(p, L)).ToList();
-        Groups = groups.Select(g => new CardGroupViewModel(g.Name, g.Checks.Select(c => new CardItemViewModel(c, h.Number, state, changed)).ToList(), h.Number, changed)).ToList();
+        Groups = groups.Select(g => (g.Name, Checks: g.Checks.Where(c => !c.Note && c.Applies(h, L)).ToList()))
+            .Where(g => g.Checks.Count > 0)
+            .Select(g => new CardGroupViewModel(g.Name, g.Checks.Select(c => new CardItemViewModel(c, h.Number, state, changed)).ToList(), h.Number, changed)).ToList();
 
         var hs = state.Holes.TryGetValue(h.Number, out var own) ? own : new HoleState();
-        _overrideText = hs.FairwayStartYards is double o ? o.ToString("0", CultureInfo.InvariantCulture) : "";
+        _overrideText = hs.FairwayStartYards is double ov ? ov.ToString("0", CultureInfo.InvariantCulture) : "";
         _shared = hs.SharedFairway;
         _sharedWith = hs.SharedWith;
         _note = hs.Note;
-        _sizeDeliberate = state.Deliberate.ContainsKey($"green-scale@{h.Number}");
     }
+
+    static string Capitalise(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s[1..];
 
     public void Refresh() { foreach (var g in Groups) g.Refresh(); }
 
     partial void OnNoteChanged(string value) { _state.Hole(Hole).Note = value; _save(); }
     partial void OnSharedWithChanged(string value) { _state.Hole(Hole).SharedWith = value; _save(); }
 
-    /// <summary>A shared fairway changes the medians, so the checks run again.</summary>
+    /// <summary>A shared fairway leaves the fairway-start median, so the checks run again.</summary>
     partial void OnSharedChanged(bool value) { _state.Hole(Hole).SharedFairway = value; _save(); _recheck(); }
-
-    /// <summary>"Size is deliberate" on this hole, as in the HTML checklist: covers green size and landing width here.</summary>
-    partial void OnSizeDeliberateChanged(bool value)
-    {
-        foreach (var check in new[] { "green-scale", "landing-width" })
-        {
-            string key = $"{check}@{Hole}";
-            if (value) _state.Deliberate.TryAdd(key, new DeliberateMark { Reason = "Size is deliberate on this hole" });
-            else _state.Deliberate.Remove(key);
-        }
-        _save();
-        _recheck();
-    }
 
     /// <summary>Sets the typed fairway start (blank clears it) and runs the checks again.</summary>
     [RelayCommand] private void ApplyOverride()
