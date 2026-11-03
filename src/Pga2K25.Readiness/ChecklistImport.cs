@@ -72,7 +72,7 @@ public static class ChecklistImport
                 if (key.StartsWith("td.", StringComparison.Ordinal) && int.TryParse(key[3..], out int hole))
                 {
                     // "Size is deliberate" on a hole covers both scale measures there.
-                    foreach (var check in new[] { "green-scale", "landing-width" })
+                    foreach (var check in new[] { "green-scale", "landing-widths" })
                         if (into.Deliberate.TryAdd($"{check}@{hole}", new DeliberateMark { Reason = "Size marked deliberate in the HTML checklist" })) deliberate++;
                     continue;
                 }
@@ -136,10 +136,7 @@ public static class ChecklistImport
             var defaults = new ReadinessLimits();
             var L = into.Limits;
             if (Num("driveYds") is double drive && L.TestDriveYards is null) { L = L with { TestDriveYards = drive }; fields++; }
-            if (Num("lim5") is double l5 && L.Par5MinLeftYards == defaults.Par5MinLeftYards) { L = L with { Par5MinLeftYards = l5 }; fields++; }
-            if (Num("limD") is double ld && L.DrivableWithinYards == defaults.DrivableWithinYards) { L = L with { DrivableWithinYards = ld }; fields++; }
-            if (Num("limN") is double ln && L.NearDrivableWithinYards == defaults.NearDrivableWithinYards) { L = L with { NearDrivableWithinYards = ln }; fields++; }
-            if (Num("limMax") is double lm && L.MaxDrivablePerNine == defaults.MaxDrivablePerNine) { L = L with { MaxDrivablePerNine = (int)lm }; fields++; }
+            // The checklist's drivable and "220 left" limits are retired (Principles §11.4), so they aren't read.
             if (Num("limHi") is double hi && L.ScaleHigh == defaults.ScaleHigh) { L = L with { ScaleHigh = hi }; fields++; }
             if (Num("limLo") is double lo && L.ScaleLow == defaults.ScaleLow) { L = L with { ScaleLow = lo }; fields++; }
             into.Limits = L;

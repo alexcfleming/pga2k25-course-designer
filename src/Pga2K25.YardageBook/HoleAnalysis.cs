@@ -18,8 +18,15 @@ public sealed record YardageOptions
     public CourseLogoArt? Logos { get; init; }
     public double MetresBehindTee { get; init; } = 22;
     public double MetresBeyondGreen { get; init; } = 32;
-    /// <summary>Fairway widths are measured at these distances from the back tee (yards).</summary>
-    public IReadOnlyList<int> WidthStationsYards { get; init; } = [200, 250, 300];
+    /// <summary>
+    /// Fairway widths are measured at these distances from the back tee (yards): the lay-up, then the design tee shot's
+    /// short, middle and long distances (Principles §12, 300–350 yds). Studio takes them from the course's readiness limits.
+    /// </summary>
+    public IReadOnlyList<int> WidthStationsYards { get; init; } = [250, 300, 325, 350];
+
+    /// <summary>The width stations for a design tee shot of <paramref name="min"/> to <paramref name="max"/> yds.</summary>
+    public static IReadOnlyList<int> StationsFor(double min, double max) =>
+        new[] { 250, min, (min + max) / 2, max }.Select(y => (int)Math.Round(y)).Distinct().OrderBy(y => y).ToList();
     public int SpotSpacingYards { get; init; } = 50;
     public double BunkerLabelReachMetres { get; init; } = 40;
 

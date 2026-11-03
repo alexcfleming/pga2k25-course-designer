@@ -1494,7 +1494,7 @@
           </Grid>
 
           <!-- Hole QA -->
-          <Grid ColumnDefinitions="*,420" ColumnSpacing="16" IsVisible="{Binding IsHoles}">
+          <Grid ColumnDefinitions="*,400" ColumnSpacing="16" IsVisible="{Binding IsHoles}">
             <Border Classes="card" Padding="16" VerticalAlignment="Top">
               <StackPanel Spacing="10">
                 <DockPanel>
@@ -1518,10 +1518,11 @@
                   <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="14" Height="14" CornerRadius="4" Background="#2D6A42"/><TextBlock Classes="small" Text="Done" VerticalAlignment="Center"/></StackPanel>
                   <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="14" Height="14" CornerRadius="4" Background="#3D6E9A"/><TextBlock Classes="small" Text="Deliberate" VerticalAlignment="Center"/></StackPanel>
                   <StackPanel Orientation="Horizontal" Spacing="6"><Border Width="14" Height="14" CornerRadius="4" Background="#E6E8E3" BorderBrush="#8C958E" BorderThickness="1"/><TextBlock Classes="small" Text="N/A" VerticalAlignment="Center"/></StackPanel>
+                  <StackPanel Orientation="Horizontal" Spacing="6"><Rectangle Width="14" Height="14" RadiusX="3" RadiusY="3" Fill="White" Stroke="#2D6A42" StrokeThickness="1.2" StrokeDashArray="2,1.5"/><TextBlock Classes="small" Text="note to write" VerticalAlignment="Center"/></StackPanel>
                   <StackPanel Orientation="Horizontal" Spacing="6"><Ellipse Width="6" Height="6" Fill="#7A4A00"/><TextBlock Classes="small" Text="TGC minimum" VerticalAlignment="Center"/></StackPanel>
                   <StackPanel Orientation="Horizontal" Spacing="6"><Border CornerRadius="4" Background="#FBEFD9" Padding="6,1"><TextBlock Classes="small" Foreground="#7A4A00" Text="Relief 0.5 ft"/></Border><TextBlock Classes="small" Text="outside a limit" VerticalAlignment="Center"/></StackPanel>
                   <StackPanel Orientation="Horizontal" Spacing="6">
-                    <Panel><Rectangle RadiusX="4" RadiusY="4" Fill="White" Stroke="#B07A1E" StrokeThickness="1" StrokeDashArray="3,2"/><TextBlock Classes="small" Foreground="#7A4A00" Text="Start 90" Margin="6,1"/></Panel>
+                    <Panel><Rectangle RadiusX="4" RadiusY="4" Fill="White" Stroke="#B07A1E" StrokeThickness="1" StrokeDashArray="3,2"/><TextBlock Classes="small" Foreground="#7A4A00" Text="Width 115" Margin="6,1"/></Panel>
                     <TextBlock Classes="small" Text="provisional: a warning only" VerticalAlignment="Center"/>
                   </StackPanel>
                 </WrapPanel>
@@ -1529,10 +1530,10 @@
                   <StackPanel Grid.IsSharedSizeScope="True">
                     <StackPanel Orientation="Horizontal" Spacing="10" Margin="6,0,6,6">
                       <TextBlock Width="30" Text="Hole" Classes="muted small" VerticalAlignment="Bottom"/>
-                      <TextBlock Width="60" Text="Par · yds" Classes="muted small" VerticalAlignment="Bottom"/>
-                      <TextBlock Width="236" Text="Course file" Classes="muted small" VerticalAlignment="Bottom"/>
+                      <TextBlock Width="64" Text="Par · yds" Classes="muted small" VerticalAlignment="Bottom"/>
+                      <TextBlock Width="206" Text="Course file" Classes="muted small" VerticalAlignment="Bottom"/>
                       <ItemsControl ItemsSource="{Binding HoleQaHeader}">
-                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="12"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="9"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                           <DataTemplate x:DataType="vm:HoleGroupHeaderViewModel">
                             <Grid VerticalAlignment="Bottom">
@@ -1543,7 +1544,7 @@
                                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="3"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                   <DataTemplate x:DataType="vm:HoleColumnViewModel">
-                                    <StackPanel Width="16" Spacing="3" Background="Transparent" ToolTip.Tip="{Binding Tip}">
+                                    <StackPanel Width="14" Spacing="3" Background="Transparent" ToolTip.Tip="{Binding Tip}">
                                       <LayoutTransformControl Height="84">
                                         <LayoutTransformControl.LayoutTransform><RotateTransform Angle="-90"/></LayoutTransformControl.LayoutTransform>
                                         <TextBlock Text="{Binding Label}" FontSize="11" Foreground="#3F4A43" VerticalAlignment="Center"/>
@@ -1569,8 +1570,8 @@
                             <StackPanel Orientation="Horizontal" Spacing="10">
                               <Button Width="30" Padding="0" Background="Transparent" BorderThickness="0" Content="{Binding Hole}" FontWeight="Bold" FontSize="14"
                                       Command="{Binding SelectCommand}" ToolTip.Tip="{Binding SelectTip}" AutomationProperties.Name="{Binding SelectTip}" VerticalAlignment="Center"/>
-                              <TextBlock Width="60" Text="{Binding ParYards}" Classes="mono small" VerticalAlignment="Center"/>
-                              <Panel Width="236" VerticalAlignment="Center">
+                              <TextBlock Width="64" Text="{Binding ParYards}" Classes="mono small" VerticalAlignment="Center"/>
+                              <Panel Width="206" VerticalAlignment="Center">
                                 <ItemsControl ItemsSource="{Binding Flags}">
                                   <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel ItemSpacing="3" LineSpacing="3"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                   <ItemsControl.ItemTemplate>
@@ -1585,7 +1586,7 @@
                                 <TextBlock Text="all within limits" FontSize="11" Classes="muted" IsVisible="{Binding Clean}"/>
                               </Panel>
                               <ItemsControl ItemsSource="{Binding Groups}" VerticalAlignment="Center">
-                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="12"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="9"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                   <DataTemplate x:DataType="vm:QaCellGroupViewModel">
                                     <Grid>
@@ -1594,8 +1595,11 @@
                                       <ItemsControl.ItemsPanel><ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="3"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                                       <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="vm:QaCellViewModel">
-                                          <Button Width="16" Height="16" MinHeight="0" MinWidth="0" Padding="0" CornerRadius="4" Background="{Binding Fill}" BorderBrush="{Binding Edge}" BorderThickness="1"
-                                                  Command="{Binding CycleCommand}" ToolTip.Tip="{Binding Tip}" AutomationProperties.Name="{Binding Tip}"/>
+                                          <Button Width="14" Height="14" MinHeight="0" MinWidth="0" Padding="0" Background="Transparent" BorderThickness="0"
+                                                  Opacity="{Binding Asked, Converter={x:Static vm:HoleQaLook.Shown}}" IsHitTestVisible="{Binding Asked}"
+                                                  Command="{Binding CycleCommand}" ToolTip.Tip="{Binding Tip}" AutomationProperties.Name="{Binding Tip}">
+                                            <Rectangle Width="14" Height="14" RadiusX="3" RadiusY="3" Fill="{Binding Fill}" Stroke="{Binding Edge}" StrokeThickness="1.2" StrokeDashArray="{Binding Dashes}"/>
+                                          </Button>
                                         </DataTemplate>
                                       </ItemsControl.ItemTemplate>
                                     </ItemsControl>
@@ -1636,31 +1640,66 @@
                   </ItemsControl.ItemTemplate>
                 </ItemsControl>
 
+                <StackPanel Spacing="6" IsVisible="{Binding IsLong}">
+                  <TextBlock Text="Landing zone" FontWeight="SemiBold"/>
+                  <TextBlock Classes="muted small" TextWrapping="Wrap" Text="{Binding WidthLimits}"/>
+                  <ItemsControl ItemsSource="{Binding Stations}">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="3" ColumnSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="vm:MeasureBoxViewModel">
+                        <Panel>
+                          <Rectangle RadiusX="6" RadiusY="6" Fill="{Binding Fill}" Stroke="{Binding Edge}" StrokeThickness="1" StrokeDashArray="{Binding Dashes}"/>
+                          <StackPanel Margin="8,6" Spacing="1">
+                            <TextBlock Text="{Binding Label}" FontSize="11" Classes="muted" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding Value}" Classes="mono" FontWeight="SemiBold"/>
+                          </StackPanel>
+                        </Panel>
+                      </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <TextBlock Classes="small" TextWrapping="Wrap" Text="{Binding Pattern}"/>
+                  <TextBlock Classes="small" TextWrapping="Wrap" Text="{Binding StartFromFile}"/>
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock Text="Your fairway start (yds)" VerticalAlignment="Center" Classes="small"/>
+                    <TextBox Width="64" Text="{Binding OverrideText}" Watermark="from file">
+                      <TextBox.KeyBindings><KeyBinding Gesture="Enter" Command="{Binding ApplyOverrideCommand}"/></TextBox.KeyBindings>
+                    </TextBox>
+                    <Button Content="Apply and re-check" Command="{Binding ApplyOverrideCommand}"/>
+                  </StackPanel>
+                  <TextBlock Classes="muted" FontSize="11" TextWrapping="Wrap" Text="{Binding HazardsLabel}"/>
+                  <ItemsControl ItemsSource="{Binding Hazards}">
+                    <ItemsControl.ItemTemplate>
+                      <DataTemplate x:DataType="x:String"><TextBlock Classes="mono small" Text="{Binding}"/></DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                  <TextBlock Classes="muted small" Text="None near the line." IsVisible="{Binding NoHazards}"/>
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <CheckBox Content="Shared fairway" IsChecked="{Binding Shared}"/>
+                    <TextBlock Text="with holes" VerticalAlignment="Center" Classes="small"/>
+                    <TextBox Width="90" Text="{Binding SharedWith}" Watermark="e.g. 6, 9"/>
+                  </StackPanel>
+                  <TextBlock Classes="muted small" TextWrapping="Wrap" Text="A shared fairway still counts in the width checks; it's left out of the fairway-start median."/>
+                </StackPanel>
+
                 <Panel IsVisible="{Binding IsLong}">
-                  <Rectangle RadiusX="8" RadiusY="8" Stroke="#B07A1E" StrokeThickness="1" StrokeDashArray="3,2"/>
+                  <Rectangle RadiusX="8" RadiusY="8" Stroke="#2D6A42" StrokeThickness="1" StrokeDashArray="3,2"/>
                   <StackPanel Margin="12,10" Spacing="8">
-                    <DockPanel>
-                      <TextBlock DockPanel.Dock="Right" FontSize="11" Foreground="#7A4A00" Text="{Binding StartBand}" VerticalAlignment="Bottom"/>
-                      <TextBlock Text="Main fairway start" FontWeight="SemiBold"/>
-                    </DockPanel>
-                    <TextBlock Classes="mono small" Text="{Binding StartFromFile}"/>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                      <TextBlock Text="Yours (yds)" VerticalAlignment="Center" Classes="small"/>
-                      <TextBox Width="70" Text="{Binding OverrideText}" Watermark="from file">
-                        <TextBox.KeyBindings><KeyBinding Gesture="Enter" Command="{Binding ApplyOverrideCommand}"/></TextBox.KeyBindings>
-                      </TextBox>
-                      <Button Content="Apply and re-check" Command="{Binding ApplyOverrideCommand}"/>
+                    <StackPanel Spacing="1">
+                      <TextBlock Text="Hole design notes" FontWeight="SemiBold"/>
+                      <TextBlock Classes="muted small" TextWrapping="Wrap" Text="Required: an empty note keeps the hole open."/>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                      <CheckBox Content="Shared fairway" IsChecked="{Binding Shared}"/>
-                      <TextBlock Text="with holes" VerticalAlignment="Center" Classes="small"/>
-                      <TextBox Width="90" Text="{Binding SharedWith}" Watermark="e.g. 6, 9"/>
-                    </StackPanel>
-                    <TextBlock Classes="muted small" TextWrapping="Wrap" Text="A shared fairway is left out of the width figures and the course median. Clear the box to use the file's figure."/>
+                    <ItemsControl ItemsSource="{Binding Notes}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:NoteBoxViewModel">
+                          <StackPanel Spacing="3" Margin="0,0,0,6">
+                            <TextBlock Classes="small" TextWrapping="Wrap" Text="{Binding Label}"/>
+                            <TextBox Text="{Binding Text}" Watermark="{Binding Hint}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="44"/>
+                          </StackPanel>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                   </StackPanel>
                 </Panel>
-
-                <CheckBox Content="Green size and landing width are deliberate on this hole" IsChecked="{Binding SizeDeliberate}"/>
 
                 <StackPanel Spacing="4" IsVisible="{Binding HasPins}">
                   <TextBlock Text="Pins" FontWeight="SemiBold"/>

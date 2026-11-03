@@ -47,7 +47,9 @@ public static class Products
         },
         new("Yardage book", " - Yardage Book.pdf", c =>
         {
-            var options = new YardageOptions { Credit = c.Settings.Credit };
+            // Width stations follow the course's design tee shot (Publish readiness limits, 300–350 yds by default).
+            var tee = Pga2K25.Readiness.ReadinessStore.Load(Pga2K25.Readiness.ReadinessStore.PathFor(c.OutputDir)).Limits;
+            var options = new YardageOptions { Credit = c.Settings.Credit, WidthStationsYards = YardageOptions.StationsFor(tee.DesignDriveMinYards, tee.DesignDriveMaxYards) };
             return YardageBookBuilder.Build(c.CoursePath, c.OutputDir, options, new YardageBookOutputs { Pdf = true, Pngs = true }, log: c.Log).PdfPath;
         })
         {

@@ -50,7 +50,7 @@ const string Usage = """
       the roll-up to a total budget, low/likely/high and a fidelity sweep. Writes the report
       ("<course> - Estimate.pdf" + page PNGs) and line items ("<course> - Estimate.json/.csv");
       per-course choices from <dir>/Estimate.json
-    pga2k25 readiness <file.course> [--drive 360] [--limits limits.json] [--holes] [--json report.json]
+    pga2k25 readiness <file.course> [--tee-shot 300-350] [--drive 360] [--limits limits.json] [--holes] [--json report.json]
       publish-readiness checks the course file can answer: scorecard and same-par runs, drivable
       par 4s and the par-5 test (needs --drive, the power-profile test drive in yds), green size
       and landing width against the median, elevation and green relief, corridors, green speed,
@@ -105,6 +105,7 @@ static int Readiness(string path, string[] rest)
     var inv = CultureInfo.InvariantCulture;
     var limits = new ReadinessLimits();
     double? drive = null;
+    (double Min, double Max)? tee = null;
     string? json = null;
     bool table = false;
     var jsonOptions = new System.Text.Json.JsonSerializerOptions
@@ -118,6 +119,10 @@ static int Readiness(string path, string[] rest)
         switch (rest[i])
         {
             case "--drive": drive = double.Parse(Next(), inv); break;
+            case "--tee-shot":
+                var parts = Next().Split('-');
+                tee = (double.Parse(parts[0], inv), double.Parse(parts[^1], inv));
+                break;
             case "--limits": limits = System.Text.Json.JsonSerializer.Deserialize<ReadinessLimits>(File.ReadAllText(Next()), jsonOptions) ?? limits; break;
             case "--json": json = Next(); break;
             case "--holes": table = true; break;
@@ -125,6 +130,7 @@ static int Readiness(string path, string[] rest)
         }
     }
     if (drive is not null) limits = limits with { TestDriveYards = drive };
+    if (tee is { } t) limits = limits with { DesignDriveMinYards = t.Min, DesignDriveMaxYards = t.Max };
 
     var course = CourseFile.Load(path).ReadModel();
     var report = ReadinessChecker.Run(course, limits);
@@ -142,24 +148,20 @@ static int Readiness(string path, string[] rest)
     if (table)
     {
         Console.WriteLine();
-        Console.WriteLine("Hole Par  Yds  Drive          Green sq ft      Landing yd      Start Narrow Steady  Tee>green  Relief  Nearest other green  Pins (edge yds, slope %)");
+        Console.WriteLine($"Hole Par  Yds Strt  Green sq ft      Widths at {limits.DesignDriveMinYards:0}/{limits.DesignDriveMidYards:0}/{limits.DesignDriveMaxYards:0}  Start Steady  Tee>green  Relief  Nearest other green  Landing-zone hazards");
         foreach (var h in report.Holes)
         {
-            string drv = h.DriveClass ?? (h.LeftAfterDrive is int left ? $"{left} left" : "");
             string green = h.GreenEstimated ? "not drawn" : string.Format(inv, "{0,6:N0} {1,5:0.00}x", h.GreenSquareFeet, h.GreenRatio ?? 0);
-            string width = h.LandingWidthYards is double w ? string.Format(inv, "{0,4:0}{1} {2,5:0.00}x", w, h.LandingOffFairway ? "*" : " ", h.WidthRatio ?? 0) : "";
+            string widths = string.Join("/", h.Stations.Select(s => s.WidthYards is double w ? w.ToString("0", inv) : "-"));
             string near = h.NearGreenYards is double ny ? string.Format(inv, "{0,4:0} yds ({1})", ny, h.NearGreenOf == 0 ? "practice" : $"hole {h.NearGreenOf}") : "";
             string relief = h.GreenReliefFeet is double r ? string.Format(inv, "{0:0.0} ft", r) : "";
-            string pins = string.Join(" ", h.Pins.Select(p => $"{p.Depth}{p.Side}" +
-                (p.EdgeYards is double e ? string.Format(inv, "({0:0.0},{1})", e, p.SlopePct is double sl ? sl.ToString("0.0", inv) : "flat") : "")));
             string start = h.FairwayStartYards is double fs ? fs.ToString("0", inv) + (h.FairwayStartOverrideYards is not null ? "!" : "") : "";
-            string narrow = h.NarrowestFairwayYards is double nw ? nw.ToString("0", inv) : "";
             string steady = h.WidthSteadiness is double sd ? sd.ToString("0.0", inv) + "x" : "";
-            Console.WriteLine(string.Format(inv, "{0,4} {1,3} {2,4}  {3,-14} {4,-16} {5,-15} {6,5} {7,6} {8,6} {9,7:+0;-0;0} ft {10,7}  {11,-20} {12}",
-                h.Number, h.Par, h.Yards, drv, green, width, start, narrow, steady, h.ChangeFeet, relief, near, pins));
+            string hz = string.Join("; ", h.LandingHazards.Select(ReadinessChecker.Describe));
+            Console.WriteLine(string.Format(inv, "{0,4} {1,3} {2,4} {3,4}  {4,-16} {5,-22} {6,5} {7,6} {8,7:+0;-0;0} ft {9,7}  {10,-20} {11}",
+                h.Number, h.Par, h.Yards, h.StraightYards, green, widths, start, steady, h.ChangeFeet, relief, near, hz));
         }
-        Console.WriteLine("  * the tee shot lands off the fairway; the nearest fairway's width is shown");
-        Console.WriteLine("  Start: where the main fairway starts from the back tee (60 = 60 or less). Steady: wide over narrow past 200 yds.");
+        Console.WriteLine("  Strt: straight-line yards from the back tee. Start: where the main fairway starts (60 = 60 or less). Steady: wide over narrow past 200 yds.");
     }
 
     if (json is not null)

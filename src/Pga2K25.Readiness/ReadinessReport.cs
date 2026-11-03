@@ -52,20 +52,23 @@ public sealed record HoleMeasures
     public required int Par { get; init; }
     public required int Yards { get; init; }
 
-    /// <summary>"Drivable", "Near-drivable", or null (par 4s only, with a test drive).</summary>
-    public string? DriveClass { get; init; }
-    /// <summary>Par 5s: yards left after the test drive.</summary>
-    public int? LeftAfterDrive { get; init; }
+    /// <summary>Straight-line yards from the back tee to the green: "yards left" are measured from this.</summary>
+    public int StraightYards { get; init; }
+
+    /// <summary>Yards left after a tee shot of <paramref name="drive"/> yds, straight from the back tee.</summary>
+    public int LeftAfter(double drive) => (int)Math.Round(StraightYards - drive);
 
     public double GreenSquareFeet { get; init; }
     /// <summary>True when the green isn't drawn yet (the game's own estimate): left out of the medians.</summary>
     public bool GreenEstimated { get; init; }
     public double? GreenRatio { get; init; }
 
-    /// <summary>Contiguous fairway width across the line where the tee shot lands (par 4s and 5s).</summary>
-    public double? LandingWidthYards { get; init; }
-    public bool LandingOffFairway { get; init; }
-    public double? WidthRatio { get; init; }
+    /// <summary>
+    /// Par 4s and 5s: fairway width across the line at the design tee shot (its short, middle and long distances from
+    /// the back tee). Null width: no fairway under or near the line there.
+    /// </summary>
+    public IReadOnlyList<StationWidth> Stations { get; init; } = [];
+    public double? WidestStationYards => Stations.Max(s => s.WidthYards);
 
     /// <summary>
     /// Par 4s and 5s: how far from the back tee the main fairway starts, from the file (null when no fairway holds the
@@ -75,10 +78,15 @@ public sealed record HoleMeasures
     /// <summary>The designer's own fairway start, when typed over the file's.</summary>
     public double? FairwayStartOverrideYards { get; init; }
     public double? FairwayStartYards => FairwayStartOverrideYards ?? FairwayStartFileYards;
-    /// <summary>Shares its fairway with other holes: left out of the width figures and the fairway-start median.</summary>
+    /// <summary>Shares its fairway with other holes: left out of the fairway-start median (its widths still count).</summary>
     public bool SharedFairway { get; init; }
-    /// <summary>The narrowest the line's fairway gets from where it starts to short of the green (yds).</summary>
-    public double? NarrowestFairwayYards { get; init; }
+    /// <summary>Roomy short of the landing zone, tight in it: median width 250–290 yds and over the design tee shot.</summary>
+    public double? LayupWidthYards { get; init; }
+    public double? LandingWidthYards { get; init; }
+    /// <summary>Bunkers and water near the line through the landing zone, nearest first along the hole.</summary>
+    public IReadOnlyList<LandingHazard> LandingHazards { get; init; } = [];
+    /// <summary>The longest carry (yds) from a forward tee to where the main fairway starts; null with one tee or no fairway.</summary>
+    public double? ForwardCarryYards { get; init; }
     /// <summary>Past 200 yds, how many times the fairway's wide stretches are its narrow ones (90th over 10th percentile).</summary>
     public double? WidthSteadiness { get; init; }
 
@@ -96,6 +104,12 @@ public sealed record HoleMeasures
     public bool EndsOnOwnGreen { get; init; }
     public IReadOnlyList<PinPlacement> Pins { get; init; } = [];
 }
+
+/// <summary>Fairway width across the line <paramref name="FromTeeYards"/> from the back tee.</summary>
+public sealed record StationWidth(int FromTeeYards, double? WidthYards);
+
+/// <summary>A bunker or water near the line: how far from the back tee, how far off the line (0: on it) and which side.</summary>
+public sealed record LandingHazard(string Kind, int FromTeeYards, double OffLineYards, string Side);
 
 public sealed record TeeSetTotal(int Index, int Out, int In)
 {
@@ -119,7 +133,6 @@ public sealed record ReadinessReport
     public Atmosphere? Atmosphere { get; init; }
     public double? Stimp { get; init; }
     public double MedianGreenSquareFeet { get; init; }
-    public double MedianLandingYards { get; init; }
     /// <summary>Median main-fairway start over the par 4s and 5s not marked shared (yds; 0 when none).</summary>
     public double MedianFairwayStartYards { get; init; }
     public double PlotRangeFeet { get; init; }
