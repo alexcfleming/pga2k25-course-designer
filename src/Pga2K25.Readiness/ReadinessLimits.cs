@@ -54,7 +54,7 @@ public sealed record ReadinessLimits
     /// <summary>Holes of the same par should span at least this many yards.</summary>
     public double SameParSpreadYards { get; init; } = 30;
 
-    /// <summary>A pin this close to the green's edge (yds) is flagged: three of the in-game grid squares.</summary>
+    /// <summary>A pin this close to the green's edge (yds) is flagged, to point at pins to count against the three-grid-square minimum in the designer.</summary>
     public double PinEdgeYards { get; init; } = 2;
 
     /// <summary>A pin with slope this steep (%) within its grid square is flagged: the greens book's red (3.3°).</summary>

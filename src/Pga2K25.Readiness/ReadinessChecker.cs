@@ -702,7 +702,7 @@ public static class ReadinessChecker
             if (steep.Count > 0) pp.Add($"{L.PinSteepPct:0.#}% or steeper by the cup: {string.Join(", ", steep.Select(p => $"{p.Hole}-{p.Pin.Number} ({p.Pin.SlopePct:0.0}%)"))}.");
             yield return new("pins", "Pins clear of the edge and off steep slope", pp.Count > 0 ? Severity.Flag : Severity.Pass,
                 (pp.Count > 0 ? string.Join(" ", pp) : $"All {pins.Count} pins at least {L.PinEdgeYards:0.#} yds in and under {L.PinSteepPct:0.#}%.") +
-                    " The edge limit stands in for three grid squares; slope is from the terrain model: confirm in game.",
+                    " Count the three grid squares in the designer; slope is from the terrain model: confirm in game.",
                 $"{rule} · pins", edge.Concat(steep).Select(p => p.Hole).Distinct().OrderBy(n => n).ToList());
         }
 
