@@ -77,7 +77,7 @@ Yardages are from the back tees. Lengths use card yards; yards left use the stra
 | `same-par` | Consecutive holes sharing a par, judged by run length, yardage spread and whether the run opens the round. A design habit, not an approval rule, so it flags at most | narrow under 40 yds, safe from 60 | §7 |
 | `par-range` | Total par; every hole a par 3, 4 or 5; 18 holes | par 69–74 | TGC minimums |
 | `same-par-range` | Shortest to longest hole of each par | at least 30 yds | TGC minimums |
-| `pins` | Each pin's distance from the green's edge, and the steepest of the greens book's slope samples within 2.5 m of it | 2 yds in (standing in for three grid squares); under 5.8% (the greens book's red, 3.3°) | TGC minimums |
+| `pins` | Each pin's distance from the green's edge, and the steepest of the greens book's slope samples within 2.5 m of it | 2 yds in (a pointer; count the three grid squares in the designer); under 5.8% (the greens book's red, 3.3°) | TGC minimums |
 | `length-total` | Back-tee total as a range (Info); forward tees listed, no limit | about 7,050–7,600 yds | §2 |
 | `median-par4` | Median par 4, card yards (Warning) | 430+ | §12.4 |
 | `par4-under400` | Par 4s under the length (Warning) | 400 yds, at most 3 | §12.4 |
@@ -115,7 +115,7 @@ Elevation, plot range and green relief come from the replayed terrain, so they s
 
 **Fringe.** Cassimbo and Sagan-Khushun are both set to 0.5 and show no visible fringe in game. Other files have 0.54–0.63, and −1 is the game's default.
 
-**Pins.** Each pin is placed by thirds of its green along the approach (F, C, B) and across it (L, C, R, as the golfer faces the green), with its distance from the green's edge and the slope by the cup. The game's grid square size hasn't been measured, so the edge limit is a stand-in until it is.
+**Pins.** Each pin is placed by thirds of its green along the approach (F, C, B) and across it (L, C, R, as the golfer faces the green), with its distance from the green's edge and the slope by the cup. The 2 yd edge limit points to pins worth a look. The TGC minimum is three grid squares, and you can count them in the designer while building.
 
 ## The Cassimbo test
 
