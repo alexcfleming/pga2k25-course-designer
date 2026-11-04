@@ -43,7 +43,8 @@ const string Usage = """
       compass rose, hole data card, course data card, green size card (when the course has
       drawn greens) and Wind Card (when Place.json has a wind rose) from the course file;
       --wind is used only when there is no wind rose (the rose's prevailing wind always wins);
-      ERRORs stop the build unless --force (drafts only; errors are still reported)
+      ERRORs stop the build unless --force, which draws the cards marked DRAFT with the first
+      error (errors are still reported); Studio always builds that way
     pga2k25 estimate <file.course> [-o <dir>] [--holes 3,7|all] [--cell 1.0]
       construction estimate: cut/fill against an assumed starting ground (play splines are
       manufactured, everything else natural), hole and course-wide quantities with provenance,
