@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 2.4.0
+COURSE DESIGNER STUDIO - release 2.4.1
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -222,6 +222,14 @@ USING IT
   Building the course cards takes about a minute longer for it.
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
+
+FIXED IN 2.4.1
+- Hole design simulator: the red "Depends on" line under a run's results
+  listed the other player's placeholder values too (a Power Drive run
+  named the Normal player's carry). It now lists only what the run used:
+  the chosen player's values, the ground and scoring values, and the
+  terrain values only when the terrain was on. The results were right;
+  only the list was wrong.
 
 NEW IN 2.4.0
 - Hole design simulator (left menu, under Terrain map): a test session
