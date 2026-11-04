@@ -1923,6 +1923,11 @@
           </Grid>
         </StackPanel>
       </ScrollViewer>
+
+      <!-- Hole design simulator -->
+      <Panel Grid.Row="1" Grid.ColumnSpan="2" IsVisible="{Binding IsHoleSim}">
+        <views:HoleSimView DataContext="{Binding HoleSim}" IsVisible="{Binding $self.DataContext, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+      </Panel>
     </Grid>
   </DockPanel>
 </UserControl>

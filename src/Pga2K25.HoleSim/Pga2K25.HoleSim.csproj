@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Pga2K25.CourseFormat\Pga2K25.CourseFormat.csproj" />
+    <ProjectReference Include="..\Pga2K25.Maps\Pga2K25.Maps.csproj" />
+    <ProjectReference Include="..\Pga2K25.GreensBook\Pga2K25.GreensBook.csproj" />
+    <ProjectReference Include="..\Pga2K25.YardageBook\Pga2K25.YardageBook.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="SkiaSharp" Version="4.152.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Assumption defaults and strokes-gained baselines are data with provenance, embedded so the single-file
+         Studio build carries them without extra packaging. Edits made in Studio are saved in AppData. -->
+    <EmbeddedResource Include="..\..\assets\holesim\assumptions.json" LogicalName="holesim.assumptions.json" />
+    <EmbeddedResource Include="..\..\assets\holesim\baselines\*.csv" LogicalName="holesim.baselines.%(Filename).csv" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

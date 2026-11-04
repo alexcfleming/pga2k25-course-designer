@@ -29,6 +29,7 @@
     <ProjectReference Include="..\..\src\Pga2K25.CourseCard\Pga2K25.CourseCard.csproj" />
     <ProjectReference Include="..\..\src\Pga2K25.Estimate\Pga2K25.Estimate.csproj" />
     <ProjectReference Include="..\..\src\Pga2K25.Readiness\Pga2K25.Readiness.csproj" />
+    <ProjectReference Include="..\..\src\Pga2K25.HoleSim\Pga2K25.HoleSim.csproj" />
     <ProjectReference Include="..\..\src\Pga2K25.Studio\Pga2K25.Studio.csproj" />
   </ItemGroup>
 

@@ -72,6 +72,15 @@ const string Usage = """
       calibrate compares modelled elevations with in-game spot labels read off green
       screenshots (see samples/calibration/cassimbo/captures.json for the format)
 
+    pga2k25 holesim <file.course> --hole 8 [--tee T4|4] [--pin 1] [--player power|normal]
+                    [--samples 2000] [--seed 7] [--treat 15=native,16=bunker] [--png map.png] [--json run.json]
+      hole design simulator, one hole: the read-back (par, yards, aim marker, widths, green,
+      pins, hazards near the line, unknown surfaces) and a geometry-only tee-shot sweep over
+      aims right (+) / left (-) of the game's aim marker, valued with strokes gained against
+      the shipped baseline. Uses the shipped assumption defaults (mostly PLACEHOLDER); the
+      Studio section asks you to confirm each one. --treat says how unknown surface ids play
+      (native, heavy, rough, fairway, bunker, scrub, ignore)
+
     """;
 
 if (args.Length < 2) { Console.Error.WriteLine(Usage); return 2; }
@@ -91,6 +100,7 @@ try
         case "estimate": return Estimate(args[1], args[2..]);
         case "readiness": return Readiness(args[1], args[2..]);
         case "calibrate" when args.Length >= 3: return Calibrate(args[1], args[2], args[3..]);
+        case "holesim": return HoleSimCommand(args[1], args[2..]);
         default: Console.Error.WriteLine(Usage); return 2;
     }
 }
@@ -98,6 +108,107 @@ catch (Exception ex)
 {
     Console.Error.WriteLine(Environment.GetEnvironmentVariable("PGA2K25_DEBUG") is null ? $"error: {ex.Message}" : ex.ToString());
     return 1;
+}
+
+static int HoleSimCommand(string path, string[] rest)
+{
+    var inv = CultureInfo.InvariantCulture;
+    Console.OutputEncoding = System.Text.Encoding.UTF8;
+    int hole = 0, pin = 1; string? tee = null, png = null, json = null; string player = "power";
+    var settings = new Pga2K25.HoleSim.RunSettings();
+    var treat = new Dictionary<int, Pga2K25.HoleSim.Ground?>();
+    for (int i = 0; i < rest.Length; i++)
+    {
+        string Next() => i + 1 < rest.Length ? rest[++i] : throw new ArgumentException($"{rest[i]} needs a value");
+        switch (rest[i])
+        {
+            case "--hole": hole = int.Parse(Next(), inv); break;
+            case "--tee": tee = Next(); break;
+            case "--pin": pin = int.Parse(Next(), inv); break;
+            case "--player": player = Next().ToLowerInvariant(); break;
+            case "--samples": settings = settings with { SamplesPerAim = int.Parse(Next(), inv) }; break;
+            case "--seed": settings = settings with { Seed = int.Parse(Next(), inv) }; break;
+            case "--png": png = Next(); break;
+            case "--json": json = Next(); break;
+            case "--treat":
+                foreach (var kv in Next().Split(',', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var parts = kv.Split('=');
+                    treat[int.Parse(parts[0], inv)] = parts[1].ToLowerInvariant() switch
+                    {
+                        "ignore" => null, "native" => Pga2K25.HoleSim.Ground.Native, "heavy" => Pga2K25.HoleSim.Ground.HeavyRough,
+                        "rough" => Pga2K25.HoleSim.Ground.Rough, "fairway" => Pga2K25.HoleSim.Ground.Fairway,
+                        "bunker" => Pga2K25.HoleSim.Ground.Bunker, "scrub" => Pga2K25.HoleSim.Ground.Scrub,
+                        _ => throw new ArgumentException($"--treat: unknown ground '{parts[1]}'"),
+                    };
+                }
+                break;
+            default: throw new ArgumentException($"unknown option {rest[i]}");
+        }
+    }
+    if (hole <= 0) throw new ArgumentException("--hole is required (one hole at a time)");
+
+    var stamp = Pga2K25.HoleSim.FileStamp.Read(path);
+    var file = CourseFile.Load(path);
+    var course = file.ReadModel();
+    var first = Pga2K25.HoleSim.HoleModelBuilder.Build(course, file.Description, hole, new() { Treatments = treat }, stamp);
+    int? teeIndex = tee is null ? null
+        : int.TryParse(tee, inv, out var n) ? n - 1
+        : first.Tees.FirstOrDefault(t => t.Name.Equals(tee, StringComparison.OrdinalIgnoreCase))?.Index
+          ?? throw new ArgumentException($"no tee '{tee}' (tees: {string.Join(", ", first.Tees.Select(t => t.Name))})");
+    var m = teeIndex is null ? first : Pga2K25.HoleSim.HoleModelBuilder.Build(course, file.Description, hole, new() { Treatments = treat, TeeIndex = teeIndex }, stamp);
+
+    Console.WriteLine($"{m.CourseName} · hole {m.Number} · {m.TeeLabel} · pin {pin}");
+    Console.WriteLine($"File saved {stamp.ModifiedUtc.ToLocalTime():d MMM yyyy HH:mm} · sha256 {stamp.ShortHash}");
+    Console.WriteLine();
+    foreach (var r in Pga2K25.HoleSim.ReadBack.Rows(m))
+        Console.WriteLine($"  {r.Item,-22} {r.Value}  [{Pga2K25.HoleSim.AssumptionRow.Tag(r.Source)}]");
+    foreach (var u in m.UnknownSurfaces)
+        Console.WriteLine($"  {"Unknown surface",-22} {u.Text}: plays as {(m.Treatments.TryGetValue(u.SurfaceId, out var g) ? g?.ToString() ?? "ignored" : "native (default)")}");
+
+    var sheet = Pga2K25.HoleSim.AssumptionSheet.Load();
+    var baseline = Pga2K25.HoleSim.TableBaseline.LoadShipped(sheet.BaselineId);
+    var run = Pga2K25.HoleSim.GeometryRun.Run(m, sheet.Profile(player), pin, sheet.GroundRules(), sheet.Lies(), baseline, settings);
+    Console.WriteLine();
+    Console.WriteLine($"Geometry-only tee shots, {run.Player.Name} ({run.Player.Carry:0} carry, SD {run.Player.CarrySd:0} / {run.Player.SideSd:0}), {settings.SamplesPerAim:#,0} per aim, seed {settings.Seed}");
+    Console.WriteLine($"E(tee, {m.Pins[Math.Clamp(pin - 1, 0, m.Pins.Count - 1)].Frame.Length:0} yds) = {run.TeeExpected:0.000} [{run.TeeCoverage}]");
+    Console.WriteLine("   aim  fairway  rough  native  bunker  scrub  yds left   SG tee shot      exp. strokes");
+    foreach (var a in run.Aims)
+    {
+        double rough = a.Share(Pga2K25.HoleSim.Ground.Rough) + a.Share(Pga2K25.HoleSim.Ground.HeavyRough);
+        Console.WriteLine($"  {a.Aim,4:+0;-0;0}  {a.Share(Pga2K25.HoleSim.Ground.Fairway),7:P0}  {rough,5:P0}  {a.Share(Pga2K25.HoleSim.Ground.Native),6:P0}  {a.Share(Pga2K25.HoleSim.Ground.Bunker),6:P0}  {a.Share(Pga2K25.HoleSim.Ground.Scrub),5:P0}  {a.MeanYardsLeft,8:0}   {a.MeanSg,+7:+0.000;-0.000} ±{a.SgCi95:0.000}   {a.ExpectedStrokes:0.000}{(a == run.Best ? "  best" : "")}");
+    }
+    foreach (var note in run.Notes) Console.WriteLine("  " + note);
+    Console.WriteLine($"  Placeholders in use: {sheet.Placeholders.Count} of {sheet.Rows.Count} assumption rows.");
+
+    if (png is not null)
+    {
+        var best = run.Best;
+        var colours = new[] { SkiaSharp.SKColor.Parse("#E06A3A"), SkiaSharp.SKColor.Parse("#1F1D1A"), SkiaSharp.SKColor.Parse("#3A6EA5") };
+        var picks = new[] { best.Aim - 20, best.Aim, best.Aim + 20 }.Select(x => run.Aims.FirstOrDefault(a => Math.Abs(a.Aim - x) < 1e-6)).ToList();
+        var chosen = picks.Select((a, j) => (Aim: a, Colour: colours[j])).Where(t => t.Aim is not null).ToList();
+        var pts = chosen.SelectMany(t => t.Aim!.Samples.Select(s => (s.Finish, t.Colour))).ToList();
+        var rings = chosen.Select(t => (Ring(m, t.Aim!.Aim, run.Player.Carry), t.Colour)).ToList();
+        File.WriteAllBytes(png, Pga2K25.HoleSim.HoleMapRenderer.RenderPng(m, new() { SelectedPin = pin, Overlay = new(pts, rings) }));
+        Console.WriteLine($"Wrote {png}");
+    }
+    if (json is not null)
+    {
+        File.WriteAllText(json, System.Text.Json.JsonSerializer.Serialize(new
+        {
+            course = m.CourseName, hole = m.Number, tee = m.Tee.Name, pin, stamp = new { stamp.ModifiedUtc, stamp.Sha256 },
+            readBack = Pga2K25.HoleSim.ReadBack.Rows(m), run.BaselineId, run.TeeExpected, run.Notes, settings,
+            aims = run.Aims.Select(a => new { a.Aim, a.ShareByGround, a.MeanYardsLeft, a.MedianYardsLeft, a.MeanSg, a.SgCi95, a.ExpectedStrokes, a.OutsideTableShare }),
+        }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+        Console.WriteLine($"Wrote {json}");
+    }
+    return 0;
+
+    static Pga2K25.HoleSim.FramePoint Ring(Pga2K25.HoleSim.HoleModel m, double aim, double carry)
+    {
+        var d = m.AimFrame * (1 / m.AimFrame.Length); var r = new Pga2K25.HoleSim.FramePoint(d.Along, -d.Lat);
+        return d * carry + r * aim;
+    }
 }
 
 static int Readiness(string path, string[] rest)

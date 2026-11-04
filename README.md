@@ -17,6 +17,7 @@ A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer
 - [Course cards](docs/course-cards.md): compass rose, hole data card (hazards and green notes read from the course file), course data card, green size card and wind card; validation rules, settings, the 180° blind spot.
 - [Course logo](docs/course-logo.md): a course's logo set (seal, mark and lockup, in colour, ink and light) and where each product prints it.
 - [Publish readiness](docs/readiness.md): QA checks from the course file (length and width from a 300–350 yd design tee shot, corridors, elevation, green relief, speed, fringe, lighting, TGC Tours' minimums) with editable limits, and Hole QA with hole design notes for every hole.
+- [Hole design simulator](docs/hole-simulator.md): one hole on demand. It shows a read-back to check against the game, asks you to confirm each assumption, and runs geometry-only tee shots across an aim sweep, valued in strokes gained. A save watcher picks up new saves without leaving the section.
 
 ## Solution layout
 
