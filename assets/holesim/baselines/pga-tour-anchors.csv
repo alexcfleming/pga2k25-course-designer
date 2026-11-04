@@ -1,0 +1,29 @@
+# baseline_id: pga-tour-anchors
+# name: PGA Tour anchors (secondary, sparse)
+# estimated: false
+# source_type: secondary
+# note: Test anchors quoted by secondary sources from Broadie's published PGA Tour tables (Strokes Gained method prompt, 2026-11-04, section 5). Not a complete baseline: values between anchors are linear interpolation, and distances outside each lie's rows are flagged, not extrapolated. Replace with the full table from Every Shot Counts or Broadie (2012) when supplied.
+baseline_id,lie,distance,unit,expected,source,source_type,retrieved
+pga-tour-anchors,tee,100,yd,2.92,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,tee,240,yd,3.25,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,tee,400,yd,3.99,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,tee,440,yd,4.08,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,tee,540,yd,4.65,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,fairway,20,yd,2.40,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,fairway,100,yd,2.80,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,fairway,240,yd,3.45,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,fairway,540,yd,4.78,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,rough,20,yd,2.59,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,rough,100,yd,3.02,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,rough,200,yd,3.42,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,rough,240,yd,3.64,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,rough,540,yd,4.97,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,sand,20,yd,2.53,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,sand,100,yd,3.23,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,sand,240,yd,3.84,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,sand,540,yd,5.36,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,recovery,100,yd,3.80,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,recovery,240,yd,3.97,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,recovery,540,yd,5.42,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,green,3,ft,1.04,Broadie via secondary sources,secondary,2026-11-04
+pga-tour-anchors,green,10,ft,1.61,Broadie via secondary sources,secondary,2026-11-04

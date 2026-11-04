@@ -12,7 +12,8 @@ namespace Pga2K25.Studio.ViewModels;
 public partial class WorkspaceViewModel
 {
     public const string TerrainSection = "Terrain map", MeasurementsSection = "Measurements", SettingsSection = "Course settings",
-        EstimateInputsSection = "Estimate inputs", EstimateProduct = "Construction estimate", ReadinessSection = "Publish readiness";
+        EstimateInputsSection = "Estimate inputs", EstimateProduct = "Construction estimate", ReadinessSection = "Publish readiness",
+        HoleSimSection = "Hole design simulator";
 
     [ObservableProperty] private string _section = TerrainSection;
     public bool IsTerrain => Section == TerrainSection;
@@ -20,6 +21,10 @@ public partial class WorkspaceViewModel
     public bool IsCourseSettings => Section == SettingsSection;
     public bool IsEstimateInputs => Section == EstimateInputsSection;
     public bool IsReadiness => Section == ReadinessSection;
+    public bool IsHoleSim => Section == HoleSimSection;
+
+    /// <summary>The hole design simulator, made when the section first opens; its save watcher runs only while the section is open.</summary>
+    [ObservableProperty] private HoleSimViewModel? _holeSim;
 
     /// <summary>Publish readiness, made when the section first opens and kept (its checks re-run on Re-read).</summary>
     [ObservableProperty] private ReadinessViewModel? _readiness;
@@ -46,6 +51,9 @@ public partial class WorkspaceViewModel
         OnPropertyChanged(nameof(IsCourseSettings));
         OnPropertyChanged(nameof(IsEstimateInputs));
         OnPropertyChanged(nameof(IsReadiness));
+        OnPropertyChanged(nameof(IsHoleSim));
+        if (value == HoleSimSection) HoleSim ??= new HoleSimViewModel(Entry.Path, Entry.Name, OutputFolder);
+        HoleSim?.SetActive(value == HoleSimSection);
         if (value == EstimateInputsSection) OpenEstimateInputs();
         if (value == SettingsSection) LoadCourseFileNotes();
         if (value == ReadinessSection)
@@ -79,7 +87,7 @@ public partial class WorkspaceViewModel
         {
             try { CourseThumbnail = Bitmap.DecodeToWidth(new MemoryStream(bytes), 96); } catch (Exception) { CourseThumbnail = null; }
         }
-        foreach (var label in new[] { TerrainSection, MeasurementsSection, SettingsSection, EstimateInputsSection, ReadinessSection })
+        foreach (var label in new[] { TerrainSection, MeasurementsSection, SettingsSection, EstimateInputsSection, ReadinessSection, HoleSimSection })
             Sections.Add(new NavItemViewModel(label, label == Section, () => Section = label));
         foreach (var p in Products.All.Where(p => p.Name != TerrainSection))
             ProductSections.Add(new NavItemViewModel(p.Name, false, () => Section = p.Name));

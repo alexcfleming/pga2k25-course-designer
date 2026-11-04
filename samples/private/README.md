@@ -10,5 +10,6 @@ Course files other designers have shared for testing, kept out of the public rep
 | `devils-perch.course` | drgnslyr221 (beta tester), "M@hr C.C: Devil's Perch" (reported 2026-10-29: par 3 greens missing, pins off the green) | Par 3 aim points on the green; greens drawn as overlapping splines (`GreenOutlineTests`) |
 | `sangoma-scrabby-2026-11-01.course` | Scrabby, updated Sangoma (reported 2026-11-01: dark patches on Modern Illustrated fairways, bunker complexes merged, water off, terrain map cutting green sites at margin 0). Three planes shrunk, the strip plane gone, no distance markers | Overlapping fairway splines (`ScorecardMapTests`) |
 | `devils-perch-2026-10-31.course` | drgnslyr221, updated save (reported 2026-10-30: streams and ponds missing from the maps, weathering drawn as fairway) | Running-water and body-of-water paths (`WaterPathTests`); 1,203 surface-18 weathering brushes |
+| `pilolcura-analysis-2026-11-02.course` | Alex's own Pilolcura Analysis, as saved 2026-11-02 (`0ey4x84zq4ef.course`) | Hole design simulator pilot, hole 8 (`HoleSimTests`) |
 
 Ask the file's owner for a copy; don't commit it.

@@ -1,0 +1,272 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Pga2K25.Studio.ViewModels"
+             x:Class="Pga2K25.Studio.Views.HoleSimView"
+             x:DataType="vm:HoleSimViewModel">
+  <UserControl.Resources>
+    <DataTemplate x:Key="PillTemplate" x:DataType="vm:TabViewModel">
+      <Button Classes="pill" Classes.selected="{Binding IsSelected}" Content="{Binding Label}" Command="{Binding SelectCommand}" MinHeight="32"/>
+    </DataTemplate>
+  </UserControl.Resources>
+
+  <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+    <StackPanel Spacing="14" MaxWidth="1500" HorizontalAlignment="Left" Margin="0,0,12,24">
+
+      <!-- Header -->
+      <Border Classes="card" Padding="16">
+        <StackPanel Spacing="6">
+          <DockPanel>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Top">
+              <ProgressBar IsIndeterminate="True" Width="110" IsVisible="{Binding Busy}" VerticalAlignment="Center"/>
+            </StackPanel>
+            <StackPanel Spacing="2">
+              <TextBlock Text="Hole design simulator" FontSize="18" FontWeight="SemiBold"/>
+              <TextBlock Text="{Binding ContextText}" Classes="mono small"/>
+            </StackPanel>
+          </DockPanel>
+          <TextBlock Text="{Binding FileText}" Classes="muted small" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding WatchText}" Classes="muted small" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding Message}" Foreground="{Binding MessageBrush}" TextWrapping="Wrap"
+                     IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+          <TextBlock Text="Stage 2: geometry only. Tee shots roll on flat ground; slope, elevation, wind, approaches and design experiments come in later stages."
+                     Classes="muted small" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Border>
+
+      <!-- New save -->
+      <Border Classes="card" Padding="16" Background="#FDF1EA" BorderBrush="#E8B79E" IsVisible="{Binding HasNewSave}">
+        <StackPanel Spacing="8">
+          <TextBlock Text="{Binding NewSaveTitle}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+          <ItemsControl ItemsSource="{Binding NewSaveLines}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="x:String"><TextBlock Text="{Binding StringFormat='•  {0}'}" TextWrapping="Wrap"/></DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Text="{Binding NewSaveNote}" Classes="muted small" TextWrapping="Wrap"/>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Classes="primary" Content="Reload this hole" Command="{Binding ReloadSaveCommand}"/>
+            <Button Content="Not now" Command="{Binding NotNowCommand}"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+      <Border Classes="card" Padding="12" Background="#EEF5EF" IsVisible="{Binding ReloadedText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <TextBlock Text="{Binding ReloadedText}" TextWrapping="Wrap" Classes="small"/>
+      </Border>
+
+      <!-- Steps -->
+      <ItemsControl ItemsSource="{Binding StepButtons}" ItemTemplate="{StaticResource PillTemplate}">
+        <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+      </ItemsControl>
+
+      <!-- 1 Pick -->
+      <Border Classes="card" Padding="16" IsVisible="{Binding IsPick}">
+        <StackPanel Spacing="12">
+          <TextBlock Text="Pick the hole" FontSize="16" FontWeight="SemiBold"/>
+          <TextBlock Text="HOLE" Classes="muted small" FontWeight="SemiBold"/>
+          <ItemsControl ItemsSource="{Binding HoleButtons}">
+            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:TabViewModel">
+                <Button Classes="hole" Classes.selected="{Binding IsSelected}" Content="{Binding Label}" Command="{Binding SelectCommand}"/>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Text="TEE" Classes="muted small" FontWeight="SemiBold"/>
+          <ItemsControl ItemsSource="{Binding TeeButtons}" ItemTemplate="{StaticResource PillTemplate}">
+            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+          </ItemsControl>
+          <TextBlock Text="PIN" Classes="muted small" FontWeight="SemiBold"/>
+          <ItemsControl ItemsSource="{Binding PinButtons}" ItemTemplate="{StaticResource PillTemplate}">
+            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+          </ItemsControl>
+          <TextBlock Text="{Binding PickSummary}" Classes="muted small"/>
+          <TextBlock Text="Changing the hole, tee or pin clears results that depend on it. A new hole or tee needs the read-back confirming again."
+                     Classes="muted small" TextWrapping="Wrap"/>
+          <Button Classes="primary" Content="Read back this hole" Command="{Binding GoReadBackCommand}" HorizontalAlignment="Left"/>
+        </StackPanel>
+      </Border>
+
+      <!-- 2 Read back -->
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16" IsVisible="{Binding IsReadBack}">
+        <Border Classes="card" Padding="8" VerticalAlignment="Top">
+          <Image Source="{Binding HoleMap}" Stretch="Uniform" MaxHeight="760" MaxWidth="420" AutomationProperties.Name="Hole map from the course file"/>
+        </Border>
+        <Border Grid.Column="1" Classes="card" Padding="16" VerticalAlignment="Top">
+          <StackPanel Spacing="10">
+            <TextBlock Text="Does this match what's open in the game?" FontSize="16" FontWeight="SemiBold"/>
+            <ItemsControl ItemsSource="{Binding ReadBackRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:SourcedRowViewModel">
+                  <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,7">
+                    <Grid ColumnDefinitions="170,*,Auto" ColumnSpacing="12">
+                      <TextBlock Text="{Binding Item}" Classes="muted" TextWrapping="Wrap"/>
+                      <StackPanel Grid.Column="1" Spacing="2">
+                        <TextBlock Text="{Binding Value}" Foreground="{Binding ValueInk}" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding Note}" Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding HasNote}"/>
+                      </StackPanel>
+                      <Border Grid.Column="2" Classes="chip" Background="{Binding TagFill}" Padding="8,1" VerticalAlignment="Top">
+                        <TextBlock Text="{Binding Tag}" FontSize="11" FontWeight="SemiBold" Foreground="{Binding TagInk}"/>
+                      </Border>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <Border Classes="card" Padding="12" Background="#FDF1EA" BorderBrush="#E8B79E" IsVisible="{Binding HasUnknown}">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Surfaces the model has no rule for, within 60 yds of the line. How should they play?" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                <ItemsControl ItemsSource="{Binding UnknownRows}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:UnknownSurfaceViewModel">
+                      <Grid ColumnDefinitions="*,200" ColumnSpacing="12" Margin="0,2">
+                        <TextBlock Text="{Binding Text}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{x:Static vm:UnknownSurfaceViewModel.Choices}" SelectedItem="{Binding Choice}" HorizontalAlignment="Stretch"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
+            </Border>
+            <TextBlock Text="{Binding ReadBackStatus}" Classes="muted small" TextWrapping="Wrap"/>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Classes="primary" Content="Yes, it all matches" Command="{Binding AcceptReadBackCommand}"/>
+              <Button Content="Something differs" Command="{Binding MarkDiffersCommand}"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <!-- 3 Assumptions -->
+      <Border Classes="card" Padding="16" IsVisible="{Binding IsAssumptions}">
+        <StackPanel Spacing="10">
+          <TextBlock Text="Confirm the assumptions" FontSize="16" FontWeight="SemiBold"/>
+          <TextBlock Text="Every row needs a confirm or an edit. Values you confirmed before fill in here, but still need confirming. PLACEHOLDER values are unvalidated defaults, shown in orange wherever they're used."
+                     Classes="muted small" TextWrapping="Wrap"/>
+          <ItemsControl ItemsSource="{Binding GroupButtons}" ItemTemplate="{StaticResource PillTemplate}">
+            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+          </ItemsControl>
+          <ItemsControl ItemsSource="{Binding AssumptionRows}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:AssumptionRowViewModel">
+                <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,8">
+                  <Grid ColumnDefinitions="260,*,Auto,190" ColumnSpacing="12">
+                    <TextBlock Text="{Binding Label}" TextWrapping="Wrap" VerticalAlignment="Top"/>
+                    <StackPanel Grid.Column="1" Spacing="4">
+                      <TextBlock Text="{Binding Value}" Foreground="{Binding ValueInk}" TextWrapping="Wrap" IsVisible="{Binding !Editing}"/>
+                      <ComboBox ItemsSource="{Binding Options}" SelectedItem="{Binding Choice}" IsVisible="{Binding IsChoice}" MinWidth="200"/>
+                      <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding Editing}">
+                        <TextBox Text="{Binding EditText}" MinWidth="160"/>
+                        <Button Classes="primary" Content="Save" Command="{Binding ApplyEditCommand}" MinHeight="30" Padding="10,0"/>
+                        <Button Content="Cancel" Command="{Binding CancelEditCommand}" MinHeight="30" Padding="10,0"/>
+                      </StackPanel>
+                      <TextBlock Text="{Binding Error}" Foreground="#B4471F" TextWrapping="Wrap" IsVisible="{Binding Error, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                      <TextBlock Text="{Binding Note}" Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding HasNote}"/>
+                    </StackPanel>
+                    <Border Grid.Column="2" Classes="chip" Background="{Binding TagFill}" Padding="8,1" VerticalAlignment="Top">
+                      <TextBlock Text="{Binding Tag}" FontSize="11" FontWeight="SemiBold" Foreground="{Binding TagInk}"/>
+                    </Border>
+                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Top" HorizontalAlignment="Right">
+                      <TextBlock Text="Confirmed" Foreground="#1F4D30" FontWeight="SemiBold" VerticalAlignment="Center" IsVisible="{Binding Confirmed}"/>
+                      <Button Classes="primary" Content="Confirm" Command="{Binding ConfirmCommand}" IsVisible="{Binding NotConfirmed}" MinHeight="30" Padding="10,0"/>
+                      <Button Content="Edit" Command="{Binding EditCommand}" IsVisible="{Binding CanEdit}" MinHeight="30" Padding="10,0"/>
+                    </StackPanel>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <DockPanel>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
+              <Button Content="Confirm this group" Command="{Binding ConfirmGroupCommand}"/>
+              <Button Classes="primary" Content="Next: run" Command="{Binding GoRunCommand}"/>
+            </StackPanel>
+            <TextBlock Text="{Binding AssumptionProgress}" Classes="muted small" TextWrapping="Wrap" VerticalAlignment="Center"/>
+          </DockPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- 4 Run -->
+      <StackPanel Spacing="14" IsVisible="{Binding IsRun}">
+        <Border Classes="card" Padding="16">
+          <StackPanel Spacing="10">
+            <TextBlock Text="Run: tee shots, geometry only" FontSize="16" FontWeight="SemiBold"/>
+            <ItemsControl ItemsSource="{Binding PlayerButtons}" ItemTemplate="{StaticResource PillTemplate}">
+              <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+            </ItemsControl>
+            <TextBlock Text="Aims from 60 left to 60 right of the game's aim marker, every 5 yds, 2,000 drives each with the same random draws. Each finish is valued in strokes gained against the baseline."
+                       Classes="muted small" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding RunBlockers}" Foreground="#B4471F" TextWrapping="Wrap" IsVisible="{Binding RunBlockers, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            <Button Classes="primary" Content="Run" Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}" HorizontalAlignment="Left" MinWidth="120"/>
+            <TextBlock Text="{Binding PreviousResultText}" Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding PreviousResultText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+          </StackPanel>
+        </Border>
+
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16" IsVisible="{Binding HasResults}">
+          <Border Classes="card" Padding="8" VerticalAlignment="Top">
+            <StackPanel Spacing="6">
+              <Image Source="{Binding PatternMap}" Stretch="Uniform" MaxHeight="620" MaxWidth="460" AutomationProperties.Name="Where drives finish"/>
+              <ItemsControl ItemsSource="{Binding PatternLegend}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="12"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:LegendItemViewModel">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                      <Ellipse Width="10" Height="10" Fill="{Binding Swatch}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding Label}" Classes="small"/>
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+          <Border Grid.Column="1" Classes="card" Padding="16" VerticalAlignment="Top">
+            <StackPanel Spacing="10">
+              <TextBlock Text="{Binding ResultTitle}" Classes="mono small" TextWrapping="Wrap"/>
+              <Border Classes="chip" Background="#FBE6DC" HorizontalAlignment="Left" Padding="10,2">
+                <TextBlock Text="Geometry only · placeholder physics and a sparse secondary baseline" FontSize="11.5" FontWeight="SemiBold" Foreground="#B4471F"/>
+              </Border>
+              <TextBlock Text="{Binding BestText}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+              <Grid ColumnDefinitions="56,64,58,58,58,52,66,150,60,58" Margin="0,6,0,0">
+                <TextBlock Grid.Column="0" Text="Aim" Classes="muted small"/>
+                <TextBlock Grid.Column="1" Text="Fairway" Classes="muted small" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="2" Text="Rough" Classes="muted small" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="3" Text="Native" Classes="muted small" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="4" Text="Bunker" Classes="muted small" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="5" Text="Scrub" Classes="muted small" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="6" Text="Yds left" Classes="muted small" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="7" Text="SG off the tee" Classes="muted small" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="8" Text="Exp." Classes="muted small" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="9" Text="Off table" Classes="muted small" HorizontalAlignment="Right"/>
+              </Grid>
+              <ItemsControl ItemsSource="{Binding AimRows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:AimRowViewModel">
+                    <Border Background="{Binding Fill}" CornerRadius="4" Padding="0,2">
+                      <Grid ColumnDefinitions="56,64,58,58,58,52,66,150,60,58">
+                        <TextBlock Grid.Column="0" Text="{Binding Aim}" FontWeight="{Binding Weight}" Classes="mono"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Fairway}" HorizontalAlignment="Right" Classes="mono"/>
+                        <TextBlock Grid.Column="2" Text="{Binding Rough}" HorizontalAlignment="Right" Classes="mono"/>
+                        <TextBlock Grid.Column="3" Text="{Binding Native}" HorizontalAlignment="Right" Classes="mono"/>
+                        <TextBlock Grid.Column="4" Text="{Binding Bunker}" HorizontalAlignment="Right" Classes="mono"/>
+                        <TextBlock Grid.Column="5" Text="{Binding Scrub}" HorizontalAlignment="Right" Classes="mono"/>
+                        <TextBlock Grid.Column="6" Text="{Binding YardsLeft}" HorizontalAlignment="Right" Classes="mono"/>
+                        <TextBlock Grid.Column="7" Text="{Binding Sg}" HorizontalAlignment="Right" FontWeight="{Binding Weight}" Classes="mono"/>
+                        <TextBlock Grid.Column="8" Text="{Binding Expected}" HorizontalAlignment="Right" Classes="mono"/>
+                        <TextBlock Grid.Column="9" Text="{Binding Outside}" HorizontalAlignment="Right" Classes="mono"/>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <ItemsControl ItemsSource="{Binding RunNotes}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="x:String"><TextBlock Text="{Binding}" Classes="muted small" TextWrapping="Wrap"/></DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="{Binding DependsText}" Foreground="#B4471F" Classes="small" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+        </Grid>
+      </StackPanel>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
