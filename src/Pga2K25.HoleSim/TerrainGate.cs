@@ -14,20 +14,27 @@ public sealed record HeightReading(string Spot, FramePoint Where, FramePoint Ref
 }
 
 /// <summary>A place to take a reading, named for the in-game task list.</summary>
-public sealed record MeasureSpot(string Name, FramePoint Where, int FromTeeYards, double ModelFt, bool HeldOut);
+public sealed record MeasureSpot(string Name, FramePoint Where, int FromTeeYards, double ModelFt, bool HeldOut)
+{
+    /// <summary>Straight-line yards to the green point (the route's last waypoint, which the game's TO GREEN uses).</summary>
+    public int ToGreenYards(HoleModel hole) => (int)Math.Round(Where.DistanceTo(hole.GreenFrame));
+}
 
 public static partial class HeightLabel
 {
     /// <summary>
-    /// Reads an in-game height label: <c>+1'4"</c> is 16 in (not 14), <c>+1'</c> is 12 in, <c>-0'7</c> is −7 in, a missing
-    /// sign reads as above, and a plain number is feet (<c>-5.3</c>). Inches of 12 or more are refused. Same rules as the
+    /// Reads an in-game height label: <c>+1'4"</c> is 16 in (not 14), <c>+1'</c> is 12 in, <c>-0'7</c> is −7 in, the game's
+    /// ▲ and ▼ read as + and −, a missing sign reads as above, and a plain number is feet (<c>-5.3</c>). Inches of 12 or more are refused. Same rules as the
     /// Studio's Measurements page.
     /// </summary>
     public static bool TryParse(string? text, out double feet)
     {
         feet = 0;
         if (string.IsNullOrWhiteSpace(text)) return false;
-        var m = Pattern().Match(text.Trim().Replace('’', '\'').Replace('′', '\'').Replace('”', '"').Replace('″', '"'));
+        // The game shows ▲ for above and ▼ for below instead of a sign.
+        var s = text.Trim().Replace('’', '\'').Replace('′', '\'').Replace('”', '"').Replace('″', '"')
+            .Replace("▲", "+").Replace("△", "+").Replace("▼", "-").Replace("▽", "-");
+        var m = Pattern().Match(s.Trim());
         if (!m.Success) return false;
         double whole = double.Parse(m.Groups[2].Value, CultureInfo.InvariantCulture);
         double inches = m.Groups[3].Success ? double.Parse(m.Groups[3].Value, CultureInfo.InvariantCulture) : 0;
@@ -142,8 +149,11 @@ public static class TerrainGate
         for (double a = g.Along; a < g.Along + 80 && hole.Grid.At(new FramePoint(g.Lat, a)) == Ground.Green; a += 0.5) back = a;
         if (back - front >= 12) { spots.Add(new FramePoint(g.Lat, front + 4)); spots.Add(new FramePoint(g.Lat, back - 4)); }
         else spots.Add(new FramePoint(g.Lat, (front + back) / 2 - 3));
-        return spots.Select((p, i) => new MeasureSpot($"M{i + 1}", p, (int)Math.Round(p.Length),
+        var list = spots.Select((p, i) => new MeasureSpot($"M{i + 1}", p, (int)Math.Round(p.Length),
             model is null ? double.NaN : model.HeightFt(p) - model.HeightFt(g), i % 4 == 2)).ToList();
+        // G: the green's height in the game's tee table (GREEN HEIGHT for the chosen tee), no cursor needed.
+        list.Insert(0, new MeasureSpot("G", g, (int)Math.Round(g.Length), model is null ? double.NaN : 0, false));
+        return list;
     }
 }
 
