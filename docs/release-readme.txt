@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 2.3.0
+COURSE DESIGNER STUDIO - release 2.4.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -12,6 +12,8 @@ Reads your .course files and makes printable products from them:
     (including a Wind Card when the course has a wind rose)
   - Construction estimate: what the course might cost to build as a real
     course, with a low / likely / high range (illustrative, not a bid)
+And a Hole design simulator that plays thousands of tee shots on one hole
+and values where they finish in strokes gained.
 It is read only. It never changes or writes a course file. It works
 offline: the one online feature (wind data) is off unless you turn it on.
 
@@ -221,7 +223,39 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
-NEW SINCE 2.3.0
+NEW IN 2.4.0
+- Hole design simulator (left menu, under Terrain map): a test session
+  for one hole at a time, with the game open in playtest. Pick the hole,
+  tee and pin, check the read-back (par, yards, aim marker, fairway
+  widths, green, pins, hazards near the line) against the game, and
+  confirm every assumption. Values you confirmed before fill in, but still
+  need confirming, and unvalidated defaults stay orange. Then run
+  thousands of tee shots across aims left and right of the game's aim
+  marker for a Power Drive or Normal player. Each finish is valued in
+  strokes gained against a PGA Tour baseline (only the published anchor
+  values for now, so read the shape, not the exact numbers).
+  Live checks: MEASURE spots along the hole, each listed with its yards to
+  the tee and to the green, so you can place the cursor by matching the
+  game's readout. Type the height against your tee as the game shows it
+  (the arrows work), copy GREEN HEIGHT from the tee table, say how much
+  of the fairway you can see, and enter a few drives. Readings save as you
+  type in a Hole Sim folder beside the products.
+  Terrain gate: your readings are compared with the terrain model. Under
+  10% of the height range is Trustworthy, 10-18% Indicative, more is
+  Check. Only a pass lets runs roll the ball on the slopes and change
+  carry for height; otherwise runs stay on flat ground, or you can
+  override with a visible "terrain unverified" label.
+  Save watcher: while the section is open it notices when the designer
+  saves the course again and lists what changed on that hole. It reloads
+  only when you click "Reload this hole", so you don't have to back out
+  to the library. It never runs anything by itself.
+- Course cards for unfinished courses: a course still being built (tees
+  out of order, fewer than 18 holes) now gets its cards. Each card has a
+  red DRAFT line along the bottom naming the first problem; the full list
+  is in Card Validation.txt.
+- New order: products are listed, and built by "Build all", as hole
+  sheets, course cards, greens book, yardage book, construction estimate,
+  scorecard map.
 - Bunker merge (Course settings): painted bunker dabs closer than this
   print as one bunker on the scorecard maps. 10 m is the default and
   suits sand painted as scattered dabs. Choose 4 m for a course built
