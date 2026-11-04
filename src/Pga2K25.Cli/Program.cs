@@ -80,6 +80,11 @@ const string Usage = """
       the shipped baseline. Uses the shipped assumption defaults (mostly PLACEHOLDER); the
       Studio section asks you to confirm each one. --treat says how unknown surface ids play
       (native, heavy, rough, fairway, bunker, scrub, ignore)
+    pga2k25 holesim-terrain <file.course> --holes 11,3,4 [--smooth 8] [--readings 10] [--fit-length 25]
+      terrain study for the hole design simulator, on a course whose distance markers carry the
+      game's ground height (Sangoma): the brush replay and the replay smoothed outside greens,
+      each alone and with a correction fitted to the markers nearest the suggested MEASURE spots
+      and tested on every other marker; gate band and fairway slope spread per candidate
 
     """;
 
@@ -101,6 +106,7 @@ try
         case "readiness": return Readiness(args[1], args[2..]);
         case "calibrate" when args.Length >= 3: return Calibrate(args[1], args[2], args[3..]);
         case "holesim": return HoleSimCommand(args[1], args[2..]);
+        case "holesim-terrain": return HoleSimTerrainCommand(args[1], args[2..]);
         default: Console.Error.WriteLine(Usage); return 2;
     }
 }
@@ -108,6 +114,36 @@ catch (Exception ex)
 {
     Console.Error.WriteLine(Environment.GetEnvironmentVariable("PGA2K25_DEBUG") is null ? $"error: {ex.Message}" : ex.ToString());
     return 1;
+}
+
+static int HoleSimTerrainCommand(string path, string[] rest)
+{
+    var inv = CultureInfo.InvariantCulture;
+    Console.OutputEncoding = System.Text.Encoding.UTF8;
+    List<int>? holes = null; double smooth = 8, fit = 25; int readings = 10;
+    for (int i = 0; i < rest.Length; i++)
+    {
+        string Next() => i + 1 < rest.Length ? rest[++i] : throw new ArgumentException($"{rest[i]} needs a value");
+        switch (rest[i])
+        {
+            case "--holes": holes = Next().Split(',').Select(s => int.Parse(s, inv)).ToList(); break;
+            case "--smooth": smooth = double.Parse(Next(), inv); break;
+            case "--readings": readings = int.Parse(Next(), inv); break;
+            case "--fit-length": fit = double.Parse(Next(), inv); break;
+            default: throw new ArgumentException($"unknown option {rest[i]}");
+        }
+    }
+    var file = CourseFile.Load(path);
+    var course = file.ReadModel();
+    if (course.DistanceMarkers.Count == 0) throw new ArgumentException("this course has no distance markers with in-game heights to compare against");
+    holes ??= course.Holes.Select(h => h.Number).Take(3).ToList();
+    Console.WriteLine($"{course.Name}: terrain candidates against {course.DistanceMarkers.Count:#,0} distance markers (the game's ground height)");
+    Console.WriteLine($"Fitted rows: a correction fitted to {readings} markers nearest the suggested MEASURE spots, tested on the markers it didn't see.");
+    Console.WriteLine();
+    Console.WriteLine("hole  candidate                                                   n   RMS in  range in   pct  band          fairway slope p50/p90/p99   >10%");
+    foreach (var r in Pga2K25.HoleSim.TerrainStudy.Run(course, file.Description, holes, smooth, readings, fit))
+        Console.WriteLine($"{r.Hole,4}  {r.Candidate,-58} {r.Readings,4}  {r.RmsInches,7:0.0}  {r.RangeInches,8:0}  {r.Percent,4:0}%  {r.Band,-12}  {r.SlopeP50,5:0.0} / {r.SlopeP90,5:0.0} / {r.SlopeP99,5:0.0}%   {r.SteepShare,4:P0}");
+    return 0;
 }
 
 static int HoleSimCommand(string path, string[] rest)

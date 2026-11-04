@@ -123,8 +123,14 @@ public sealed record HoleModelOptions
     /// <summary>Pieces that end closer to the tee than this aren't listed (planting beside the tee box).</summary>
     public int HazardMinAlongYards { get; init; } = 30;
 
-    /// <summary>Yardage book options (tee names, width stations).</summary>
-    public YardageOptions Yardage { get; init; } = new();
+    /// <summary>
+    /// Yardage book options (tee names, width stations). Terrain at 1 m cells: the simulator only reads tee heights from
+    /// the analysis's own field, and the book's 0.5 m costs minutes on courses with 100,000 brushes.
+    /// </summary>
+    public YardageOptions Yardage { get; init; } = new() { Terrain = new() { CellMetres = 1.0 } };
+
+    /// <summary>The course's traced ponds and creeks, when already known (trace once per course with <see cref="HoleModelBuilder.TraceWater"/>).</summary>
+    public GreensBook.WaterMap? Water { get; init; }
 }
 
 public static class HoleModelBuilder
@@ -152,7 +158,8 @@ public static class HoleModelBuilder
         layers ??= CourseLayers.From(course);
         var hole = course.Holes.FirstOrDefault(h => h.Number == holeNumber)
             ?? throw new ArgumentException($"The course has no hole {holeNumber}.");
-        var a = HoleAnalysis.Analyze(course, layers, hole, options.Yardage, 0.4);
+        var water = options.Water ?? TraceWater(course);
+        var a = HoleAnalysis.Analyze(course, layers, hole, options.Yardage, 0.4, inlandWater: water);
 
         var tees = a.TeeSets.Select((t, i) => new TeeInfo(i, t.Name, t.Yards, t.Tee, t.ElevationFt)).ToList();
         if (tees.Count == 0) tees.Add(new TeeInfo(0, "Tee", a.LengthYards, a.BackTee, 0));
@@ -267,6 +274,10 @@ public static class HoleModelBuilder
             SurfaceSignatures = surfaceSigs,
         };
     }
+
+    /// <summary>The course's ponds and creeks (whole course, 1 m cells), or null without water. About 50 s on Sangoma's water planes (the tracer's own cost, not the area), so trace once per course and pass it in.</summary>
+    public static GreensBook.WaterMap? TraceWater(CourseModel course) =>
+        course.HasWater ? GreensBook.WaterTracer.Trace(course, new GreensBook.TerrainModelOptions { CellMetres = 1.0 }) : null;
 
     static double ReadNum(JsonNode? n)
     {

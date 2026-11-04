@@ -28,7 +28,7 @@
           <TextBlock Text="{Binding WatchText}" Classes="muted small" TextWrapping="Wrap"/>
           <TextBlock Text="{Binding Message}" Foreground="{Binding MessageBrush}" TextWrapping="Wrap"
                      IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-          <TextBlock Text="Stage 2: geometry only. Tee shots roll on flat ground; slope, elevation, wind, approaches and design experiments come in later stages."
+          <TextBlock Text="{Binding TerrainStatus}"
                      Classes="muted small" TextWrapping="Wrap"/>
         </StackPanel>
       </Border>
@@ -185,11 +185,146 @@
         </StackPanel>
       </Border>
 
-      <!-- 4 Run -->
+      <!-- 4 Live checks -->
+      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16" IsVisible="{Binding IsLiveChecks}">
+        <Border Classes="card" Padding="8" VerticalAlignment="Top">
+          <StackPanel Spacing="6">
+            <Image Source="{Binding SpotMap}" Stretch="Uniform" MaxHeight="720" MaxWidth="360" AutomationProperties.Name="Where to take MEASURE readings"/>
+            <TextBlock Text="Gold: still to measure. Green: read." Classes="muted small"/>
+          </StackPanel>
+        </Border>
+        <StackPanel Grid.Column="1" Spacing="14">
+          <Border Classes="card" Padding="16">
+            <StackPanel Spacing="10">
+              <TextBlock Text="A. Height readings with MEASURE" FontSize="16" FontWeight="SemiBold"/>
+              <TextBlock Text="Measure from the zero to each spot and type the label as the game shows it. +1'4&quot; is 16 in, +1' is 12 in, and a label with no sign reads as above. Skip any spot you can't reach; five or more are needed."
+                         Classes="muted small" TextWrapping="Wrap"/>
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="ZERO IS AT" Classes="muted small" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <ItemsControl ItemsSource="{Binding ZeroButtons}" ItemTemplate="{StaticResource PillTemplate}">
+                  <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                </ItemsControl>
+              </StackPanel>
+              <ItemsControl ItemsSource="{Binding SpotRows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:SpotRowViewModel">
+                    <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,6">
+                      <Grid ColumnDefinitions="44,80,130,*,120" ColumnSpacing="10">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding FromTee}" Classes="muted small" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="2" Text="{Binding Label}" PlaceholderText="e.g. -4'7&quot;" MinHeight="30"/>
+                        <StackPanel Grid.Column="3" VerticalAlignment="Center">
+                          <TextBlock Text="{Binding Parsed}" Foreground="{Binding ParsedInk}" Classes="small" TextWrapping="Wrap"/>
+                          <TextBlock Text="{Binding Model}" Classes="muted small"/>
+                        </StackPanel>
+                        <CheckBox Grid.Column="4" Content="Hold back" IsChecked="{Binding HeldOut}" ToolTip.Tip="Held-back readings aren't used to fit the correction; they test it."/>
+                      </Grid>
+                    </Border>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="{Binding LiveSummary}" Classes="small" TextWrapping="Wrap"/>
+              <TextBlock Text="{Binding LiveFileText}" Classes="muted small" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+          <Border Classes="card" Padding="16">
+            <StackPanel Spacing="8">
+              <TextBlock Text="{Binding SightlineQuestion, StringFormat='B. {0}'}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"/>
+              <ItemsControl ItemsSource="{Binding SightlineButtons}" ItemTemplate="{StaticResource PillTemplate}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              </ItemsControl>
+              <TextBlock Text="Kept for the sightline check when the terrain is trusted (a later stage)." Classes="muted small"/>
+            </StackPanel>
+          </Border>
+          <Border Classes="card" Padding="16">
+            <StackPanel Spacing="8">
+              <TextBlock Text="C. Drives from this tee (optional)" FontSize="16" FontWeight="SemiBold"/>
+              <ItemsControl ItemsSource="{Binding DriveRows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:DriveRowViewModel">
+                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2">
+                      <TextBlock Text="{Binding Number}" Width="20" VerticalAlignment="Center"/>
+                      <TextBox Text="{Binding CarryText}" PlaceholderText="carry" Width="90" MinHeight="30"/>
+                      <TextBox Text="{Binding TotalText}" PlaceholderText="total" Width="90" MinHeight="30"/>
+                      <ComboBox ItemsSource="{x:Static vm:DriveRowViewModel.Sides}" SelectedItem="{Binding Side}" Width="70"/>
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="{Binding DriveSummary}" Classes="small" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+          <Button Classes="primary" Content="Check the terrain" Command="{Binding GoGateCommand}" HorizontalAlignment="Left"/>
+        </StackPanel>
+      </Grid>
+
+      <!-- 5 Terrain gate -->
+      <Border Classes="card" Padding="16" IsVisible="{Binding IsGate}">
+        <StackPanel Spacing="12">
+          <StackPanel Orientation="Horizontal" Spacing="10">
+            <Ellipse Width="12" Height="12" Fill="{Binding GateBrush}" VerticalAlignment="Center"/>
+            <TextBlock Text="{Binding GateTitle}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"/>
+          </StackPanel>
+          <TextBlock Text="{Binding GateDetail}" TextWrapping="Wrap"/>
+          <TextBlock Text="Bands: under 10% of the readings' range is Trustworthy, 10–18% Indicative (results carry a warning), over 18% or fewer than five readings is Check. A corrected model is judged only on the readings held back from its fit."
+                     Classes="muted small" TextWrapping="Wrap"/>
+          <TextBlock Text="CANDIDATES" Classes="muted small" FontWeight="SemiBold"/>
+          <ItemsControl ItemsSource="{Binding GateCandidates}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:GateCandidateViewModel">
+                <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,6">
+                  <Grid ColumnDefinitions="90,*,110,200" ColumnSpacing="10">
+                    <Button Classes="pill" Classes.selected="{Binding IsChosen}" Content="Use" Command="{Binding ChooseCommand}" MinHeight="28"/>
+                    <StackPanel Grid.Column="1">
+                      <TextBlock Text="{Binding Name}" TextWrapping="Wrap"/>
+                      <TextBlock Text="{Binding Reason}" Classes="muted small" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <TextBlock Grid.Column="2" Text="{Binding Band}" Foreground="{Binding BandInk}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="3" Text="{Binding Error}" Classes="mono small" VerticalAlignment="Center"/>
+                  </Grid>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Text="READINGS AGAINST THE CHOSEN MODEL" Classes="muted small" FontWeight="SemiBold"/>
+          <Grid ColumnDefinitions="60,90,90,90,90">
+            <TextBlock Text="Spot" Classes="muted small"/>
+            <TextBlock Grid.Column="1" Text="Model" Classes="muted small" HorizontalAlignment="Right"/>
+            <TextBlock Grid.Column="2" Text="Reading" Classes="muted small" HorizontalAlignment="Right"/>
+            <TextBlock Grid.Column="3" Text="Error" Classes="muted small" HorizontalAlignment="Right"/>
+            <TextBlock Grid.Column="4" Text="Use" Classes="muted small" HorizontalAlignment="Right"/>
+          </Grid>
+          <ItemsControl ItemsSource="{Binding GateChecks}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:GateCheckRowViewModel">
+                <Grid ColumnDefinitions="60,90,90,90,90">
+                  <TextBlock Text="{Binding Spot}" Classes="mono"/>
+                  <TextBlock Grid.Column="1" Text="{Binding Model}" Classes="mono" HorizontalAlignment="Right"/>
+                  <TextBlock Grid.Column="2" Text="{Binding Reading}" Classes="mono" HorizontalAlignment="Right"/>
+                  <TextBlock Grid.Column="3" Text="{Binding Error}" Foreground="{Binding ErrorInk}" Classes="mono" HorizontalAlignment="Right"/>
+                  <TextBlock Grid.Column="4" Text="{Binding Use}" Classes="muted small" HorizontalAlignment="Right"/>
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+          <TextBlock Text="RUNS USE" Classes="muted small" FontWeight="SemiBold"/>
+          <ItemsControl ItemsSource="{Binding ModeButtons}" ItemTemplate="{StaticResource PillTemplate}">
+            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+          </ItemsControl>
+          <TextBlock Text="{Binding ModeNote}" Classes="muted small" TextWrapping="Wrap"/>
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Take more readings" Command="{Binding GoLiveChecksCommand}"/>
+            <Button Classes="primary" Content="Next: run" Command="{Binding GoRunCommand}"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <!-- 6 Run -->
       <StackPanel Spacing="14" IsVisible="{Binding IsRun}">
         <Border Classes="card" Padding="16">
           <StackPanel Spacing="10">
-            <TextBlock Text="Run: tee shots, geometry only" FontSize="16" FontWeight="SemiBold"/>
+            <TextBlock Text="Run: tee shots" FontSize="16" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding TerrainStatus}" TextWrapping="Wrap"/>
             <ItemsControl ItemsSource="{Binding PlayerButtons}" ItemTemplate="{StaticResource PillTemplate}">
               <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
             </ItemsControl>
@@ -222,7 +357,7 @@
             <StackPanel Spacing="10">
               <TextBlock Text="{Binding ResultTitle}" Classes="mono small" TextWrapping="Wrap"/>
               <Border Classes="chip" Background="#FBE6DC" HorizontalAlignment="Left" Padding="10,2">
-                <TextBlock Text="Geometry only · placeholder physics and a sparse secondary baseline" FontSize="11.5" FontWeight="SemiBold" Foreground="#B4471F"/>
+                <TextBlock Text="{Binding ResultBadge}" FontSize="11.5" FontWeight="SemiBold" Foreground="#B4471F"/>
               </Border>
               <TextBlock Text="{Binding BestText}" TextWrapping="Wrap" FontWeight="SemiBold"/>
               <Grid ColumnDefinitions="56,64,58,58,58,52,66,150,60,58" Margin="0,6,0,0">

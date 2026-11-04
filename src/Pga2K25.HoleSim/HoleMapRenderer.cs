@@ -3,7 +3,8 @@ using SkiaSharp;
 namespace Pga2K25.HoleSim;
 
 /// <summary>Points and aim rings drawn over the hole map (a shot pattern).</summary>
-public sealed record MapOverlay(IReadOnlyList<(FramePoint Point, SKColor Colour)> Points, IReadOnlyList<(FramePoint Point, SKColor Colour)> Rings);
+public sealed record MapOverlay(IReadOnlyList<(FramePoint Point, SKColor Colour)> Points, IReadOnlyList<(FramePoint Point, SKColor Colour)> Rings,
+    IReadOnlyList<(FramePoint Point, string Text, SKColor Colour)>? Labels = null);
 
 public sealed record MapView
 {
@@ -101,6 +102,15 @@ public static class HoleMapRenderer
             foreach (var (pt, col) in o.Rings)
                 using (var ring = new SKPaint { Color = col, IsAntialias = true, StrokeWidth = 2, Style = SKPaintStyle.Stroke })
                     c.DrawCircle(P(pt), 6, ring);
+            foreach (var (pt, text, col) in o.Labels ?? [])
+            {
+                var p = P(pt);
+                using var fill = new SKPaint { Color = col, IsAntialias = true };
+                using var white = new SKPaint { Color = SKColors.White, IsAntialias = true };
+                float w = Math.Max(18, small.MeasureText(text) + 8);
+                c.DrawRoundRect(new SKRect(p.X - w / 2, p.Y - 8, p.X + w / 2, p.Y + 8), 8, 8, fill);
+                c.DrawText(text, p.X, p.Y + 3.5f, SKTextAlign.Center, small, white);
+            }
         }
 
         // Aim marker.

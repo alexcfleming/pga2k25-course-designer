@@ -20,7 +20,8 @@ namespace Pga2K25.Studio.ViewModels;
 /// </summary>
 public partial class HoleSimViewModel : ObservableObject
 {
-    public const string PickStep = "1  Pick", ReadBackStep = "2  Read back", AssumptionsStep = "3  Assumptions", RunStep = "4  Run (geometry only)";
+    public const string PickStep = "1  Pick", ReadBackStep = "2  Read back", AssumptionsStep = "3  Assumptions", LiveChecksStep = "4  Live checks",
+        GateStep = "5  Terrain gate", RunStep = "6  Run";
 
     static readonly IBrush Ok = Brush.Parse("#1F4D30"), Warn = Brush.Parse("#B4471F"), MutedBrush = Brush.Parse("#56605A");
 
@@ -29,11 +30,13 @@ public partial class HoleSimViewModel : ObservableObject
     CourseModel? _course;
     JsonObject? _desc;
     CourseLayers? _layers;
+    GreensBook.WaterMap? _water;
     FileStamp? _stamp;
     HoleModel? _model;
     CourseSaveWatcher? _watcher;
     bool _checking, _active;
     (CourseModel Course, JsonObject Desc, CourseLayers Layers, FileStamp Stamp, HoleModel Model, HoleChangeSet Changes)? _pendingSave;
+    GreensBook.WaterMap? _pendingWater;
     AssumptionSheet _sheet;
     int _hole = 1, _pin = 1;
     int? _tee;
@@ -46,7 +49,7 @@ public partial class HoleSimViewModel : ObservableObject
         CourseName = courseName;
         _priorsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CourseDesignerStudio", "holesim", "assumptions-confirmed.json");
         _sheet = AssumptionSheet.Load(_priorsPath);
-        foreach (var s in new[] { PickStep, ReadBackStep, AssumptionsStep, RunStep }) StepButtons.Add(new TabViewModel(s, s == Step, () => Step = s));
+        foreach (var s in new[] { PickStep, ReadBackStep, AssumptionsStep, LiveChecksStep, GateStep, RunStep }) StepButtons.Add(new TabViewModel(s, s == Step, () => Step = s));
         PlayerButtons.Add(new TabViewModel("Power Drive", true, () => SelectPlayer("power")));
         PlayerButtons.Add(new TabViewModel("Normal", false, () => SelectPlayer("normal")));
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -62,11 +65,14 @@ public partial class HoleSimViewModel : ObservableObject
     public bool IsPick => Step == PickStep;
     public bool IsReadBack => Step == ReadBackStep;
     public bool IsAssumptions => Step == AssumptionsStep;
+    public bool IsLiveChecks => Step == LiveChecksStep;
+    public bool IsGate => Step == GateStep;
     public bool IsRun => Step == RunStep;
     partial void OnStepChanged(string value)
     {
         foreach (var b in StepButtons) b.IsSelected = b.Label == value;
-        OnPropertyChanged(nameof(IsPick)); OnPropertyChanged(nameof(IsReadBack)); OnPropertyChanged(nameof(IsAssumptions)); OnPropertyChanged(nameof(IsRun));
+        OnPropertyChanged(nameof(IsPick)); OnPropertyChanged(nameof(IsReadBack)); OnPropertyChanged(nameof(IsAssumptions));
+        OnPropertyChanged(nameof(IsLiveChecks)); OnPropertyChanged(nameof(IsGate)); OnPropertyChanged(nameof(IsRun));
     }
     [RelayCommand] private void GoReadBack() => Step = ReadBackStep;
     [RelayCommand] private void GoAssumptions() => Step = AssumptionsStep;
@@ -104,9 +110,10 @@ public partial class HoleSimViewModel : ObservableObject
                 var file = CourseFile.Load(_coursePath);
                 var course = file.ReadModel();
                 var layers = CourseLayers.From(course);
+                var water = HoleModelBuilder.TraceWater(course);   // once per course: about a minute on big courses with water planes
                 Dispatcher.UIThread.Post(() =>
                 {
-                    _course = course; _desc = file.Description; _layers = layers; _stamp = stamp;
+                    _course = course; _desc = file.Description; _layers = layers; _stamp = stamp; _water = water;
                     _watcher = new CourseSaveWatcher(stamp);
                     UpdateFileText();
                     BuildHoleButtons();
@@ -142,11 +149,13 @@ public partial class HoleSimViewModel : ObservableObject
                 var file = CourseFile.Load(_coursePath);
                 var course = file.ReadModel();
                 var layers = CourseLayers.From(course);
-                var model = HoleModelBuilder.Build(course, file.Description, hole, Options(tee, treatments), check.Stamp, layers);
+                var water = HoleModelBuilder.TraceWater(course);
+                var model = HoleModelBuilder.Build(course, file.Description, hole, Options(tee, treatments) with { Water = water }, check.Stamp, layers);
                 var changes = HoleChanges.Compare(current, model);
                 Dispatcher.UIThread.Post(() =>
                 {
                     _pendingSave = (course, file.Description, layers, check.Stamp!, model, changes);
+                    _pendingWater = water;
                     NewSaveTitle = $"New save of {CourseName} at {check.Stamp!.ModifiedUtc.ToLocalTime():HH:mm}." + (changes.Any ? $" Hole {hole} changed:" : "");
                     NewSaveLines.Clear(); foreach (var l in changes.Lines) NewSaveLines.Add(l);
                     NewSaveNote = !changes.Any ? "Reloading changes nothing here."
@@ -168,7 +177,7 @@ public partial class HoleSimViewModel : ObservableObject
     {
         if (_pendingSave is not { } p) return;
         string? previous = HasResults ? $"Previous save ({_stamp!.ModifiedUtc.ToLocalTime():HH:mm}): {BestText}" : null;
-        _course = p.Course; _desc = p.Desc; _layers = p.Layers; _stamp = p.Stamp;
+        _course = p.Course; _desc = p.Desc; _layers = p.Layers; _stamp = p.Stamp; _water = _pendingWater;
         _watcher!.Accept(p.Stamp);
         _pendingSave = null; HasNewSave = false;
         _model = p.Model;
@@ -180,6 +189,7 @@ public partial class HoleSimViewModel : ObservableObject
         UpdateFileText();
         BuildHoleButtons();
         ShowModel();
+        if (p.Changes.Terrain || p.Changes.Surfaces || p.Changes.TeesOrPins) BuildTerrain();   // the gate re-checks the readings on the new ground
     }
 
     [RelayCommand] private void NotNow()
@@ -203,7 +213,7 @@ public partial class HoleSimViewModel : ObservableObject
 
     HoleModelOptions Options(int? tee, IReadOnlyDictionary<int, Ground?> treatments) => new()
     {
-        TeeIndex = tee, Treatments = treatments,
+        TeeIndex = tee, Treatments = treatments, Water = _water,
         Yardage = new YardageOptions { Holes = CourseHolesFile.Load(_outputDir) },
     };
 
@@ -253,6 +263,8 @@ public partial class HoleSimViewModel : ObservableObject
                     ClearResults();
                     _sheet.SetCourseSettings(model);
                     ShowModel();
+                    BuildTerrain();      // clears the last hole's terrain first, so no spot shows its heights
+                    LoadLiveChecks();
                     Busy = false;
                 });
             }
@@ -290,7 +302,8 @@ public partial class HoleSimViewModel : ObservableObject
     void UpdateContext()
     {
         if (_model is null) return;
-        ContextText = $"Hole {_model.Number} · {_model.TeeLabel} · pin {_pin} · {(_player == "power" ? "Power Drive" : "Normal")} · no wind · seed {RunSettingsNow.Seed}";
+        ContextText = $"Hole {_model.Number} · {_model.TeeLabel} · pin {_pin} · {(_player == "power" ? "Power Drive" : "Normal")} · no wind · seed {RunSettingsNow.Seed} · "
+            + (Mode switch { TerrainMode.On => "terrain on", TerrainMode.Override => "terrain UNVERIFIED", _ => "flat ground" });
         UpdateRunState();
     }
 
@@ -358,6 +371,7 @@ public partial class HoleSimViewModel : ObservableObject
     [ObservableProperty] private bool _hasResults;
     [ObservableProperty] private Bitmap? _patternMap;
     [ObservableProperty] private string _resultTitle = "";
+    [ObservableProperty] private string _resultBadge = "";
     [ObservableProperty] private string _bestText = "";
     [ObservableProperty] private string _dependsText = "";
     [ObservableProperty] private string _previousResultText = "";
@@ -392,14 +406,14 @@ public partial class HoleSimViewModel : ObservableObject
         _sheet.SavePriors(_priorsPath);
         Busy = true;
         Show("Running…");
-        var m = _model; var sheet = _sheet; int pin = _pin; string player = _player; var settings = RunSettingsNow;
+        var m = _model; var sheet = _sheet; int pin = _pin; string player = _player; var settings = RunSettingsNow; var terrain = CurrentTerrain();
         Task.Run(() =>
         {
             try
             {
                 var baseline = TableBaseline.LoadShipped(sheet.BaselineId);
                 var profile = sheet.Profile(player);
-                var run = GeometryRun.Run(m, profile, pin, sheet.GroundRules(), sheet.Lies(), baseline, settings);
+                var run = GeometryRun.Run(m, profile, pin, sheet.GroundRules(), sheet.Lies(), baseline, settings, terrain: terrain);
                 var best = run.Best;
                 var colours = new[] { SKColor.Parse("#E06A3A"), SKColor.Parse("#1F1D1A"), SKColor.Parse("#3A6EA5") };
                 var picks = new[] { best.Aim - 20, best.Aim, best.Aim + 20 }
@@ -434,6 +448,9 @@ public partial class HoleSimViewModel : ObservableObject
         AimRows.Clear();
         foreach (var a in run.Aims) AimRows.Add(new AimRowViewModel(a, a == run.Best));
         ResultTitle = $"{run.Player.Name} · {m.TeeLabel} · pin {run.Pin} · {run.Settings.SamplesPerAim:#,0} drives per aim · seed {run.Settings.Seed} · {_stamp!.ModifiedUtc.ToLocalTime():d MMM HH:mm} save";
+        ResultBadge = run.Terrain is null ? "Geometry only · placeholder physics and a sparse secondary baseline"
+            : run.Terrain.Label == "terrain unverified" ? "TERRAIN UNVERIFIED (override) · placeholder physics and a sparse secondary baseline"
+            : $"Terrain {run.Terrain.Label} · placeholder physics and a sparse secondary baseline";
         var b = run.Best;
         BestText = $"Best line {b.Aim:+0;-0;0} yds {(b.Aim >= 0 ? "right" : "left")} of the aim marker: {b.Share(Ground.Fairway):P0} fairway, {b.MeanYardsLeft:0} yds left on average, "
             + $"{b.MeanSg:+0.000;-0.000} strokes gained off the tee (± {b.SgCi95:0.000}), {b.ExpectedStrokes:0.00} expected strokes for the hole.";
