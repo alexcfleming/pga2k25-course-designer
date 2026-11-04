@@ -25,6 +25,7 @@ public class HoleSimTerrainTests
     [Theory]
     [InlineData("+1'4\"", 16)] [InlineData("+1'", 12)] [InlineData("1'4", 16)] [InlineData("-0'7", -7)] [InlineData("−2'0\"", -24)]
     [InlineData("-5.5", -66)] [InlineData("+0'3\"", 3)] [InlineData("1 ft 4 in", 16)] [InlineData("+1’4”", 16)]
+    [InlineData("▲0'7\"", 7)] [InlineData("▼5'0\"", -60)] [InlineData("▲ 5'7\"", 67)]
     public void Height_labels_read_as_the_game_means_them(string label, double inches)
     {
         Assert.True(HeightLabel.TryParse(label, out var ft), label);
@@ -88,12 +89,43 @@ public class HoleSimTerrainTests
     public void Suggested_spots_run_along_the_line_and_hold_back_every_fourth()
     {
         var (_, m) = Hole3.Value;
-        var spots = TerrainGate.SuggestSpots(m);
+        var all = TerrainGate.SuggestSpots(m);
+        // G first: the green, read straight off the game's tee table; then M1… along the line.
+        Assert.Equal("G", all[0].Name);
+        Assert.Equal(0, all[0].ToGreenYards(m));
+        Assert.False(all[0].HeldOut);
+        var spots = all.Skip(1).ToList();
         Assert.InRange(spots.Count, 8, 13);
         Assert.Equal(spots.Count / 4 + (spots.Count % 4 >= 3 ? 1 : 0), spots.Count(s => s.HeldOut));
         Assert.All(spots, s => Assert.True(Polyline.Nearest(m.Route, s.Where).Distance < 25));
         Assert.Equal(Ground.Green, m.Grid.At(spots[^1].Where));
         Assert.Equal(Enumerable.Range(1, spots.Count).Select(i => $"M{i}"), spots.Select(s => s.Name));
+        Assert.Equal((int)Math.Round(spots[2].Where.DistanceTo(m.GreenFrame)), spots[2].ToGreenYards(m));
+    }
+
+    [PrivateSampleFact("pilolcura-analysis-2026-11-02.course")]
+    public void Pilolcura_hole_8_tees_match_the_games_tee_table()
+    {
+        // Alex's in-game MEASURE screen, 4 Nov 2026: TEE HEIGHT 67'4", 67'7", 67'7", 67'6" and GREEN HEIGHT ▲5'9", ▲5'6", ▲5'6", ▲5'7".
+        var file = Pga2K25.CourseFormat.CourseFile.Load(Path.Combine(TestPaths.PrivateDir, "pilolcura-analysis-2026-11-02.course"));
+        var course = file.ReadModel();
+        var m = HoleModelBuilder.Build(course, file.Description, 8);
+        var field = ReplayTerrain.BuildField(course, m);
+        double[] teeFt = [67 + 4 / 12.0, 67 + 7 / 12.0, 67 + 7 / 12.0, 67 + 6 / 12.0];
+        string[] green = ["▲5'9\"", "▲5'6\"", "▲5'6\"", "▲5'7\""];
+        for (int i = 0; i < 4; i++)
+        {
+            Assert.InRange(field.Sample(m.Tees[i].World) / HoleFrame.Foot - teeFt[i], -0.25, 0.25);   // the game's datum is the model's
+            Assert.True(HeightLabel.TryParse(green[i], out var g));
+            Assert.InRange(-m.Tees[i].ElevationFt - g, -0.25, 0.25);
+        }
+        // The cursor in the same screen: 179/201/217/232 yds to the four tees puts it about 230 out, 34 left of the
+        // line; ▲0'7" against Blue. The smoothed model is within a foot there; the plain replay is not.
+        var smooth = ReplayTerrain.Smoothed(m, field, 8);
+        var teeT4 = new FramePoint(0, 0);
+        Assert.InRange(-smooth.HeightFt(teeT4) * 12 - 67, -2, 2);       // the smoothed ground keeps the tee: green ▲5'7" from Blue
+        var cursor = new FramePoint(-34.5, 229.5);
+        Assert.InRange((smooth.HeightFt(cursor) - smooth.HeightFt(new FramePoint(0, 0))) * 12 - 7, -12, 12);
     }
 
     [Fact]

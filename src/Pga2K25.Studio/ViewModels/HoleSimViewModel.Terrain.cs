@@ -30,7 +30,7 @@ public partial class HoleSimViewModel
     [ObservableProperty] private string _driveSummary = "";
     [ObservableProperty] private string _liveSummary = "";
     [ObservableProperty] private string _liveFileText = "";
-    int _zeroPin;   // 0 = green centre, else pin number
+    int _zeroPin = -1;   // −1 = the chosen tee (the game's MEASURE shows heights against each tee), 0 = green centre, else pin number
 
     void LoadLiveChecks()
     {
@@ -39,8 +39,9 @@ public partial class HoleSimViewModel
         _live = LiveChecks.Load(_livePath, m.Number);
         LiveFileText = $"Saved as you type to {Path.Combine("Hole Sim", Path.GetFileName(_livePath))} beside the products.";
         var saved = _live.Readings.FirstOrDefault();
-        _zeroPin = saved?.Pin ?? 0;
+        _zeroPin = saved?.Pin ?? -1;
         ZeroButtons.Clear();
+        ZeroButtons.Add(new TabViewModel($"{m.Tee.Name} tee", _zeroPin == -1, () => SetZero(-1)));
         ZeroButtons.Add(new TabViewModel("Green centre", _zeroPin == 0, () => SetZero(0)));
         foreach (var p in m.Pins) { int n = p.Number; ZeroButtons.Add(new TabViewModel($"Pin {n}", _zeroPin == n, () => SetZero(n))); }
 
@@ -71,8 +72,9 @@ public partial class HoleSimViewModel
         foreach (var s in spots)
         {
             var saved = _live.Readings.FirstOrDefault(r => r.Spot == s.Name);
-            SpotRows.Add(new SpotRowViewModel(s, saved?.Label ?? "", saved?.HeldOut ?? s.HeldOut, ReadingsChanged));
+            SpotRows.Add(new SpotRowViewModel(s, m, saved?.Label ?? "", saved?.HeldOut ?? s.HeldOut, ReadingsChanged));
         }
+        UpdateZeroModel();
         RenderSpotMap();
         UpdateLiveSummary();
     }
@@ -81,16 +83,25 @@ public partial class HoleSimViewModel
     {
         if (_model is null) return;
         var labels = SpotRows.Select(r => (r.Spot.Where, r.Spot.Name, r.HasReading ? SKColor.Parse("#2D6A42") : SKColor.Parse("#B09766"))).ToList();
-        var png = HoleMapRenderer.RenderPng(_model, new MapView { PixelsPerYard = 1.3, SelectedPin = _zeroPin == 0 ? 1 : _zeroPin, ShowWidths = false, Overlay = new MapOverlay([], [], labels) });
+        var png = HoleMapRenderer.RenderPng(_model, new MapView { PixelsPerYard = 1.3, SelectedPin = _zeroPin <= 0 ? 1 : _zeroPin, ShowWidths = false, Overlay = new MapOverlay([], [], labels) });
         SpotMap = new Bitmap(new MemoryStream(png));
     }
 
-    FramePoint ZeroPoint => _zeroPin == 0 || _model is null ? _model!.GreenFrame : _model.Pins[_zeroPin - 1].Frame;
+    FramePoint ZeroPoint => _zeroPin switch { -1 => new FramePoint(0, 0), 0 => _model!.GreenFrame, _ => _model!.Pins[_zeroPin - 1].Frame };
+    string ZeroName => _zeroPin switch { -1 => $"the {_model!.Tee.Name} tee", 0 => "the green centre", _ => $"pin {_zeroPin}" };
+
+    /// <summary>Each row's model value is shown against the chosen zero, as the game's reading is.</summary>
+    void UpdateZeroModel()
+    {
+        double zero = _smoothed is null ? double.NaN : _smoothed.HeightFt(ZeroPoint);
+        foreach (var r in SpotRows) r.ZeroModelFt = zero;
+    }
 
     void SetZero(int pin)
     {
         _zeroPin = pin;
-        foreach (var b in ZeroButtons) b.IsSelected = pin == 0 ? b.Label == "Green centre" : b.Label == $"Pin {pin}";
+        foreach (var b in ZeroButtons) b.IsSelected = pin switch { -1 => b.Label.EndsWith(" tee"), 0 => b.Label == "Green centre", _ => b.Label == $"Pin {pin}" };
+        UpdateZeroModel();
         ReadingsChanged();
     }
 
@@ -127,7 +138,7 @@ public partial class HoleSimViewModel
         {
             var w = _model.Frame.ToWorld(r.Spot.Where);
             return new LiveChecks.SavedReading(r.Spot.Name, w.X, w.Z, zero.X, zero.Z, r.Feet!.Value, r.Label, r.HeldOut,
-                _zeroPin == 0 ? "green centre" : $"pin {_zeroPin}", _zeroPin, DateTime.Now);
+                ZeroName.Replace("the ", ""), _zeroPin, DateTime.Now);
         }).ToList();
         _live.FileSha256 = _stamp?.Sha256 ?? "";
         SaveLive();
@@ -142,7 +153,7 @@ public partial class HoleSimViewModel
     {
         int n = SpotRows.Count(r => r.Feet is not null), held = SpotRows.Count(r => r.Feet is not null && r.HeldOut);
         LiveSummary = n == 0 ? $"No readings yet. Take at least {TerrainGate.MinReadings}; {SpotRows.Count} spots are suggested."
-            : $"{n} reading{(n == 1 ? "" : "s")} ({held} held back to test the fit), zero at {(_zeroPin == 0 ? "the green centre" : $"pin {_zeroPin}")}.";
+            : $"{n} reading{(n == 1 ? "" : "s")} ({held} held back to test the fit), zero at {ZeroName}.";
     }
 
     // ───────── terrain models and the gate ─────────
@@ -269,15 +280,23 @@ public sealed partial class SpotRowViewModel : ObservableObject
 {
     readonly Action _changed;
 
-    public SpotRowViewModel(MeasureSpot spot, string label, bool heldOut, Action changed)
+    public SpotRowViewModel(MeasureSpot spot, HoleModel hole, string label, bool heldOut, Action changed)
     {
         Spot = spot; _changed = changed; _label = label; _heldOut = heldOut;
+        Where = spot.Name == "G" ? $"Green height in the tee table (for {hole.Tee.Name})"
+            : $"{spot.FromTeeYards} to {hole.Tee.Name} · {spot.ToGreenYards(hole)} to green";
         Parse();
     }
 
     public MeasureSpot Spot { get; }
     public string Name => Spot.Name;
-    public string FromTee => $"{Spot.FromTeeYards} yds";
+
+    /// <summary>Where to put the cursor: the game's TO TEE and TO GREEN yardages for this spot.</summary>
+    public string Where { get; }
+
+    double _zeroModelFt = double.NaN;
+    /// <summary>The model's height at the chosen zero (vs the green centre); the row's model value is shown against it.</summary>
+    public double ZeroModelFt { get => _zeroModelFt; set { _zeroModelFt = value; Parse(); } }
     /// <summary>Shown only once a reading is in, so the model's number can't steer what gets typed.</summary>
     [ObservableProperty] private string _model = "";
     [ObservableProperty] private string _label;
@@ -294,8 +313,9 @@ public sealed partial class SpotRowViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(Label)) { Feet = null; Parsed = ""; Model = ""; return; }
         if (HeightLabel.TryParse(Label, out var ft)) { Feet = ft; Parsed = "reads as " + HeightLabel.Describe(ft); ParsedInk = Brush.Parse("#1F4D30"); }
-        else { Feet = null; Parsed = "Can't read this. Try +1'4\", -0'7 or -5.3"; ParsedInk = Brush.Parse("#B4471F"); }
-        Model = Feet is null || double.IsNaN(Spot.ModelFt) ? "" : $"smoothed model {Spot.ModelFt:+0.0;-0.0} ft";
+        else { Feet = null; Parsed = "Can't read this. Try ▲1'4\", ▼0'7 or -5.3"; ParsedInk = Brush.Parse("#B4471F"); }
+        double rel = Spot.ModelFt - ZeroModelFt;
+        Model = Feet is null || double.IsNaN(rel) ? "" : $"smoothed model {HeightLabel.Describe(rel)}";
     }
 }
 

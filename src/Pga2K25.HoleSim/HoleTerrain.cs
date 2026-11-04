@@ -17,7 +17,7 @@ public interface ITerrainModel
     FramePoint Slope(FramePoint p);
 }
 
-/// <summary>The brush replay (<see cref="TerrainReplay"/>, the books' settings), optionally Gaussian-smoothed outside the greens.</summary>
+/// <summary>The brush replay (<see cref="TerrainReplay"/>, the books' settings), optionally Gaussian-smoothed outside the greens and tees.</summary>
 public sealed class ReplayTerrain : ITerrainModel
 {
     readonly HoleFrame _frame;
@@ -63,9 +63,11 @@ public sealed class ReplayTerrain : ITerrainModel
         Array.Copy(raw.Values, smooth.Values, raw.Values.Length);
         TerrainReplay.Smooth(smooth, sigmaMetres);
 
-        // Weight 1 on the green, fading to 0 by 6 yds outside it.
+        // Weight 1 on the green, fading to 0 by 6 yds outside it; the same round each tee (within 8 yds, fading by 16),
+        // because tee boxes are small, sharp flats and readings are often taken against a tee.
         var grid = hole.Grid;
         var near = DistanceToGreen(grid, 6);
+        var tees = hole.Tees.Select(t => hole.Frame.ToFrame(t.World)).ToList();
         for (int iz = 0; iz < raw.Height; iz++)
             for (int ix = 0; ix < raw.Width; ix++)
             {
@@ -73,10 +75,12 @@ public sealed class ReplayTerrain : ITerrainModel
                 int gx = (int)Math.Floor(f.Lat - grid.LatMin), gy = (int)Math.Floor(f.Along - grid.AlongMin);
                 double d = gx < 0 || gy < 0 || gx >= grid.Width || gy >= grid.Height ? 99 : near[gy * grid.Width + gx];
                 double w = Math.Clamp(1 - d / 6.0, 0, 1);
+                double dt = tees.Count == 0 ? 99 : tees.Min(p => p.DistanceTo(f));
+                w = Math.Max(w, Math.Clamp((16 - dt) / 8.0, 0, 1));
                 w = w * w * (3 - 2 * w);
                 smooth[ix, iz] = smooth[ix, iz] * (1 - w) + raw[ix, iz] * w;
             }
-        return new ReplayTerrain($"smoothed-{sigmaMetres:0}m", $"Replay smoothed {sigmaMetres:0} m outside greens", hole.Frame, smooth, smooth.Sample(hole.Green));
+        return new ReplayTerrain($"smoothed-{sigmaMetres:0}m", $"Replay smoothed {sigmaMetres:0} m outside greens and tees", hole.Frame, smooth, smooth.Sample(hole.Green));
     }
 
     /// <summary>The replay over the hole's grid plus a margin (1 m cells unless <paramref name="options"/> say otherwise).</summary>
