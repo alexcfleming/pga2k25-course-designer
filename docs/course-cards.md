@@ -55,9 +55,9 @@ The **course file is the source of truth**.
 | Ocean side detected; no wind set; a wind set by hand that the wind rose overrides | INFO |
 
 - **What gets written:** issues print to the log and go to `<course> - Card Validation.txt`.
-- **ERRORs stop the build.** `--force` (command line only) draws anyway for a draft. The errors are still reported.
+- **ERRORs stop a command-line build** unless `--force`. Forced cards, and every Studio build, are drawn as drafts: each card carries a DRAFT line (bottom left, in red) naming the first error and how many more there are, and the errors are still reported. So an in-progress course (Murray Estate's hole 8 tees out of order, a 9-hole routing) still gets cards to look at, and a draft can't pass for a finished card. Nothing is ever corrected.
 
-On Cassimbo the game's own scorecard has hole 4's Red tee longer than its Green (364 vs 362 yds), so a normal build stops.
+On Cassimbo the game's own scorecard has hole 4's Red tee longer than its Green (364 vs 362 yds), so a command-line build stops and Studio draws its cards marked DRAFT.
 
 **Blind spot.** An error that shifts every bearing the same way, such as a course whose bearings are all reversed by 180°, triggers no dogleg warning. Bearings taken from the file can't be reversed this way. To check visually, compare the rose against the terrain map. For example, Sagan-Khushun hole 1 is 90° (due east) on both.
 
@@ -114,5 +114,5 @@ Tests are in `tests/Pga2K25.Tests/CourseCardTests.cs`. They cover:
 - the compass convention
 - Sagan-Khushun data and live header totals
 - Cassimbo's inverted tees being reported but not corrected, and tee names, hole names and hand-written notes from the Holes card
-- ERRORs stopping the build unless forced
+- ERRORs stopping the build unless forced, and forced cards carrying the DRAFT line
 - the course data card's wind agreeing with the Wind Card (fetched record, climate model, no rose)

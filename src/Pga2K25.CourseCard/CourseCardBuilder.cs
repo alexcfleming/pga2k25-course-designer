@@ -17,7 +17,7 @@ public static class CourseCardBuilder
     /// the green size card in each configured format,
     /// plus "&lt;course&gt; - Card Validation.txt". ERRORs abort before anything is drawn; nothing is ever corrected.
     /// </summary>
-    /// <param name="force">Draw even with ERRORs (drafts only): the errors are still reported and written to the validation file.</param>
+    /// <param name="force">Draw even with ERRORs, as drafts: every card carries a DRAFT line naming the first error, and the errors are still reported and written to the validation file. Studio always builds this way, so an in-progress course still gets its cards.</param>
     public static CourseCardResult Build(string coursePath, string outputDir, CourseCardConfig config,
         IProgress<string>? log = null, bool force = false)
     {
@@ -81,8 +81,14 @@ public static class CourseCardBuilder
         string baseName = string.Concat(data.CourseName.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)).Trim();
         string report = Path.Combine(outputDir, $"{baseName} - Card Validation.txt");
         File.WriteAllLines(report, issues.Select(i => i.ToString()).DefaultIfEmpty("No issues."));
-        if (issues.Any(i => i.Severity == Severity.Error) && !force)
-            throw new InvalidDataException($"Card build stopped: {issues.Count(i => i.Severity == Severity.Error)} error(s); see {report}. Nothing was corrected.");
+        var errors = issues.Where(i => i.Severity == Severity.Error).Select(i => i.Message).ToList();
+        if (errors.Count > 0 && !force)
+            throw new InvalidDataException($"Card build stopped: {errors.Count} error(s); see {report}. Nothing was corrected.");
+        if (errors.Count > 0)
+        {
+            log?.Report($"[INFO] Drawn as DRAFT cards: {errors.Count} error(s) are printed on every card. Nothing was corrected.");
+            File.AppendAllLines(report, [$"[INFO] Drawn as DRAFT cards despite {errors.Count} error(s); each card carries a DRAFT line."]);
+        }
 
         var files = new List<string>();
         using var renderer = new CourseCardRenderer(data, config, ocean)
@@ -98,7 +104,7 @@ public static class CourseCardBuilder
         };
         if (greenCard) pages.Add(("Green Size Card", CourseCardRenderer.CardPage, renderer.DrawGreenSizePage));
         if (wind is not null) pages.Add(("Wind Card", CourseCardRenderer.CardPage, renderer.DrawWindPage));
-        pages = pages.Select(p => (p.Name, p.Size, (Action<SKCanvas>)(c => { p.Draw(c); renderer.DrawAttribution(c, p.Size); }))).ToList();
+        pages = pages.Select(p => (p.Name, p.Size, (Action<SKCanvas>)(c => { p.Draw(c); renderer.DrawAttribution(c, p.Size); renderer.DrawDraftNote(c, p.Size, errors); }))).ToList();
         var formats = config.Formats.Select(f => f.ToLowerInvariant()).ToHashSet();
         foreach (var (name, size, draw) in pages)
         {

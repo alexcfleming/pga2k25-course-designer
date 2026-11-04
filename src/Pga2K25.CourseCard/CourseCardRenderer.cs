@@ -105,6 +105,19 @@ public sealed partial class CourseCardRenderer : IDisposable
 
     // ───────────────────────────── pages ─────────────────────────────
 
+    /// <summary>
+    /// The DRAFT line in the bottom-left corner of a card drawn despite validation errors (an in-progress course):
+    /// the first error in words, and how many more, so a draft can't pass for a finished card.
+    /// </summary>
+    public void DrawDraftNote(SKCanvas canvas, SKSize page, IReadOnlyList<string> errors)
+    {
+        if (errors.Count == 0) return;
+        string more = errors.Count > 1 ? $" (+{errors.Count - 1} more, see Card Validation.txt)" : "";
+        Text(canvas, $"DRAFT · not for publishing: {errors[0]}{more}", 0.02f * page.Width, page.Height - 10, 7.5f, _bold, Draft);
+    }
+
+    static readonly SKColor Draft = SKColor.Parse("#B4471F");
+
     /// <summary>The small "created using" note in the bottom-right corner of a card.</summary>
     public void DrawAttribution(SKCanvas canvas, SKSize page) =>
         Text(canvas, CourseFormat.Attribution.Text, page.Width - 0.02f * page.Width, page.Height - 10, 7.5f, _serif, Faint, SKTextAlign.Right);

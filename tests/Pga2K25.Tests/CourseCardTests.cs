@@ -125,4 +125,24 @@ public class CourseCardTests
             if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
         }
     }
+
+    [PrivateSampleFact("luke-normal-golf-course.course")]
+    public void Incomplete_course_stops_unless_forced_and_forced_cards_are_drafts()
+    {
+        // Luke's 9-hole course fails "Expected 18 holes"; Studio builds forced so it still gets cards, marked DRAFT.
+        var path = Path.Combine(TestPaths.PrivateDir, "luke-normal-golf-course.course");
+        var dir = Path.Combine(Path.GetTempPath(), $"cards-draft-{Guid.NewGuid():N}");
+        try
+        {
+            var config = new CourseCardConfig { Formats = ["png"], Dpi = 40 };
+            Assert.Throws<InvalidDataException>(() => CourseCardBuilder.Build(path, dir, config));
+            var result = CourseCardBuilder.Build(path, dir, config, force: true);
+            Assert.Contains(result.Issues, i => i.Severity == Severity.Error && i.Message.Contains("18 holes"));
+            Assert.Contains(result.Files, f => f.EndsWith("Course Data Card.png"));
+            Assert.Contains(result.Files, f => f.EndsWith("Hole Data Card.png"));
+            var report = File.ReadAllText(Directory.GetFiles(dir, "* - Card Validation.txt").Single());
+            Assert.Contains("Drawn as DRAFT cards", report);
+        }
+        finally { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
+    }
 }

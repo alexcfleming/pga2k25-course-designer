@@ -24,6 +24,7 @@ public sealed record ProductPage(string Title, string Path);
 
 public static class Products
 {
+    /// <summary>Every product, in menu and "Build all" order (Alex's order, 4 Nov 2026).</summary>
     public static readonly IReadOnlyList<ProductDefinition> All =
     [
         new("Terrain map", " - Terrain Map.png", c =>
@@ -38,6 +39,17 @@ public static class Products
                 new HoleSheetOptions { Map = c.Extras.Terrain.ToSheetOptions(c.Settings.Credit) }, null, c.Log).PdfPath)
         {
             Pages = ["{0} - Hole Sheets/*.png"], Pdfs = ["{0} - Hole Sheets.pdf"],
+        },
+        new("Course cards", " - Course Data Card.png", c =>
+        {
+            var config = c.Extras.CardConfig is { } cfg && File.Exists(cfg) ? CourseCardConfig.Load(cfg) : new CourseCardConfig();
+            // force: an in-progress course still gets its cards, each marked DRAFT with the first validation error.
+            return CourseCardBuilder.Build(c.CoursePath, c.OutputDir, config, c.Log, force: true).Files
+                .FirstOrDefault(f => f.EndsWith("Course Data Card.png", StringComparison.OrdinalIgnoreCase));
+        })
+        {
+            Pages = ["{0} - Course Data Card.png", "{0} - Green Size Card.png", "{0} - Wind Card.png", "{0} - Hole Data Card.png", "{0} - Compass Rose.png"],
+            Pdfs = ["{0} - Course Data Card.pdf", "{0} - Green Size Card.pdf", "{0} - Wind Card.pdf", "{0} - Hole Data Card.pdf", "{0} - Compass Rose.pdf"],
         },
         new("Greens book", " - Greens Book.png", c =>
             GreensBookBuilder.Build(c.CoursePath, c.OutputDir, new GreensBookOptions { Credit = c.Settings.Credit },
@@ -55,6 +67,11 @@ public static class Products
         {
             Pages = ["{0} - Yardage Book/*.png"], Pdfs = ["{0} - Yardage Book.pdf"],
         },
+        // Reads Estimate.json from the course's output folder for per-course choices (zones, overrides).
+        new("Construction estimate", " - Estimate.pdf", c => EstimateBuilder.Build(c.CoursePath, c.OutputDir, log: c.Log).PdfPath)
+        {
+            Pages = ["{0} - Estimate/*.png"], Pdfs = ["{0} - Estimate.pdf"],
+        },
         new("Scorecard map", " - Scorecard Map (Vintage).png", c =>
         {
             var options = new ScorecardMapOptions { Credit = c.Settings.Credit, BunkerMergeMetres = c.Extras.BunkerMergeMetres };
@@ -64,21 +81,6 @@ public static class Products
         {
             Pages = ["{0} - Scorecard Map (Vintage).png", "{0} - Scorecard Map (Modern).png", "{0} - Scorecard Map (Illustrated).png", "{0} - Scorecard Map (Plan Sheet).png", "{0} - Scorecard Map (Modern Illustrated).png"],
             Pdfs = ["{0} - Scorecard Map (Vintage).pdf", "{0} - Scorecard Map (Modern).pdf", "{0} - Scorecard Map (Illustrated).pdf", "{0} - Scorecard Map (Plan Sheet).pdf", "{0} - Scorecard Map (Modern Illustrated).pdf"],
-        },
-        new("Course cards", " - Course Data Card.png", c =>
-        {
-            var config = c.Extras.CardConfig is { } cfg && File.Exists(cfg) ? CourseCardConfig.Load(cfg) : new CourseCardConfig();
-            return CourseCardBuilder.Build(c.CoursePath, c.OutputDir, config, c.Log).Files
-                .FirstOrDefault(f => f.EndsWith("Course Data Card.png", StringComparison.OrdinalIgnoreCase));
-        })
-        {
-            Pages = ["{0} - Course Data Card.png", "{0} - Green Size Card.png", "{0} - Wind Card.png", "{0} - Hole Data Card.png", "{0} - Compass Rose.png"],
-            Pdfs = ["{0} - Course Data Card.pdf", "{0} - Green Size Card.pdf", "{0} - Wind Card.pdf", "{0} - Hole Data Card.pdf", "{0} - Compass Rose.pdf"],
-        },
-        // Reads Estimate.json from the course's output folder for per-course choices (zones, overrides).
-        new("Construction estimate", " - Estimate.pdf", c => EstimateBuilder.Build(c.CoursePath, c.OutputDir, log: c.Log).PdfPath)
-        {
-            Pages = ["{0} - Estimate/*.png"], Pdfs = ["{0} - Estimate.pdf"],
         },
     ];
 

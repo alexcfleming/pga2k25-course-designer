@@ -87,7 +87,7 @@ public partial class WorkspaceViewModel
         {
             try { CourseThumbnail = Bitmap.DecodeToWidth(new MemoryStream(bytes), 96); } catch (Exception) { CourseThumbnail = null; }
         }
-        foreach (var label in new[] { TerrainSection, MeasurementsSection, SettingsSection, EstimateInputsSection, ReadinessSection, HoleSimSection })
+        foreach (var label in new[] { TerrainSection, HoleSimSection, MeasurementsSection, SettingsSection, EstimateInputsSection, ReadinessSection })
             Sections.Add(new NavItemViewModel(label, label == Section, () => Section = label));
         foreach (var p in Products.All.Where(p => p.Name != TerrainSection))
             ProductSections.Add(new NavItemViewModel(p.Name, false, () => Section = p.Name));

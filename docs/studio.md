@@ -76,16 +76,18 @@ The left-hand menu has the course's sections, its products with page counts, and
 
 Products are written to `<output folder>\<course>\`:
 
+Products are listed (and built by **Build all**) in this order: terrain map, hole sheets, course cards, greens book, yardage book, construction estimate, scorecard map. The Hole design simulator sits right below the terrain map in the section menu.
+
 | Product | Studio builds |
 |---|---|
 | Terrain map | The PNG and a PDF (vector contours and text, 250 dpi page) from the course's saved map options. Defaults: the routing plus a 150 m margin, relief shading, Auto contours, 4 px/m |
 | Hole sheets | Every hole: PNGs and one PDF. They use the map options for area, shading, layers and water; each sheet picks its own finer contour interval |
+| Course cards | From the course-card settings file, Place and Holes cards. A course with validation errors (an in-progress course such as Murray Estate, or one with fewer than 18 holes) still gets its cards, each marked DRAFT with the first error; the errors are in Card Validation.txt |
 | Greens book | The sheet, a study PNG per green, and the PDF |
 | Yardage book | The PDF and a PNG per hole; tee and hole names from the Holes card; fairway widths at 250 yds and across the design tee shot from Publish readiness |
 | Scorecard map | Vintage, Modern, Illustrated, Plan Sheet and Modern Illustrated, each as PNG and PDF; tee and hole names from the Holes card, the wind rose from the Place card; bunkers merged at the course's Bunker merge |
-| Course cards | From the course-card settings file, Place and Holes cards; errors stop the build |
 
-Everything else is on the command line (`src/Pga2K25.Cli`): hole subsets, scorecard orientation and waste, forcing a draft course card, and so on. See each product's page in `docs/`.
+Everything else is on the command line (`src/Pga2K25.Cli`): hole subsets, scorecard orientation and waste, and so on. See each product's page in `docs/`.
 
 ## Packaging a release
 
