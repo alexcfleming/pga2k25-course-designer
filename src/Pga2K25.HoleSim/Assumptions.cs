@@ -185,6 +185,18 @@ public sealed class AssumptionSheet
     /// <summary>Ids of placeholder rows, for the "depends on" note on each result.</summary>
     public IReadOnlyList<AssumptionRow> Placeholders => Rows.Where(r => r.IsPlaceholder).ToList();
 
+    /// <summary>Rows only a terrain run uses: the smoothing candidate, slope roll and the carry change for height.</summary>
+    static readonly HashSet<string> TerrainOnly = ["terrain.smoothing", "ground.slope", "ground.elevationCarry"];
+
+    /// <summary>
+    /// The placeholder rows a tee-shot run actually leans on: the chosen player's rows only (a Power Drive run doesn't
+    /// use the Normal player's carry), the ground and scoring rows, and the terrain rows only when the run used terrain.
+    /// </summary>
+    public IReadOnlyList<AssumptionRow> PlaceholdersFor(string playerId, bool terrain) => Rows.Where(r =>
+        r.IsPlaceholder
+        && (r.Group == "Player" ? r.Id.StartsWith($"player.{playerId}.") : r.Group is "Ground" or "Scoring")
+        && (terrain || !TerrainOnly.Contains(r.Id))).ToList();
+
     // Typed views for the engine.
 
     public PlayerProfile Profile(string id) => id switch

@@ -456,7 +456,7 @@ public partial class HoleSimViewModel : ObservableObject
             + $"{b.MeanSg:+0.000;-0.000} strokes gained off the tee (± {b.SgCi95:0.000}), {b.ExpectedStrokes:0.00} expected strokes for the hole.";
         RunNotes.Clear();
         foreach (var n in run.Notes) RunNotes.Add(n);
-        var ph = _sheet.Rows.Where(r => r.IsPlaceholder && (r.Group is "Player" or "Ground" or "Scoring")).Select(r => r.Label).ToList();
+        var ph = _sheet.PlaceholdersFor(run.Player.Id, run.Terrain is not null).Select(r => r.Label).ToList();
         DependsText = ph.Count == 0 ? "" : $"Depends on {ph.Count} placeholder values: {string.Join("; ", ph)}.";
         HasResults = true;
     }
