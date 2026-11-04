@@ -245,6 +245,25 @@ public class HoleSimTests
     }
 
     [Fact]
+    public void A_run_depends_only_on_its_own_players_placeholders()
+    {
+        var sheet = AssumptionSheet.Load();
+        var now = new DateTime(2026, 11, 4, 9, 0, 0, DateTimeKind.Utc);
+        Assert.Null(sheet["player.power.carry"].TrySet("330", now));          // Alex's own value: no longer a placeholder
+        var power = sheet.PlaceholdersFor("power", terrain: false).Select(r => r.Id).ToList();
+        Assert.DoesNotContain(power, id => id.StartsWith("player.normal."));
+        Assert.DoesNotContain("player.power.carry", power);
+        Assert.Contains("player.power.carrySd", power);
+        Assert.DoesNotContain("ground.elevationCarry", power);                 // flat-ground run
+        Assert.Contains("scoring.baseline", power);
+        var normal = sheet.PlaceholdersFor("normal", terrain: true).Select(r => r.Id).ToList();
+        Assert.Contains("player.normal.carry", normal);
+        Assert.DoesNotContain(normal, id => id.StartsWith("player.power."));
+        Assert.Contains("ground.elevationCarry", normal);
+        Assert.Contains("terrain.smoothing", normal);
+    }
+
+    [Fact]
     public void Course_settings_rows_come_from_the_file_with_the_stimp_line()
     {
         var file = CourseFile.Load(Cassimbo);
