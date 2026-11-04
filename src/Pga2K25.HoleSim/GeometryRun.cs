@@ -40,6 +40,12 @@ public sealed record RunSettings
     public int KeepPoints { get; init; } = 400;
 }
 
+/// <summary>
+/// Terrain for a run, allowed by the gate: the model, how far it can be trusted ("Trustworthy", "Indicative: results carry
+/// a warning", or "terrain unverified" for an override) and the elevation carry rule.
+/// </summary>
+public sealed record TerrainUse(ITerrainModel Model, string Label, double YardsPerFootDrop = 1 / 3.0);
+
 public sealed record ShotSample(FramePoint Landing, FramePoint Finish, Ground Ground);
 
 /// <summary>One aim's tee shots. Aim is yards right (+) or left (−) of the line from the tee to the game's aim marker.</summary>
@@ -67,6 +73,9 @@ public sealed record GeometryRunResult(
     RunSettings Settings,
     IReadOnlyList<string> Notes)
 {
+    /// <summary>The terrain the run rolled on; null for a geometry-only run.</summary>
+    public TerrainUse? Terrain { get; init; }
+
     public AimResult Best => Aims.OrderByDescending(a => a.MeanSg).First();
 }
 
@@ -80,7 +89,7 @@ public sealed record GeometryRunResult(
 public static class GeometryRun
 {
     public static GeometryRunResult Run(HoleModel hole, PlayerProfile player, int pin, GroundTable ground, LieMap lies,
-        IBaseline baseline, RunSettings? settings = null, SurfaceGrid? grid = null)
+        IBaseline baseline, RunSettings? settings = null, SurfaceGrid? grid = null, TerrainUse? terrain = null)
     {
         settings ??= new RunSettings();
         grid ??= hole.Grid;
@@ -88,6 +97,7 @@ public static class GeometryRun
         var aimDir = hole.AimFrame.Length > 1e-6 ? hole.AimFrame * (1 / hole.AimFrame.Length) : new FramePoint(0, 1);
         var aimRight = new FramePoint(aimDir.Along, -aimDir.Lat);
         var tee = baseline.ExpectedStrokes(Lie.Tee, pinF.Length);
+        double teeHeight = terrain?.Model.HeightFt(new FramePoint(0, 0)) ?? 0;
 
         var aims = new List<AimResult>();
         int steps = (int)Math.Round((settings.AimMax - settings.AimMin) / settings.AimStep);
@@ -104,7 +114,13 @@ public static class GeometryRun
                 double carry = player.Carry + Normal(rng) * player.CarrySd;
                 double side = aim + Normal(rng) * player.SideSd;
                 var landing = aimDir * carry + aimRight * side;
-                var finish = Roll(grid, ground, landing, landing * (1 / Math.Max(landing.Length, 1e-6)), ground.LandingSpeed);
+                if (terrain is not null)
+                {
+                    // Carry gains (loses) yards for ground below (above) the tee: PLACEHOLDER 1 yd per 3 ft.
+                    carry += (teeHeight - terrain.Model.HeightFt(landing)) * terrain.YardsPerFootDrop;
+                    landing = aimDir * carry + aimRight * side;
+                }
+                var finish = Roll(grid, ground, landing, landing * (1 / Math.Max(landing.Length, 1e-6)), ground.LandingSpeed, terrain?.Model);
                 var g = grid.At(finish);
                 counts[(int)g]++;
                 double d = finish.DistanceTo(pinF);
@@ -123,38 +139,45 @@ public static class GeometryRun
 
         var notes = new List<string>
         {
-            "Geometry only: flat ground, no slope roll, no carry change for elevation, no wind.",
+            terrain is null ? "Geometry only: flat ground, no slope roll, no carry change for elevation, no wind."
+                : $"Terrain: {terrain.Model.Name} ({terrain.Label}). Slope roll and elevation carry on; no wind.",
             $"Baseline {baseline.Id}" + (baseline.Secondary ? " (secondary anchors, sparse)" : "") + ". " + StrokesGained.SignConvention,
         };
         if (!tee.Covered) notes.Add($"The tee distance ({pinF.Length:0} yds) is outside the baseline's tee rows; the nearest row was used.");
         var best = aims.OrderByDescending(a => a.MeanSg).First();
         if (best == aims[0] || best == aims[^1]) notes.Add($"The best aim ({best.Aim:+0;-0;0}) is at the edge of the sweep; the true best may lie further out.");
         double worstOutside = aims.Max(a => a.OutsideTableShare);
-        if (worstOutside > 0) notes.Add($"Up to {worstOutside:P0} of finishes at one aim fall outside the baseline's rows for their lie (valued at the nearest row, not extrapolated).");
-        return new GeometryRunResult(player, pin, baseline.Id, tee.Value, tee.Coverage, aims, settings, notes);
+        if (worstOutside >= 0.005) notes.Add($"Up to {worstOutside:P0} of finishes at one aim fall outside the baseline's rows for their lie (valued at the nearest row, not extrapolated).");
+        return new GeometryRunResult(player, pin, baseline.Id, tee.Value, tee.Coverage, aims, settings, notes) { Terrain = terrain };
     }
 
     /// <summary>
-    /// The proof of concept's bounce-and-roll with the slope term off: a forward hop, then rolling friction μ·g until
-    /// the ball stops or runs onto sand, scrub or water. Positions in yards, speeds in m/s.
+    /// The proof of concept's bounce and roll: a forward hop, then rolling friction μ·g against the ball's motion and,
+    /// when a terrain model is given, gravity down the slope, until the ball stops (slow and on ground flatter than its
+    /// friction) or runs onto sand, scrub or water. Without terrain the ground is flat. Positions in yards, speeds in m/s.
     /// </summary>
-    public static FramePoint Roll(SurfaceGrid grid, GroundTable table, FramePoint landing, FramePoint heading, double speed)
+    public static FramePoint Roll(SurfaceGrid grid, GroundTable table, FramePoint landing, FramePoint heading, double speed, ITerrainModel? terrain = null)
     {
         var g = grid.At(landing);
         if (Grounds.Stops(g)) return landing;
         var p0 = table.For(g);
         double hop = p0.HopMetres * (speed > 4 ? 1 : 0.4) / HoleFrame.Yard;
         var p = landing + heading * hop;
-        double v = speed * p0.Kept;
+        var v = heading * (speed * p0.Kept);   // m/s, in frame directions
         const double dt = 0.05, gravity = 9.81;
-        for (int k = 0; k < 500 && v > 0.08; k++)
+        for (int k = 0; k < 500; k++)
         {
             g = grid.At(p);
             if (Grounds.Stops(g)) break;
             double mu = table.For(g).Friction;
-            double step = v * dt - 0.5 * mu * gravity * dt * dt;
-            p += heading * (Math.Max(step, 0) / HoleFrame.Yard);
-            v -= mu * gravity * dt;
+            var slope = terrain?.Slope(p) ?? new FramePoint(0, 0);
+            double sp = v.Length;
+            if (sp < 0.08 && slope.Length < mu) break;
+            // Friction can only stop the ball, never push it back: cap it at the speed it has.
+            var frictionDir = sp > 1e-9 ? v * (1 / sp) : new FramePoint(0, 0);
+            double frictionDv = Math.Min(mu * gravity * dt, sp);
+            v = v - frictionDir * frictionDv - slope * (gravity * dt);
+            p += v * (dt / HoleFrame.Yard);
         }
         return p;
     }
