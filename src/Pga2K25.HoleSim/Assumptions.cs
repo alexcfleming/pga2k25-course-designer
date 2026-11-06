@@ -205,15 +205,35 @@ public sealed class AssumptionSheet
         _ => new PlayerProfile("normal", "Normal", this["player.normal.carry"].Number, this["player.normal.carrySd"].Number, this["player.normal.sideSd"].Number),
     };
 
-    public GroundTable GroundRules()
+    /// <summary>Ground rules for a run. The green's rolling friction comes from the Stimp reading (<see cref="GreenPhysics"/>).</summary>
+    public GroundTable GroundRules(double greenFriction = 0.0545)
     {
         GroundParams P(string id) { var v = this[id].Numbers; return new GroundParams(v[0], v[1], v[2]); }
         var heavy = P("ground.heavy");
+        var bounce = this["ground.greenBounce"].Numbers;
         return new GroundTable(this["ground.landingSpeed"].Number, new Dictionary<Ground, GroundParams>
         {
             [HoleSim.Ground.Native] = heavy, [HoleSim.Ground.HeavyRough] = heavy, [HoleSim.Ground.Rough] = P("ground.rough"),
-            [HoleSim.Ground.Fairway] = P("ground.fairway"), [HoleSim.Ground.Green] = P("ground.green"),
+            [HoleSim.Ground.Fairway] = P("ground.fairway"), [HoleSim.Ground.Green] = new GroundParams(greenFriction, bounce[0], bounce[1]),
         });
+    }
+
+    public PuttingSettings Putting() => new()
+    {
+        CaptureSpeed = this["greens.capture"].Number, PastM = this["greens.past"].Number, StaticFactor = this["greens.static"].Number,
+    };
+
+    public ShotRules ShotRules()
+    {
+        var r = this["approach.release"].Numbers;
+        return new ShotRules { ReleasePct = r[0], ReleaseMin = r[1], ReleaseMax = r[2], ChipShare = this["approach.chipShare"].Number, YardsPerFootRise = this["approach.heightCarry"].Number };
+    }
+
+    /// <summary>Where the golfer fit starts from, with the values the anchors can't fit.</summary>
+    public GolferParams GolferStart()
+    {
+        var d = this["approach.drive"].Numbers; var g = new GolferParams();
+        return g with { SidePct = g.DistPct * this["approach.sideShare"].Number, HeavyMult = this["approach.heavyMult"].Number, TourDriveCarrySd = d[0], TourDriveSideSd = d[1] };
     }
 
     public LieMap Lies() => new(
