@@ -15,7 +15,7 @@ namespace Pga2K25.Studio.ViewModels;
 /// </summary>
 public partial class HoleSimViewModel
 {
-    public const string ApproachMapStep = "9  Approach map";
+    public const string ApproachMapStep = "Approach map";
 
     sealed record PinMaps(ApproachHeatMap? Heat, IReadOnlyList<TeeShotOption>? Tees, LeaveMap Leave, IReadOnlyList<AngleOption> Angles, byte[]? HeatPng, byte[] LeavePng);
 

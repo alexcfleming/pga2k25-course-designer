@@ -18,7 +18,7 @@ namespace Pga2K25.Studio.ViewModels;
 /// </summary>
 public partial class HoleSimViewModel
 {
-    public const string ApproachStep = "8  Approach";
+    public const string ApproachStep = "Approach";
 
     static readonly string FitCacheFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CourseDesignerStudio", "holesim");
 

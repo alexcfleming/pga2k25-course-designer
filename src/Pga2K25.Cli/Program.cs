@@ -95,6 +95,8 @@ const string Usage = """
       --second-shot [--second-png file.png] plays a par 5 second shot from the best drive's typical finish
       (or --from yds[,side]): going for the green with the player's longest club against laying up to every
       fairway spot in reach, each valued by the third shot it leaves
+      --whole plays every pin tee to cup for --player (strokes gained by phase); --experiments plays design
+      changes (landing zone 5 yds wider or narrower, hazards near play taken out) against the hole as it is
     pga2k25 holesim-terrain <file.course> --holes 11,3,4 [--smooth 8] [--readings 10] [--fit-length 25]
       terrain study for the hole design simulator, on a course whose distance markers carry the
       game's ground height (Sangoma): the brush replay and the replay smoothed outside greens,
@@ -169,6 +171,7 @@ static int HoleSimCommand(string path, string[] rest)
     bool approach = false; double fromYards = 150, fromSide = 0; string aimArg = "best"; double? aimDistance = null; string? approachPng = null; bool fromTee = false;
     bool heat = false, angles = false, teeShots = false; string? heatPng = null, leavePng = null;
     bool secondShot = false; string? secondPng = null; bool fromSet = false;
+    bool wholeHole = false, experiments = false;
     var settings = new Pga2K25.HoleSim.RunSettings();
     var treat = new Dictionary<int, Pga2K25.HoleSim.Ground?>();
     for (int i = 0; i < rest.Length; i++)
@@ -206,6 +209,8 @@ static int HoleSimCommand(string path, string[] rest)
             case "--leave-png": leavePng = Next(); break;
             case "--second-shot": secondShot = true; break;
             case "--second-png": secondShot = true; secondPng = Next(); break;
+            case "--whole": wholeHole = true; break;
+            case "--experiments": experiments = true; break;
             case "--treat":
                 foreach (var kv in Next().Split(',', StringSplitOptions.RemoveEmptyEntries))
                 {
@@ -333,6 +338,37 @@ static int HoleSimCommand(string path, string[] rest)
             File.WriteAllBytes(approachPng, Pga2K25.HoleSim.HoleMapRenderer.RenderPng(m, new() { SelectedPin = pin, Overlay = new(pts, rings) }));
             Console.WriteLine($"Wrote {approachPng}");
         }
+    }
+    if (wholeHole || experiments)
+    {
+        double stimp = Pga2K25.HoleSim.AssumptionSheet.Stimp(course.GreenSpeed) ?? 10;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var surface = Pga2K25.HoleSim.GreenSurface.Build(m, Pga2K25.HoleSim.ReplayTerrain.Smoothed(course, m, sheet["terrain.smoothing"].Number));
+        var cache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CourseDesignerStudio", "holesim");
+        var (ctx, _) = Pga2K25.HoleSim.ApproachSetup.Build(m, surface, null, sheet, baseline, stimp, cache);
+        var plan = new Pga2K25.HoleSim.HolePlan { Context = ctx, Player = run.Player, Reach = sheet.Reach(run.Player.Id), DriveAim = m.Par == 3 ? 0 : run.Best.Aim };
+        Console.WriteLine();
+        Console.WriteLine($"Whole hole, {run.Player.Name}" + (m.Par == 3 ? "" : $", drive aimed {plan.DriveAim:+0;-0;0} off the aim marker") + ":");
+        Console.WriteLine("  pin  score  to par   SG tee  approach  short  putting   fairway  GIR  scrambling  birdie  bogey+");
+        var before = new List<Pga2K25.HoleSim.HoleSummary>();
+        foreach (var p in m.Pins)
+        {
+            var s = Pga2K25.HoleSim.HolePlay.Play(plan, p.Number, experiments && !wholeHole ? 400 : 600);
+            before.Add(s);
+            Console.WriteLine($"  {s.Pin,3}  {s.Expected,5:0.00}  {s.ToPar,6:+0.00;-0.00;0.00}   {(m.Par == 3 ? "  —  " : s.Sg.Tee.ToString("+0.00;-0.00;0.00", inv)),6}  {s.Sg.Approach,8:+0.00;-0.00;0.00}  {s.Sg.Short,5:+0.00;-0.00;0.00}  {s.Sg.Putting,7:+0.00;-0.00;0.00}   {(double.IsNaN(s.FairwayHit) ? "—" : s.FairwayHit.ToString("0%", inv)),7}  {s.GreenInRegulation,3:P0}  {(double.IsNaN(s.Scrambling) ? "—" : s.Scrambling.ToString("0%", inv)),10}  {s.Birdie,6:P0}  {s.BogeyOrWorse,6:P0}  {s.Plan}");
+        }
+        Console.WriteLine($"  average {before.Average(s => s.Expected):0.00} ({before.Average(s => s.ToPar):+0.00;-0.00;0.00} to par); phases add up to the baseline's tee value less the score");
+        if (experiments)
+        {
+            if (wholeHole) before = m.Pins.Select(p => Pga2K25.HoleSim.HolePlay.Play(plan, p.Number, 400)).ToList();
+            Console.WriteLine("Design experiments (same draws, 400 play-outs per pin; negative = easier):");
+            foreach (var e in Pga2K25.HoleSim.Experiments.Suggested(plan))
+            {
+                var r = Pga2K25.HoleSim.Experiments.Compare(e.Name, e.Detail, plan, Pga2K25.HoleSim.Experiments.OnGrid(plan, e.Apply(m)), before);
+                Console.WriteLine($"  {r.Delta,7:+0.000;-0.000;0.000} ±{r.Ci95:0.000}  {r.Name} ({r.CellsChanged} sq yd)  " + string.Join(" ", r.Pins.Select(pc => $"p{pc.Pin} {pc.Delta:+0.00;-0.00;0.00}")));
+            }
+        }
+        Console.WriteLine($"  ({sw.Elapsed.TotalSeconds:0.0} s)");
     }
     if (secondShot)
     {

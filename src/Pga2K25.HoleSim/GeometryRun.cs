@@ -88,6 +88,28 @@ public sealed record GeometryRunResult(
 /// </summary>
 public static class GeometryRun
 {
+    /// <summary>
+    /// One drive from the tee (the frame's origin) at <paramref name="aim"/> yds right of the aim-marker line: carry and
+    /// side drawn from the player's spreads (in that order, so runs and play-outs share draws), the elevation carry when
+    /// terrain is on, then the roll. Returns where it lands and where it finishes.
+    /// </summary>
+    public static (FramePoint Landing, FramePoint Finish) Drive(HoleModel hole, SurfaceGrid grid, GroundTable ground, PlayerProfile player, double aim, Random rng, TerrainUse? terrain = null)
+    {
+        var aimDir = hole.AimFrame.Length > 1e-6 ? hole.AimFrame * (1 / hole.AimFrame.Length) : new FramePoint(0, 1);
+        var aimRight = new FramePoint(aimDir.Along, -aimDir.Lat);
+        double carry = player.Carry + Normal(rng) * player.CarrySd;
+        double side = aim + Normal(rng) * player.SideSd;
+        var landing = aimDir * carry + aimRight * side;
+        if (terrain is not null)
+        {
+            // Carry gains (loses) yards for ground below (above) the tee: PLACEHOLDER 1 yd per 3 ft.
+            carry += (terrain.Model.HeightFt(new FramePoint(0, 0)) - terrain.Model.HeightFt(landing)) * terrain.YardsPerFootDrop;
+            landing = aimDir * carry + aimRight * side;
+        }
+        var finish = Roll(grid, ground, landing, landing * (1 / Math.Max(landing.Length, 1e-6)), ground.LandingSpeed, terrain?.Model);
+        return (landing, finish);
+    }
+
     public static GeometryRunResult Run(HoleModel hole, PlayerProfile player, int pin, GroundTable ground, LieMap lies,
         IBaseline baseline, RunSettings? settings = null, SurfaceGrid? grid = null, TerrainUse? terrain = null)
     {
@@ -111,16 +133,7 @@ public static class GeometryRun
             for (int i = 0; i < n; i++)
             {
                 var rng = new Random(unchecked(settings.Seed * 1_000_003 + i));   // same draws for every aim
-                double carry = player.Carry + Normal(rng) * player.CarrySd;
-                double side = aim + Normal(rng) * player.SideSd;
-                var landing = aimDir * carry + aimRight * side;
-                if (terrain is not null)
-                {
-                    // Carry gains (loses) yards for ground below (above) the tee: PLACEHOLDER 1 yd per 3 ft.
-                    carry += (teeHeight - terrain.Model.HeightFt(landing)) * terrain.YardsPerFootDrop;
-                    landing = aimDir * carry + aimRight * side;
-                }
-                var finish = Roll(grid, ground, landing, landing * (1 / Math.Max(landing.Length, 1e-6)), ground.LandingSpeed, terrain?.Model);
+                var (landing, finish) = Drive(hole, grid, ground, player, aim, rng, terrain);
                 var g = grid.At(finish);
                 counts[(int)g]++;
                 double d = finish.DistanceTo(pinF);

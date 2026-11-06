@@ -24,6 +24,30 @@
               <TextBlock Text="{Binding ContextText}" Classes="mono small"/>
             </StackPanel>
           </DockPanel>
+          <WrapPanel Orientation="Horizontal" ItemSpacing="10" LineSpacing="8" Margin="0,6,0,2">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="Hole" Classes="muted small" VerticalAlignment="Center"/>
+              <ComboBox ItemsSource="{Binding HoleNumbers}" SelectedItem="{Binding SelectedHoleNumber}" MinWidth="70" AutomationProperties.Name="Hole"/>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="Tee" Classes="muted small" VerticalAlignment="Center"/>
+              <ItemsControl ItemsSource="{Binding TeeButtons}" ItemTemplate="{StaticResource PillTemplate}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              </ItemsControl>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="Pin" Classes="muted small" VerticalAlignment="Center"/>
+              <ItemsControl ItemsSource="{Binding PinButtons}" ItemTemplate="{StaticResource PillTemplate}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              </ItemsControl>
+            </StackPanel>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <TextBlock Text="Player" Classes="muted small" VerticalAlignment="Center"/>
+              <ItemsControl ItemsSource="{Binding PlayerButtons}" ItemTemplate="{StaticResource PillTemplate}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              </ItemsControl>
+            </StackPanel>
+          </WrapPanel>
           <TextBlock Text="{Binding FileText}" Classes="muted small" TextWrapping="Wrap"/>
           <TextBlock Text="{Binding WatchText}" Classes="muted small" TextWrapping="Wrap"/>
           <TextBlock Text="{Binding Message}" Foreground="{Binding MessageBrush}" TextWrapping="Wrap"
@@ -53,38 +77,30 @@
         <TextBlock Text="{Binding ReloadedText}" TextWrapping="Wrap" Classes="small"/>
       </Border>
 
-      <!-- Steps -->
-      <ItemsControl ItemsSource="{Binding StepButtons}" ItemTemplate="{StaticResource PillTemplate}">
+      <!-- Sections and their tabs -->
+      <StackPanel Spacing="8">
+        <ItemsControl ItemsSource="{Binding SectionButtons}">
+          <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="8"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="vm:TabViewModel">
+              <Button Classes="pill" Classes.selected="{Binding IsSelected}" Content="{Binding Label}" Command="{Binding SelectCommand}" MinHeight="38" FontSize="15" Padding="18,6"/>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,8,0,0">
+          <StackPanel Spacing="6">
+            <ItemsControl ItemsSource="{Binding SubButtons}" ItemTemplate="{StaticResource PillTemplate}">
+              <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+            </ItemsControl>
+            <TextBlock Text="{Binding SectionHint}" Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding SectionHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+
+      <!-- Approach: play a shot or the map -->
+      <ItemsControl ItemsSource="{Binding ApproachModeButtons}" ItemTemplate="{StaticResource PillTemplate}" IsVisible="{Binding IsApproachGroup}">
         <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
       </ItemsControl>
-
-      <!-- 1 Pick -->
-      <Border Classes="card" Padding="16" IsVisible="{Binding IsPick}">
-        <StackPanel Spacing="12">
-          <TextBlock Text="Pick the hole" FontSize="16" FontWeight="SemiBold"/>
-          <TextBlock Text="HOLE" Classes="muted small" FontWeight="SemiBold"/>
-          <ItemsControl ItemsSource="{Binding HoleButtons}">
-            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-            <ItemsControl.ItemTemplate>
-              <DataTemplate x:DataType="vm:TabViewModel">
-                <Button Classes="hole" Classes.selected="{Binding IsSelected}" Content="{Binding Label}" Command="{Binding SelectCommand}"/>
-              </DataTemplate>
-            </ItemsControl.ItemTemplate>
-          </ItemsControl>
-          <TextBlock Text="TEE" Classes="muted small" FontWeight="SemiBold"/>
-          <ItemsControl ItemsSource="{Binding TeeButtons}" ItemTemplate="{StaticResource PillTemplate}">
-            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-          </ItemsControl>
-          <TextBlock Text="PIN" Classes="muted small" FontWeight="SemiBold"/>
-          <ItemsControl ItemsSource="{Binding PinButtons}" ItemTemplate="{StaticResource PillTemplate}">
-            <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-          </ItemsControl>
-          <TextBlock Text="{Binding PickSummary}" Classes="muted small"/>
-          <TextBlock Text="Changing the hole, tee or pin clears results that depend on it. A new hole or tee needs the read-back confirming again."
-                     Classes="muted small" TextWrapping="Wrap"/>
-          <Button Classes="primary" Content="Read back this hole" Command="{Binding GoReadBackCommand}" HorizontalAlignment="Left"/>
-        </StackPanel>
-      </Border>
 
       <!-- 2 Read back -->
       <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16" IsVisible="{Binding IsReadBack}">
@@ -178,7 +194,7 @@
           <DockPanel>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8">
               <Button Content="Confirm this group" Command="{Binding ConfirmGroupCommand}"/>
-              <Button Classes="primary" Content="Next: run" Command="{Binding GoRunCommand}"/>
+              <Button Classes="primary" Content="Next: live checks" Command="{Binding GoLiveChecksCommand}"/>
             </StackPanel>
             <TextBlock Text="{Binding AssumptionProgress}" Classes="muted small" TextWrapping="Wrap" VerticalAlignment="Center"/>
           </DockPanel>
@@ -340,7 +356,7 @@
           <TextBlock Text="{Binding ModeNote}" Classes="muted small" TextWrapping="Wrap"/>
           <StackPanel Orientation="Horizontal" Spacing="8">
             <Button Content="Take more readings" Command="{Binding GoLiveChecksCommand}"/>
-            <Button Classes="primary" Content="Next: run" Command="{Binding GoRunCommand}"/>
+            <Button Classes="primary" Content="Go to shots" Command="{Binding GoRunCommand}"/>
           </StackPanel>
         </StackPanel>
       </Border>
@@ -385,23 +401,19 @@
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
           </ItemsControl>
-          <Button Classes="primary" Content="Next: green read" Command="{Binding GoGreenCommand}" HorizontalAlignment="Left"/>
         </StackPanel>
       </Border>
 
-      <!-- 6 Run -->
+      <!-- Shots: Drive -->
       <StackPanel Spacing="14" IsVisible="{Binding IsRun}">
         <Border Classes="card" Padding="16">
           <StackPanel Spacing="10">
-            <TextBlock Text="Run: tee shots" FontSize="16" FontWeight="SemiBold"/>
+            <TextBlock Text="Drive: tee shots" FontSize="16" FontWeight="SemiBold"/>
             <TextBlock Text="{Binding TerrainStatus}" TextWrapping="Wrap"/>
-            <ItemsControl ItemsSource="{Binding PlayerButtons}" ItemTemplate="{StaticResource PillTemplate}">
-              <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-            </ItemsControl>
             <TextBlock Text="Aims from 60 left to 60 right of the game's aim marker, every 5 yds, 2,000 drives each with the same random draws. Each finish is valued in strokes gained against the baseline."
                        Classes="muted small" TextWrapping="Wrap"/>
             <TextBlock Text="{Binding RunBlockers}" Foreground="#B4471F" TextWrapping="Wrap" IsVisible="{Binding RunBlockers, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-            <Button Classes="primary" Content="Run" Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}" HorizontalAlignment="Left" MinWidth="120"/>
+            <Button Classes="primary" Content="Run drives" Command="{Binding RunCommand}" IsEnabled="{Binding CanRun}" HorizontalAlignment="Left" MinWidth="120"/>
             <TextBlock Text="{Binding PreviousResultText}" Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding PreviousResultText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
           </StackPanel>
         </Border>
@@ -473,16 +485,13 @@
         </Grid>
       </StackPanel>
 
-      <!-- 7 Green read -->
+      <!-- Shots: Green -->
       <StackPanel Spacing="14" IsVisible="{Binding IsGreen}">
         <Border Classes="card" Padding="16">
           <StackPanel Spacing="8">
             <TextBlock Text="{Binding GreenTitle}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"/>
             <TextBlock Text="{Binding GreenSummary}" TextWrapping="Wrap"/>
             <TextBlock Text="{Binding GreenStatus}" Classes="muted small" TextWrapping="Wrap"/>
-            <ItemsControl ItemsSource="{Binding GreenPinButtons}" ItemTemplate="{StaticResource PillTemplate}">
-              <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-            </ItemsControl>
           </StackPanel>
         </Border>
         <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16">
@@ -524,22 +533,18 @@
               <Border Classes="chip" Background="#FBE6DC" HorizontalAlignment="Left" Padding="10,2">
                 <TextBlock Text="Putting physics and green roll are placeholders; the putter is fitted to the secondary anchors" FontSize="11.5" FontWeight="SemiBold" Foreground="#B4471F" TextWrapping="Wrap"/>
               </Border>
-              <Button Classes="primary" Content="Next: approach" Command="{Binding GoApproachCommand}" HorizontalAlignment="Left"/>
             </StackPanel>
           </Border>
         </Grid>
       </StackPanel>
 
-      <!-- 8 Approach -->
+      <!-- Shots: Approach, play a shot -->
       <StackPanel Spacing="14" IsVisible="{Binding IsApproach}">
         <Border Classes="card" Padding="16">
           <StackPanel Spacing="10">
             <TextBlock Text="Approach: shots at the green" FontSize="16" FontWeight="SemiBold"/>
             <TextBlock Text="The golfer is fitted to the baseline's anchors, then plays 600 shots at your aim. Each shot carries short of the aim by its planned release, spreads by distance and lie, then bounces and rolls on the green's contours. What it leaves is valued with the putting map on the green and the short game round it."
                        Classes="muted small" TextWrapping="Wrap"/>
-            <ItemsControl ItemsSource="{Binding ApproachPinButtons}" ItemTemplate="{StaticResource PillTemplate}">
-              <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-            </ItemsControl>
             <Grid ColumnDefinitions="70,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
               <TextBlock Text="From" Classes="muted small" VerticalAlignment="Center"/>
               <ItemsControl Grid.Column="1" ItemsSource="{Binding FromButtons}" ItemTemplate="{StaticResource PillTemplate}">
@@ -659,21 +664,17 @@
                 </ItemsControl>
                 <TextBlock Text="Played out on a plain calibration hole (flat, a 34-yd fairway, a round 26-yd green), shot after shot until holed, from each anchor's lie and distance. Off by more than 0.15 in red: the simple golfer can't match those rows without implausible values."
                            Classes="muted small" TextWrapping="Wrap"/>
-                <Button Classes="primary" Content="Next: approach map" Command="{Binding GoApproachMapCommand}" HorizontalAlignment="Left"/>
               </StackPanel>
             </Border>
           </StackPanel>
         </Grid>
       </StackPanel>
 
-      <!-- 9 Approach map -->
+      <!-- Shots: Approach, map -->
       <StackPanel Spacing="14" IsVisible="{Binding IsApproachMap}">
         <Border Classes="card" Padding="16">
           <StackPanel Spacing="8">
             <TextBlock Text="{Binding MapTitle}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"/>
-            <ItemsControl ItemsSource="{Binding MapPinButtons}" ItemTemplate="{StaticResource PillTemplate}">
-              <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-            </ItemsControl>
             <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding MapBusy}">
               <ProgressBar IsIndeterminate="True" Width="160" VerticalAlignment="Center"/>
             </StackPanel>
@@ -785,13 +786,12 @@
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
               <TextBlock Text="Degrees right (R) or left (L) of the line of play, seen from the fairway looking at the green, all from 150 yds with each direction's best aim." Classes="muted small" TextWrapping="Wrap"/>
-              <Button Classes="primary" Content="Next: second shot" Command="{Binding GoSecondShotCommand}" HorizontalAlignment="Left"/>
             </StackPanel>
           </Border>
         </Grid>
       </StackPanel>
 
-      <!-- 10 Second shot -->
+      <!-- Shots: Second shot -->
       <StackPanel Spacing="14" IsVisible="{Binding IsSecondShot}">
         <Border Classes="card" Padding="16">
           <StackPanel Spacing="10">
@@ -799,9 +799,6 @@
             <TextBlock Text="From where the drive finishes, the player goes at the green with its longest fairway club, or lays up to any fairway spot in reach. Every option is played with the same shots and valued by the third shot it leaves: the approach heat map, misses included."
                        Classes="muted small" TextWrapping="Wrap"/>
             <TextBlock Text="{Binding SecondIntro}" TextWrapping="Wrap"/>
-            <ItemsControl ItemsSource="{Binding SecondPinButtons}" ItemTemplate="{StaticResource PillTemplate}">
-              <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-            </ItemsControl>
             <Grid ColumnDefinitions="70,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8">
               <TextBlock Text="From" Classes="muted small" VerticalAlignment="Center"/>
               <ItemsControl Grid.Column="1" ItemsSource="{Binding SecondFromButtons}" ItemTemplate="{StaticResource PillTemplate}">
@@ -871,6 +868,107 @@
           </Border>
         </Grid>
       </StackPanel>
+
+      <!-- Hole: summary and experiments -->
+      <Border Classes="card" Padding="16" IsVisible="{Binding IsSummary}">
+        <StackPanel Spacing="10">
+          <TextBlock Text="The whole hole, tee to cup" FontSize="16" FontWeight="SemiBold"/>
+          <TextBlock Text="Every pin played 600 times for the player in the bar: the drive on its best line (from Drive when it ran for this pin and player), the par 5 plan from Second shot, approaches with each spot's best aim, chips at the pin and putts from the putting map. Each shot is scored against the baseline, so the phases add up to the hole."
+                     Classes="muted small" TextWrapping="Wrap"/>
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <Button Classes="primary" Content="Play every pin" Command="{Binding PlayHoleCommand}" IsEnabled="{Binding !HoleBusy}" MinWidth="150"/>
+            <ProgressBar IsIndeterminate="True" Width="160" IsVisible="{Binding HoleBusy}" VerticalAlignment="Center"/>
+          </StackPanel>
+          <TextBlock Text="{Binding HoleStatus}" TextWrapping="Wrap" IsVisible="{Binding HoleStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+          <StackPanel Spacing="10" IsVisible="{Binding HasSummary}">
+            <TextBlock Text="{Binding SummaryTitle}" Classes="mono small" TextWrapping="Wrap"/>
+            <Border Classes="chip" Background="#FBE6DC" HorizontalAlignment="Left" Padding="10,2">
+              <TextBlock Text="{Binding HoleBadge}" FontSize="11.5" FontWeight="SemiBold" Foreground="#B4471F" TextWrapping="Wrap"/>
+            </Border>
+            <TextBlock Text="{Binding SummaryHeadline}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding SummaryPhases}" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding SummaryPlan}" Classes="muted small" TextWrapping="Wrap"/>
+            <Grid ColumnDefinitions="40,150,70,70,70,80,70,70,70,70,80,70,70" Margin="0,6,0,0">
+              <TextBlock Text="Pin" Classes="muted small"/>
+              <TextBlock Grid.Column="1" Text="Where" Classes="muted small"/>
+              <TextBlock Grid.Column="2" Text="Score" Classes="muted small" HorizontalAlignment="Right"/>
+              <TextBlock Grid.Column="3" Text="To par" Classes="muted small" HorizontalAlignment="Right"/>
+              <TextBlock Grid.Column="4" Text="SG tee" Classes="muted small" HorizontalAlignment="Right"/>
+              <TextBlock Grid.Column="5" Text="Approach" Classes="muted small" HorizontalAlignment="Right"/>
+              <TextBlock Grid.Column="6" Text="Short" Classes="muted small" HorizontalAlignment="Right"/>
+              <TextBlock Grid.Column="7" Text="Putting" Classes="muted small" HorizontalAlignment="Right"/>
+              <TextBlock Grid.Column="8" Text="Fairway" Classes="muted small" HorizontalAlignment="Right"/>
+              <TextBlock Grid.Column="9" Text="GIR" Classes="muted small" HorizontalAlignment="Right"/>
+              <TextBlock Grid.Column="10" Text="Scrambling" Classes="muted small" HorizontalAlignment="Right"/>
+              <TextBlock Grid.Column="11" Text="Birdie" Classes="muted small" HorizontalAlignment="Right"/>
+              <TextBlock Grid.Column="12" Text="Bogey+" Classes="muted small" HorizontalAlignment="Right"/>
+            </Grid>
+            <ItemsControl ItemsSource="{Binding SummaryRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:SummaryRowViewModel">
+                  <Grid ColumnDefinitions="40,150,70,70,70,80,70,70,70,70,80,70,70">
+                    <TextBlock Text="{Binding Pin}" Classes="mono"/>
+                    <TextBlock Grid.Column="1" Text="{Binding Where}" TextWrapping="Wrap"/>
+                    <TextBlock Grid.Column="2" Text="{Binding Expected}" Classes="mono" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+                    <TextBlock Grid.Column="3" Text="{Binding ToPar}" Classes="mono" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="4" Text="{Binding Tee}" Classes="mono" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="5" Text="{Binding Approach}" Classes="mono" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="6" Text="{Binding Short}" Classes="mono" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="7" Text="{Binding Putting}" Classes="mono" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="8" Text="{Binding Fairway}" Classes="mono" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="9" Text="{Binding Gir}" Classes="mono" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="10" Text="{Binding Scrambling}" Classes="mono" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="11" Text="{Binding Birdie}" Classes="mono" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="12" Text="{Binding Bogey}" Classes="mono" HorizontalAlignment="Right"/>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="Score includes the expected putts, so it isn't a whole number. SG: strokes gained against the baseline (+ better). Short: chips and pitches within 35 yds of the green. Scrambling: par or better after missing the green in regulation."
+                       Classes="muted small" TextWrapping="Wrap"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card" Padding="16" IsVisible="{Binding IsExperiments}">
+        <StackPanel Spacing="10">
+          <TextBlock Text="Design experiments" FontSize="16" FontWeight="SemiBold"/>
+          <TextBlock Text="Each change is played against the hole as it is, every pin, with the same draws, so the difference is the change's and not the luck of the shots. Surfaces only: the ground's heights stay as they are."
+                     Classes="muted small" TextWrapping="Wrap"/>
+          <TextBlock Text="{Binding PreviousSaveText}" Classes="small" TextWrapping="Wrap"/>
+          <StackPanel Orientation="Horizontal" Spacing="12">
+            <Button Classes="primary" Content="Run the experiments" Command="{Binding RunExperimentsCommand}" IsEnabled="{Binding !HoleBusy}" MinWidth="170"/>
+            <ProgressBar IsIndeterminate="True" Width="160" IsVisible="{Binding HoleBusy}" VerticalAlignment="Center"/>
+          </StackPanel>
+          <TextBlock Text="{Binding HoleStatus}" TextWrapping="Wrap" IsVisible="{Binding HoleStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+          <StackPanel Spacing="10" IsVisible="{Binding HasExperiments}">
+            <TextBlock Text="{Binding ExperimentsTitle}" Classes="mono small" TextWrapping="Wrap"/>
+            <Border Classes="chip" Background="#FBE6DC" HorizontalAlignment="Left" Padding="10,2">
+              <TextBlock Text="{Binding HoleBadge}" FontSize="11.5" FontWeight="SemiBold" Foreground="#B4471F" TextWrapping="Wrap"/>
+            </Border>
+            <TextBlock Text="{Binding ExperimentsHeadline}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+            <ItemsControl ItemsSource="{Binding ExperimentRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:ExperimentRowViewModel">
+                  <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,8">
+                    <Grid ColumnDefinitions="*,90,80,110" ColumnSpacing="12">
+                      <StackPanel Spacing="2">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding Detail}" Classes="muted small" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding Pins}" Classes="mono small"/>
+                      </StackPanel>
+                      <TextBlock Grid.Column="1" Text="{Binding Delta}" Foreground="{Binding DeltaInk}" Classes="mono" FontWeight="SemiBold" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                      <TextBlock Grid.Column="2" Text="{Binding Ci}" Classes="mono small" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                      <TextBlock Grid.Column="3" Text="{Binding Verdict}" Foreground="{Binding DeltaInk}" Classes="small" HorizontalAlignment="Right" VerticalAlignment="Top"/>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="Strokes per round on this hole, averaged over the pins: negative makes it easier. ± is the 95% range of the paired difference." Classes="muted small" TextWrapping="Wrap"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
     </StackPanel>
   </ScrollViewer>
 </UserControl>
