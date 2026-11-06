@@ -52,16 +52,19 @@ public class SketchTests
 
     /// <summary>
     /// A hole sheet "scanned" (printed sheet on a darker desk, turned 1.5°, with a grey pencil line drawn across
-    /// it) is matched to its hole, and the pencil lands on the ground where it was drawn.
+    /// it) is matched to its hole, and the pencil lands on the ground where it was drawn. Sheets printed before 2.5
+    /// (full width) still import; on a 2.5 strip sheet, writing in the notes column stays off the ground.
     /// </summary>
-    [Fact]
-    public void Import_MatchesTheHoleAndPutsThePencilOnTheGround()
+    [Theory]
+    [InlineData(HoleSheetLayout.Strip)]
+    [InlineData(HoleSheetLayout.FullWidth)]
+    public void Import_MatchesTheHoleAndPutsThePencilOnTheGround(HoleSheetLayout kind)
     {
         string dir = Path.Combine(Path.GetTempPath(), "pga2k25-sketch-" + Guid.NewGuid().ToString("N"));
         try
         {
             var options = new HoleSheetOptions { Dpi = 150, CellMetres = 1 };
-            var built = HoleSheetBuilder.Build(SaganPath, dir, options with { Pdf = false }, [7]);
+            var built = HoleSheetBuilder.Build(SaganPath, dir, options with { Pdf = false, Layout = kind }, [7]);
             var sheet = built.Sheets.Single();
             using var page = SKBitmap.Decode(built.PngPaths.Single());
             float u = (float)(options.Dpi / 72);
@@ -96,6 +99,19 @@ public class SketchTests
                     if (k == 0) path.MoveTo(q); else path.LineTo(q);
                 }
                 c.DrawPath(path, pencil);
+                if (kind == HoleSheetLayout.Strip)
+                {
+                    // A note scrawled down the notes column.
+                    var nr = sheet.NotesPoints;
+                    for (int row = 0; row < 6; row++)
+                    {
+                        float y = (nr.Top + 120 + row * 40) * u + pad;
+                        using var scrawl = new SKPath();
+                        scrawl.MoveTo(nr.Left * u + 20 + pad, y);
+                        for (int s = 1; s <= 24; s++) scrawl.LineTo(nr.Left * u + 20 + pad + s * (nr.Width * u - 40) / 24, y + (s % 2 == 0 ? -8 : 8));
+                        c.DrawPath(scrawl, pencil);
+                    }
+                }
                 c.Restore();
                 // A phone scanner crops to the paper, give or take.
                 using var cropped = new SKBitmap(page.Width + 10, page.Height + 10);
@@ -113,6 +129,9 @@ public class SketchTests
             Assert.True(r.Match > 0.6, $"{r.Match}");
 
             var saved = Assert.Single(HoleSketches.Load(folder).Sheets);
+            // Tied to the ground through the layout it was printed in.
+            var layoutCorners = HoleSheet.LayoutFor(Pga2K25.Maps.CourseLayers.From(Course.Value), sheet.Routing.Hole, options with { Layout = kind }).FrameCorners();
+            for (int i = 0; i < 4; i++) Assert.True(Vec2.Distance(layoutCorners[i], saved.FrameCorners()[i]) < 0.01, $"corner {i}");
             using var png = SKBitmap.Decode(Path.Combine(folder, saved.Pencil));
             using var alpha = png.Copy(SKColorType.Alpha8)!;
             var px = alpha.GetPixelSpan().ToArray();
@@ -154,6 +173,8 @@ public class SketchTests
                                                                  && Math.Abs((q - mid).X * sheet.Side.X + (q - mid).Z * sheet.Side.Z) is > 10 and < 35)).ToList();
             Assert.NotEmpty(shot);
             Assert.All(shot, l => Assert.True(l.Construction, "a straight line was taken for an edge"));
+            // Nothing traced off the sheet's ground (the notes column's scrawl).
+            Assert.All(lines.Lines.SelectMany(Points), q => Assert.True(sheet.Contains(q, pad: 3), $"line off the strip at {q.X:0},{q.Z:0}"));
         }
         finally
         {

@@ -326,11 +326,16 @@ public partial class WorkspaceViewModel
         Status = "Reading the scans…";
         var progress = new Progress<string>(line => { Log.Add(line); Status = line; });
         // The same sheet options as the Hole sheets build, so the fresh render matches what was printed.
-        var options = new HoleSheetOptions { Map = Terrain.ToSheetOptions(Settings.Credit) };
+        string outDir = Products.OutputDir(Settings, Entry.Name);
+        var options = new HoleSheetOptions
+        {
+            Map = Terrain.ToSheetOptions(Settings.Credit),
+            DesignNotes = Pga2K25.Readiness.SheetNotes.Load(outDir, Entry.Path),
+        };
         try
         {
             // The Hole sheets build's PNGs are usually what was printed; they still match where the ground has changed since.
-            string built = Path.Combine(Products.OutputDir(Settings, Entry.Name), CourseLibrary.FileStem(Entry.Name) + " - Hole Sheets");
+            string built = Path.Combine(outDir, CourseLibrary.FileStem(Entry.Name) + " - Hole Sheets");
             var results = await Task.Run(() => HoleSketches.Import(Entry.Path, files, SketchFolder, options, progress,
                 Directory.Exists(built) ? built : null));
             foreach (var r in results)
@@ -382,7 +387,7 @@ public partial class WorkspaceViewModel
     void RequestFrame(int hole)
     {
         if (_projection is null || !_sheetLayouts.TryGetValue(hole, out var layout)) return;
-        var corners = layout.FrameCorners().Select(MapPx).ToList();
+        var corners = layout.StripCorners().Select(MapPx).ToList();
         var up = MapPx(layout.BackTee + layout.Forward * 100) - MapPx(layout.BackTee);
         ViewText = $"Hole {hole} · as on its sheet";
         ShowFrameRequested?.Invoke(corners, up);

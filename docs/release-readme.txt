@@ -223,6 +223,24 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
+NEW SINCE 2.4.1
+- Hole sheets are narrower. Each side now shows 75 yd past the widest
+  point the route reaches on that side (tees, aim points and green), or
+  75 yd past the tee-to-green line on a side the route never goes. A
+  straight hole is about L75 to R75; a dogleg shows more on its corner
+  side. Before, a sheet was as wide as the page allowed, about 560 yd
+  across on a long par 5. The map is a strip down the left of the page,
+  at the same scale as before.
+- The space beside the strip holds the hole's design notes from the
+  Readiness card: Miss cost and Hazards on par 4s and 5s, and Second
+  shot on par 5s. Why wide appears once you've written it, and the
+  hole's own note goes last. Written notes print as text. Unwritten ones
+  print their question and lines to write on, and the rest of the column
+  is ruled. Par 3s get a ruled column.
+- Hole sketches: scans of sheets printed before this version still
+  import and land in the right place. On the new sheets, writing in the
+  notes column stays on the paper and isn't laid on the map.
+
 FIXED IN 2.4.1
 - Hole design simulator: the red "Depends on" line under a run's results
   listed the other player's placeholder values too (a Power Drive run

@@ -32,8 +32,10 @@ public sealed class HoleSheetRenderer : TerrainInk
     {
         float u = _u;
         var s = sheet.Survey;
-        var map = Scaled(HoleSheet.MapRectPoints);
-        var p = sheet.Projection(map);
+        // The printed frame (scans are found by it) and the map strip inside it; the same in the full-width layout.
+        var frameRect = Scaled(HoleSheet.MapRectPoints);
+        var map = Scaled(sheet.StripPoints);
+        var p = sheet.Projection(frameRect);
         canvas.Clear(Paper);
 
         var all = s.Holes.Select(h => h.Route.Select(p.Map).ToArray()).ToList();
@@ -65,10 +67,83 @@ public sealed class HoleSheetRenderer : TerrainInk
         DrawRouteHeights(canvas, sheet, route, obstacles);
         canvas.Restore();
 
-        using (var frame = Stroke(Ink, 0.8f * u)) canvas.DrawRect(map, frame);
+        using (var frame = Stroke(Ink, 0.8f * u))
+        {
+            canvas.DrawRect(map, frame);
+            if (map != frameRect) canvas.DrawRect(frameRect, frame);
+        }
         DrawGridLabels(canvas, sheet, p, map);
+        if (sheet.Kind == HoleSheetLayout.Strip) DrawNotes(canvas, sheet, Scaled(sheet.NotesPoints));
         DrawHeader(canvas, courseName, sheet);
-        DrawFooter(canvas, sheet, p, map);
+        DrawFooter(canvas, sheet, p, frameRect);
+    }
+
+    // ───────────────────────────── design notes ─────────────────────────────
+
+    /// <summary>
+    /// The notes column beside the strip: each hole design note asked of the hole, with what's written or ruled lines
+    /// to write it on, then ruled lines to the foot of the frame.
+    /// </summary>
+    void DrawNotes(SKCanvas canvas, HoleSheet sheet, SKRect r)
+    {
+        float u = _u, pad = 8 * u, x = r.Left + pad, right = r.Right - pad, width = right - x;
+        float y = r.Top + 16 * u;
+        Text(canvas, "HOLE DESIGN NOTES", x, y, 7.2f * u, _sansBold, Ink, tracking: 0.8f * u);
+        using (var under = Stroke(Ink, 0.6f * u)) canvas.DrawLine(x, y + 4 * u, right, y + 4 * u, under);
+        y += 18 * u;
+
+        float lineGap = 13 * u;
+        using var ruled = Stroke(Rule, 0.45f * u);
+        void Ruled(int count)
+        {
+            for (int i = 0; i < count && y + lineGap <= r.Bottom - pad; i++) { y += lineGap; canvas.DrawLine(x, y, right, y, ruled); }
+            y += 8 * u;
+        }
+
+        var notes = _sheet.DesignNotes?.GetValueOrDefault(sheet.Routing.Hole.Number) ?? [];
+        foreach (var n in notes)
+        {
+            if (y > r.Bottom - 40 * u) break;
+            Text(canvas, n.Label, x, y, 8 * u, _sansBold, Ink);
+            y += 3 * u;
+            if (n.Text.Trim().Length > 0)
+            {
+                foreach (var line in Wrap(n.Text.Trim(), 7.4f * u, _sans, width))
+                {
+                    if (y > r.Bottom - pad - 10 * u) break;
+                    y += 10 * u;
+                    Text(canvas, line, x, y, 7.4f * u, _sans, Ink);
+                }
+                y += 14 * u;
+            }
+            else
+            {
+                foreach (var line in Wrap(n.Prompt, 6.4f * u, _sansItalic, width))
+                {
+                    y += 8.5f * u;
+                    Text(canvas, line, x, y, 6.4f * u, _sansItalic, Grey);
+                }
+                Ruled(3);
+                y += 6 * u;
+            }
+        }
+        // The rest of the column ruled for pencil notes.
+        Ruled(int.MaxValue);
+    }
+
+    static IEnumerable<string> Wrap(string text, float size, SKTypeface face, float width)
+    {
+        foreach (var para in text.Replace("\r", "").Split('\n'))
+        {
+            var line = "";
+            foreach (var word in para.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+            {
+                string next = line.Length == 0 ? word : line + " " + word;
+                if (line.Length > 0 && Measure(next, size, face) > width) { yield return line; line = word; }
+                else line = next;
+            }
+            if (line.Length > 0) yield return line;
+        }
     }
 
     // ───────────────────────────── hole grid ─────────────────────────────

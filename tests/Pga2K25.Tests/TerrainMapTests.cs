@@ -251,16 +251,82 @@ public class HoleSheetTests
         Assert.InRange(green.X - tee.X, -1, 1);
     }
 
-    [Fact]
-    public void Window_KeepsTheWholeRouteWithClearance()
+    /// <summary>
+    /// 2.5: each side of the window is 75 yd past the route's widest point on that side (tees, aim points, green),
+    /// or past the tee→green line where the route never crosses to that side. The whole hole fills the frame's
+    /// height in a strip down its left, with the notes column beside it.
+    /// </summary>
+    [Theory]
+    [InlineData(2)]
+    [InlineData(7)]
+    [InlineData(12)]
+    public void Window_Is75YardsPastTheRoutesWidestPoint(int hole)
     {
         var o = new HoleSheetOptions { CellMetres = 1 };
+        var sheet = Sheet(hole, o);
+        var h = sheet.Routing.Hole;
+        double Off(Vec2 p) => (p - sheet.BackTee).X * sheet.Side.X + (p - sheet.BackTee).Z * sheet.Side.Z;
+        var offs = sheet.Routing.Route.Concat(h.Tees).Select(Off).ToList();
+        double side = 75 / TerrainSurvey.YardsPerMetre;
+        Assert.Equal(Math.Min(0, offs.Min()) - side, sheet.Across.From, 6);
+        Assert.Equal(Math.Max(0, offs.Max()) + side, sheet.Across.To, 6);
+        Assert.True(sheet.Along.From <= -o.MetresBehindTee + 1e-6);
+        foreach (var pt in sheet.Routing.Route) Assert.True(sheet.Contains(pt));
+
+        // The strip: at the frame's left, the hole's length down its height (or, for a short wide hole, as wide as
+        // the notes column allows, centred top to bottom), the window filling it.
+        var frame = HoleSheet.MapRectPoints;
+        var strip = sheet.StripPoints;
+        Assert.Equal(HoleSheetLayout.Strip, sheet.Kind);
+        Assert.Equal(frame.Left, strip.Left, 3);
+        Assert.True(Math.Abs(frame.Height - strip.Height) < 0.01 || Math.Abs(frame.Width - o.NotesMinWidthPoints - strip.Width) < 0.01,
+            $"strip {strip.Width:0.#} x {strip.Height:0.#}");
+        Assert.Equal(frame.MidY, strip.MidY, 2);
+        Assert.Equal((sheet.Across.To - sheet.Across.From) / (sheet.Along.To - sheet.Along.From), strip.Width / strip.Height, 4);
+        Assert.True(sheet.NotesPoints.Width >= o.NotesMinWidthPoints - HoleSheet.NotesGutterPoints - 0.01);
+        var p = sheet.Projection(frame);
+        var window = sheet.Window.Select(p.Map).ToList();
+        Assert.Equal(strip.Left, window.Min(q => q.X), 1);
+        Assert.Equal(strip.Right, window.Max(q => q.X), 1);
+        Assert.True(sheet.Survey.IntervalFeet <= 2);    // finer than the plot map's 5 ft
+    }
+
+    [Fact]
+    public void Window_FullWidthLayoutIsThePre25Sheet()
+    {
+        var o = new HoleSheetOptions { CellMetres = 1, Layout = HoleSheetLayout.FullWidth };
         var sheet = Sheet(12, o);
         foreach (var pt in sheet.Routing.Route) Assert.True(sheet.Contains(pt));
-        Assert.True(sheet.Along.From <= -o.MetresBehindTee + 1e-6);
+        Assert.Equal(HoleSheet.MapRectPoints, sheet.StripPoints);
+        Assert.Equal(SKRect.Empty, sheet.NotesPoints);
         Assert.Equal(HoleSheet.MapRectPoints.Width / HoleSheet.MapRectPoints.Height,
             (sheet.Across.To - sheet.Across.From) / (sheet.Along.To - sheet.Along.From), 6);
-        Assert.True(sheet.Survey.IntervalFeet <= 2);    // finer than the plot map's 5 ft
+    }
+
+    /// <summary>The notes column: the design notes asked of the hole by par, what's written, and the hole's own note.</summary>
+    [Fact]
+    public void Notes_AreTheHoleDesignNotesAskedOfEachHole()
+    {
+        var course = Course.Value;
+        var par3 = course.Holes.First(h => h.Par == 3);
+        var par4 = course.Holes.First(h => h.Par == 4);
+        var par5 = course.Holes.First(h => h.Par == 5);
+        var state = new Pga2K25.Readiness.ReadinessState();
+        state.Holes[par4.Number] = new Pga2K25.Readiness.HoleState
+        {
+            Note = "Tee moved back 10 yd",
+            Notes = { ["miss"] = "Left is dead.", ["width"] = "The right half opens the green." },
+        };
+        var notes = Pga2K25.Readiness.SheetNotes.For(state, course.Holes);
+
+        Assert.Empty(notes[par3.Number]);
+        Assert.Equal(["Miss cost", "Hazards", "Why wide", "Hole note"], notes[par4.Number].Select(n => n.Label));
+        Assert.Equal("Left is dead.", notes[par4.Number][0].Text);
+        Assert.Equal("", notes[par4.Number][1].Text);
+        Assert.Equal("Tee moved back 10 yd", notes[par4.Number][3].Text);
+        // Unwritten "Why wide" isn't shown: whether it's asked needs the landing-zone widths.
+        Assert.Equal(["Miss cost", "Hazards", "Second shot"], notes[par5.Number].Select(n => n.Label));
+        Assert.All(notes[par5.Number], n => Assert.True(n.Prompt.Length > 0 && n.Text.Length == 0));
     }
 
     [Fact]

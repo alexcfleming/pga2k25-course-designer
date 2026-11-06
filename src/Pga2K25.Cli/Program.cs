@@ -19,9 +19,10 @@ const string Usage = """
     pga2k25 terrain <file.course> [-o <dir>] [--full-plot|--buildable] [--margin 150] [--interval 5] [--index 5]
                     [--shading relief|slope|none] [--ppm 4] [--cell 1.0] [--grid 100] [--no-features]
                     [--hardness 0.85] [--large-hardness 0.3] [--smooth 0] [--sea-level <m>] [--no-water]
-                    [--water-footprints] [--pdf [--print-dpi 250]] [--holes 7,12|all [--sheet-grid 50] [--no-pdf] [--no-png]]
+                    [--water-footprints] [--pdf [--print-dpi 250]] [--holes 7,12|all [--sheet-grid 50] [--sheet-side 75] [--no-pdf] [--no-png]]
       --holes     instead, one 8.5 x 11 in terrain sketch sheet per hole, oriented like the
-                  yardage book (PNGs at 300 dpi + one PDF)
+                  yardage book (PNGs at 300 dpi + one PDF): a strip 75 yd past the route's
+                  widest point each side (--sheet-side 75), the hole design notes beside it
                     [--no-summits] [--credit "NAME"]
                     [--planting | --planting-layers trees,bushes,grass,flowers,walls] [--trees-one-colour]
       --planting  draw what was planted in the designer (trees, bushes, grass, flowers, walls);
@@ -527,6 +528,7 @@ static int Terrain(string path, string[] rest)
             case "-o": case "--out": outDir = Next(); break;
             case "--holes": holes = Next(); break;
             case "--sheet-grid": sheet = sheet with { GridYards = NextDouble() }; break;
+            case "--sheet-side": sheet = sheet with { SideYards = NextDouble() }; break;
             case "--no-pdf": sheet = sheet with { Pdf = false }; break;
             case "--no-png": sheet = sheet with { Png = false }; break;
             case "--full-plot": options = options with { Extent = MapExtent.FullPlot }; break;
@@ -579,7 +581,9 @@ static int Terrain(string path, string[] rest)
     }
     // Per-hole sketch sheets; the plot map's --interval would be too coarse here, so it applies only if given.
     var numbers = holes.Equals("all", StringComparison.OrdinalIgnoreCase) ? null : holes.Split(',').Select(int.Parse).ToList();
-    HoleSheetBuilder.Build(path, outDir, sheet with { Map = options }, numbers, new SyncProgress(Console.WriteLine));
+    // The notes column prints the hole design notes saved by the Studio's Readiness page beside the outputs.
+    var notes = Pga2K25.Readiness.SheetNotes.Load(outDir, path);
+    HoleSheetBuilder.Build(path, outDir, sheet with { Map = options, DesignNotes = notes }, numbers, new SyncProgress(Console.WriteLine));
     return 0;
 }
 
