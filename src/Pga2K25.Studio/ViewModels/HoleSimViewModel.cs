@@ -20,8 +20,9 @@ namespace Pga2K25.Studio.ViewModels;
 /// </summary>
 public partial class HoleSimViewModel : ObservableObject
 {
-    public const string PickStep = "1  Pick", ReadBackStep = "2  Read back", AssumptionsStep = "3  Assumptions", LiveChecksStep = "4  Live checks",
-        GateStep = "5  Terrain gate", RunStep = "6  Run";
+    // Step identities (the tab labels come from the navigation: see HoleSimViewModel.Nav.cs).
+    public const string ReadBackStep = "Hole", AssumptionsStep = "Assumptions", LiveChecksStep = "Live checks",
+        GateStep = "Terrain", RunStep = "Drive", SummaryStep = "Summary", ExperimentsStep = "Experiments";
 
     static readonly IBrush Ok = Brush.Parse("#1F4D30"), Warn = Brush.Parse("#B4471F"), MutedBrush = Brush.Parse("#56605A");
 
@@ -49,7 +50,7 @@ public partial class HoleSimViewModel : ObservableObject
         CourseName = courseName;
         _priorsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CourseDesignerStudio", "holesim", "assumptions-confirmed.json");
         _sheet = AssumptionSheet.Load(_priorsPath);
-        foreach (var s in new[] { PickStep, ReadBackStep, AssumptionsStep, LiveChecksStep, GateStep, RunStep, GreenStep, ApproachStep, ApproachMapStep, SecondShotStep }) StepButtons.Add(new TabViewModel(s, s == Step, () => Step = s));
+        UpdateNav();
         PlayerButtons.Add(new TabViewModel("Power Drive", true, () => SelectPlayer("power")));
         PlayerButtons.Add(new TabViewModel("Normal", false, () => SelectPlayer("normal")));
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -60,9 +61,7 @@ public partial class HoleSimViewModel : ObservableObject
     public string CourseName { get; }
 
     // ───────── steps ─────────
-    public ObservableCollection<TabViewModel> StepButtons { get; } = [];
-    [ObservableProperty] private string _step = PickStep;
-    public bool IsPick => Step == PickStep;
+    [ObservableProperty] private string _step = ReadBackStep;
     public bool IsReadBack => Step == ReadBackStep;
     public bool IsAssumptions => Step == AssumptionsStep;
     public bool IsLiveChecks => Step == LiveChecksStep;
@@ -70,10 +69,11 @@ public partial class HoleSimViewModel : ObservableObject
     public bool IsRun => Step == RunStep;
     partial void OnStepChanged(string value)
     {
-        foreach (var b in StepButtons) b.IsSelected = b.Label == value;
-        OnPropertyChanged(nameof(IsPick)); OnPropertyChanged(nameof(IsReadBack)); OnPropertyChanged(nameof(IsAssumptions));
+        UpdateNav();
+        OnPropertyChanged(nameof(IsReadBack)); OnPropertyChanged(nameof(IsAssumptions));
         OnPropertyChanged(nameof(IsLiveChecks)); OnPropertyChanged(nameof(IsGate)); OnPropertyChanged(nameof(IsRun));
         OnPropertyChanged(nameof(IsGreen)); OnPropertyChanged(nameof(IsApproach)); OnPropertyChanged(nameof(IsApproachMap)); OnPropertyChanged(nameof(IsSecondShot));
+        OnPropertyChanged(nameof(IsApproachGroup)); OnPropertyChanged(nameof(IsSummary)); OnPropertyChanged(nameof(IsExperiments));
         if (value == GreenStep) RefreshGreenRead();
         if (value == ApproachStep) RefreshApproach();
         if (value == ApproachMapStep) RefreshApproachMap();
@@ -123,6 +123,7 @@ public partial class HoleSimViewModel : ObservableObject
                     UpdateFileText();
                     BuildHoleButtons();
                     SelectHole(course.Holes.FirstOrDefault()?.Number ?? 1);
+                    BuildHoleNumbers();
                 });
             }
             catch (Exception ex)
@@ -182,6 +183,7 @@ public partial class HoleSimViewModel : ObservableObject
     {
         if (_pendingSave is not { } p) return;
         string? previous = HasResults ? $"Previous save ({_stamp!.ModifiedUtc.ToLocalTime():HH:mm}): {BestText}" : null;
+        if (_course is not null && _model is not null) _previousSave = (_course, _model, _stamp!);   // kept for "your last save" in Experiments
         _course = p.Course; _desc = p.Desc; _layers = p.Layers; _stamp = p.Stamp; _water = _pendingWater;
         _watcher!.Accept(p.Stamp);
         _pendingSave = null; HasNewSave = false;
@@ -235,7 +237,12 @@ public partial class HoleSimViewModel : ObservableObject
     void SelectPin(int pin)
     {
         _pin = pin;
-        foreach (var b in PinButtons) b.IsSelected = b.Label.StartsWith($"Pin {pin}");
+        foreach (var b in PinButtons) b.IsSelected = b.Label.StartsWith($"{pin} ") || b.Label == pin.ToString();
+        // One pin for every view: the green read, approach, map and second shot follow the bar.
+        _greenPin = _approachPin = _mapPin = _secondPin = pin;
+        HasApproach = false; HasSecond = false;
+        if (IsGreen) RefreshGreenRead();
+        RefreshShotSteps();
         ClearResults();
         UpdateContext();
         RenderReadBackMap();
@@ -284,7 +291,9 @@ public partial class HoleSimViewModel : ObservableObject
         foreach (var t in m.Tees) { int i = t.Index; TeeButtons.Add(new TabViewModel($"{t.Name}  {t.Yards}", i == m.TeeIndex, () => SelectTee(i))); }
         if (_pin > m.Pins.Count) _pin = 1;
         PinButtons.Clear();
-        foreach (var p in m.Pins) { int n = p.Number; PinButtons.Add(new TabViewModel($"Pin {n}  {p.Where}", n == _pin, () => SelectPin(n))); }
+        foreach (var p in m.Pins) { int n = p.Number; PinButtons.Add(new TabViewModel($"{n}  {p.Where}", n == _pin, () => SelectPin(n))); }
+        _greenPin = _approachPin = _mapPin = _secondPin = _pin;
+        UpdateNav();
         PickSummary = $"Hole {m.Number} · par {m.Par} · {m.Tees.Count} tee{(m.Tees.Count == 1 ? "" : "s")} · {m.Pins.Count} pin{(m.Pins.Count == 1 ? "" : "s")}";
 
         ReadBackRows.Clear();
@@ -390,12 +399,13 @@ public partial class HoleSimViewModel : ObservableObject
     {
         var blockers = new List<string>();
         if (_model is null) blockers.Add("the hole is still loading");
-        if (!ReadBackAccepted) blockers.Add("confirm the read-back (step 2)");
-        if (!_sheet.AllConfirmed) blockers.Add($"confirm the assumptions (step 3, {_sheet.Rows.Count - _sheet.ConfirmedCount} left)");
+        if (!ReadBackAccepted) blockers.Add("confirm the read-back (Set up › Hole)");
+        if (!_sheet.AllConfirmed) blockers.Add($"confirm the assumptions (Set up › Assumptions, {_sheet.Rows.Count - _sheet.ConfirmedCount} left)");
         if (HasNewSave) blockers.Add("reload or set aside the new save");
-        if (_model?.Par == 3) blockers.Add("this is a par 3: the driver sweep doesn't apply, and par 3 tee shots arrive with the approach engine (Stage 4c). The Green read works now");
+        if (_model?.Par == 3) blockers.Add("this is a par 3: play it under Shots › Tee shot");
         CanRun = blockers.Count == 0 && !Busy;
         RunBlockers = blockers.Count == 0 ? "" : "Before running: " + string.Join("; ", blockers) + ".";
+        UpdateNav();
     }
 
     partial void OnBusyChanged(bool value) => UpdateRunState();

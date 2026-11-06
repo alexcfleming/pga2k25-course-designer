@@ -23,7 +23,8 @@ public sealed record PinInfo(int Number, Vec2 World, FramePoint Frame, double Ba
 }
 
 /// <summary>A hazard along the line of play: <see cref="FromYards"/>–<see cref="ToYards"/> from the chosen tee, measured along the tee-to-green line.</summary>
-public sealed record HazardInfo(Ground Ground, string Side, int FromYards, int ToYards, int AreaSqYd)
+/// <param name="Seed">One cell of the hazard (its first found), so an experiment can find the whole piece again.</param>
+public sealed record HazardInfo(Ground Ground, string Side, int FromYards, int ToYards, int AreaSqYd, FramePoint? Seed = null)
 {
     public string Text => $"{Grounds.Name(Ground)} {Side.ToLowerInvariant()}, {FromYards}–{ToYards}";
 }
@@ -91,6 +92,16 @@ public sealed class HoleModel
     /// <summary>Height brushes within reach of the line of play, as signatures (for the change list on a new save).</summary>
     public required IReadOnlyList<(string Signature, FramePoint Where)> HeightStamps { get; init; }
     public required IReadOnlyList<(string Signature, int Surface)> SurfaceSignatures { get; init; }
+
+    /// <summary>The same hole on another grid: a design experiment's edited surfaces (everything else unchanged).</summary>
+    public HoleModel WithGrid(SurfaceGrid grid) => new()
+    {
+        CourseName = CourseName, Stamp = Stamp, Number = Number, Par = Par, Tees = Tees, TeeIndex = TeeIndex, Frame = Frame, Green = Green,
+        GreenFrame = GreenFrame, Pins = Pins, AimMarker = AimMarker, AimFrame = AimFrame, HasAimMarker = HasAimMarker, Route = Route,
+        Widths = Widths, GreenDepthYards = GreenDepthYards, GreenFrontYards = GreenFrontYards, GreenBackYards = GreenBackYards,
+        Hazards = Hazards, UnknownSurfaces = UnknownSurfaces, Treatments = Treatments, Grid = grid, Settings = Settings,
+        GreenSpeed = GreenSpeed, HeightStamps = HeightStamps, SurfaceSignatures = SurfaceSignatures,
+    };
 
     public int AimFromTeeYards => (int)Math.Round(AimFrame.Length);
     public int AimToGreenYards => (int)Math.Round(AimFrame.DistanceTo(GreenFrame));
@@ -353,7 +364,7 @@ public static class HoleModelBuilder
             }
             if (n < o.MinHazardSqYd || hi < o.HazardMinAlongYards) continue;
             string sideText = right >= 0.85 * n ? "Right" : left >= 0.85 * n ? "Left" : "Across the line";
-            result.Add(new HazardInfo(g, sideText, (int)Math.Round(lo), (int)Math.Round(hi), n));
+            result.Add(new HazardInfo(g, sideText, (int)Math.Round(lo), (int)Math.Round(hi), n, grid.CellCentre(i % w, i / w)));
         }
         return result.OrderBy(r => r.FromYards).ToList();
     }

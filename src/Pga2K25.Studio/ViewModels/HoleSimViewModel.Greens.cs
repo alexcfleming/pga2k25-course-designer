@@ -15,7 +15,7 @@ namespace Pga2K25.Studio.ViewModels;
 /// </summary>
 public partial class HoleSimViewModel
 {
-    public const string GreenStep = "7  Green read";
+    public const string GreenStep = "Green";
 
     GreenSurface? _greenBase;                 // the green from the base terrain, for spots and the gate
     GreenSurface? _greenSurface;              // the green the putting maps roll on (the chosen green model)

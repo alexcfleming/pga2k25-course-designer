@@ -9,52 +9,66 @@ Proposal and mockup: https://claude.ai/artifact/KUGRHi71TAL55uNvtpPUXm. Pilot ho
 | Piece | What |
 |---|---|
 | `src/Pga2K25.HoleSim` | The engine: hole model, surface grid, change list, save watcher, baselines, assumption sheet, geometry run, map renderer |
-| Studio, "Hole design simulator" | The step flow (`HoleSimViewModel`, `Views/HoleSimView.axaml`) |
+| Studio, "Hole design simulator" | The bar, sections and tabs (`HoleSimViewModel` and its partial files, `Views/HoleSimView.axaml`) |
 | CLI `holesim` | The same engine for checks and fixtures. One hole per run; there is no batch or 18-hole mode |
 | `assets/holesim/assumptions.json` | Assumption defaults, each with its source tag and date (embedded in the library) |
 | `assets/holesim/baselines/*.csv` | Strokes-gained baselines with provenance columns (embedded) |
 
 The app stays analysis-only: the simulator reads course files and never writes them.
 
-## The session, step by step
+## The session
 
-Stage 2 built steps 1–3 and a flat-ground run; Stage 3 added live checks, the terrain gate, and slope and elevation in the run.
+The section has a bar along the top and three sections under it (since 6 Nov 2026; before that it was ten numbered steps).
 
-1. **Pick.** Hole, tee and pin. Changing the hole or tee clears the read-back confirmation and results; changing the pin or player clears results.
-2. **Read back.** Par, yards from each tee, aim marker, fairway widths (yardage book stations, from the back tee), green depth, front and back, pins relative to the green centre, and bunkers, scrub and water near the line. Anything listed is within 40 yds of the line of play or 12 yds of the hole's own fairway or green, measured in yards from the chosen tee along the tee-to-green line. Surfaces the model has no rule for (waste 15, unknown ids) within 60 yds of the line are listed with a choice of how they play. Every row carries its source tag. The run stays locked until you confirm the read-back.
-3. **Assumptions.** Every row needs a confirm or an edit. Values confirmed in an earlier session prefill the sheet and show when they were last confirmed, but never skip confirmation. A reused placeholder stays PLACEHOLDER (orange). Values you change in the sheet are tagged PRIOR the next time. Course settings (`greenSpeed`, firmness and speeds) are shown as the file has them, with `greenSpeed` read on Alex's two-point Stimp line; the model doesn't use them yet.
-4. **Live checks.** Suggested MEASURE spots along the line (about eight: every 50 yds on a long hole, closer on a par 3, alternating 10 yds either side of the line) plus the green's front and back, shown on a map. The game's MEASURE readout gives the cursor's yards TO TEE (each tee) and TO GREEN (the route's green point) and its height against each tee, so each spot lists its yards to the chosen tee and to the green. Move the cursor until both match. The zero defaults to the chosen tee, which is what the readout shows; the green centre or a pin can be chosen instead. Spot **G** is the green itself: copy GREEN HEIGHT for the chosen tee from the game's tee table, no cursor needed. Type each label as the game shows it: ▲ or + is above, ▼ or − below, `+1'4"` is 16 in, `+1'` is 12 in, a missing sign reads as above, inches of 12 or more are refused, and every value is said back. The model's height for a spot, against the same zero, appears only after its reading is in, so it can't steer what you type. Every fourth spot is held back to test a fitted correction; tick or untick to change that. The step also asks how much of the fairway at 300–350 (on a par 3, the green) you can see from the tee: All, Most, Some or None. You can enter up to five drives too: carry, total, and finish side by eye, since playtest shows only carry and total. Their mean and spread are set against the assumed carry. Everything saves as you type to `Hole Sim/HNN live checks.json` beside the products, in world coordinates, so another tee reads the same spots.
-5. **Terrain gate.** Each candidate model is compared with your readings, with fit bands of Trustworthy under 10% of the readings' range, Indicative 10–18%, and Check over 18% or with fewer than five readings. The zero counts toward the range. A corrected model is judged only on the readings held back from its fit. Until you pick a candidate, the gate picks the best band, then the lowest error. A pass allows **Use the terrain**. A Check offers **Take more readings**, **Geometry only** or **Override: terrain unverified**, which puts a label on every result.
-6. **Run.** Aims from 60 yds left to 60 right of the game's aim marker, every 5 yds, 2,000 drives each. Drives land with the player's carry and side spread, then roll by surface until they stop; bunkers, scrub and water stop the ball. On flat ground by default. With the terrain on, carry changes for height (PLACEHOLDER 1 yd per 3 ft the landing sits below the tee), and the ball rolls downhill under gravity. It stops when it is slow and on ground flatter than its friction, the proof of concept's rule. There is no wind yet. Every aim uses the same random draws (paired), and the run is deterministic for a seed. Each finish is valued against the baseline:
+- **The bar:** hole, tee, pin and player. Every view uses them: change the pin there and the green read, approach, map and second shot follow. Changing the hole or tee clears the read-back confirmation and results; changing the pin or player clears results.
+- **Set up**, done once per hole: Hole, Assumptions, Live checks, Terrain. The section's label counts how many are done ("2 of 4") and each finished tab gets a tick. Shots and Hole stay open while setup is unfinished, but they say what's left and every result carries its warnings.
+- **Shots**, by what the hole's par has: Drive, Second shot (par 5s), Approach (called Tee shot on a par 3) and Green. Approach has a switch between **Play a shot** and **Map**.
+- **Hole:** Summary and Experiments, the whole hole tee to cup.
 
-   `SG = E(tee, distance to pin) − E(finish lie, distance to pin) − 1 − penalty`
+Each section remembers the tab it was left on.
 
-   Distance is straight-line to the pin, in yards (feet on the green). Results show the share of finishes by surface, yards left, SG with a 95% band, expected strokes for the hole (E(tee) − SG) and the share of finishes outside the baseline's rows.
+### Set up
 
-7. **Green read** (Stage 4a). Expected putts from every spot on the hole's green to the chosen pin, drawn over the green with arrows pointing downhill. Cells too steep for a stopped ball to stay put are hatched. For each pin it shows:
-   - the average putts from the whole green
-   - the share of the green that needs 2.3 putts or more
-   - from 15–30 ft, putts from above the hole against putts from below
-   - the slope at the cup, in red when a ball can't stop there
+- **Hole** (the read back). Par, yards from each tee, aim marker, fairway widths (yardage book stations, from the back tee), green depth, front and back, pins relative to the green centre, and bunkers, scrub and water near the line. Anything listed is within 40 yds of the line of play or 12 yds of the hole's own fairway or green, measured in yards from the chosen tee along the tee-to-green line. Surfaces the model has no rule for (waste 15, unknown ids) within 60 yds of the line are listed with a choice of how they play. Every row carries its source tag. Drive stays locked until you confirm the read-back.
+- **Assumptions.** Every row needs a confirm or an edit. Values confirmed in an earlier session prefill the sheet and show when they were last confirmed, but never skip confirmation. A reused placeholder stays PLACEHOLDER (orange). Values you change in the sheet are tagged PRIOR the next time. Course settings (`greenSpeed`, firmness and speeds) are shown as the file has them, with `greenSpeed` read on Alex's two-point Stimp line; the model doesn't use them yet.
+- **Live checks.** Suggested MEASURE spots along the line (about eight: every 50 yds on a long hole, closer on a par 3, alternating 10 yds either side of the line) plus the green's front and back, shown on a map. The game's MEASURE readout gives the cursor's yards TO TEE (each tee) and TO GREEN (the route's green point) and its height against each tee, so each spot lists its yards to the chosen tee and to the green. Move the cursor until both match. The zero defaults to the chosen tee, which is what the readout shows; the green centre or a pin can be chosen instead. Spot **G** is the green itself: copy GREEN HEIGHT for the chosen tee from the game's tee table, no cursor needed. Type each label as the game shows it: ▲ or + is above, ▼ or − below, `+1'4"` is 16 in, `+1'` is 12 in, a missing sign reads as above, inches of 12 or more are refused, and every value is said back. The model's height for a spot, against the same zero, appears only after its reading is in, so it can't steer what you type. Every fourth spot is held back to test a fitted correction; tick or untick to change that. The step also asks how much of the fairway at 300–350 (on a par 3, the green) you can see from the tee: All, Most, Some or None. You can enter up to five drives too: carry, total, and finish side by eye, since playtest shows only carry and total. Their mean and spread are set against the assumed carry. Everything saves as you type to `Hole Sim/HNN live checks.json` beside the products, in world coordinates, so another tee reads the same spots.
+- **Terrain** (the terrain gate, with the green contours card under it). Each candidate model is compared with your readings, with fit bands of Trustworthy under 10% of the readings' range, Indicative 10–18%, and Check over 18% or with fewer than five readings. The zero counts toward the range. A corrected model is judged only on the readings held back from its fit. Until you pick a candidate, the gate picks the best band, then the lowest error. A pass allows **Use the terrain**. A Check offers **Take more readings**, **Geometry only** or **Override: terrain unverified**, which puts a label on every result.
 
-   For the green as a whole it shows its size, Stimp, typical and steepest slope, and how much of it can't hold a stopped ball. Maps build in the background when a pin is opened (a few seconds each), or all at once with **Build every pin**. They are kept until the green, its speed or the putting assumptions change.
+### Shots
 
-   On a par 3 the driver sweep in step 6 is switched off with a note; par 3 tee shots are played in step 8.
-8. **Approach** (Stage 4b). Shots at the green, 600 of them, from a spot you pick to an aim you pick:
-   - **From**: yards to the pin and yards right or left of the line of play; on a par 4 or 5, where the best line's drives typically finish (the median of its fairway finishes, once step 6 has run); on a par 3, the tee.
-   - **Aim**: the best aim (25 tried on a 3-yd grid round the pin, the same shots for each), the pin, the green's centre, an aim distance straight at the pin, or a point so many yards right or left and beyond or short of the pin.
-   - **Spreads**: 1 is the golfer fitted to the anchors; 1.5 tries the hole for a weaker player.
+- **Drive** (was Run; the button is **Run drives**). Aims from 60 yds left to 60 right of the game's aim marker, every 5 yds, 2,000 drives each. Drives land with the player's carry and side spread, then roll by surface until they stop; bunkers, scrub and water stop the ball. On flat ground by default. With the terrain on, carry changes for height (PLACEHOLDER 1 yd per 3 ft the landing sits below the tee), and the ball rolls downhill under gravity. It stops when it is slow and on ground flatter than its friction, the proof of concept's rule. There is no wind yet. Every aim uses the same random draws (paired), and the run is deterministic for a seed. Each finish is valued against the baseline:
 
-   It shows where the shots finish (on the green or not), the share that hold the green, their average distance from the hole, where the misses go, bunker, water and scrub, the expected strokes to hole out and the strokes gained for the shot against the baseline from that lie and distance, with the best aims when it searched. A card underneath shows the fitted golfer against every anchor.
-9. **Approach map** (Stage 4c). For the chosen pin, built in the background when the pin is opened (a few seconds) and kept until the green, the terrain or the assumptions change:
-   - **Par 4s and 5s:** the heat map of where to approach from. Every 5 yds of fairway, rough and bunker within the golfer's reach, each spot played with its best of nine aims, coloured against the other spots the same distance from the pin. The best angle is ringed, and a table compares the best and worst fairway spot in each 10-yd band.
-   - **Par 3s:** tee shots from every tee, 49 aims each, with the best aim, its expected strokes and green hits, the pin itself and strokes gained against the baseline's tee rows.
-   - **Every hole:** the leave map (expected strokes still to play by where a shot finishes round the green) with the ideal-angle spokes, and the ideal angle in from 150 yds.
-10. **Second shot** (Stage 4d). On a par 5: go for the green or lay up. From where the best line's drives typically finish (once step 6 has run) or from yards and side, for the player chosen in step 6 with its longest fairway club, and optionally with wider spreads. It gives the verdict and by how much, going for it (or the longest club at the green when it's out of reach) against the best lay-up, and the best lay-up for each distance left. The map colours every lay-up target against going for it.
+  `SG = E(tee, distance to pin) − E(finish lie, distance to pin) − 1 − penalty`
+
+  Distance is straight-line to the pin, in yards (feet on the green). Results show the share of finishes by surface, yards left, SG with a 95% band, expected strokes for the hole (E(tee) − SG) and the share of finishes outside the baseline's rows.
+- **Second shot** (Stage 4d, par 5s only). On a par 5: go for the green or lay up. From where the best line's drives typically finish (once Drive has run) or from yards and side, for the player in the bar with its longest fairway club, and optionally with wider spreads. It gives the verdict and by how much, going for it (or the longest club at the green when it's out of reach) against the best lay-up, and the best lay-up for each distance left. The map colours every lay-up target against going for it.
+- **Approach: Play a shot** (Stage 4b; on a par 3, **Tee shot**). Shots at the green, 600 of them, from a spot you pick to an aim you pick:
+  - **From**: yards to the pin and yards right or left of the line of play; on a par 4 or 5, where the best line's drives typically finish (the median of its fairway finishes, once Drive has run); on a par 3, the tee.
+  - **Aim**: the best aim (25 tried on a 3-yd grid round the pin, the same shots for each), the pin, the green's centre, an aim distance straight at the pin, or a point so many yards right or left and beyond or short of the pin.
+  - **Spreads**: 1 is the golfer fitted to the anchors; 1.5 tries the hole for a weaker player.
+
+  It shows where the shots finish (on the green or not), the share that hold the green, their average distance from the hole, where the misses go, bunker, water and scrub, the expected strokes to hole out and the strokes gained for the shot against the baseline from that lie and distance, with the best aims when it searched. A card underneath shows the fitted golfer against every anchor.
+- **Approach: Map** (Stage 4c). For the chosen pin, built in the background when the pin is opened (a few seconds) and kept until the green, the terrain or the assumptions change:
+  - **Par 4s and 5s:** the heat map of where to approach from. Every 5 yds of fairway, rough and bunker within the golfer's reach, each spot played with its best of nine aims, coloured against the other spots the same distance from the pin. The best angle is ringed, and a table compares the best and worst fairway spot in each 10-yd band.
+  - **Par 3s:** tee shots from every tee, 49 aims each, with the best aim, its expected strokes and green hits, the pin itself and strokes gained against the baseline's tee rows.
+  - **Every hole:** the leave map (expected strokes still to play by where a shot finishes round the green) with the ideal-angle spokes, and the ideal angle in from 150 yds.
+- **Green** (Stage 4a). Expected putts from every spot on the hole's green to the chosen pin, drawn over the green with arrows pointing downhill. Cells too steep for a stopped ball to stay put are hatched. For each pin it shows:
+  - the average putts from the whole green
+  - the share of the green that needs 2.3 putts or more
+  - from 15–30 ft, putts from above the hole against putts from below
+  - the slope at the cup, in red when a ball can't stop there
+
+  For the green as a whole it shows its size, Stimp, typical and steepest slope, and how much of it can't hold a stopped ball. Maps build in the background when a pin is opened (a few seconds each), or all at once with **Build every pin**. They are kept until the green, its speed or the putting assumptions change.
+
+
+### Hole
+
+- **Summary** (Stage 4e). Every pin played 600 times tee to cup for the player in the bar. The drive goes on its best line: the Drive tab's, when it ran for this pin and player, otherwise a quick 400-drive sweep. The par 5 second shot follows the go-or-lay-up plan, approaches use each spot's best aim from the heat map, chips aim at the pin, and putts come from the putting map. Per pin it shows the score (with expected putts, so not a whole number), the score against par, strokes gained off the tee, on approach, around the green and putting (they add up to the hole), fairways, greens in regulation, scrambling (par or better after missing the green in regulation), and birdie and bogey-or-worse shares. Over the pins it shows the average, the hardest and easiest pin, and where most strokes go.
+- **Experiments** (Stage 4e). Design changes played against the hole as it is, every pin, with the same draws: the landing zone 5 yds wider and 5 yds narrower each side (par 4s and 5s; the zone is where the player's drives land, from the 10th to the 90th percentile, plus 10 yds), and each hazard near play taken out (the six nearest the landing zone or the green). After you reload a new save while the section is open, your last save against the one before is added at the top, both on the replay's green contours and flat ground outside the green, so only your edit differs. Each shows the change in strokes averaged over the pins, with its paired 95% range and the change per pin, marked easier, harder or no clear effect.
 
 ### Save watcher
 
-The rest of Studio only notices a new course save after backing out to the menu. This section watches the file while it is open: every 2 s it checks the file's time and size, and when a change has held still across two checks, it hashes the file and compares it with what's loaded. A new save is read in the background and compared with the current hole. The banner lists what changed on this hole: tees, pins, aim marker, widths, hazards, surface areas and height brushes near the line. Nothing reloads or runs until you click **Reload this hole**. Reloading keeps confirmed assumptions, asks for the read-back again when surfaces, tees or pins changed, and keeps a one-line summary of the previous results. **Not now** sets the save aside until the file changes again. A waiting save blocks the run.
+The rest of Studio only notices a new course save after backing out to the menu. This section watches the file while it is open: every 2 s it checks the file's time and size, and when a change has held still across two checks, it hashes the file and compares it with what's loaded. A new save is read in the background and compared with the current hole. The banner lists what changed on this hole: tees, pins, aim marker, widths, hazards, surface areas and height brushes near the line. Nothing reloads or runs until you click **Reload this hole**. Reloading keeps confirmed assumptions, asks for the read-back again when surfaces, tees or pins changed, and keeps a one-line summary of the previous results. **Not now** sets the save aside until the file changes again. A waiting save blocks Run drives.
 
 This deliberately replaces the continuation prompt's "no file watcher" rule, at Alex's request (4 Nov 2026). It still never runs anything by itself.
 
@@ -192,6 +206,25 @@ Pilolcura has no water near its par 5 greens, so going for it nearly always wins
 
 `pga2k25 holesim <file.course> --hole 10 --pin 4 [--player normal] --second-shot [--from 230[,side]] [--second-png file.png]`.
 
+## Whole holes and experiments (Stage 4e)
+
+- **Play-out** (`HolePlay.Play`). Par 4s and 5s start with the player's drive (`GeometryRun.Drive`: the Drive tab's physics and draws, in the same order); par 3s with the best of 49 tee aims. Water costs its penalty and the next shot is played from rough at the spot. A shot that starts within the short-game map counts as around the green; the rest are approaches (a par 3 tee shot is an approach, as in Broadie's split).
+- **Strokes gained by phase.** Every shot is scored against the baseline from its start and finish, and the putts against the baseline's green rows, so the phases telescope: they add up to E(tee) less the score, exactly (the tests check it to 1e-9).
+- **Experiments** (`Experiments`). Surface edits only: `WidenFairway` turns rough, heavy rough and native within N yds of the fairway into fairway between two distances (or fairway within N yds of its edge into rough), and `RemoveHazard` turns one hazard's connected piece (found again from a seed cell kept with each hazard) into rough. The edited hole (`HoleModel.WithGrid`) keeps its green, golfer and putting maps; its short game and heat maps rebuild on the new surfaces. Both versions play the same draw numbers, and the 95% range comes from the spread of the paired differences.
+
+On Pilolcura hole 8 (Studio, Power Drive, green contours unverified, flat outside the green):
+
+| Pin | Score | SG tee | Approach | Short | Putting | GIR |
+|---|---|---|---|---|---|---|
+| 1 (centre) | 4.22 | +0.29 | +0.10 | +0.20 | −0.39 | 71% |
+| 2 | 4.29 | +0.30 | −0.03 | +0.33 | −0.41 | 69% |
+| 3 | 4.35 | +0.31 | +0.05 | +0.24 | −0.47 | 70% |
+| 4 (front left) | 4.69 | +0.27 | −0.10 | −0.04 | −0.48 | 40% |
+
+Pin 4 plays nearly half a stroke harder than pin 1, and putting is where most strokes go on every pin: the putting model on these contours is harder than the baseline's green rows, which is why reading the greens in the game matters. Experiments on the same hole: the landing zone 5 yds wider each side −0.021 ± 0.008, 5 yds narrower +0.039 ± 0.015; taking out any one hazard changes nothing for Power Drive, whose best line lands past them all. In a debug build the summary took 22 s and the eight experiments 156 s.
+
+`pga2k25 holesim <file.course> --hole 8 [--player normal] --whole [--experiments]`.
+
 ## Strokes gained
 
 The method follows Broadie, as set out in the Strokes Gained method prompt (4 Nov 2026):
@@ -212,7 +245,7 @@ pga2k25 holesim <file.course> --hole 8 [--tee T4|4] [--pin 1] [--player power|no
                 [--green [--green-png green.png]]
                 [--approach --from 153[,side]|tee --aim best|pin|centre|right,long [--aim-distance 150] [--approach-png a.png]]
                 [--heat [--heat-png heat.png]] [--angles] [--tee-shots] [--leave-png leave.png]
-                [--second-shot [--from 230[,side]] [--second-png second.png]]
+                [--second-shot [--from 230[,side]] [--second-png second.png]] [--whole] [--experiments]
 pga2k25 holesim-terrain <file.course> --holes 11,3,4 [--smooth 8] [--readings 10] [--fit-length 25]
 ```
 
@@ -225,4 +258,4 @@ pga2k25 holesim-terrain <file.course> --holes 11,3,4 [--smooth 8] [--readings 10
 
 ## Not yet
 
-Sightlines from the tee (the visibility map) wait on a trusted terrain and the sightline answers collected in step 4. Stage 4 continues (proposal: https://claude.ai/artifact/7KdJjbPdzKH2tbabsoMX8Q): 4e whole holes. The original Stage 4 list: approaches, the approach map by pin, design experiments (paired edits of the hole), in-game verdicts and the session record. Stage 5: wind, the par 5 lay-up decision and session comparison.
+Sightlines from the tee (the visibility map) wait on a trusted terrain and the sightline answers collected in Live checks. Stage 4 (proposal: https://claude.ai/artifact/7KdJjbPdzKH2tbabsoMX8Q) still lacks the session record and in-game verdicts per finding; where the record is saved is still to be decided. The original Stage 4 list: approaches, the approach map by pin, design experiments (paired edits of the hole), in-game verdicts and the session record. Stage 5: wind, the par 5 lay-up decision and session comparison.

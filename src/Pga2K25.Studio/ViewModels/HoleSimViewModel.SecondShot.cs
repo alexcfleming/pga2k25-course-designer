@@ -14,7 +14,7 @@ namespace Pga2K25.Studio.ViewModels;
 /// </summary>
 public partial class HoleSimViewModel
 {
-    public const string SecondShotStep = "10  Second shot";
+    public const string SecondShotStep = "Second shot";
 
     CancellationTokenSource? _secondCancel;
     int _secondPin = 1;
