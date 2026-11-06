@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 2.4.1
+COURSE DESIGNER STUDIO - release 2.5.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -12,8 +12,8 @@ Reads your .course files and makes printable products from them:
     (including a Wind Card when the course has a wind rose)
   - Construction estimate: what the course might cost to build as a real
     course, with a low / likely / high range (illustrative, not a bid)
-And a Hole design simulator that plays thousands of tee shots on one hole
-and values where they finish in strokes gained.
+And a Hole design simulator that plays one hole thousands of times, tee
+to cup, and values every shot in strokes gained, to test design changes.
 It is read only. It never changes or writes a course file. It works
 offline: the one online feature (wind data) is off unless you turn it on.
 
@@ -223,7 +223,48 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
-NEW SINCE 2.4.1
+NEW IN 2.5.0
+- Hole design simulator, new layout: a bar along the top picks the hole,
+  tee, pin and player for every view. Under it are three sections:
+  Set up (Hole, Assumptions, Live checks, Terrain), done once per hole
+  and showing how far along it is ("2 of 4"); Shots (Drive, Second shot
+  on par 5s, Approach or Tee shot on a par 3, Green); and Hole (Summary,
+  Experiments, Record). "Run" is now "Drive", and its button "Run drives".
+- Green: expected putts from every spot on the green to the chosen pin,
+  with arrows showing which way it falls and the parts too steep for a
+  ball to stop on hatched. The green's speed comes from the course's
+  Stimp. The putter is fitted to the Tour putting figures. Live checks add
+  two or three height readings round each pin, and the Terrain step
+  compares the green's contours with them.
+- Approach (Play a shot): 600 shots at the green from a spot you choose
+  (yards and side, where the best drive finishes, or the tee on a par 3),
+  at the best aim, the pin, the green's centre, an aim distance or a
+  point. Shows how many hold the green, how close they finish, where the
+  misses go and the strokes gained for the shot. The simulated golfer is
+  fitted to the Tour figures; "Spreads" tries a weaker player.
+- Approach (Map): a heat map of where to approach each pin from (spots
+  coloured against others the same distance away, the best angle
+  ringed), a map of where to leave the ball round the green, and the
+  ideal direction in from the green's contours. On a par 3: tee shots
+  from every tee, and the ideal direction from the chosen tee's distance
+  with each tee's own line drawn in.
+- Second shot (par 5s): go for the green with your longest fairway club,
+  or lay up to any fairway spot in reach, each valued by the shot it
+  leaves. Set your club's carry and roll for each player in Assumptions.
+- Hole > Summary: every pin played tee to cup, with the score, strokes
+  gained off the tee, on approach, around the green and putting,
+  fairways, greens in regulation, scrambling, birdies and bogeys.
+- Hole > Experiments: the landing zone 5 yds wider or narrower, or a
+  hazard taken out, played against the hole as it is with the same
+  shots, every pin. After you reload a new save, your last edit is
+  played against the save before it.
+- Hole > Record: every result is logged as it finishes in a session
+  record for the hole and day (Hole Sim folder beside the products, with
+  a .md copy). Results worth checking in the game become findings, each
+  with how to check it; mark each Confirmed, Not seen or Contradicted.
+- Publish readiness is much faster: reading a course's checks takes
+  seconds instead of most of a minute on a big course. The results are
+  exactly the same.
 - Hole sheets are narrower. Each side now shows 75 yd past the widest
   point the route reaches on that side (tees, aim points and green), or
   75 yd past the tee-to-green line on a side the route never goes. A
@@ -240,6 +281,15 @@ NEW SINCE 2.4.1
 - Hole sketches: scans of sheets printed before this version still
   import and land in the right place. On the new sheets, writing in the
   notes column stays on the paper and isn't laid on the map.
+
+FIXED IN 2.5.0
+- Hole design simulator: picking holes quickly could leave the simulator
+  on an earlier hole while the hole box showed the new one. It now always
+  shows the hole picked last, and drive results from a hole you've left
+  are dropped.
+- Hole design simulator: an approach map interrupted by a change in the
+  setup (the terrain switched on while it built) stayed busy and never
+  finished. It now builds again for the new setup.
 
 FIXED IN 2.4.1
 - Hole design simulator: the red "Depends on" line under a run's results
