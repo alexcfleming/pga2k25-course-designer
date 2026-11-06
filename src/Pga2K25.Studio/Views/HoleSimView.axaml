@@ -659,9 +659,216 @@
                 </ItemsControl>
                 <TextBlock Text="Played out on a plain calibration hole (flat, a 34-yd fairway, a round 26-yd green), shot after shot until holed, from each anchor's lie and distance. Off by more than 0.15 in red: the simple golfer can't match those rows without implausible values."
                            Classes="muted small" TextWrapping="Wrap"/>
+                <Button Classes="primary" Content="Next: approach map" Command="{Binding GoApproachMapCommand}" HorizontalAlignment="Left"/>
               </StackPanel>
             </Border>
           </StackPanel>
+        </Grid>
+      </StackPanel>
+
+      <!-- 9 Approach map -->
+      <StackPanel Spacing="14" IsVisible="{Binding IsApproachMap}">
+        <Border Classes="card" Padding="16">
+          <StackPanel Spacing="8">
+            <TextBlock Text="{Binding MapTitle}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap"/>
+            <ItemsControl ItemsSource="{Binding MapPinButtons}" ItemTemplate="{StaticResource PillTemplate}">
+              <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+            </ItemsControl>
+            <StackPanel Orientation="Horizontal" Spacing="10" IsVisible="{Binding MapBusy}">
+              <ProgressBar IsIndeterminate="True" Width="160" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock Text="{Binding MapStatus}" TextWrapping="Wrap" IsVisible="{Binding MapStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+            <Border Classes="chip" Background="#FBE6DC" HorizontalAlignment="Left" Padding="10,2" IsVisible="{Binding HasPinMaps}">
+              <TextBlock Text="{Binding MapBadge}" FontSize="11.5" FontWeight="SemiBold" Foreground="#B4471F" TextWrapping="Wrap"/>
+            </Border>
+          </StackPanel>
+        </Border>
+
+        <!-- Par 4 and 5: the heat map -->
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16" IsVisible="{Binding ShowHeat}">
+          <Border Classes="card" Padding="8" VerticalAlignment="Top">
+            <StackPanel Spacing="6">
+              <Image Source="{Binding HeatImage}" Stretch="Uniform" MaxHeight="640" MaxWidth="520" AutomationProperties.Name="Approach heat map"/>
+              <TextBlock Text="Green: better than the other spots the same distance away · red: worse · ringed: the best angle" Classes="muted small" TextWrapping="Wrap" MaxWidth="520"/>
+            </StackPanel>
+          </Border>
+          <Border Grid.Column="1" Classes="card" Padding="16" VerticalAlignment="Top">
+            <StackPanel Spacing="10">
+              <TextBlock Text="Where to approach from" FontWeight="SemiBold"/>
+              <TextBlock Text="{Binding HeatBest}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+              <TextBlock Text="{Binding HeatSummary}" TextWrapping="Wrap"/>
+              <TextBlock Text="Fairway spots the same distance from the pin: the best side against the worst (yds left or right of the tee line)" Classes="muted small" TextWrapping="Wrap" Margin="0,6,0,0"/>
+              <Grid ColumnDefinitions="90,130,130,80">
+                <TextBlock Text="Yds" Classes="muted small"/>
+                <TextBlock Grid.Column="1" Text="Best" Classes="muted small" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="2" Text="Worst" Classes="muted small" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="3" Text="Worth" Classes="muted small" HorizontalAlignment="Right"/>
+              </Grid>
+              <ItemsControl ItemsSource="{Binding BandRows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:BandRowViewModel">
+                    <Grid ColumnDefinitions="90,130,130,80">
+                      <TextBlock Text="{Binding Yards}" Classes="mono"/>
+                      <TextBlock Grid.Column="1" Text="{Binding Best}" Classes="mono" HorizontalAlignment="Right"/>
+                      <TextBlock Grid.Column="2" Text="{Binding Worst}" Classes="mono" HorizontalAlignment="Right"/>
+                      <TextBlock Grid.Column="3" Text="{Binding Premium}" Classes="mono" HorizontalAlignment="Right" FontWeight="{Binding Weight}"/>
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+          </Border>
+        </Grid>
+
+        <!-- Par 3: tee shots from every tee -->
+        <Border Classes="card" Padding="16" IsVisible="{Binding IsPar3Map}">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Tee shots from every tee" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding TeeShotSummary}" TextWrapping="Wrap" FontWeight="SemiBold"/>
+            <Grid ColumnDefinitions="70,60,70,110,80,70,80,70">
+              <TextBlock Text="Tee" Classes="muted small"/>
+              <TextBlock Grid.Column="1" Text="Yds" Classes="muted small" HorizontalAlignment="Right"/>
+              <TextBlock Grid.Column="2" Text="Plays" Classes="muted small" HorizontalAlignment="Right"/>
+              <TextBlock Grid.Column="3" Text="Best aim R / long" Classes="muted small" HorizontalAlignment="Right"/>
+              <TextBlock Grid.Column="4" Text="Expected" Classes="muted small" HorizontalAlignment="Right"/>
+              <TextBlock Grid.Column="5" Text="Green" Classes="muted small" HorizontalAlignment="Right"/>
+              <TextBlock Grid.Column="6" Text="At the pin" Classes="muted small" HorizontalAlignment="Right"/>
+              <TextBlock Grid.Column="7" Text="SG" Classes="muted small" HorizontalAlignment="Right"/>
+            </Grid>
+            <ItemsControl ItemsSource="{Binding TeeShotRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:TeeShotRowViewModel">
+                  <Grid ColumnDefinitions="70,60,70,110,80,70,80,70">
+                    <TextBlock Text="{Binding Tee}"/>
+                    <TextBlock Grid.Column="1" Text="{Binding Yards}" Classes="mono" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="2" Text="{Binding PlaysLike}" Classes="mono" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="3" Text="{Binding Aim}" Classes="mono" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="4" Text="{Binding Expected}" Classes="mono" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+                    <TextBlock Grid.Column="5" Text="{Binding Green}" Classes="mono" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="6" Text="{Binding AtPin}" Classes="mono" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="7" Text="{Binding Sg}" Classes="mono" HorizontalAlignment="Right"/>
+                  </Grid>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <TextBlock Text="49 aims per tee, 4 yds apart out to 12 yds from the pin, 300 shots each with the same draws. SG against the baseline's tee rows (the golfer was fitted on a flat green, so real greens read harder than Tour)." Classes="muted small" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
+
+        <!-- Every hole: the leave map and the ideal angle -->
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16" IsVisible="{Binding HasPinMaps}">
+          <Border Classes="card" Padding="8" VerticalAlignment="Top">
+            <StackPanel Spacing="6">
+              <Image Source="{Binding LeaveImage}" Stretch="Uniform" MaxHeight="600" MaxWidth="520" AutomationProperties.Name="Where to leave the ball round the green"/>
+              <TextBlock Text="{Binding LeaveLegend}" Classes="muted small" TextWrapping="Wrap" MaxWidth="520"/>
+            </StackPanel>
+          </Border>
+          <Border Grid.Column="1" Classes="card" Padding="16" VerticalAlignment="Top">
+            <StackPanel Spacing="10">
+              <TextBlock Text="The ideal angle in" FontWeight="SemiBold"/>
+              <TextBlock Text="{Binding AngleSummary}" TextWrapping="Wrap"/>
+              <Grid ColumnDefinitions="80,80,70,70">
+                <TextBlock Text="From" Classes="muted small"/>
+                <TextBlock Grid.Column="1" Text="Expected" Classes="muted small" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="2" Text="Green" Classes="muted small" HorizontalAlignment="Right"/>
+              </Grid>
+              <ItemsControl ItemsSource="{Binding AngleRows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:AngleRowViewModel">
+                    <Grid ColumnDefinitions="80,80,70,70">
+                      <TextBlock Text="{Binding Degrees}" FontWeight="{Binding Weight}"/>
+                      <TextBlock Grid.Column="1" Text="{Binding Expected}" Classes="mono" HorizontalAlignment="Right" FontWeight="{Binding Weight}"/>
+                      <TextBlock Grid.Column="2" Text="{Binding Green}" Classes="mono" HorizontalAlignment="Right"/>
+                      <TextBlock Grid.Column="3" Text="{Binding Note}" Classes="muted small" HorizontalAlignment="Right"/>
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="Degrees right (R) or left (L) of the line of play, seen from the fairway looking at the green, all from 150 yds with each direction's best aim." Classes="muted small" TextWrapping="Wrap"/>
+              <Button Classes="primary" Content="Next: second shot" Command="{Binding GoSecondShotCommand}" HorizontalAlignment="Left"/>
+            </StackPanel>
+          </Border>
+        </Grid>
+      </StackPanel>
+
+      <!-- 10 Second shot -->
+      <StackPanel Spacing="14" IsVisible="{Binding IsSecondShot}">
+        <Border Classes="card" Padding="16">
+          <StackPanel Spacing="10">
+            <TextBlock Text="Second shot: go for it or lay up" FontSize="16" FontWeight="SemiBold"/>
+            <TextBlock Text="From where the drive finishes, the player goes at the green with its longest fairway club, or lays up to any fairway spot in reach. Every option is played with the same shots and valued by the third shot it leaves: the approach heat map, misses included."
+                       Classes="muted small" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding SecondIntro}" TextWrapping="Wrap"/>
+            <ItemsControl ItemsSource="{Binding SecondPinButtons}" ItemTemplate="{StaticResource PillTemplate}">
+              <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+            </ItemsControl>
+            <Grid ColumnDefinitions="70,*" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="8">
+              <TextBlock Text="From" Classes="muted small" VerticalAlignment="Center"/>
+              <ItemsControl Grid.Column="1" ItemsSource="{Binding SecondFromButtons}" ItemTemplate="{StaticResource PillTemplate}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+              </ItemsControl>
+              <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8" IsVisible="{Binding ShowSecondYards}">
+                <TextBox Text="{Binding SecondYards}" Width="80" MinHeight="30"/>
+                <TextBlock Text="yds to the pin," VerticalAlignment="Center"/>
+                <TextBox Text="{Binding SecondSide}" Width="70" MinHeight="30"/>
+                <TextBlock Text="yds right (+) or left (−) of the line of play" VerticalAlignment="Center"/>
+              </StackPanel>
+              <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SecondFromText}" Classes="small" TextWrapping="Wrap"/>
+              <TextBlock Grid.Row="3" Text="Spreads" Classes="muted small" VerticalAlignment="Center"/>
+              <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                <TextBox Text="{Binding SecondSkillText}" Width="70" MinHeight="30"/>
+                <TextBlock Text="× the fitted golfer (try 1.5 to see when a weaker player should lay up)" VerticalAlignment="Center" Classes="small" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Grid>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+              <Button Classes="primary" Content="Go or lay up?" Command="{Binding RunSecondShotCommand}" IsEnabled="{Binding !SecondBusy}" MinWidth="150"/>
+              <ProgressBar IsIndeterminate="True" Width="160" IsVisible="{Binding SecondBusy}" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock Text="{Binding SecondStatus}" TextWrapping="Wrap" IsVisible="{Binding SecondStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+          </StackPanel>
+        </Border>
+
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="16" IsVisible="{Binding HasSecond}">
+          <Border Classes="card" Padding="8" VerticalAlignment="Top">
+            <StackPanel Spacing="6">
+              <Image Source="{Binding SecondMap}" Stretch="Uniform" MaxHeight="640" MaxWidth="520" AutomationProperties.Name="Lay-up targets against going for it"/>
+              <TextBlock Text="Each lay-up target: green where laying up there beats going for it, red where going is better. Ringed: where the ball is, the go aim and the best lay-up." Classes="muted small" TextWrapping="Wrap" MaxWidth="520"/>
+            </StackPanel>
+          </Border>
+          <Border Grid.Column="1" Classes="card" Padding="16" VerticalAlignment="Top">
+            <StackPanel Spacing="10">
+              <TextBlock Text="{Binding SecondTitle}" Classes="mono small" TextWrapping="Wrap"/>
+              <Border Classes="chip" Background="#FBE6DC" HorizontalAlignment="Left" Padding="10,2">
+                <TextBlock Text="{Binding SecondBadge}" FontSize="11.5" FontWeight="SemiBold" Foreground="#B4471F" TextWrapping="Wrap"/>
+              </Border>
+              <TextBlock Text="{Binding SecondVerdict}" FontSize="16" FontWeight="SemiBold" Foreground="{Binding SecondVerdictBrush}" TextWrapping="Wrap"/>
+              <TextBlock Text="{Binding SecondGo}" TextWrapping="Wrap"/>
+              <TextBlock Text="{Binding SecondLayup}" TextWrapping="Wrap"/>
+              <TextBlock Text="The best lay-up for each distance left (yds from the pin, side of the tee line)" Classes="muted small" Margin="0,6,0,0"/>
+              <Grid ColumnDefinitions="60,70,80,90,80">
+                <TextBlock Text="Yds" Classes="muted small"/>
+                <TextBlock Grid.Column="1" Text="Side" Classes="muted small" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="2" Text="Expected" Classes="muted small" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="3" Text="Against go" Classes="muted small" HorizontalAlignment="Right"/>
+                <TextBlock Grid.Column="4" Text="Fairway" Classes="muted small" HorizontalAlignment="Right"/>
+              </Grid>
+              <ItemsControl ItemsSource="{Binding LayupRows}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:LayupRowViewModel">
+                    <Grid ColumnDefinitions="60,70,80,90,80">
+                      <TextBlock Text="{Binding Yards}" Classes="mono" FontWeight="{Binding Weight}"/>
+                      <TextBlock Grid.Column="1" Text="{Binding Where}" Classes="mono" HorizontalAlignment="Right"/>
+                      <TextBlock Grid.Column="2" Text="{Binding Expected}" Classes="mono" HorizontalAlignment="Right" FontWeight="{Binding Weight}"/>
+                      <TextBlock Grid.Column="3" Text="{Binding VsGo}" Foreground="{Binding VsGoInk}" Classes="mono" HorizontalAlignment="Right"/>
+                      <TextBlock Grid.Column="4" Text="{Binding Fairway}" Classes="mono" HorizontalAlignment="Right"/>
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="Against go: strokes a lay-up there saves (+) or costs (−) against going for the green." Classes="muted small" TextWrapping="Wrap"/>
+              <TextBlock Text="{Binding SecondDepends}" Foreground="#B4471F" Classes="small" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
         </Grid>
       </StackPanel>
     </StackPanel>

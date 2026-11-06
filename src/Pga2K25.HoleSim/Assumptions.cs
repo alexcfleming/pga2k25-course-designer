@@ -223,6 +223,9 @@ public sealed class AssumptionSheet
         CaptureSpeed = this["greens.capture"].Number, PastM = this["greens.past"].Number, StaticFactor = this["greens.static"].Number,
     };
 
+    /// <summary>The player's longest shot off the fairway (carry and roll), for the par 5 second shot.</summary>
+    public double Reach(string playerId) => this[playerId == "power" ? "player.power.reach" : "player.normal.reach"].Number;
+
     public ShotRules ShotRules()
     {
         var r = this["approach.release"].Numbers;

@@ -142,7 +142,7 @@ public partial class HoleSimViewModel
             Task.Run(() =>
             {
                 var surface = GreenSurface.Build(m, t);
-                Dispatcher.UIThread.Post(() => { if (!ReferenceEquals(m, _model)) return; _greenSurface = surface; ClearPuttingMaps(); ResetApproach(); RefreshGreenRead(); });
+                Dispatcher.UIThread.Post(() => { if (!ReferenceEquals(m, _model)) return; _greenSurface = surface; ClearPuttingMaps(); ResetApproach(); RefreshGreenRead(); RefreshShotSteps(); });
             });
         }
         UpdateGreenStatus();

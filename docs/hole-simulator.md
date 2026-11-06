@@ -46,6 +46,11 @@ Stage 2 built steps 1–3 and a flat-ground run; Stage 3 added live checks, the 
    - **Spreads**: 1 is the golfer fitted to the anchors; 1.5 tries the hole for a weaker player.
 
    It shows where the shots finish (on the green or not), the share that hold the green, their average distance from the hole, where the misses go, bunker, water and scrub, the expected strokes to hole out and the strokes gained for the shot against the baseline from that lie and distance, with the best aims when it searched. A card underneath shows the fitted golfer against every anchor.
+9. **Approach map** (Stage 4c). For the chosen pin, built in the background when the pin is opened (a few seconds) and kept until the green, the terrain or the assumptions change:
+   - **Par 4s and 5s:** the heat map of where to approach from. Every 5 yds of fairway, rough and bunker within the golfer's reach, each spot played with its best of nine aims, coloured against the other spots the same distance from the pin. The best angle is ringed, and a table compares the best and worst fairway spot in each 10-yd band.
+   - **Par 3s:** tee shots from every tee, 49 aims each, with the best aim, its expected strokes and green hits, the pin itself and strokes gained against the baseline's tee rows.
+   - **Every hole:** the leave map (expected strokes still to play by where a shot finishes round the green) with the ideal-angle spokes, and the ideal angle in from 150 yds.
+10. **Second shot** (Stage 4d). On a par 5: go for the green or lay up. From where the best line's drives typically finish (once step 6 has run) or from yards and side, for the player chosen in step 6 with its longest fairway club, and optionally with wider spreads. It gives the verdict and by how much, going for it (or the longest club at the green when it's out of reach) against the best lay-up, and the best lay-up for each distance left. The map colours every lay-up target against going for it.
 
 ### Save watcher
 
@@ -141,6 +146,52 @@ Hole 12's replay green sheds most shots (30% of it is too steep to hold a ball) 
 
 `pga2k25 holesim <file.course> --hole 8 --approach --from 153[,side] --aim best|pin|centre|right,long [--aim-distance 150] [--approach-png file.png]` prints the golfer fit and the run; `--from tee` plays a par 3 tee shot.
 
+## Approach maps (Stage 4c)
+
+- **The heat map** (`ApproachMaps.Heat`). Spots every 5 yds on fairway, rough and bunkers within 45 yds of the line of play, from 40 yds out to the golfer's reach. At each spot, nine aims round the pin (3 × 3, 4 yds apart) on 200 shots, then the best of them on 600 fresh shots; every spot uses the same draws. On Pilolcura hole 8 that is about 450 spots, about 1 s from the command line.
+- **Colour by angle, not distance.** Each spot is compared with the median spot in its own 10-yd distance band. Against the baseline instead, the colours followed distance: the model's curve and the baseline's don't match at every distance. So green on the map means "better than other spots this far out", which is the side, the angle and the lie. The best angle is the fairway spot, 60 yds or more out, furthest ahead of its band, and only when that's at least 0.03 strokes (smaller is within the run's noise).
+- **Harder than Tour overall.** Nearly every spot plays worse than the baseline from the same lie and distance (Pilolcura hole 8: −0.17 for pin 1, −0.58 for pin 4). The golfer was fitted on a flat, round green, so real greens with contours and surrounds always read harder. The map states that offset in words and colours only the differences.
+- **The leave map** (`ApproachMaps.Leave`). Expected strokes still to play from every yard within 35 yds of the green: the putting map on it, the short-game map round it, water and scrub with their penalty. Coloured on the map's own range (5th to 95th percentile), so where to leave it shows even when everything off the green is costly.
+- **The ideal angle** (`ApproachMaps.Angles`). Shots into the pin from 150 yds, from the line of play and every 15° either side out to 75°, all from a fairway lie with the same draws and each direction's best aim. Spots off the course are played as if they were fairway, so only the green and its surrounds count. The spokes on the leave map show them: the ideal one in ink, the others coloured against it.
+- **Par 3 tee shots** (`ApproachMaps.TeeShots`). From every tee, 49 aims (7 × 7, 4 yds apart, out to 12 yds from the pin) on 300 shots each.
+
+Figures on Pilolcura (green contours unverified):
+
+| Hole | Pin | What the maps say |
+|---|---|---|
+| 8 | 1 (centre) | The angle hardly matters: best and worst spots at the same distance differ by 0.04–0.10. From 150 yds, best straight down the line (3.20), worst from 75° right (3.43). |
+| 8 | 4 (front left) | The left side is worth 0.10–0.14 strokes from 90–170 yds; best angle 91 yds out, 38 yds left of the tee line. From 150 yds, best from 15° left (3.60), worst from 75° right (3.81). |
+| 3 (par 3) | 4 (front left) | Best aim 8 yds right and 8 long, 3.74–3.83 from the four tees; firing at the pin costs about 0.2. Best approached from 45° right (3.54, 66% on the green), worst from 45° left (3.92). |
+
+Hole 3 is the par 3 test green for now: its cup slopes are all under 1.2%, against hole 12, whose replay green is too steep to trust until it's read in the game.
+
+`pga2k25 holesim <file.course> --hole 8 --pin 4 --heat [--heat-png heat.png] --angles [--leave-png leave.png]` and, on a par 3, `--tee-shots`.
+
+## Par 5 second shot (Stage 4d)
+
+- **The choice** (`SecondShot.Plan`). From a spot after the drive, the player can do one of two things:
+  - **Go:** take its longest fairway club at the green, with the best of nine aims round the pin, 4 yds apart. When the green is out of reach, the same club "as close as it goes".
+  - **Lay up:** aim at any fairway spot of the approach heat map that is in reach, at least 40 yds from the pin, and on the golfer's side of the green.
+
+  Every option is played with the same shots (150 each, the best go aim and the best five lay-ups again on fresh shots).
+- **Valued by the shot it leaves.** A finish is worth the putting map on the green, the short-game map round it, the approach heat map's value for that spot (its own best third shot) on the fairway, rough and bunkers, and the baseline anywhere else, with water's penalty. So a lay-up wins only if the third shot it leaves, misses included, beats going for it.
+- **The longest club** is a new Player row for each player: Power Drive 265 yds and Normal 240, carry and roll, both PLACEHOLDER until set from the game's club distances. The golfer fitted to the anchors only reaches about 230 yds, which is right for matching the anchors but too short for a par 5 second shot, so the player's own club decides reach here. The spreads stay the fitted golfer's.
+- **Checked on a test hole:** with nothing round the green it goes for it; with water round the sides and back and wider spreads (×1.5) it lays up, because the go shots find the water and the lay-up doesn't.
+
+Figures on Pilolcura (green contours unverified, flat outside the green), from the best drive's typical finish:
+
+| Hole | Player | Pin | From | Verdict |
+|---|---|---|---|---|
+| 10 | Power Drive (265) | 1 | 204 yds | go, by 0.28 (55% on the green) |
+| 10 | Power Drive, spreads ×1.5 | 4 | 188 yds | go, by 0.34 |
+| 10 | Normal (240) | 4 | 247 yds, out of reach | the longest club as close as it goes, by 0.15 |
+| 10 | Power Drive | 4 | 300 yds (set by hand) | lay up to 41 yds, by 0.05 (lay-ups from 40 to 100 yds all within 0.05) |
+| 1 | Power Drive | 1 | 280 yds, scrub round the green | go, by 0.07; by 0.02 with spreads ×1.5 |
+
+Pilolcura has no water near its par 5 greens, so going for it nearly always wins, by less where scrub or bunkers guard the green. The best lay-up is always the shortest allowed, because nothing near these greens makes a full wedge distance worth more than a short pitch.
+
+`pga2k25 holesim <file.course> --hole 10 --pin 4 [--player normal] --second-shot [--from 230[,side]] [--second-png file.png]`.
+
 ## Strokes gained
 
 The method follows Broadie, as set out in the Strokes Gained method prompt (4 Nov 2026):
@@ -160,6 +211,8 @@ pga2k25 holesim <file.course> --hole 8 [--tee T4|4] [--pin 1] [--player power|no
                 [--samples 2000] [--seed 7] [--treat 15=native,16=bunker] [--png map.png] [--json run.json]
                 [--green [--green-png green.png]]
                 [--approach --from 153[,side]|tee --aim best|pin|centre|right,long [--aim-distance 150] [--approach-png a.png]]
+                [--heat [--heat-png heat.png]] [--angles] [--tee-shots] [--leave-png leave.png]
+                [--second-shot [--from 230[,side]] [--second-png second.png]]
 pga2k25 holesim-terrain <file.course> --holes 11,3,4 [--smooth 8] [--readings 10] [--fit-length 25]
 ```
 
@@ -172,4 +225,4 @@ pga2k25 holesim-terrain <file.course> --holes 11,3,4 [--smooth 8] [--readings 10
 
 ## Not yet
 
-Sightlines from the tee (the visibility map) wait on a trusted terrain and the sightline answers collected in step 4. Stage 4 continues (proposal: https://claude.ai/artifact/7KdJjbPdzKH2tbabsoMX8Q): 4c the approach heat maps by pin and par 3 tee-shot sweeps, 4d the par 5 second shot on Pilolcura hole 10, 4e whole holes. The original Stage 4 list: approaches, the approach map by pin, design experiments (paired edits of the hole), in-game verdicts and the session record. Stage 5: wind, the par 5 lay-up decision and session comparison.
+Sightlines from the tee (the visibility map) wait on a trusted terrain and the sightline answers collected in step 4. Stage 4 continues (proposal: https://claude.ai/artifact/7KdJjbPdzKH2tbabsoMX8Q): 4e whole holes. The original Stage 4 list: approaches, the approach map by pin, design experiments (paired edits of the hole), in-game verdicts and the session record. Stage 5: wind, the par 5 lay-up decision and session comparison.

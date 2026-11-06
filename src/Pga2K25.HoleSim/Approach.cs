@@ -95,11 +95,16 @@ public sealed class ShotContext
     public required LieMap Lies { get; init; }
     public required PuttingModel Putting { get; init; }
     public required GreenSurface Green { get; init; }
-    public Dictionary<int, PuttingMap> PuttingMaps { get; } = [];
-    public Dictionary<int, ShortGameMap> ShortMaps { get; } = [];
+    // Maps are read from many threads at once and built under a lock, once each (another step may be building too).
+    public System.Collections.Concurrent.ConcurrentDictionary<int, PuttingMap> PuttingMaps { get; } = new();
+    public System.Collections.Concurrent.ConcurrentDictionary<int, ShortGameMap> ShortMaps { get; } = new();
+    readonly object _building = new();
 
-    public PuttingMap PuttingMap(int pin) =>
-        PuttingMaps.TryGetValue(pin, out var m) ? m : PuttingMaps[pin] = HoleSim.PuttingMap.Build(Green, Putting, pin, Hole.Pins[pin - 1].Frame);
+    public PuttingMap PuttingMap(int pin)
+    {
+        if (PuttingMaps.TryGetValue(pin, out var m)) return m;
+        lock (_building) return PuttingMaps.TryGetValue(pin, out m) ? m : PuttingMaps[pin] = HoleSim.PuttingMap.Build(Green, Putting, pin, Hole.Pins[pin - 1].Frame);
+    }
 
     /// <summary>The same hole with another golfer: putting maps carry over (they don't depend on the golfer), short-game maps don't.</summary>
     public ShotContext WithGolfer(GolferParams golfer)
@@ -109,8 +114,12 @@ public sealed class ShotContext
         return c;
     }
 
-    public ShortGameMap ShortMap(int pin) =>
-        ShortMaps.TryGetValue(pin, out var m) ? m : ShortMaps[pin] = ShortGameMap.Build(this, pin);
+    public ShortGameMap ShortMap(int pin)
+    {
+        if (ShortMaps.TryGetValue(pin, out var m)) return m;
+        var putting = PuttingMap(pin);   // first, so the short game's workers find it without the lock
+        lock (_building) return ShortMaps.TryGetValue(pin, out m) ? m : ShortMaps[pin] = ShortGameMap.Build(this, pin);
+    }
 }
 
 /// <summary>Level ground everywhere (the calibration hole, and holes with no terrain allowed).</summary>
@@ -285,13 +294,13 @@ public sealed record AimOption(FramePoint Offset, FramePoint Aim, double Expecte
 public static class ApproachSim
 {
     /// <summary>Shots from <paramref name="from"/> at <paramref name="aim"/>; the same draws for any aim with the same seed.</summary>
-    public static ApproachResult Run(ShotContext c, FramePoint from, FramePoint aim, int pin, int n = 600, int seed = 7, bool fromTee = false)
+    public static ApproachResult Run(ShotContext c, FramePoint from, FramePoint aim, int pin, int n = 600, int seed = 7, bool fromTee = false, Ground? lieOverride = null)
     {
         c.ShortMap(pin);   // build the short game first so misses are valued by it
         var pinAt = c.Hole.Pins[pin - 1].Frame;
-        var lie = fromTee ? Ground.Fairway : c.Grid.At(from);
+        var lie = fromTee ? Ground.Fairway : lieOverride ?? c.Grid.At(from);
         var shots = new ShotOutcome[n];
-        for (int i = 0; i < n; i++) shots[i] = ShotEngine.Shoot(c, from, aim, pin, new Random(unchecked(seed * 1_000_003 + i)), fromTee);
+        for (int i = 0; i < n; i++) shots[i] = ShotEngine.Shoot(c, from, aim, pin, new Random(unchecked(seed * 1_000_003 + i)), fromTee, lieOverride: lieOverride);
         var values = shots.Select(s => 1 + s.After + s.Penalty).ToArray();
         double mean = values.Average(), sd = Math.Sqrt(values.Sum(v => (v - mean) * (v - mean)) / Math.Max(1, n - 1));
         var counts = new double[Grounds.All.Count];
@@ -319,7 +328,7 @@ public static class ApproachSim
     /// Aims on a <paramref name="size"/> × <paramref name="size"/> grid round the pin, <paramref name="spacing"/> yds apart
     /// in the shot's own frame (right of and beyond the pin), each with the same draws; best first.
     /// </summary>
-    public static IReadOnlyList<AimOption> Sweep(ShotContext c, FramePoint from, int pin, int n = 200, int seed = 11, int size = 5, double spacing = 3, bool fromTee = false)
+    public static IReadOnlyList<AimOption> Sweep(ShotContext c, FramePoint from, int pin, int n = 200, int seed = 11, int size = 5, double spacing = 3, bool fromTee = false, Ground? lieOverride = null, bool parallel = true)
     {
         c.ShortMap(pin);
         var pinAt = c.Hole.Pins[pin - 1].Frame;
@@ -328,13 +337,13 @@ public static class ApproachSim
         var offsets = new List<FramePoint>();
         for (int i = -half; i <= half; i++) for (int j = -half; j <= half; j++) offsets.Add(new FramePoint(i * spacing, j * spacing));
         var options = new AimOption[offsets.Count];
-        Parallel.For(0, offsets.Count, k =>
+        Parallel.For(0, offsets.Count, new ParallelOptions { MaxDegreeOfParallelism = parallel ? -1 : 1 }, k =>
         {
             var o = offsets[k]; var aim = pinAt + right * o.Lat + dir * o.Along;
             double sum = 0; int on = 0;
             for (int i = 0; i < n; i++)
             {
-                var s = ShotEngine.Shoot(c, from, aim, pin, new Random(unchecked(seed * 1_000_003 + i)), fromTee);
+                var s = ShotEngine.Shoot(c, from, aim, pin, new Random(unchecked(seed * 1_000_003 + i)), fromTee, lieOverride: lieOverride);
                 sum += 1 + s.After + s.Penalty; if (s.Lie == Ground.Green && c.Green.OnGreen(s.Finish)) on++;
             }
             options[k] = new AimOption(o, aim, sum / n, on / (double)n);

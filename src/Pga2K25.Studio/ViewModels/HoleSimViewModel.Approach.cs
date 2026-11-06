@@ -163,6 +163,7 @@ public partial class HoleSimViewModel
     {
         _approachCancel?.Cancel();
         _shotContext = null; _shotKey = "";
+        ResetApproachMaps();
         HasApproach = false; ApproachMap = null; ApproachAimRows.Clear(); ApproachLegend.Clear(); ApproachStatus = "";
     }
 
@@ -283,7 +284,7 @@ public partial class HoleSimViewModel
         ApproachShape = $"Misses: short {r.Short:P0}, long {r.Long:P0}, left {r.Left:P0}, right {r.Right:P0}."
             + (hazards > 0.005 ? $" Bunker {r.Share(Ground.Bunker):P0}, water {r.Share(Ground.Water):P0}, scrub {r.Share(Ground.Scrub):P0}." : " No hazards reached.");
         ApproachSg = r.StrokesGained is { } sg
-            ? $"Strokes gained for the shot: {sg:+0.00;-0.00}. The baseline expects {r.Expected + sg:0.00} from {r.Yards:0} yds in the {(lie == "tee" ? "tee" : lie)}; this green, its pins and what surrounds it make it {(sg >= 0 ? "easier" : "harder")} than that by {Math.Abs(sg):0.00}."
+            ? $"Strokes gained for the shot: {sg:+0.00;-0.00;0.00}. The baseline expects {r.Expected + sg:0.00} from {r.Yards:0} yds in the {(lie == "tee" ? "tee" : lie)}; this green, its pins and what surrounds it make it {(sg >= 0 ? "easier" : "harder")} than that by {Math.Abs(sg):0.00}."
             : $"The baseline has no row for this start ({r.StartCoverage}), so there's no strokes gained for the shot; the expected strokes still stand.";
         ApproachFromText = fromText;
         ApproachAimRows.Clear();
@@ -299,7 +300,7 @@ public partial class HoleSimViewModel
             GolferRows.Clear();
             foreach (var row in fit.Rows) GolferRows.Add(new CalibrationRowViewModel(row));
             var worst = fit.Rows.OrderByDescending(x => Math.Abs(x.Error)).First();
-            GolferTitle = $"Golfer fitted to {fit.BaselineId}: within {fit.RmsError:0.00} strokes of the {fit.Rows.Count} anchors off the green on average (RMS); the worst is {worst.Lie.ToString().ToLowerInvariant()} at {worst.Yards:0} yds, {worst.Error:+0.00;-0.00}.";
+            GolferTitle = $"Golfer fitted to {fit.BaselineId}: within {fit.RmsError:0.00} strokes of the {fit.Rows.Count} anchors off the green on average (RMS); the worst is {worst.Lie.ToString().ToLowerInvariant()} at {worst.Yards:0} yds, {worst.Error:+0.00;-0.00;0.00}.";
             GolferDetail = $"Spread {golfer.DistPct:P1} of the shot long and short, {golfer.SidePct:P1} side to side, growing {golfer.LongGrowth:0.00} per 100 yds past 150, plus {golfer.FloorYds:0.0} yds on every shot. "
                 + $"Rough ×{golfer.RoughMult:0.00}, sand ×{golfer.SandMult:0.00}, scrub (recovery) ×{golfer.RecoveryMult:0.00}, tee ×{golfer.TeeMult:0.00}. Longest shot {golfer.MaxCarry:0} yds, out of scrub {golfer.RecoveryCarry:0}.";
         }
@@ -327,6 +328,6 @@ public sealed class CalibrationRowViewModel(CalibrationRow r)
     public string Yards { get; } = $"{r.Yards:0}";
     public string Anchor { get; } = $"{r.Anchor:0.00}";
     public string Model { get; } = $"{r.Model:0.00}";
-    public string Error { get; } = $"{r.Error:+0.00;-0.00}";
+    public string Error { get; } = $"{r.Error:+0.00;-0.00;0.00}";
     public IBrush ErrorInk { get; } = Brush.Parse(Math.Abs(r.Error) > 0.15 ? "#B4471F" : "#18211C");
 }
