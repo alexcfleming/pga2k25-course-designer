@@ -82,13 +82,13 @@ const string Usage = """
       the shipped baseline. Uses the shipped assumption defaults (mostly PLACEHOLDER); the
       Studio section asks you to confirm each one. --treat says how unknown surface ids play
       (native, heavy, rough, fairway, bunker, scrub, ignore)
-    pga2k25 holesim-terrain <file.course> --holes 11,3,4 [--smooth 8] [--readings 10] [--fit-length 25]
       --green builds the putting map for every pin (expected putts from each spot on the green, from a
       putting model fitted to the baseline's green rows); --green-png file.png also draws the chosen pin's map
       --approach fits the simulated golfer to the baseline's rows off the green (cached in AppData) and
       plays 600 shots at the green: --from 153[,side] (yds to the pin, yds right of the line) or
       --from tee (a par 3), --aim best|pin|centre|right,long or --aim-distance yds; --approach-png
       file.png draws where they finish
+    pga2k25 holesim-terrain <file.course> --holes 11,3,4 [--smooth 8] [--readings 10] [--fit-length 25]
       terrain study for the hole design simulator, on a course whose distance markers carry the
       game's ground height (Sangoma): the brush replay and the replay smoothed outside greens,
       each alone and with a correction fitted to the markers nearest the suggested MEASURE spots
@@ -175,7 +175,6 @@ static int HoleSimCommand(string path, string[] rest)
             case "--seed": settings = settings with { Seed = int.Parse(Next(), inv) }; break;
             case "--png": png = Next(); break;
             case "--json": json = Next(); break;
-            case "--treat":
             case "--green": green = true; break;
             case "--green-png": green = true; greenPng = Next(); break;
             case "--approach": approach = true; break;
@@ -190,6 +189,7 @@ static int HoleSimCommand(string path, string[] rest)
             case "--aim": aimArg = Next().ToLowerInvariant(); break;
             case "--aim-distance": aimDistance = double.Parse(Next(), inv); break;
             case "--approach-png": approach = true; approachPng = Next(); break;
+            case "--treat":
                 foreach (var kv in Next().Split(',', StringSplitOptions.RemoveEmptyEntries))
                 {
                     var parts = kv.Split('=');
@@ -240,7 +240,6 @@ static int HoleSimCommand(string path, string[] rest)
     foreach (var note in run.Notes) Console.WriteLine("  " + note);
     Console.WriteLine($"  Placeholders in use: {sheet.Placeholders.Count} of {sheet.Rows.Count} assumption rows.");
 
-    if (png is not null)
     if (green)
     {
         double stimp = Pga2K25.HoleSim.AssumptionSheet.Stimp(course.GreenSpeed) ?? 10;
@@ -318,6 +317,7 @@ static int HoleSimCommand(string path, string[] rest)
             Console.WriteLine($"Wrote {approachPng}");
         }
     }
+    if (png is not null)
     {
         var best = run.Best;
         var colours = new[] { SkiaSharp.SKColor.Parse("#E06A3A"), SkiaSharp.SKColor.Parse("#1F1D1A"), SkiaSharp.SKColor.Parse("#3A6EA5") };
