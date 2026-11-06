@@ -3,6 +3,7 @@ using Pga2K25.Studio.Services;
 
 namespace Pga2K25.Tests;
 
+[Trait("Area", "Core")]
 public class StudioTests
 {
     [Theory]

@@ -5,6 +5,7 @@ using Pga2K25.HoleSim;
 namespace Pga2K25.Tests;
 
 /// <summary>Strokes-gained method: baseline loading, interpolation, coverage and the acceptance tests from the method prompt.</summary>
+[Trait("Area", "HoleSim")]
 public class StrokesGainedTests
 {
     static readonly TableBaseline Anchors = TableBaseline.LoadShipped("pga-tour-anchors");
@@ -87,11 +88,13 @@ public class StrokesGainedTests
     }
 }
 
+[Trait("Area", "HoleSim")]
 public class HoleSimTests
 {
     static string Cassimbo => Path.Combine(TestPaths.SamplesDir, "cassimbo.course");
     const string Pilolcura = "pilolcura-analysis-2026-11-02.course";
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Cassimbo_hole_3_reads_back_the_regression_fixture()
     {
@@ -106,6 +109,7 @@ public class HoleSimTests
         Assert.Contains(ReadBack.Rows(m), r => r.Id == "elev" && r.Source == SourceTag.Placeholder);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void A_forward_tee_moves_the_frame_and_the_yardages()
     {
@@ -116,6 +120,7 @@ public class HoleSimTests
         Assert.True(front.GreenFrontYards < back.GreenFrontYards - 30);
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(Pilolcura)]
     public void Pilolcura_hole_8_matches_the_yardage_book()
     {
@@ -133,6 +138,7 @@ public class HoleSimTests
         Assert.Empty(m.UnknownSurfaces);                           // the id 15/16 brushes are 60+ yds off the line
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Unknown_surfaces_are_listed_and_play_as_told()
     {
@@ -140,71 +146,6 @@ public class HoleSimTests
         Assert.Contains(m.UnknownSurfaces, u => u.SurfaceId == Surfaces.Waste && u.Name == "Waste");
         var asBunker = HoleModelBuilder.Build(Cassimbo, 3, new HoleModelOptions { Treatments = new Dictionary<int, Ground?> { [Surfaces.Waste] = Ground.Bunker } });
         Assert.True(asBunker.Grid.Counts()[(int)Ground.Bunker] > m.Grid.Counts()[(int)Ground.Bunker]);
-    }
-
-    [Fact]
-    public void Same_save_shows_no_change_and_edits_near_the_hole_are_named()
-    {
-        var file = CourseFile.Load(Cassimbo);
-        var before = HoleModelBuilder.Build(file.ReadModel(), file.Description, 3);
-        var again = HoleModelBuilder.Build(file.ReadModel(), file.Description, 3);
-        var none = HoleChanges.Compare(before, again);
-        Assert.False(none.Any);
-        Assert.StartsWith("Nothing changed on hole 3", Assert.Single(none.Lines));
-
-        var desc = (JsonObject)JsonNode.Parse(file.Description.ToJsonString())!;
-        var hole = desc["holes3"]!.AsArray()[2]!;
-        var pinPos = hole["pins"]!.AsArray()[1]!["position"]!;
-        pinPos["x"] = pinPos["x"]!.GetValue<double>() + 3;
-        var green = hole["waypoints"]!.AsArray()[^1]!;
-        var stamp = (JsonObject)JsonNode.Parse(desc["height"]!.AsArray()[0]!.ToJsonString())!;
-        stamp["position"]!["x"] = green["x"]!.GetValue<double>() + 20;
-        stamp["position"]!["z"] = green["z"]!.GetValue<double>() + 5;
-        stamp["scale"]!["x"] = 6.0;
-        desc["height"]!.AsArray().Add(stamp);
-
-        var after = HoleModelBuilder.Build(CourseModel.From(desc), desc, 3);
-        var changes = HoleChanges.Compare(before, after);
-        Assert.True(changes.TeesOrPins);
-        Assert.True(changes.Terrain);
-        Assert.True(changes.InvalidatesResults);
-        Assert.Contains(changes.Lines, l => l.StartsWith("Pin 2 moved"));
-        Assert.Contains(changes.Lines, l => l.StartsWith("Height brushes near the hole: 1 added at "));
-    }
-
-    [Fact]
-    public void Save_watcher_reports_a_settled_new_save_once_until_dismissed()
-    {
-        var path = Path.Combine(Path.GetTempPath(), $"holesim-watch-{Guid.NewGuid():N}.course");
-        try
-        {
-            File.WriteAllText(path, "first");
-            var w = new CourseSaveWatcher(FileStamp.Read(path));
-            Assert.Equal(SaveCheckState.Unchanged, w.Check().State);
-
-            File.WriteAllText(path, "second save");
-            File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddSeconds(5));
-            Assert.Equal(SaveCheckState.Settling, w.Check().State);    // first sight of the change
-            var check = w.Check();
-            Assert.Equal(SaveCheckState.NewSave, check.State);
-            Assert.Equal(SaveCheckState.NewSave, w.Check().State);    // keeps reporting until handled
-            w.Dismiss();
-            Assert.Equal(SaveCheckState.Unchanged, w.Check().State);
-
-            File.WriteAllText(path, "third save");
-            File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddSeconds(10));
-            w.Check();
-            var third = w.Check();
-            Assert.Equal(SaveCheckState.NewSave, third.State);
-            w.Accept(third.Stamp!);
-            Assert.Equal(SaveCheckState.Unchanged, w.Check().State);
-
-            // Touched but identical contents: not a new save.
-            File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddSeconds(20));
-            w.Check();
-            Assert.Equal(SaveCheckState.Unchanged, w.Check().State);
-        }
-        finally { File.Delete(path); }
     }
 
     [Fact]
@@ -263,6 +204,7 @@ public class HoleSimTests
         Assert.Contains("terrain.smoothing", normal);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Course_settings_rows_come_from_the_file_with_the_stimp_line()
     {
@@ -276,52 +218,126 @@ public class HoleSimTests
         Assert.False(green.Editable);
     }
 
-    [Fact]
-    public void Geometry_run_is_deterministic_paired_and_consistent_with_the_baseline()
+    /// <summary>Saves, the save watcher, the drive run and the map. A nested class runs in parallel with the rest of HoleSimTests.</summary>
+    [Trait("Area", "HoleSim")]
+    public class RunsAndSaves
     {
-        var m = HoleModelBuilder.Build(Cassimbo, 3);
-        var sheet = AssumptionSheet.Load();
-        var baseline = TableBaseline.LoadShipped(sheet.BaselineId);
-        var settings = new RunSettings { SamplesPerAim = 300, AimMin = -20, AimMax = 20, AimStep = 10 };
-        var a = GeometryRun.Run(m, sheet.Profile("power"), 1, sheet.GroundRules(), sheet.Lies(), baseline, settings);
-        var b = GeometryRun.Run(m, sheet.Profile("power"), 1, sheet.GroundRules(), sheet.Lies(), baseline, settings);
-        Assert.Equal(5, a.Aims.Count);
-        Assert.Equal(a.Aims.Select(x => x.MeanSg), b.Aims.Select(x => x.MeanSg));
-        foreach (var aim in a.Aims)
+        [Trait("Speed", "Slow")]
+        [Fact]
+        public void Same_save_shows_no_change_and_edits_near_the_hole_are_named()
         {
-            Assert.Equal(1.0, aim.ShareByGround.Sum(), 9);
-            Assert.Equal(a.TeeExpected - aim.MeanSg, aim.ExpectedStrokes, 9);  // SG telescopes: E(tee) − SG
+            var file = CourseFile.Load(Cassimbo);
+            var before = HoleModelBuilder.Build(file.ReadModel(), file.Description, 3);
+            var again = HoleModelBuilder.Build(file.ReadModel(), file.Description, 3);
+            var none = HoleChanges.Compare(before, again);
+            Assert.False(none.Any);
+            Assert.StartsWith("Nothing changed on hole 3", Assert.Single(none.Lines));
+
+            var desc = (JsonObject)JsonNode.Parse(file.Description.ToJsonString())!;
+            var hole = desc["holes3"]!.AsArray()[2]!;
+            var pinPos = hole["pins"]!.AsArray()[1]!["position"]!;
+            pinPos["x"] = pinPos["x"]!.GetValue<double>() + 3;
+            var green = hole["waypoints"]!.AsArray()[^1]!;
+            var stamp = (JsonObject)JsonNode.Parse(desc["height"]!.AsArray()[0]!.ToJsonString())!;
+            stamp["position"]!["x"] = green["x"]!.GetValue<double>() + 20;
+            stamp["position"]!["z"] = green["z"]!.GetValue<double>() + 5;
+            stamp["scale"]!["x"] = 6.0;
+            desc["height"]!.AsArray().Add(stamp);
+
+            var after = HoleModelBuilder.Build(CourseModel.From(desc), desc, 3);
+            var changes = HoleChanges.Compare(before, after);
+            Assert.True(changes.TeesOrPins);
+            Assert.True(changes.Terrain);
+            Assert.True(changes.InvalidatesResults);
+            Assert.Contains(changes.Lines, l => l.StartsWith("Pin 2 moved"));
+            Assert.Contains(changes.Lines, l => l.StartsWith("Height brushes near the hole: 1 added at "));
         }
-        // Paired draws: the same shot number lands at the same carry whatever the aim.
-        var dir = m.AimFrame * (1 / m.AimFrame.Length);
-        double Carry(FramePoint p) => p.Lat * dir.Lat + p.Along * dir.Along;
-        var l0 = a.Aims[0].Samples[0].Landing; var l1 = a.Aims[^1].Samples[0].Landing;
-        Assert.Equal(Carry(l0), Carry(l1), 6);
-        Assert.Equal(40, (l1 - l0).Length, 6);                                 // and sits exactly 40 yds further right
-        Assert.Contains(a.Notes, n => n.StartsWith("Geometry only"));
-    }
 
-    [Fact]
-    public void Flat_roll_stops_in_sand_and_runs_further_on_fairway_than_rough()
-    {
-        var m = HoleModelBuilder.Build(Cassimbo, 3);
-        var table = AssumptionSheet.Load().GroundRules();
-        FramePoint Find(Ground g) { for (int y = 0; y < m.Grid.Height; y++) for (int x = 0; x < m.Grid.Width; x++) if (m.Grid[x, y] == g) return m.Grid.CellCentre(x, y); throw new Exception(); }
-        var sand = Find(Ground.Bunker);
-        Assert.Equal(sand, GeometryRun.Roll(m.Grid, table, sand, new FramePoint(0, 1), 6));
-        var flat = m.Grid.With((x, y, g) => Ground.Fairway);
-        var rough = m.Grid.With((x, y, g) => Ground.Rough);
-        double onFairway = GeometryRun.Roll(flat, table, new FramePoint(0, 200), new FramePoint(0, 1), 6).Along - 200;
-        double onRough = GeometryRun.Roll(rough, table, new FramePoint(0, 200), new FramePoint(0, 1), 6).Along - 200;
-        Assert.True(onFairway > onRough + 10, $"fairway {onFairway:0.0} vs rough {onRough:0.0}");
-    }
+        [Fact]
+        public void Save_watcher_reports_a_settled_new_save_once_until_dismissed()
+        {
+            var path = Path.Combine(Path.GetTempPath(), $"holesim-watch-{Guid.NewGuid():N}.course");
+            try
+            {
+                File.WriteAllText(path, "first");
+                var w = new CourseSaveWatcher(FileStamp.Read(path));
+                Assert.Equal(SaveCheckState.Unchanged, w.Check().State);
 
-    [Fact]
-    public void Map_renders_a_png()
-    {
-        var m = HoleModelBuilder.Build(Cassimbo, 3);
-        var png = HoleMapRenderer.RenderPng(m, new MapView { PixelsPerYard = 1 });
-        Assert.True(png.Length > 1000);
-        Assert.Equal(0x89, png[0]);
+                File.WriteAllText(path, "second save");
+                File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddSeconds(5));
+                Assert.Equal(SaveCheckState.Settling, w.Check().State);    // first sight of the change
+                var check = w.Check();
+                Assert.Equal(SaveCheckState.NewSave, check.State);
+                Assert.Equal(SaveCheckState.NewSave, w.Check().State);    // keeps reporting until handled
+                w.Dismiss();
+                Assert.Equal(SaveCheckState.Unchanged, w.Check().State);
+
+                File.WriteAllText(path, "third save");
+                File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddSeconds(10));
+                w.Check();
+                var third = w.Check();
+                Assert.Equal(SaveCheckState.NewSave, third.State);
+                w.Accept(third.Stamp!);
+                Assert.Equal(SaveCheckState.Unchanged, w.Check().State);
+
+                // Touched but identical contents: not a new save.
+                File.SetLastWriteTimeUtc(path, DateTime.UtcNow.AddSeconds(20));
+                w.Check();
+                Assert.Equal(SaveCheckState.Unchanged, w.Check().State);
+            }
+            finally { File.Delete(path); }
+        }
+
+        [Trait("Speed", "Slow")]
+        [Fact]
+        public void Geometry_run_is_deterministic_paired_and_consistent_with_the_baseline()
+        {
+            var m = HoleModelBuilder.Build(Cassimbo, 3);
+            var sheet = AssumptionSheet.Load();
+            var baseline = TableBaseline.LoadShipped(sheet.BaselineId);
+            var settings = new RunSettings { SamplesPerAim = 300, AimMin = -20, AimMax = 20, AimStep = 10 };
+            var a = GeometryRun.Run(m, sheet.Profile("power"), 1, sheet.GroundRules(), sheet.Lies(), baseline, settings);
+            var b = GeometryRun.Run(m, sheet.Profile("power"), 1, sheet.GroundRules(), sheet.Lies(), baseline, settings);
+            Assert.Equal(5, a.Aims.Count);
+            Assert.Equal(a.Aims.Select(x => x.MeanSg), b.Aims.Select(x => x.MeanSg));
+            foreach (var aim in a.Aims)
+            {
+                Assert.Equal(1.0, aim.ShareByGround.Sum(), 9);
+                Assert.Equal(a.TeeExpected - aim.MeanSg, aim.ExpectedStrokes, 9);  // SG telescopes: E(tee) − SG
+            }
+            // Paired draws: the same shot number lands at the same carry whatever the aim.
+            var dir = m.AimFrame * (1 / m.AimFrame.Length);
+            double Carry(FramePoint p) => p.Lat * dir.Lat + p.Along * dir.Along;
+            var l0 = a.Aims[0].Samples[0].Landing; var l1 = a.Aims[^1].Samples[0].Landing;
+            Assert.Equal(Carry(l0), Carry(l1), 6);
+            Assert.Equal(40, (l1 - l0).Length, 6);                                 // and sits exactly 40 yds further right
+            Assert.Contains(a.Notes, n => n.StartsWith("Geometry only"));
+        }
+
+        [Trait("Speed", "Slow")]
+        [Fact]
+        public void Flat_roll_stops_in_sand_and_runs_further_on_fairway_than_rough()
+        {
+            var m = HoleModelBuilder.Build(Cassimbo, 3);
+            var table = AssumptionSheet.Load().GroundRules();
+            FramePoint Find(Ground g) { for (int y = 0; y < m.Grid.Height; y++) for (int x = 0; x < m.Grid.Width; x++) if (m.Grid[x, y] == g) return m.Grid.CellCentre(x, y); throw new Exception(); }
+            var sand = Find(Ground.Bunker);
+            Assert.Equal(sand, GeometryRun.Roll(m.Grid, table, sand, new FramePoint(0, 1), 6));
+            var flat = m.Grid.With((x, y, g) => Ground.Fairway);
+            var rough = m.Grid.With((x, y, g) => Ground.Rough);
+            double onFairway = GeometryRun.Roll(flat, table, new FramePoint(0, 200), new FramePoint(0, 1), 6).Along - 200;
+            double onRough = GeometryRun.Roll(rough, table, new FramePoint(0, 200), new FramePoint(0, 1), 6).Along - 200;
+            Assert.True(onFairway > onRough + 10, $"fairway {onFairway:0.0} vs rough {onRough:0.0}");
+        }
+
+        [Trait("Speed", "Slow")]
+        [Fact]
+        public void Map_renders_a_png()
+        {
+            var m = HoleModelBuilder.Build(Cassimbo, 3);
+            var png = HoleMapRenderer.RenderPng(m, new MapView { PixelsPerYard = 1 });
+            Assert.True(png.Length > 1000);
+            Assert.Equal(0x89, png[0]);
+        }
     }
 }

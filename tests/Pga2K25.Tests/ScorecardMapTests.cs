@@ -4,6 +4,7 @@ using SkiaSharp;
 
 namespace Pga2K25.Tests;
 
+[Trait("Area", "Products")]
 public class ScorecardMapTests
 {
     const string SangomaScrabby = "sangoma-scrabby-2026-11-01.course";
@@ -59,6 +60,7 @@ public class ScorecardMapTests
         Assert.Equal(1, east.X, 5);                         // east to the right
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void AutoRotation_KeepsNorthInTheUpperHalf()
     {
@@ -78,6 +80,7 @@ public class ScorecardMapTests
         Assert.InRange(bearing, 175 - 20, 175 + 20);                              // sheet: tee bearing 175
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void HolesCard_RoundTripsAndNamesTheTable()
     {
@@ -112,6 +115,7 @@ public class ScorecardMapTests
         }
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void MergedBunkers_FuseDabsIntoFewerSmoothShapes()
     {
@@ -121,6 +125,7 @@ public class ScorecardMapTests
         Assert.True(merged.Count < layers.BunkerBrushes.Count / 5, $"{merged.Count} shapes from {layers.BunkerBrushes.Count} dabs");
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Build_WritesBothThemes()
     {
@@ -164,6 +169,7 @@ public class ScorecardMapTests
         return Landscape.Build(course, proj, rect);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Landscape_Cassimbo_HasSeaLinesBushStippleAndHillsButNoTrees()
     {
@@ -183,6 +189,7 @@ public class ScorecardMapTests
         Assert.Empty(l.WaterLines);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Build_Illustrated_WritesItsOwnFilesWithTheLandscapeDrawn()
     {
@@ -218,6 +225,7 @@ public class ScorecardMapTests
         Assert.Equal(6400, ScorecardMapRenderer.BarScaleRatio(56.5f));
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Build_PlanSheet_IsAlwaysLandscapeWithRedFlights()
     {
@@ -328,6 +336,7 @@ public class ScorecardMapTests
         return Scenery.Build(course, proj, rect);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Scenery_Cassimbo_HasTheSeaBushesAndGrassButNoTrees()
     {
@@ -349,6 +358,7 @@ public class ScorecardMapTests
         Assert.Equal(s.Trees.OrderBy(t => t.At.Y).Select(t => t.At), s.Trees.Select(t => t.At));   // back to front
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Build_ModernIllustrated_IsAlwaysLandscapeWithThePlantingDrawn()
     {
@@ -383,6 +393,7 @@ public class ScorecardMapTests
         return bmp;
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Strip_LandscapeMapsSpanThePageWithEveryTeeSetUnderneath()
     {
@@ -398,6 +409,7 @@ public class ScorecardMapTests
         }
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Strip_PortraitPageKeepsTheStripUnderTheMap()
     {
@@ -405,6 +417,7 @@ public class ScorecardMapTests
         Assert.Equal((850, 1100), (bmp.Width, bmp.Height));
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Roses_WindRoseIsDrawnOnlyWhenTheCourseHasOne()
     {
@@ -419,6 +432,7 @@ public class ScorecardMapTests
         Assert.InRange(changed, 5_000, 60_000);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Build_TakesTheWindRoseFromThePlaceCard()
     {

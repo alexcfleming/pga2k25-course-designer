@@ -6,6 +6,7 @@ using SkiaSharp;
 
 namespace Pga2K25.Tests;
 
+[Trait("Area", "Products")]
 public class CourseLogoTests
 {
     static readonly SKColor LogoRed = new(0xE0, 0x10, 0x30);
@@ -76,38 +77,46 @@ public class CourseLogoTests
         Assert.Null(art.Get(LogoKind.Mark, LogoTone.Colour));
     }
 
-    [Fact]
-    public void ScorecardMaps_PrintTheSealOnEveryTheme()
+    /// <summary>The logo on built products (scorecard maps, yardage and greens books). A nested class runs in parallel with the rest of CourseLogoTests.</summary>
+    [Trait("Area", "Products")]
+    public class OnProducts
     {
-        using var dir = new TempDir();
-        string course = Path.Combine(TestPaths.SamplesDir, "cassimbo.course");
-        var themes = new[] { MapThemeKind.Vintage, MapThemeKind.Modern, MapThemeKind.PlanSheet };
-        var plain = ScorecardMapBuilder.Build(course, Path.Combine(dir.Path, "plain"), new ScorecardMapOptions(), themes, scale: 1);
-        // Only a colour seal: the engraved styles, asking for ink, fall back to it.
-        string withLogo = Path.Combine(dir.Path, "logo");
-        CourseLogosFile.Import(withLogo, LogoKind.Seal, LogoTone.Colour, LogoFile(dir.Path));
-        var logo = ScorecardMapBuilder.Build(course, withLogo, new ScorecardMapOptions(), themes, scale: 1);
-        for (int i = 0; i < themes.Length; i++)
+        [Trait("Speed", "Slow")]
+        [Fact]
+        public void ScorecardMaps_PrintTheSealOnEveryTheme()
         {
-            Assert.Equal(0, Reds(plain.Files[i]));
-            Assert.True(Reds(logo.Files[i]) > 1500, $"{themes[i]}: seal drawn");
+            using var dir = new TempDir();
+            string course = Path.Combine(TestPaths.SamplesDir, "cassimbo.course");
+            var themes = new[] { MapThemeKind.Vintage, MapThemeKind.Modern, MapThemeKind.PlanSheet };
+            var plain = ScorecardMapBuilder.Build(course, Path.Combine(dir.Path, "plain"), new ScorecardMapOptions(), themes, scale: 1);
+            // Only a colour seal: the engraved styles, asking for ink, fall back to it.
+            string withLogo = Path.Combine(dir.Path, "logo");
+            CourseLogosFile.Import(withLogo, LogoKind.Seal, LogoTone.Colour, LogoFile(dir.Path));
+            var logo = ScorecardMapBuilder.Build(course, withLogo, new ScorecardMapOptions(), themes, scale: 1);
+            for (int i = 0; i < themes.Length; i++)
+            {
+                Assert.Equal(0, Reds(plain.Files[i]));
+                Assert.True(Reds(logo.Files[i]) > 1500, $"{themes[i]}: seal drawn");
+            }
+        }
+
+        [Trait("Speed", "Slow")]
+        [Fact]
+        public void YardageAndGreensBooks_LeadWithTheCourseLogo()
+        {
+            using var dir = new TempDir();
+            CourseLogosFile.Import(dir.Path, LogoKind.Mark, LogoTone.Colour, LogoFile(dir.Path));
+            var yardage = YardageBookBuilder.Build(Path.Combine(TestPaths.SamplesDir, "cassimbo.course"), dir.Path, new YardageOptions(),
+                new YardageBookOutputs { Pdf = false, Pngs = true }, [1]);
+            Assert.True(Reds(yardage.PngPaths[0]) > 2000, "yardage header mark");
+            var greens = GreensBookBuilder.Build(Path.Combine(TestPaths.SamplesDir, "shinnecockhills.course"), dir.Path, new GreensBookOptions(),
+                new GreensBookOutputs { SheetPng = true, SheetScale = 1 }, [1, 2]);
+            // The greens sheet asks for the seal and gets the mark in its place.
+            Assert.True(Reds(greens.SheetPath!) > 1000, "greens sheet seal");
         }
     }
 
-    [Fact]
-    public void YardageAndGreensBooks_LeadWithTheCourseLogo()
-    {
-        using var dir = new TempDir();
-        CourseLogosFile.Import(dir.Path, LogoKind.Mark, LogoTone.Colour, LogoFile(dir.Path));
-        var yardage = YardageBookBuilder.Build(Path.Combine(TestPaths.SamplesDir, "cassimbo.course"), dir.Path, new YardageOptions(),
-            new YardageBookOutputs { Pdf = false, Pngs = true }, [1]);
-        Assert.True(Reds(yardage.PngPaths[0]) > 2000, "yardage header mark");
-        var greens = GreensBookBuilder.Build(Path.Combine(TestPaths.SamplesDir, "shinnecockhills.course"), dir.Path, new GreensBookOptions(),
-            new GreensBookOutputs { SheetPng = true, SheetScale = 1 }, [1, 2]);
-        // The greens sheet asks for the seal and gets the mark in its place.
-        Assert.True(Reds(greens.SheetPath!) > 1000, "greens sheet seal");
-    }
-
+    [Trait("Speed", "Slow")]
     [Fact]
     public void ReadinessRecord_EmbedsTheMark()
     {
@@ -118,8 +127,7 @@ public class CourseLogoTests
 
     static Readiness.ReadinessRecord.Snapshot SampleSnapshot()
     {
-        var course = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, "cassimbo.course")).ReadModel();
-        var report = Readiness.ReadinessChecker.Run(course);
+        var report = Samples.CassimboReadiness();   // measured once per run, shared with the readiness tests
         var state = new Readiness.ReadinessState();
         return new Readiness.ReadinessRecord.Snapshot(report.CourseName, "cassimbo.course", "stamp", new DateTime(2026, 11, 1), false, [], [], report, state);
     }

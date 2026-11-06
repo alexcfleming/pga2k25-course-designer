@@ -4,6 +4,7 @@ using Pga2K25.GreensBook;
 
 namespace Pga2K25.Tests;
 
+[Trait("Area", "Products")]
 public class EstimateTests
 {
     // 200 m × 200 m of flat ground at 1 m cells with a 20 m × 20 m box mound 2 m high in the middle: 800 m³ of mound.
@@ -409,6 +410,7 @@ public class EstimateTests
             if (h.Raster.Zone[k] < 0) Assert.Equal(0, h.Earthwork.Dz[k]);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Build_WritesReportPdfPagesAndData()
     {

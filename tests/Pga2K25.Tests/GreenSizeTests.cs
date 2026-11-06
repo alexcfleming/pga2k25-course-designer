@@ -4,6 +4,7 @@ using Pga2K25.GreensBook;
 
 namespace Pga2K25.Tests;
 
+[Trait("Area", "Products")]
 public class GreenSizeTests
 {
     static CourseModel Load(string name) => CourseFile.Load(Path.Combine(TestPaths.SamplesDir, name)).ReadModel();
@@ -34,6 +35,7 @@ public class GreenSizeTests
         Assert.Equal(sizes.MeanSquareFeet, sizes.MedianSquareFeet, 6);           // two greens: median = mean
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Cassimbo_StatisticsAndRanks()
     {
@@ -61,6 +63,7 @@ public class GreenSizeTests
         Assert.Equal(a.PerimeterMetres, sizes.For(1)!.PerimeterMetres, 6);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void ArrowsAt_ThinsTheLattice()
     {
@@ -79,7 +82,7 @@ public class GreenSizeTests
         string dir = Path.Combine(Path.GetTempPath(), "pga2k25-green-card-" + Guid.NewGuid().ToString("N"));
         try
         {
-            var config = new CourseCardConfig { Dpi = 30, Formats = ["png"] };
+            var config = new CourseCardConfig { Dpi = 30, Formats = ["png"], AutoHoleNotes = false };
             var sagan = CourseCardBuilder.Build(Path.Combine(TestPaths.SamplesDir, "sagan-khushun.course"), dir, config);
             Assert.Contains(sagan.Files, f => f.EndsWith("Green Size Card.png"));
 

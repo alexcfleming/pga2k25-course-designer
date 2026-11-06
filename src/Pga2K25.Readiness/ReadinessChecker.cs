@@ -40,27 +40,76 @@ public static class ReadinessChecker
     static string List(IEnumerable<int> holes) => string.Join(", ", holes);
     static string Capital(string s) => s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s[1..];
 
-    /// <param name="cellMetres">Terrain cell for the elevation survey; the greens use the greens book's own.</param>
-    /// <param name="overrides">The designer's own fairway starts and shared fairways, by hole.</param>
-    public static ReadinessReport Run(CourseModel course, ReadinessLimits? limits = null, double cellMetres = 2,
-        IReadOnlyDictionary<int, HoleOverride>? overrides = null)
+    /// <summary>
+    /// The measuring that doesn't depend on the limits or the designer's overrides: green outlines and sizes, fairways,
+    /// the terrain survey, practice greens, hazards and the green analyses. It is most of the cost of a run, so a caller
+    /// that runs the same course with different limits (the Readiness page, the tests) prepares once and passes it in.
+    /// </summary>
+    public sealed class Inputs
     {
-        var L = limits ?? new ReadinessLimits();
-        overrides ??= new Dictionary<int, HoleOverride>();
+        internal CourseModel Course { get; init; } = default!;
+        internal double CellMetres { get; init; } = default!;
+        internal List<Hole> Holes { get; init; } = default!;
+        internal Dictionary<int, GreenOutline> Outlines { get; init; } = default!;
+        internal GreenSizes Sizes { get; init; } = default!;
+        internal List<List<Vec2>> Fairways { get; init; } = default!;
+        internal TerrainSurvey Survey { get; init; } = default!;
+        internal List<IReadOnlyList<Vec2>> Practice { get; init; } = default!;
+        internal CourseLayers Layers { get; init; } = default!;
+        internal List<Hazard> Hazards { get; init; } = default!;
+        internal Dictionary<int, GreenAnalysis?> Analyses { get; init; } = default!;
+    }
+
+    /// <param name="cellMetres">Terrain cell for the elevation survey; the greens use the greens book's own.</param>
+    public static Inputs Prepare(CourseModel course, double cellMetres = 2)
+    {
         var holes = course.Holes.OrderBy(h => h.Number).ToList();
         var outlines = holes.ToDictionary(h => h.Number, h => GreenOutline.Resolve(course, h));
-        var sizes = GreenSizes.From(course);
-        var fairways = course.SurfaceSplines.Where(s => s.Surface == Surfaces.Fairway && s.Closed)
-            .Select(s => Geometry.SampleSpline(s)).Where(p => p.Count >= 3).ToList();
         var survey = TerrainSurvey.Build(course, new TerrainMapOptions { Terrain = new TerrainMapOptions().Terrain with { CellMetres = cellMetres } });
-        var practice = CourseLayers.From(course).Greens.Where(g => g.Count >= 3)
-            .Where(g => holes.All(h => (Geometry.Contains(g, h.GreenAnchor) ? 0 : Geometry.DistanceToEdge(g, h.GreenAnchor)) > PracticeGreenMetres))
-            .ToList();
+        var layers = CourseLayers.From(course);
         var greensOptions = new GreensBookOptions();
+        var analyses = new Dictionary<int, GreenAnalysis?>();
+        foreach (var h in holes)
+        {
+            GreenAnalysis? analysis = null;
+            if (!outlines[h.Number].Estimated)
+                try { analysis = GreenAnalyzer.Analyze(course, h, greensOptions); }
+                catch (Exception) { /* a green the analysis can't read is left blank */ }
+            analyses[h.Number] = analysis;
+        }
+        return new Inputs
+        {
+            Course = course, CellMetres = cellMetres, Holes = holes, Outlines = outlines, Sizes = GreenSizes.From(course),
+            Fairways = course.SurfaceSplines.Where(s => s.Surface == Surfaces.Fairway && s.Closed)
+                .Select(s => Geometry.SampleSpline(s)).Where(p => p.Count >= 3).ToList(),
+            Survey = survey,
+            Practice = CourseLayers.From(course).Greens.Where(g => g.Count >= 3)
+                .Where(g => holes.All(h => (Geometry.Contains(g, h.GreenAnchor) ? 0 : Geometry.DistanceToEdge(g, h.GreenAnchor)) > PracticeGreenMetres))
+                .Select(g => (IReadOnlyList<Vec2>)g).ToList(),
+            Layers = layers, Hazards = Hazards(layers, survey), Analyses = analyses,
+        };
+    }
+
+    /// <param name="cellMetres">Terrain cell for the elevation survey; the greens use the greens book's own.</param>
+    /// <param name="overrides">The designer's own fairway starts and shared fairways, by hole.</param>
+    /// <param name="inputs">The course already measured (<see cref="Prepare"/>), so only the limits are applied; prepared here when null.</param>
+    public static ReadinessReport Run(CourseModel course, ReadinessLimits? limits = null, double cellMetres = 2,
+        IReadOnlyDictionary<int, HoleOverride>? overrides = null, Inputs? inputs = null)
+    {
+        if (inputs is not null && (!ReferenceEquals(inputs.Course, course) || inputs.CellMetres != cellMetres))
+            throw new ArgumentException("The prepared inputs are for another course or terrain cell.", nameof(inputs));
+        inputs ??= Prepare(course, cellMetres);
+        var L = limits ?? new ReadinessLimits();
+        overrides ??= new Dictionary<int, HoleOverride>();
+        var holes = inputs.Holes;
+        var outlines = inputs.Outlines;
+        var sizes = inputs.Sizes;
+        var fairways = inputs.Fairways;
+        var survey = inputs.Survey;
+        var practice = inputs.Practice;
 
         var measures = new List<HoleMeasures>();
-        var layers = CourseLayers.From(course);
-        var hazards = Hazards(layers, survey);
+        var hazards = inputs.Hazards;
         foreach (var h in holes)
         {
             var outline = outlines[h.Number];
@@ -71,15 +120,12 @@ public static class ReadinessChecker
             var fig = h.Par >= 4 ? LineFigures(h, tee, fairways, hazards, L) : null;
 
             double? relief = null, slope = null;
-            GreenAnalysis? analysis = null;
-            if (!outline.Estimated)
-                try
-                {
-                    analysis = GreenAnalyzer.Analyze(course, h, greensOptions);
-                    relief = (analysis.HighInches - analysis.LowInches) / 12;
-                    slope = analysis.MedianSlopePct;
-                }
-                catch (Exception) { /* a green the analysis can't read is left blank */ }
+            var analysis = inputs.Analyses[h.Number];
+            if (analysis is not null)
+            {
+                relief = (analysis.HighInches - analysis.LowInches) / 12;
+                slope = analysis.MedianSlopePct;
+            }
 
             var line = new List<Vec2> { tee };
             line.AddRange(h.Route.Skip(1));
@@ -191,14 +237,26 @@ public static class ReadinessChecker
     /// The fairway run across the line at <paramref name="p"/>: the one under it, else the nearest, as its width and
     /// how far its edge is from the line (0 when under it). No fairway within 90 m is (0, ∞).
     /// </summary>
-    static (double Metres, double Gap) Strip(Vec2 p, Vec2 across, List<List<Vec2>> fairways)
+    /// <summary>Each fairway's bounding box (min X, max X, min Z, max Z), so a point can skip the polygons it can't be in.</summary>
+    static (double X0, double X1, double Z0, double Z1)[] Boxes(List<List<Vec2>> fairways) =>
+        fairways.Select(f => (f.Min(q => q.X), f.Max(q => q.X), f.Min(q => q.Z), f.Max(q => q.Z))).ToArray();
+
+    static (double Metres, double Gap) Strip(Vec2 p, Vec2 across, List<List<Vec2>> fairways, (double X0, double X1, double Z0, double Z1)[] boxes)
     {
         const double step = 0.5, reach = 90;
         var runs = new List<(double From, double To)>();
         double? start = null;
         for (double s = -reach; s <= reach + 1e-9; s += step)
         {
-            bool inside = fairways.Any(f => Geometry.Contains(f, p + across * s));
+            var q = p + across * s;
+            bool inside = false;
+            for (int i = 0; i < fairways.Count && !inside; i++)
+            {
+                var b = boxes[i];
+                // Outside a fairway's box is outside the fairway: only the boxes it falls in need the polygon test.
+                if (q.X < b.X0 || q.X > b.X1 || q.Z < b.Z0 || q.Z > b.Z1) continue;
+                inside = Geometry.Contains(fairways[i], q);
+            }
             if (inside && start is null) start = s;
             if (!inside && start is double a) { runs.Add((a, s)); start = null; }
         }
@@ -227,7 +285,21 @@ public static class ReadinessChecker
         double? Layup, double? Landing, IReadOnlyList<LandingHazard> Hazards);
 
     /// <summary>A bunker or water outline, with what to call it.</summary>
-    sealed record Hazard(string Kind, IReadOnlyList<Vec2> Outline);
+    internal sealed record Hazard(string Kind, IReadOnlyList<Vec2> Outline)
+    {
+        readonly double _minX = Outline.Count == 0 ? 0 : Outline.Min(p => p.X), _maxX = Outline.Count == 0 ? 0 : Outline.Max(p => p.X);
+        readonly double _minZ = Outline.Count == 0 ? 0 : Outline.Min(p => p.Z), _maxZ = Outline.Count == 0 ? 0 : Outline.Max(p => p.Z);
+
+        /// <summary>
+        /// Distance (m) from a point to the outline's bounding box, 0 inside it. Never more than the distance to the
+        /// outline itself, so a point further than this from the box is outside the hazard and at least as far from its edge.
+        /// </summary>
+        public double BoxDistance(Vec2 p)
+        {
+            double dx = Math.Max(Math.Max(_minX - p.X, 0), p.X - _maxX), dz = Math.Max(Math.Max(_minZ - p.Z, 0), p.Z - _maxZ);
+            return Math.Sqrt(dx * dx + dz * dz);
+        }
+    }
 
     /// <summary>
     /// Every bunker (painted dabs merged as the scorecard maps merge them) and every water outline: painted water,
@@ -279,13 +351,14 @@ public static class ReadinessChecker
         for (int i = 0; i + 1 < line.Count; i++) total += Vec2.Distance(line[i], line[i + 1]);
         double totalYds = total * YardsPerMetre;
         const double step = 5, from = 60;
+        var boxes = Boxes(fairways);
         int hold = Math.Max(1, (int)Math.Round(L.FairwayStartHoldYards / step));
         double end = totalYds - 40;
 
         (double Width, double Gap) At(double yd)
         {
             var (p, dir) = Along(line, yd / YardsPerMetre);
-            var (w, gap) = fairways.Count == 0 ? (0, double.PositiveInfinity) : Strip(p, new Vec2(-dir.Z, dir.X), fairways);
+            var (w, gap) = fairways.Count == 0 ? (0, double.PositiveInfinity) : Strip(p, new Vec2(-dir.Z, dir.X), fairways, boxes);
             return (w * YardsPerMetre, gap * YardsPerMetre);
         }
 
@@ -333,6 +406,8 @@ public static class ReadinessChecker
             (double D, double Yds, string Side)? best = null;
             foreach (var (yd, p, dir) in zone)
             {
+                // Out of reach of the hazard's box means out of reach of the hazard: skip the polygon tests.
+                if (hz.BoxDistance(p) > reach) continue;
                 double d = Geometry.Contains(hz.Outline, p) ? 0 : Geometry.DistanceToEdge(hz.Outline, p);
                 if (d > reach || (best is { } b && b.D <= d)) continue;
                 var c = Centroid(hz.Outline) - p;

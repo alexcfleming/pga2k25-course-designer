@@ -7,6 +7,7 @@ namespace Pga2K25.Tests;
 /// Small flatten stamps carry the game's ground height where they were clicked (TerrainModelOptions.FlattenSamples).
 /// When the replay's ground disagrees, it is shifted around the stamp, so the flatten doesn't build a table.
 /// </summary>
+[Trait("Area", "Core")]
 public class FlattenSampleTests
 {
     const double Inches = 39.3700787;
@@ -63,6 +64,7 @@ public class FlattenSampleTests
 
     const string Sagan = "sagan-khushun-2026-10-26.course";
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(Sagan)]
     public void SaganGreen9_Pin1_IsNotCrowned()
     {
@@ -80,6 +82,7 @@ public class FlattenSampleTests
         Assert.InRange(CrownAt(new TerrainModelOptions()), -6, 4);
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(Sagan)]
     public void SaganGreen9_MatchesInGameSpotElevations()
     {

@@ -307,6 +307,7 @@ public partial class HoleSimViewModel
         var ph = _sheet.Rows.Where(x => x.IsPlaceholder && x.Group is "Approach" or "Greens" or "Ground" or "Scoring" && !x.Id.StartsWith("ground.landingSpeed")).Select(x => x.Label).ToList();
         ApproachDepends = ph.Count == 0 ? "" : $"Depends on {ph.Count} placeholder values: {string.Join("; ", ph)}.";
         HasApproach = true;
+        LogApproach(r, aimMode);
     }
 
     static IBrush Swatch(SKColor c) => new SolidColorBrush(Color.FromRgb(c.Red, c.Green, c.Blue));

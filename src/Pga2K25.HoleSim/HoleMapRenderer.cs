@@ -189,8 +189,10 @@ public static class HoleMapRenderer
     /// The leave map round the green: expected strokes still to play from where a shot finishes (green 1, gold 2, red 3+),
     /// with the ideal-angle spokes round the pin when given (the best one in ink, the rest coloured against the best).
     /// </summary>
+    /// <param name="tees">On a par 3: each tee's own line into the pin, the chosen tee drawn heavier.</param>
     public static byte[] RenderLeavePng(HoleModel m, LeaveMap leave, GreenSurface green, IReadOnlyList<AngleOption>? angles = null,
-        IReadOnlyList<(FramePoint Point, SKColor Colour)>? points = null, IReadOnlyList<(FramePoint Point, SKColor Colour)>? rings = null)
+        IReadOnlyList<(FramePoint Point, SKColor Colour)>? points = null, IReadOnlyList<(FramePoint Point, SKColor Colour)>? rings = null,
+        IReadOnlyList<(FramePoint At, string Name, bool Selected)>? tees = null)
     {
         var (lo, hi) = leave.Range;
         var squares = leave.Cells.Select(x => (x.Where, 1.0, LeaveColour(x.Expected, lo, hi).WithAlpha(185))).ToList();
@@ -209,8 +211,16 @@ public static class HoleMapRenderer
                 if (isBest) labels.Add((pinAt + u * (r0 + 19), "ideal", Ink));
             }
         }
+        var teeInk = SKColor.Parse("#3A6EA5");
+        foreach (var (at, name, selected) in tees ?? [])
+        {
+            var u = (at - pinAt) * (1 / Math.Max((at - pinAt).Length, 1e-9));
+            // From the pin out past the spokes, so a tee's line reads against the ideal one.
+            lines.Add((pinAt + u * (selected ? 2 : r0 - 2), pinAt + u * (r0 + 26), selected ? teeInk : teeInk.WithAlpha(120), selected ? 2.5f : 1.5f));
+            if (selected) labels.Add((pinAt + u * (r0 + 32), name, teeInk));
+        }
         double lat0 = leave.Cells.Min(x => x.Where.Lat), lat1 = leave.Cells.Max(x => x.Where.Lat), al0 = leave.Cells.Min(x => x.Where.Along), al1 = leave.Cells.Max(x => x.Where.Along);
-        double pad = angles is { Count: > 0 } ? Math.Max(0, r0 + 24 - ShortGameMap.Reach) : 0;
+        double pad = angles is { Count: > 0 } || tees is { Count: > 0 } ? Math.Max(0, r0 + 36 - ShortGameMap.Reach) : 0;
         lat0 -= pad; lat1 += pad; al0 -= pad; al1 += pad;
         double ppy = Math.Min(560 / (al1 - al0), 520 / (lat1 - lat0));
         return RenderPng(m, new MapView

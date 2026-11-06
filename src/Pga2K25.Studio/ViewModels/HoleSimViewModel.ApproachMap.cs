@@ -17,7 +17,13 @@ public partial class HoleSimViewModel
 {
     public const string ApproachMapStep = "Approach map";
 
-    sealed record PinMaps(ApproachHeatMap? Heat, IReadOnlyList<TeeShotOption>? Tees, LeaveMap Leave, IReadOnlyList<AngleOption> Angles, byte[]? HeatPng, byte[] LeavePng);
+    /// <param name="AngleYards">The distance the angles were played from: 150 yds, or on a par 3 the chosen tee's.</param>
+    /// <param name="LineName">The line they're measured from: the line of play, or on a par 3 the back tee's line.</param>
+    /// <param name="TeeAngles">Par 3: each tee's own angle against that line.</param>
+    sealed record PinMaps(ApproachHeatMap? Heat, IReadOnlyList<TeeShotOption>? Tees, LeaveMap Leave, IReadOnlyList<AngleOption> Angles, byte[]? HeatPng, byte[] LeavePng,
+        double AngleYards, string LineName, IReadOnlyList<(string Tee, double Degrees, bool Selected)> TeeAngles);
+
+    [ObservableProperty] private string _angleNote = "";
 
     readonly Dictionary<int, PinMaps> _pinMaps = [];
     string _pinMapsKey = "";
@@ -118,10 +124,21 @@ public partial class HoleSimViewModel
                 }
                 cancel.Token.ThrowIfCancellationRequested();
                 report.Report("Finding the ideal angle in…");
-                var angles = ApproachMaps.Angles(ctx, pin, cancel: cancel.Token);
+                // A par 3 is played from the chosen tee: the angles at that tee's distance, against the back tee's line,
+                // so the ideal direction belongs to the green and each tee shows where it comes in from.
+                var pinAt = m.Pins[pin - 1].Frame;
+                bool par3 = m.Par == 3;
+                var reference = par3 ? ApproachMaps.BackTeeLine(m, pin) : (FramePoint?)null;
+                double angleYards = par3 ? pinAt.Length : 150;
+                string lineName = !par3 ? "the line of play" : m.TeeIndex == m.Tees.Count - 1 ? "this tee's line" : $"{m.BackTee.Name}'s line";
+                var angles = ApproachMaps.Angles(ctx, pin, angleYards, cancel: cancel.Token, reference: reference);
+                var teeAngles = par3
+                    ? m.Tees.Select(t => (t.Name, ApproachMaps.AngleOf(pinAt, reference!.Value, m.Frame.ToFrame(t.World)), t.Index == m.TeeIndex)).ToList()
+                    : new List<(string, double, bool)>();
                 var leave = ApproachMaps.Leave(ctx, pin);
-                var leavePng = HoleMapRenderer.RenderLeavePng(m, leave, green, angles);
-                var maps = new PinMaps(heat, tees, leave, angles, heatPng, leavePng);
+                var leavePng = HoleMapRenderer.RenderLeavePng(m, leave, green, angles,
+                    tees: par3 ? m.Tees.Select(t => (m.Frame.ToFrame(t.World), t.Name, t.Index == m.TeeIndex)).ToList() : null);
+                var maps = new PinMaps(heat, tees, leave, angles, heatPng, leavePng, angleYards, lineName, teeAngles);
                 Dispatcher.UIThread.Post(() =>
                 {
                     if (cancel.IsCancellationRequested || !ReferenceEquals(m, _model) || key != ShotKey()) return;
@@ -129,6 +146,7 @@ public partial class HoleSimViewModel
                     _pinMapsKey = key; _pinMaps[pin] = maps;
                     MapBusy = false; MapStatus = "";
                     if (pin == _mapPin) ShowPinMaps(maps);
+                    LogMaps(pin, maps.Heat, maps.Tees, maps.Angles, maps.AngleYards, maps.LineName, maps.TeeAngles);
                 });
             }
             catch (OperationCanceledException) { Dispatcher.UIThread.Post(() => { if (_pinMapCancel == cancel) MapBusy = false; }); }
@@ -167,19 +185,28 @@ public partial class HoleSimViewModel
         }
         LeaveImage = new Bitmap(new MemoryStream(maps.LeavePng));
         var (lo, hi) = maps.Leave.Range;
-        LeaveLegend = $"Strokes still to play by where a shot finishes: green {lo:0.00} or less, gold {(lo + hi) / 2:0.00}, red {hi:0.00} or more. The spokes round the pin are directions in from 150 yds: ink is the ideal one, the rest coloured against it.";
+        string line = maps.LineName; double yds = maps.AngleYards;
+        LeaveLegend = $"Strokes still to play by where a shot finishes: green {lo:0.00} or less, gold {(lo + hi) / 2:0.00}, red {hi:0.00} or more. The spokes round the pin are directions in from {yds:0} yds: ink is the ideal one, the rest coloured against it."
+            + (maps.TeeAngles.Count > 0 ? " Blue lines: each tee's own line into the pin, the chosen tee's heavier." : "");
         var bestA = maps.Angles.MinBy(a => a.Expected)!; var worstA = maps.Angles.MaxBy(a => a.Expected)!;
-        foreach (var a in maps.Angles) AngleRows.Add(new AngleRowViewModel(a, ReferenceEquals(a, bestA)));
-        AngleSummary = Math.Abs(worstA.Expected - bestA.Expected) < 0.03
-            ? $"Pin {pin.Number}: every direction in plays about the same ({bestA.Expected:0.00} from 150 yds)."
-            : $"Pin {pin.Number}: best approached {DegreesWords(bestA.Degrees)} ({bestA.Expected:0.00} from 150 yds, {bestA.GreenHit:P0} on the green), worst {DegreesWords(worstA.Degrees)} ({worstA.Expected:0.00}). The angle is worth {worstA.Expected - bestA.Expected:0.00} strokes. Every direction is played from a fairway lie, so only the green and its surrounds count.";
+        var mine = maps.TeeAngles.FirstOrDefault(t => t.Selected);
+        AngleOption? nearest = maps.TeeAngles.Count > 0 ? maps.Angles.MinBy(a => Math.Abs(a.Degrees - mine.Degrees)) : null;
+        foreach (var a in maps.Angles) AngleRows.Add(new AngleRowViewModel(a, ReferenceEquals(a, bestA), ReferenceEquals(a, nearest) ? $"{mine.Tee} comes in here" : ""));
+        AngleSummary = (Math.Abs(worstA.Expected - bestA.Expected) < 0.03
+            ? $"Pin {pin.Number}: every direction in plays about the same ({bestA.Expected:0.00} from {yds:0} yds)."
+            : $"Pin {pin.Number}: best approached {DegreesWords(bestA.Degrees, line)} ({bestA.Expected:0.00} from {yds:0} yds, {bestA.GreenHit:P0} on the green), worst {DegreesWords(worstA.Degrees, line)} ({worstA.Expected:0.00}). The angle is worth {worstA.Expected - bestA.Expected:0.00} strokes. Every direction is played from a fairway lie, so only the green and its surrounds count.")
+            + (nearest is null ? "" : Math.Abs(mine.Degrees) > 82
+                ? $" {mine.Tee} comes in {DegreesWords(mine.Degrees, line)}, outside the directions tried."
+                : $" {mine.Tee} comes in {DegreesWords(mine.Degrees, line)}: about {nearest.Expected:0.00} from there, {nearest.Expected - bestA.Expected:0.00} off the ideal.");
+        AngleNote = $"Degrees right (R) or left (L) of {line}, seen looking at the green, all from {yds:0} yds with each direction's best aim."
+            + (maps.TeeAngles.Count > 0 ? " The tees: " + string.Join(", ", maps.TeeAngles.Select(t => $"{t.Tee} {(Math.Abs(t.Degrees) < 0.5 ? "0°" : $"{Math.Abs(t.Degrees):0}° {(t.Degrees > 0 ? "R" : "L")}")}")) + "." : "");
         HasPinMaps = true;
     }
 
     static string AimWords(FramePoint o) => o.Length < 1e-9 ? "at the pin"
         : string.Join(" and ", new[] { Math.Abs(o.Lat) > 0.1 ? $"{Math.Abs(o.Lat):0} yds {(o.Lat > 0 ? "right" : "left")}" : null, Math.Abs(o.Along) > 0.1 ? $"{Math.Abs(o.Along):0} yds {(o.Along > 0 ? "long" : "short")}" : null }.Where(s => s is not null)) + " of the pin";
 
-    static string DegreesWords(double d) => Math.Abs(d) < 0.5 ? "straight down the line of play" : $"from {Math.Abs(d):0}° {(d > 0 ? "right" : "left")} of the line of play";
+    static string DegreesWords(double d, string line = "the line of play") => Math.Abs(d) < 0.5 ? $"straight down {line}" : $"from {Math.Abs(d):0}° {(d > 0 ? "right" : "left")} of {line}";
 }
 
 public sealed class BandRowViewModel(DistanceBand b)
@@ -204,11 +231,11 @@ public sealed class TeeShotRowViewModel(TeeShotOption t, bool selected)
     public string Sg { get; } = t.StrokesGained is { } sg ? $"{sg:+0.00;-0.00;0.00}" : "—";
 }
 
-public sealed class AngleRowViewModel(AngleOption a, bool best)
+public sealed class AngleRowViewModel(AngleOption a, bool best, string tee = "")
 {
     public string Degrees { get; } = Math.Abs(a.Degrees) < 0.5 ? "0°" : $"{Math.Abs(a.Degrees):0}° {(a.Degrees > 0 ? "R" : "L")}";
     public string Expected { get; } = $"{a.Expected:0.00}";
     public string Green { get; } = $"{a.GreenHit:P0}";
-    public string Note { get; } = best ? "ideal" : "";
+    public string Note { get; } = string.Join(" · ", new[] { best ? "ideal" : "", tee }.Where(s => s.Length > 0));
     public FontWeight Weight { get; } = best ? FontWeight.SemiBold : FontWeight.Normal;
 }

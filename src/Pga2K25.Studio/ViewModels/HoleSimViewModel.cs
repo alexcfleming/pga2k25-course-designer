@@ -73,7 +73,7 @@ public partial class HoleSimViewModel : ObservableObject
         OnPropertyChanged(nameof(IsReadBack)); OnPropertyChanged(nameof(IsAssumptions));
         OnPropertyChanged(nameof(IsLiveChecks)); OnPropertyChanged(nameof(IsGate)); OnPropertyChanged(nameof(IsRun));
         OnPropertyChanged(nameof(IsGreen)); OnPropertyChanged(nameof(IsApproach)); OnPropertyChanged(nameof(IsApproachMap)); OnPropertyChanged(nameof(IsSecondShot));
-        OnPropertyChanged(nameof(IsApproachGroup)); OnPropertyChanged(nameof(IsSummary)); OnPropertyChanged(nameof(IsExperiments));
+        OnPropertyChanged(nameof(IsApproachGroup)); OnPropertyChanged(nameof(IsSummary)); OnPropertyChanged(nameof(IsExperiments)); OnPropertyChanged(nameof(IsRecord));
         if (value == GreenStep) RefreshGreenRead();
         if (value == ApproachStep) RefreshApproach();
         if (value == ApproachMapStep) RefreshApproachMap();
@@ -257,10 +257,14 @@ public partial class HoleSimViewModel : ObservableObject
     }
 
     /// <summary>Re-reads the hole from the loaded course (another hole, tee or surface treatment). Results depending on it are cleared.</summary>
+    int _buildNumber;
+
     void Rebuild(bool resetReadBack)
     {
         if (_course is null) return;
         Busy = true;
+        // Each build is numbered: when you pick holes quickly, only the last one picked is shown, whichever finishes last.
+        int build = ++_buildNumber;
         var course = _course; var desc = _desc; var layers = _layers; var stamp = _stamp; int hole = _hole; int? tee = _tee;
         var treatments = new Dictionary<int, Ground?>(_treatments);
         Task.Run(() =>
@@ -270,6 +274,7 @@ public partial class HoleSimViewModel : ObservableObject
                 var model = HoleModelBuilder.Build(course, desc, hole, Options(tee, treatments), stamp, layers);
                 Dispatcher.UIThread.Post(() =>
                 {
+                    if (build != _buildNumber) return;   // a newer hole, tee or treatment was picked meanwhile
                     _model = model;
                     if (resetReadBack) ReadBackAccepted = false;
                     ClearResults();
@@ -277,10 +282,11 @@ public partial class HoleSimViewModel : ObservableObject
                     ShowModel();
                     BuildTerrain();      // clears the last hole's terrain first, so no spot shows its heights
                     LoadLiveChecks();
+                    LoadRecord();
                     Busy = false;
                 });
             }
-            catch (Exception ex) { Dispatcher.UIThread.Post(() => { Busy = false; Show($"Could not read hole {hole}: {ex.Message}", error: true); }); }
+            catch (Exception ex) { Dispatcher.UIThread.Post(() => { if (build != _buildNumber) return; Busy = false; Show($"Could not read hole {hole}: {ex.Message}", error: true); }); }
         });
     }
 
@@ -447,6 +453,7 @@ public partial class HoleSimViewModel : ObservableObject
                 });
                 Dispatcher.UIThread.Post(() =>
                 {
+                    if (!ReferenceEquals(m, _model)) return;   // another hole or tee was picked while the drives ran
                     Busy = false; Show("");
                     ShowResults(run, png, picks.Select(t => (t.Aim!.Aim, t.Colour)).ToList());
                 });
@@ -477,6 +484,7 @@ public partial class HoleSimViewModel : ObservableObject
         var ph = _sheet.PlaceholdersFor(run.Player.Id, run.Terrain is not null).Select(r => r.Label).ToList();
         DependsText = ph.Count == 0 ? "" : $"Depends on {ph.Count} placeholder values: {string.Join("; ", ph)}.";
         HasResults = true;
+        LogDrive(run);
     }
 
     void Show(string text, bool error = false) { Message = text; MessageBrush = error ? Warn : Ok; }

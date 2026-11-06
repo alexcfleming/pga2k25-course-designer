@@ -3,6 +3,7 @@ using Pga2K25.HoleSim;
 namespace Pga2K25.Tests;
 
 /// <summary>Stage 3: in-game height readings, terrain candidates, the gate, and slope and elevation in the run.</summary>
+[Trait("Area", "HoleSim")]
 public class HoleSimTerrainTests
 {
     static string Cassimbo => Path.Combine(TestPaths.SamplesDir, "cassimbo.course");
@@ -85,6 +86,7 @@ public class HoleSimTerrainTests
         Assert.InRange(fitted.Correction(new FramePoint(400, -400)), -0.01, 0.01);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Suggested_spots_run_along_the_line_and_hold_back_every_fourth()
     {
@@ -103,6 +105,7 @@ public class HoleSimTerrainTests
         Assert.Equal((int)Math.Round(spots[2].Where.DistanceTo(m.GreenFrame)), spots[2].ToGreenYards(m));
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact("pilolcura-analysis-2026-11-02.course")]
     public void Pilolcura_hole_8_tees_match_the_games_tee_table()
     {
@@ -128,6 +131,7 @@ public class HoleSimTerrainTests
         Assert.InRange((smooth.HeightFt(cursor) - smooth.HeightFt(new FramePoint(0, 0))) * 12 - 7, -12, 12);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Smoothed_replay_keeps_the_greens_and_calms_the_fairway()
     {
@@ -144,6 +148,7 @@ public class HoleSimTerrainTests
         Assert.True(s.P99 < r.P99, $"smoothed p99 {s.P99:0.0}% vs replay {r.P99:0.0}%");
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Slope_rolls_the_ball_downhill_and_uphill_slopes_hold_it()
     {
@@ -158,6 +163,7 @@ public class HoleSimTerrainTests
         Assert.True(side.Lat > 2, $"drift {side.Lat:0.0}");
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Terrain_runs_change_carry_for_height_and_say_so()
     {
@@ -175,6 +181,7 @@ public class HoleSimTerrainTests
         Assert.Contains(flat.Notes, n => n.StartsWith("Geometry only"));
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Live_checks_save_and_reload_in_world_coordinates()
     {

@@ -2,6 +2,7 @@ using Pga2K25.CourseFormat;
 
 namespace Pga2K25.Tests;
 
+[Trait("Area", "Core")]
 public class GreenOutlineTests
 {
     static List<Vec2> Square(double x0, double z0, double x1, double z1) =>
@@ -30,6 +31,7 @@ public class GreenOutlineTests
 
     const string DevilsPerch = "devils-perch.course";
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(DevilsPerch)]
     public void DevilsPerch_Par3s_HaveAnApproach()
     {
@@ -42,6 +44,7 @@ public class GreenOutlineTests
         }
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(DevilsPerch)]
     public void DevilsPerch_EveryPin_IsOnItsGreen()
     {

@@ -3,6 +3,7 @@ using Pga2K25.Maps;
 
 namespace Pga2K25.Tests;
 
+[Trait("Area", "Products")]
 public class WindRoseTests
 {
     [Fact]

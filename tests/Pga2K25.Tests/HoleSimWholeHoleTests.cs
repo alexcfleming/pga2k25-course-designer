@@ -4,6 +4,7 @@ using Pga2K25.HoleSim;
 namespace Pga2K25.Tests;
 
 /// <summary>Stage 4e: whole holes tee to cup, strokes gained by phase, and design experiments.</summary>
+[Trait("Area", "HoleSim")]
 public class HoleSimWholeHoleTests
 {
     const string Pilolcura = "pilolcura-analysis-2026-11-02.course";
@@ -21,6 +22,7 @@ public class HoleSimWholeHoleTests
         return new HolePlan { Context = c, Player = Sheet.Value.Profile("power"), Reach = Sheet.Value.Reach("power"), DriveAim = 0 };
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void The_phases_add_up_to_the_hole()
     {
@@ -33,6 +35,7 @@ public class HoleSimWholeHoleTests
         Assert.True(s.Birdie + (s.ParOrBetter - s.Birdie) + s.BogeyOrWorse > 0.999);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Play_outs_are_repeatable()
     {
@@ -43,6 +46,7 @@ public class HoleSimWholeHoleTests
         Assert.Equal(a.Sg, b.Sg);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Widening_and_narrowing_change_only_the_landing_zone()
     {
@@ -67,6 +71,7 @@ public class HoleSimWholeHoleTests
         Assert.Equal(Fairway(grid, 360, 580), Fairway(narrower, 360, 580));
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void A_hazard_taken_out_becomes_rough()
     {
@@ -80,6 +85,7 @@ public class HoleSimWholeHoleTests
         Assert.Equal(grid.At(new FramePoint(0, 310)), edited.At(new FramePoint(0, 310)));    // the fairway is untouched
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void An_experiment_against_itself_changes_nothing_and_a_wider_fairway_helps()
     {
@@ -94,14 +100,12 @@ public class HoleSimWholeHoleTests
         Assert.True(wider.Delta < 0.005, $"wider fairway {wider.Delta:+0.000} ± {wider.Ci95:0.000}");
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(Pilolcura)]
     public void Pilolcura_hole_8_pin_4_is_the_hardest()
     {
-        var file = CourseFile.Load(Path.Combine(TestPaths.PrivateDir, Pilolcura));
-        var course = file.ReadModel();
-        var m = HoleModelBuilder.Build(course, file.Description, 8);
-        var green = GreenSurface.Build(m, ReplayTerrain.Smoothed(course, m, 8));
-        var (c, _) = ApproachSetup.Build(m, green, null, Sheet.Value, Anchors.Value, AssumptionSheet.Stimp(course.GreenSpeed)!.Value);
+        var m = Samples.PilolcuraHole(8);
+        var c = Samples.PilolcuraShots(8);
         var plan = new HolePlan { Context = c, Player = Sheet.Value.Profile("power"), Reach = Sheet.Value.Reach("power"), DriveAim = 45 };
         var pins = m.Pins.Select(p => HolePlay.Play(plan, p.Number, 300)).ToList();
         Assert.Equal(4, pins.MaxBy(s => s.Expected)!.Pin);

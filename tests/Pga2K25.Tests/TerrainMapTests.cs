@@ -5,6 +5,7 @@ using SkiaSharp;
 
 namespace Pga2K25.Tests;
 
+[Trait("Area", "Products")]
 public class TerrainMapTests
 {
     static readonly string SaganPath = Path.Combine(TestPaths.SamplesDir, "sagan-khushun.course");
@@ -22,6 +23,7 @@ public class TerrainMapTests
     public void ChooseInterval_PicksSmallestNiceStepThatFits(double relief, int levels, double expected) =>
         Assert.Equal(expected, TerrainSurvey.ChooseInterval(relief, levels));
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void ZeroMargin_StillKeepsEveryGreenSiteAndTeeOnTheSheet()
     {
@@ -43,6 +45,7 @@ public class TerrainMapTests
         Assert.Equal(pts.Max(p => p.Z) + 150, d.Max.Z, 4.0);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Survey_RoutesEveryHoleWithScorecardYards()
     {
@@ -59,6 +62,7 @@ public class TerrainMapTests
         Assert.True(s.MaxFeet > 100);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Contours_AreIntervalMultiplesWithEveryFifthAnIndex()
     {
@@ -72,6 +76,7 @@ public class TerrainMapTests
         }
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void LargeBrushSoftening_FlattensGreenSites_InTheDiscFallback()
     {
@@ -81,6 +86,7 @@ public class TerrainMapTests
         Assert.True(soft.Holes.Average(h => h.GreenSiteSlopePct) < hard.Holes.Average(h => h.GreenSiteSlopePct));
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Sea_IsDetectedFromOceanPropsAndNothingBelowItIsContoured()
     {
@@ -97,6 +103,7 @@ public class TerrainMapTests
         Assert.Empty(dry.Shoreline);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Build_WritesOnePngWithMapAndPanel()
     {
@@ -116,6 +123,7 @@ public class TerrainMapTests
         }
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Build_WithPdf_WritesTheSameSheetAsAPdfBesideThePng()
     {
@@ -141,8 +149,10 @@ public class TerrainMapTests
     }
 }
 
+[Trait("Area", "HoleSim")]
 public class BlankPlotTests
 {
+    [Trait("Speed", "Slow")]
     [Fact]
     public void BlankPlot_MapsTheWholePlotWithLandmarksAndAPlateauInterval()
     {
@@ -160,6 +170,7 @@ public class BlankPlotTests
     }
 }
 
+[Trait("Area", "Water")]
 public class WaterAndGreenSiteTests
 {
     static TerrainSurvey Survey(string file) =>
@@ -168,6 +179,7 @@ public class WaterAndGreenSiteTests
 
     static readonly Lazy<TerrainSurvey> Berwick = new(() => Survey("berwick-coast.course"));
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void PaintedWater_IsOneContinuousStroke()
     {
@@ -180,6 +192,7 @@ public class WaterAndGreenSiteTests
         Assert.InRange(wet * s.Field.Cell * s.Field.Cell, 6000, 9000);
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(WaterTests.LukeFile)]
     public void WaterPlanes_AreClippedToTheGround_OnTheTerrainMap()
     {
@@ -194,6 +207,7 @@ public class WaterAndGreenSiteTests
         Assert.Empty(s.Layers.WaterRibbons);                                   // the narrow blue lines are paths
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void GreenSite_SeparatesTiltFromLumpiness()
     {
@@ -205,6 +219,7 @@ public class WaterAndGreenSiteTests
         Assert.True(h4.GreenSiteGradePct > 12 && h4.GreenSiteReliefFeet < 3, $"{h4.GreenSiteGradePct} / {h4.GreenSiteReliefFeet}");
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void GreenSite_UsesADrawnGreenAtTheAnchor()
     {
@@ -219,6 +234,7 @@ public class WaterAndGreenSiteTests
     }
 }
 
+[Trait("Area", "Readiness")]
 public class HoleSheetTests
 {
     static readonly string SaganPath = Path.Combine(TestPaths.SamplesDir, "sagan-khushun.course");
@@ -231,6 +247,7 @@ public class HoleSheetTests
             o ?? new HoleSheetOptions { CellMetres = 1 }, datumMetres: 0);
     }
 
+    [Trait("Speed", "Slow")]
     [Theory]
     [InlineData(2)]
     [InlineData(7)]
@@ -256,6 +273,7 @@ public class HoleSheetTests
     /// or past the tee→green line where the route never crosses to that side. The whole hole fills the frame's
     /// height in a strip down its left, with the notes column beside it.
     /// </summary>
+    [Trait("Speed", "Slow")]
     [Theory]
     [InlineData(2)]
     [InlineData(7)]
@@ -329,6 +347,7 @@ public class HoleSheetTests
         Assert.All(notes[par5.Number], n => Assert.True(n.Prompt.Length > 0 && n.Text.Length == 0));
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Build_WritesLetterPngAndPdf()
     {
@@ -352,6 +371,7 @@ public class HoleSheetTests
     }
 }
 
+[Trait("Area", "HoleSim")]
 public class BrushShapeTests
 {
     [Theory]
@@ -389,6 +409,7 @@ public class BrushShapeTests
     }
 }
 
+[Trait("Area", "HoleSim")]
 public class RouteHeightTests
 {
     /// <summary>
@@ -415,6 +436,7 @@ public class RouteHeightTests
         return (Math.Sqrt(sum / rows.Count), rows.Count);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void BerwickCoast_MatchesInGameRouteHeights()
     {
@@ -423,6 +445,7 @@ public class RouteHeightTests
         Assert.True(rms < 3.5, $"RMS {rms:0.0} ft (the old round-disc model was 22 ft)");
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void MurrayEstate_MatchesInGameRouteHeights()
     {
@@ -432,6 +455,7 @@ public class RouteHeightTests
     }
 }
 
+[Trait("Area", "HoleSim")]
 public class MapReadBackTests
 {
     [Fact]
@@ -447,6 +471,7 @@ public class MapReadBackTests
         }
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Renderer_ReportsTheMapFrameAndGridSquares()
     {
@@ -464,6 +489,7 @@ public class MapReadBackTests
         Assert.Equal(s.Feet(tee), s.Feet(projection.Unmap(px)), 1);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void DrawnGreenSites_CanBeHidden()
     {

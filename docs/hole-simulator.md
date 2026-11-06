@@ -23,7 +23,7 @@ The section has a bar along the top and three sections under it (since 6 Nov 202
 - **The bar:** hole, tee, pin and player. Every view uses them: change the pin there and the green read, approach, map and second shot follow. Changing the hole or tee clears the read-back confirmation and results; changing the pin or player clears results.
 - **Set up**, done once per hole: Hole, Assumptions, Live checks, Terrain. The section's label counts how many are done ("2 of 4") and each finished tab gets a tick. Shots and Hole stay open while setup is unfinished, but they say what's left and every result carries its warnings.
 - **Shots**, by what the hole's par has: Drive, Second shot (par 5s), Approach (called Tee shot on a par 3) and Green. Approach has a switch between **Play a shot** and **Map**.
-- **Hole:** Summary and Experiments, the whole hole tee to cup.
+- **Hole:** Summary and Experiments, the whole hole tee to cup, and the session Record.
 
 Each section remembers the tab it was left on.
 
@@ -65,6 +65,17 @@ Each section remembers the tab it was left on.
 
 - **Summary** (Stage 4e). Every pin played 600 times tee to cup for the player in the bar. The drive goes on its best line: the Drive tab's, when it ran for this pin and player, otherwise a quick 400-drive sweep. The par 5 second shot follows the go-or-lay-up plan, approaches use each spot's best aim from the heat map, chips aim at the pin, and putts come from the putting map. Per pin it shows the score (with expected putts, so not a whole number), the score against par, strokes gained off the tee, on approach, around the green and putting (they add up to the hole), fairways, greens in regulation, scrambling (par or better after missing the green in regulation), and birdie and bogey-or-worse shares. Over the pins it shows the average, the hardest and easiest pin, and where most strokes go.
 - **Experiments** (Stage 4e). Design changes played against the hole as it is, every pin, with the same draws: the landing zone 5 yds wider and 5 yds narrower each side (par 4s and 5s; the zone is where the player's drives land, from the 10th to the 90th percentile, plus 10 yds), and each hazard near play taken out (the six nearest the landing zone or the green). After you reload a new save while the section is open, your last save against the one before is added at the top, both on the replay's green contours and flat ground outside the green, so only your edit differs. Each shows the change in strokes averaged over the pins, with its paired 95% range and the change per pin, marked easier, harder or no clear effect.
+- **Record** (Stage 4e). The session record for this hole and today. Every result is logged as it finishes. The ones worth checking in the game become findings, each with a way to check it:
+  - the best drive line
+  - a clearly better side of the fairway (0.05 or more against its distance band)
+  - an ideal angle worth 0.1 or more
+  - a par 3 aim that saves 0.05 or more on firing at the pin
+  - every second-shot verdict
+  - a pin 0.15 or more harder than the easiest
+  - a phase losing 0.15 or more
+  - every experiment with a clear effect
+
+  For each finding you pick Not checked, Confirmed in game, Not seen in game or Contradicted, and can add a note. The tab shows how many are still to check. Running the same result again updates the finding's text and keeps your verdict; on a newer save the verdict is marked for checking again.
 
 ### Save watcher
 
@@ -167,6 +178,7 @@ Hole 12's replay green sheds most shots (30% of it is too steep to hold a ball) 
 - **Harder than Tour overall.** Nearly every spot plays worse than the baseline from the same lie and distance (Pilolcura hole 8: −0.17 for pin 1, −0.58 for pin 4). The golfer was fitted on a flat, round green, so real greens with contours and surrounds always read harder. The map states that offset in words and colours only the differences.
 - **The leave map** (`ApproachMaps.Leave`). Expected strokes still to play from every yard within 35 yds of the green: the putting map on it, the short-game map round it, water and scrub with their penalty. Coloured on the map's own range (5th to 95th percentile), so where to leave it shows even when everything off the green is costly.
 - **The ideal angle** (`ApproachMaps.Angles`). Shots into the pin from 150 yds, from the line of play and every 15° either side out to 75°, all from a fairway lie with the same draws and each direction's best aim. Spots off the course are played as if they were fairway, so only the green and its surrounds count. The spokes on the leave map show them: the ideal one in ink, the others coloured against it.
+- **On a par 3** the angles are played from the chosen tee's own distance and measured against the back tee's line, so the ideal direction belongs to the green and doesn't turn with the tee (`ApproachMaps.BackTeeLine`, `AngleOf`). Each tee's own line into the pin is drawn in blue (the chosen tee's heavier), the table marks where the chosen tee comes in, and the summary says how far that is from the ideal. Changing the tee rebuilds the map at the new distance. On Pilolcura hole 3, pin 1, the four tees are within 5° of each other. From T1 (178 yds) the tee shot comes in 0.15 off the ideal, which is 75° left of T4's line; from T4 (210 yds) it's 0.05 off. A tee shot more than 0.1 off the ideal becomes a finding in the record.
 - **Par 3 tee shots** (`ApproachMaps.TeeShots`). From every tee, 49 aims (7 × 7, 4 yds apart, out to 12 yds from the pin) on 300 shots each.
 
 Figures on Pilolcura (green contours unverified):
@@ -225,6 +237,17 @@ Pin 4 plays nearly half a stroke harder than pin 1, and putting is where most st
 
 `pga2k25 holesim <file.course> --hole 8 [--player normal] --whole [--experiments]`.
 
+## Session record
+
+`SessionRecord` is saved as you go to `<products>/Hole Sim/HNN session YYYY-MM-DD.json` beside the live checks (Alex's choice, 6 Nov 2026), with a Markdown copy of the same name to read or share. It holds:
+- the course, hole and par, when the session started and was last updated, and the baseline
+- every course save the results ran on (time and short hash)
+- the placeholder values in use
+- each result (time, kind, title, headline lines and its warning badge)
+- the findings with their verdicts and notes
+
+Opening the same hole again the same day carries on the same record; a new day starts a new file. A finding keeps a stable id per result (for example `summary.pins.power` or `map.ideal.4`), which is how a rerun updates it instead of adding another.
+
 ## Strokes gained
 
 The method follows Broadie, as set out in the Strokes Gained method prompt (4 Nov 2026):
@@ -258,4 +281,4 @@ pga2k25 holesim-terrain <file.course> --holes 11,3,4 [--smooth 8] [--readings 10
 
 ## Not yet
 
-Sightlines from the tee (the visibility map) wait on a trusted terrain and the sightline answers collected in Live checks. Stage 4 (proposal: https://claude.ai/artifact/7KdJjbPdzKH2tbabsoMX8Q) still lacks the session record and in-game verdicts per finding; where the record is saved is still to be decided. The original Stage 4 list: approaches, the approach map by pin, design experiments (paired edits of the hole), in-game verdicts and the session record. Stage 5: wind, the par 5 lay-up decision and session comparison.
+Sightlines from the tee (the visibility map) wait on a trusted terrain and the sightline answers collected in Live checks. Stage 4 (proposal: https://claude.ai/artifact/7KdJjbPdzKH2tbabsoMX8Q) is complete. The original Stage 4 list: approaches, the approach map by pin, design experiments (paired edits of the hole), in-game verdicts and the session record. Stage 5: wind, the par 5 lay-up decision and session comparison.

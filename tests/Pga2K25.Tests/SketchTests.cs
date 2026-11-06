@@ -4,6 +4,7 @@ using SkiaSharp;
 
 namespace Pga2K25.Tests;
 
+[Trait("Area", "Products")]
 public class SketchTests
 {
     static readonly string SaganPath = Path.Combine(TestPaths.SamplesDir, "sagan-khushun.course");
@@ -55,6 +56,7 @@ public class SketchTests
     /// it) is matched to its hole, and the pencil lands on the ground where it was drawn. Sheets printed before 2.5
     /// (full width) still import; on a 2.5 strip sheet, writing in the notes column stays off the ground.
     /// </summary>
+    [Trait("Speed", "Slow")]
     [Theory]
     [InlineData(HoleSheetLayout.Strip)]
     [InlineData(HoleSheetLayout.FullWidth)]
