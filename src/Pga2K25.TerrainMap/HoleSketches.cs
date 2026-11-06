@@ -126,11 +126,15 @@ public static class HoleSketches
         // 2. Each hole's sheet as it would print now, normalised the same way as the scans; and, when the Hole sheets
         //    build's PNGs are given, the sheet as last built, which is usually what was printed. Where the ground has
         //    changed since, only the built sheet still explains the printed contours.
+        //    Sheets printed before 2.5 used the full-width layout, so each hole is rendered both ways.
         var (datum, sea) = HoleSheetBuilder.PlotDatum(course, options);
-        var renderOptions = options with { Dpi = 72.0 * k };
-        var references = new (byte[] Norm, float[] Thumb)[course.Holes.Count];
-        Parallel.For(0, course.Holes.Count, new ParallelOptions { MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount / 2, 1, 4) }, i =>
+        HoleSheetLayout[] kinds = [HoleSheetLayout.Strip, HoleSheetLayout.FullWidth];
+        int n = course.Holes.Count;
+        var references = new (byte[] Norm, float[] Thumb)[n * kinds.Length];
+        Parallel.For(0, references.Length, new ParallelOptions { MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount / 2, 1, 4) }, j =>
         {
+            int i = j % n;
+            var renderOptions = options with { Dpi = 72.0 * k, Layout = kinds[j / n] };
             var sheet = HoleSheet.Build(course, layers, course.Holes[i], renderOptions, datum, sea);
             using var renderer = new HoleSheetRenderer(renderOptions);
             var full = renderer.PixelSize;
@@ -142,30 +146,35 @@ public static class HoleSketches
             using var bmp = SKBitmap.FromImage(image);
             using var rgba = SheetScan.ToRgba(bmp);
             var norm = SheetScan.PaperNormalised(rgba);
-            references[i] = (norm, SheetScan.Thumbnail(norm, size.Width, size.Height));
-            log?.Report($"Rendered hole {course.Holes[i].Number}'s sheet.");
+            references[j] = (norm, SheetScan.Thumbnail(norm, size.Width, size.Height));
+            if (j < n) log?.Report($"Rendered hole {course.Holes[i].Number}'s sheet.");
         });
-        var built = new (byte[] Norm, float[] Thumb)?[course.Holes.Count];
+        // A built sheet is in whichever layout its fresh render looks more like.
+        var built = new (byte[] Norm, float[] Thumb, HoleSheetLayout Kind)?[n];
         if (printedSheets is not null)
-            for (int i = 0; i < course.Holes.Count; i++)
-                built[i] = BuiltSheet(Path.Combine(printedSheets, $"Hole_{course.Holes[i].Number:00}.png"), size);
+            for (int i = 0; i < n; i++)
+                if (BuiltSheet(Path.Combine(printedSheets, $"Hole_{course.Holes[i].Number:00}.png"), size) is { } b)
+                    built[i] = (b.Norm, b.Thumb, SheetScan.Correlation(b.Thumb, references[i].Thumb) >= SheetScan.Correlation(b.Thumb, references[n + i].Thumb)
+                        ? HoleSheetLayout.Strip : HoleSheetLayout.FullWidth);
         // Per hole, the sheets to compare a page against.
-        (byte[] Norm, float[] Thumb, bool Built)[] Candidates(int i) => built[i] is { } b
-            ? [(references[i].Norm, references[i].Thumb, false), (b.Norm, b.Thumb, true)]
-            : [(references[i].Norm, references[i].Thumb, false)];
+        IEnumerable<(byte[] Norm, float[] Thumb, bool Built, HoleSheetLayout Kind)> Candidates(int i)
+        {
+            for (int t = 0; t < kinds.Length; t++) yield return (references[t * n + i].Norm, references[t * n + i].Thumb, false, kinds[t]);
+            if (built[i] is { } b) yield return (b.Norm, b.Thumb, true, b.Kind);
+        }
 
         // 3. Match each page to a hole (either way up), keeping the best page when two match the same hole.
-        var matched = new List<(int Page, int HoleIndex, double Score, bool Flip, byte[] Norm, byte[] Reference, bool Built)>();
+        var matched = new List<(int Page, int HoleIndex, double Score, bool Flip, byte[] Norm, byte[] Reference, bool Built, HoleSheetLayout Kind)>();
         for (int pi = 0; pi < pages.Count; pi++)
         {
             var (p, rect, _) = pages[pi];
             var norm = SheetScan.PaperNormalised(rect);
             var thumb = SheetScan.Thumbnail(norm, size.Width, size.Height);
-            var scores = Enumerable.Range(0, references.Length)
+            var scores = Enumerable.Range(0, n)
                 .SelectMany(i => Candidates(i).SelectMany(c => new[]
                 {
-                    (i, s: SheetScan.Correlation(thumb, c.Thumb), flip: false, c.Norm, c.Built),
-                    (i, s: SheetScan.Correlation(thumb, c.Thumb, flip: true), flip: true, c.Norm, c.Built),
+                    (i, s: SheetScan.Correlation(thumb, c.Thumb), flip: false, c.Norm, c.Built, c.Kind),
+                    (i, s: SheetScan.Correlation(thumb, c.Thumb, flip: true), flip: true, c.Norm, c.Built, c.Kind),
                 }))
                 .OrderByDescending(x => x.s).ToList();
             var best = scores[0];
@@ -178,8 +187,9 @@ public static class HoleSketches
                 continue;
             }
             log?.Report($"{Path.GetFileName(p.File)} p{p.Page}: hole {number} ({best.s:0.00}, next best {runnerUp:0.00}" +
-                        $"{(best.flip ? ", upside down" : "")}{(best.Built ? ", against the built sheet" : "")}).");
-            matched.Add((pi, best.i, best.s, best.flip, norm, best.Norm, best.Built));
+                        $"{(best.flip ? ", upside down" : "")}{(best.Built ? ", against the built sheet" : "")}" +
+                        $"{(best.Kind == HoleSheetLayout.FullWidth ? ", a pre-2.5 full-width sheet" : "")}).");
+            matched.Add((pi, best.i, best.s, best.flip, norm, best.Norm, best.Built, best.Kind));
         }
 
         // 4. Separate the pencil and save.
@@ -203,6 +213,10 @@ public static class HoleSketches
                 norm = SheetScan.PaperNormalised(scanRect);
             }
             var score = SheetScan.PencilScore(scanRect, norm, m.Reference);
+            var layout = HoleSheet.LayoutFor(layers, hole, options with { Layout = m.Kind });
+            // Only pencil on the map strip is on the ground; writing in the notes column stays on the paper.
+            var strip = HoleSheet.Within(layout.StripPoints, new SKRect(0, 0, size.Width, size.Height));
+            if (m.Kind == HoleSheetLayout.Strip) MaskOutside(score, size, strip);
             var alpha = SheetScan.PencilAlpha(score, size.Width, size.Height);
             var traced = SketchTracer.Trace(score, norm, size.Width, size.Height, out double? faintBelow);
             string stem = $"Hole_{hole.Number:00}";
@@ -210,7 +224,7 @@ public static class HoleSketches
             SaveScan(Path.Combine(folder, stem + " scan.jpg"), scanRect, k);
             if (m.Flip) scanRect.Dispose();
 
-            var corners = HoleSheet.LayoutFor(layers, hole, options).FrameCorners();
+            var corners = layout.FrameCorners();
             SaveLines(Path.Combine(folder, stem + " lines.json"), traced, faintBelow, corners, size);
             set.Sheets.RemoveAll(s => s.Hole == hole.Number);
             set.Sheets.Add(new HoleSketch
@@ -266,6 +280,16 @@ public static class HoleSketches
         }).ToArray())).ToList();
         var compact = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
         File.WriteAllText(path, JsonSerializer.Serialize(new SketchLines { FaintBelow = faintBelow, Lines = lines }, compact));
+    }
+
+    /// <summary>Clears the pencil score outside <paramref name="keep"/> (straightened-frame pixels), a little inside its edge where the frame line is.</summary>
+    static void MaskOutside(float[] score, SKSizeI size, SKRect keep)
+    {
+        int x0 = (int)Math.Ceiling(keep.Left) + 2, x1 = (int)Math.Floor(keep.Right) - 2;
+        int y0 = (int)Math.Ceiling(keep.Top) + 2, y1 = (int)Math.Floor(keep.Bottom) - 2;
+        for (int y = 0; y < size.Height; y++)
+        for (int x = 0; x < size.Width; x++)
+            if (x < x0 || x > x1 || y < y0 || y > y1) score[y * size.Width + x] = 0;
     }
 
     static SKBitmap Rotate180(SKBitmap b)

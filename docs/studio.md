@@ -81,7 +81,7 @@ Products are listed (and built by **Build all**) in this order: terrain map, hol
 | Product | Studio builds |
 |---|---|
 | Terrain map | The PNG and a PDF (vector contours and text, 250 dpi page) from the course's saved map options. Defaults: the routing plus a 150 m margin, relief shading, Auto contours, 4 px/m |
-| Hole sheets | Every hole: PNGs and one PDF. They use the map options for area, shading, layers and water; each sheet picks its own finer contour interval |
+| Hole sheets | Every hole: PNGs and one PDF. They use the map options for area, shading, layers and water; each sheet picks its own finer contour interval. The map is a strip 75 yd past the route's widest point each side, with the hole design notes from Readiness beside it |
 | Course cards | From the course-card settings file, Place and Holes cards. A course with validation errors (an in-progress course such as Murray Estate, or one with fewer than 18 holes) still gets its cards, each marked DRAFT with the first error; the errors are in Card Validation.txt |
 | Greens book | The sheet, a study PNG per green, and the PDF |
 | Yardage book | The PDF and a PNG per hole; tee and hole names from the Holes card; fairway widths at 250 yds and across the design tee shot from Publish readiness |

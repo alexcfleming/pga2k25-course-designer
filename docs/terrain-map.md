@@ -75,9 +75,12 @@ dotnet run --project src/Pga2K25.Cli -- terrain samples/courses/sagan-khushun.co
 ```
 
 - **Orientation is the yardage book's:** back tee at the bottom, green straight up the page, using the same rotation as `HoleAnalysis` (checked by a test). A north arrow turned to match is in the footer.
-- **Window:** 40 m behind the back tee to 50 m past the green, widened to the page. Doglegs keep at least 60 m either side of the route. It always fits on one page, so long holes are smaller scale: about 31 yds/in for a 160-yd par 3 and 60–80 yds/in for long par 4s and 5s.
+- **Window (since 2.5):** 40 m behind the back tee to 50 m past the green, and **75 yd past the route's widest point on each side** (tees, aim points and green; `--sheet-side`). A side the route never crosses to keeps 75 yd past the tee→green line. Fairways play 30–50 yd wide, so a straight hole shows about L75–R75. A dogleg shows more on its corner side; Murray Estate hole 3, with its aim point 72 yd right, runs L75–R147.
+- **Strip and notes column:** the map is a strip down the left of the frame, with the hole's whole length filling the frame's height. Long holes are therefore smaller scale: about 38 yds/in for a 215-yd par 3, and 60–80 yds/in for long par 4s and 5s. A short, wide hole stops at a strip width that leaves the notes column at least 180 pt (yardages included); it then sits centred top to bottom at a larger scale.
+- **Hole design notes** fill the column beside the strip. They are the Readiness card's notes for the hole: Miss cost and Hazards on par 4s and 5s, and Second shot on par 5s. Why wide appears once written, and the hole's own note goes last. A written note prints its text. An unwritten one prints its question with three ruled lines, and the rest of the column is ruled for pencil. Par 3s get a ruled column. The notes come from `Readiness.json` in the output folder, from the Studio build and from the CLI.
+- **Sheets printed before 2.5** were as wide as the page's shape allowed (about 560 yd across a 550-yd par 5). Scans of them still import; see [Hole sketches](hole-sketches.md).
 - **Finer terrain:** a 0.5 m raster. The contour interval is the smallest of 1 / 2 / 5 … ft that keeps the ground **within 50 m of this hole's route** to 60 levels or fewer, so a hillside or the sea at the edge of the page doesn't coarsen it. On Sagan-Khushun every hole tried came out at 2 ft (index every 10 ft). Minor contours are thinned where they would run closer than 2 pt, and slivers left by the thinning are dropped.
-- **A grid on the hole:** lines every 50 yds from the back tee (labelled in yards down both edges), and every 50 yds left and right of the tee→green line (`L50 · C · R50`, as you walk to the green) along the top and bottom. A spot height sits at each crossing.
+- **A grid on the hole:** lines every 50 yds from the back tee (labelled in yards down both sides of the strip), and every 50 yds left and right of the tee→green line (`L50 · C · R50`, as you walk to the green) along the top and bottom. A spot height sits at each crossing.
 - **The hole:**
   - route, aim point and ticks every 25 yds, with the ground height at every 50
   - the green site as an outline only, so the ground under it stays clear for sketching, with its fall arrow
@@ -174,6 +177,7 @@ The images come from screenshots of the palette icons, so fine detail is approxi
 | `--no-features`, `--no-summits` | shown | |
 | `--holes` | | Hole sheets instead of the plot map (`all` or a list) |
 | `--sheet-grid` | 50 | Hole sheet grid (yd) |
+| `--sheet-side` | 75 | Hole sheet ground past the route's widest point, each side (yd) |
 | `--no-pdf`, `--no-png` | both | Hole sheet outputs |
 | `--sea-level`, `--no-water` | from ocean props | Sea level (world m), or no sea |
 | `--water-footprints` | off | Dash the water planes' rectangles |
@@ -190,6 +194,6 @@ The images come from screenshots of the palette icons, so fine detail is approxi
   - Route labels try 16 positions to stay clear of routes and other labels.
   - It also draws the routing and green sites.
 - `TerrainMapRenderer` / `TerrainMapBuilder`: the plot map
-- `HoleSheet` / `HoleSheetRenderer` / `HoleSheetBuilder`: hole sheets (window, finer survey, Letter layout, PNG + PDF)
+- `HoleSheet` / `HoleSheetRenderer` / `HoleSheetBuilder`: hole sheets (window, strip and notes column, finer survey, Letter layout, PNG + PDF); `HoleSheetLayout.FullWidth` is the pre-2.5 sheet, kept for importing old scans. `Readiness.SheetNotes` turns the Readiness card's hole design notes into the notes column.
 
 Tests are in `tests/Pga2K25.Tests/TerrainMapTests.cs` and run against `samples/courses/sagan-khushun.course`.
