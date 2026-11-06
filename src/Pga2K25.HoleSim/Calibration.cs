@@ -192,7 +192,9 @@ public static class GolferCalibration
 
     /// <summary>The calibration hole: flat, fairway down the middle, rough beyond, a round green with the pin in its centre.</summary>
     /// <param name="terrain">Ground heights for the green (tests tilt it); flat when null.</param>
-    public static ShotContext Synthetic(IBaseline baseline, PuttingModel putting, GroundTable ground, ShotRules rules, LieMap lies, GolferParams golfer, ITerrainModel? terrain = null)
+    /// <param name="extra">More surfaces (tests add water); painted in ground order, so the fairway and green cover water.</param>
+    public static ShotContext Synthetic(IBaseline baseline, PuttingModel putting, GroundTable ground, ShotRules rules, LieMap lies, GolferParams golfer, ITerrainModel? terrain = null,
+        Func<Func<double, double, Vec2>, IEnumerable<PaintShape>>? extra = null)
     {
         var frame = new HoleFrame(new Vec2(0, 0), new Vec2(0, 1));
         Vec2 W(double lat, double along) => frame.ToWorld(new FramePoint(lat, along));
@@ -202,6 +204,7 @@ public static class GolferCalibration
             new PaintPolygon(Ground.Fairway, [W(-FairwayHalf, -30), W(FairwayHalf, -30), W(FairwayHalf, Length - GreenRadius), W(-FairwayHalf, Length - GreenRadius)]),
             new PaintDisc(Ground.Green, W(0, Length), GreenRadius * HoleFrame.Yard),
         };
+        if (extra is not null) shapes.AddRange(extra(W));
         var grid = SurfaceGrid.Build(frame, -150, 150, -30, (int)Length + 60, shapes);
         var pin = new FramePoint(0, Length);
         var hole = new HoleModel

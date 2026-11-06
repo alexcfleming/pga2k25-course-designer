@@ -49,7 +49,7 @@ public partial class HoleSimViewModel : ObservableObject
         CourseName = courseName;
         _priorsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CourseDesignerStudio", "holesim", "assumptions-confirmed.json");
         _sheet = AssumptionSheet.Load(_priorsPath);
-        foreach (var s in new[] { PickStep, ReadBackStep, AssumptionsStep, LiveChecksStep, GateStep, RunStep, GreenStep, ApproachStep }) StepButtons.Add(new TabViewModel(s, s == Step, () => Step = s));
+        foreach (var s in new[] { PickStep, ReadBackStep, AssumptionsStep, LiveChecksStep, GateStep, RunStep, GreenStep, ApproachStep, ApproachMapStep, SecondShotStep }) StepButtons.Add(new TabViewModel(s, s == Step, () => Step = s));
         PlayerButtons.Add(new TabViewModel("Power Drive", true, () => SelectPlayer("power")));
         PlayerButtons.Add(new TabViewModel("Normal", false, () => SelectPlayer("normal")));
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -73,9 +73,11 @@ public partial class HoleSimViewModel : ObservableObject
         foreach (var b in StepButtons) b.IsSelected = b.Label == value;
         OnPropertyChanged(nameof(IsPick)); OnPropertyChanged(nameof(IsReadBack)); OnPropertyChanged(nameof(IsAssumptions));
         OnPropertyChanged(nameof(IsLiveChecks)); OnPropertyChanged(nameof(IsGate)); OnPropertyChanged(nameof(IsRun));
-        OnPropertyChanged(nameof(IsGreen)); OnPropertyChanged(nameof(IsApproach));
+        OnPropertyChanged(nameof(IsGreen)); OnPropertyChanged(nameof(IsApproach)); OnPropertyChanged(nameof(IsApproachMap)); OnPropertyChanged(nameof(IsSecondShot));
         if (value == GreenStep) RefreshGreenRead();
         if (value == ApproachStep) RefreshApproach();
+        if (value == ApproachMapStep) RefreshApproachMap();
+        if (value == SecondShotStep) RefreshSecondShot();
     }
     [RelayCommand] private void GoReadBack() => Step = ReadBackStep;
     [RelayCommand] private void GoAssumptions() => Step = AssumptionsStep;

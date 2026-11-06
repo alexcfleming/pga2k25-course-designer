@@ -4,7 +4,9 @@ namespace Pga2K25.HoleSim;
 
 /// <summary>Points and aim rings drawn over the hole map (a shot pattern).</summary>
 public sealed record MapOverlay(IReadOnlyList<(FramePoint Point, SKColor Colour)> Points, IReadOnlyList<(FramePoint Point, SKColor Colour)> Rings,
-    IReadOnlyList<(FramePoint Point, string Text, SKColor Colour)>? Labels = null);
+    IReadOnlyList<(FramePoint Point, string Text, SKColor Colour)>? Labels = null,
+    IReadOnlyList<(FramePoint Centre, double Size, SKColor Colour)>? Squares = null,
+    IReadOnlyList<(FramePoint From, FramePoint To, SKColor Colour, float Width)>? Lines = null);
 
 public sealed record MapView
 {
@@ -67,6 +69,14 @@ public static class HoleMapRenderer
         using (var img = SKImage.FromBitmap(cells))
             c.DrawImage(img, new SKRect(0, 0, gw, gh), new SKRect(0, 0, (float)(gw * s), (float)(gh * s)), new SKSamplingOptions(SKFilterMode.Linear), null);
 
+        // Heat squares sit on the surfaces, under everything else.
+        foreach (var (centre, size, col) in view.Overlay?.Squares ?? [])
+            using (var sq = new SKPaint { Color = col, IsAntialias = false })
+            {
+                var pc = P(centre); float h = (float)(size * s / 2);
+                c.DrawRect(new SKRect(pc.X - h, pc.Y - h, pc.X + h, pc.Y + h), sq);
+            }
+
         using var font = new SKFont(SKTypeface.FromFamilyName("Segoe UI", SKFontStyle.Bold) ?? SKTypeface.Default, 11);
         using var small = new SKFont(font.Typeface, 10);
         using var ink = new SKPaint { Color = Ink, IsAntialias = true };
@@ -96,6 +106,9 @@ public static class HoleMapRenderer
         // Shot pattern.
         if (view.Overlay is { } o)
         {
+            foreach (var (a, b, col, width) in o.Lines ?? [])
+                using (var line = new SKPaint { Color = col, IsAntialias = true, StrokeWidth = width, Style = SKPaintStyle.Stroke, StrokeCap = SKStrokeCap.Round })
+                    c.DrawLine(P(a), P(b), line);
             foreach (var (pt, col) in o.Points)
                 using (var dot = new SKPaint { Color = col.WithAlpha(150), IsAntialias = true })
                     c.DrawCircle(P(pt), (float)Math.Max(1.6, s * 0.75), dot);
@@ -143,6 +156,93 @@ public static class HoleMapRenderer
         }
         return bmp;
     }
+    /// <summary>Diverging colour for strokes better (+) or worse (−) than a reference: green better, pale at par, red worse, full at ±<paramref name="full"/>.</summary>
+    public static SKColor GainColour(double gain, double full = 0.15, byte alpha = 190)
+    {
+        double t = Math.Clamp(gain / full, -1, 1);
+        SKColor mid = SKColor.Parse("#F3EBD3"), end = t >= 0 ? SKColor.Parse("#2F7D5B") : SKColor.Parse("#B5473A");
+        double u = Math.Abs(t);
+        byte L(byte x, byte y) => (byte)Math.Round(x + (y - x) * u);
+        return new SKColor(L(mid.Red, end.Red), L(mid.Green, end.Green), L(mid.Blue, end.Blue), alpha);
+    }
+
+    /// <summary>
+    /// The approach heat map for one pin: each spot coloured by how much better or worse it plays than the median spot the
+    /// same distance from the pin (<see cref="ApproachHeatMap.Relative"/>), the best angle ringed.
+    /// </summary>
+    public static byte[] RenderHeatPng(HoleModel m, ApproachHeatMap map, GreenSurface green, double full = 0.12)
+    {
+        var squares = map.Spots.Where(map.Relative.ContainsKey).Select(s => (s.Where, map.Spacing, GainColour(map.Relative[s], full))).ToList();
+        var rings = new List<(FramePoint, SKColor)>(); var labels = new List<(FramePoint, string, SKColor)>();
+        if (map.BestAngle is { } best) { rings.Add((best.Where, Ink)); labels.Add((best.Where + new FramePoint(0, -7), "best angle", Ink)); }
+        var pts = map.Spots.Select(s => s.Where).Concat(green.Cells).ToList();
+        double lat0 = pts.Min(p => p.Lat) - 12, lat1 = pts.Max(p => p.Lat) + 12, al0 = pts.Min(p => p.Along) - 12, al1 = pts.Max(p => p.Along) + 15;
+        double ppy = Math.Min(620 / (al1 - al0), 500 / (lat1 - lat0));
+        return RenderPng(m, new MapView
+        {
+            PixelsPerYard = ppy, SelectedPin = map.Pin, ShowWidths = false, AlongFrom = al0, AlongTo = al1, LatFrom = lat0, LatTo = lat1,
+            Overlay = new MapOverlay([], rings, labels, squares),
+        });
+    }
+
+    /// <summary>
+    /// The leave map round the green: expected strokes still to play from where a shot finishes (green 1, gold 2, red 3+),
+    /// with the ideal-angle spokes round the pin when given (the best one in ink, the rest coloured against the best).
+    /// </summary>
+    public static byte[] RenderLeavePng(HoleModel m, LeaveMap leave, GreenSurface green, IReadOnlyList<AngleOption>? angles = null,
+        IReadOnlyList<(FramePoint Point, SKColor Colour)>? points = null, IReadOnlyList<(FramePoint Point, SKColor Colour)>? rings = null)
+    {
+        var (lo, hi) = leave.Range;
+        var squares = leave.Cells.Select(x => (x.Where, 1.0, LeaveColour(x.Expected, lo, hi).WithAlpha(185))).ToList();
+        var pinAt = m.Pins[leave.Pin - 1].Frame;
+        var lines = new List<(FramePoint, FramePoint, SKColor, float)>(); var labels = new List<(FramePoint, string, SKColor)>();
+        double r0 = Math.Max(8, green.Cells.Max(p => p.DistanceTo(pinAt)) + 4);
+        if (angles is { Count: > 0 })
+        {
+            var best = angles.MinBy(a => a.Expected)!;
+            foreach (var a in angles)
+            {
+                var u = (a.From - pinAt) * (1 / Math.Max((a.From - pinAt).Length, 1e-9));
+                bool isBest = ReferenceEquals(a, best);
+                var col = isBest ? Ink : GainColour(best.Expected - a.Expected, 0.15, 255);
+                lines.Add((pinAt + u * r0, pinAt + u * (r0 + (isBest ? 14 : 10)), col, isBest ? 4 : 3));
+                if (isBest) labels.Add((pinAt + u * (r0 + 19), "ideal", Ink));
+            }
+        }
+        double lat0 = leave.Cells.Min(x => x.Where.Lat), lat1 = leave.Cells.Max(x => x.Where.Lat), al0 = leave.Cells.Min(x => x.Where.Along), al1 = leave.Cells.Max(x => x.Where.Along);
+        double pad = angles is { Count: > 0 } ? Math.Max(0, r0 + 24 - ShortGameMap.Reach) : 0;
+        lat0 -= pad; lat1 += pad; al0 -= pad; al1 += pad;
+        double ppy = Math.Min(560 / (al1 - al0), 520 / (lat1 - lat0));
+        return RenderPng(m, new MapView
+        {
+            PixelsPerYard = ppy, SelectedPin = leave.Pin, ShowWidths = false, AlongFrom = al0, AlongTo = al1, LatFrom = lat0, LatTo = lat1,
+            Overlay = new MapOverlay(points ?? [], rings ?? [], labels, squares, lines),
+        });
+    }
+
+    /// <summary>
+    /// The par 5 second shot: every lay-up target coloured against going for the green (green: laying up there beats
+    /// going; red: going is better), the best lay-up and the go aim ringed, and where the go shots finish.
+    /// </summary>
+    public static byte[] RenderSecondShotPng(HoleModel m, SecondShotPlan plan, GreenSurface green, double spacing = 5)
+    {
+        var squares = plan.Layups.Select(l => (l.Target, spacing, GainColour(plan.Go.Expected - l.Expected, 0.25))).ToList();
+        var rings = new List<(FramePoint, SKColor)> { (plan.From, SKColor.Parse("#E06A3A")), (plan.Go.Aim, SKColor.Parse("#3A6EA5")) };
+        var labels = new List<(FramePoint, string, SKColor)> { (plan.From + new FramePoint(0, -7), "from", SKColor.Parse("#E06A3A")), (plan.Go.Aim + new FramePoint(0, 8), "go", SKColor.Parse("#3A6EA5")) };
+        if (plan.BestLayup is { } b) { rings.Add((b.Target, Ink)); labels.Add((b.Target + new FramePoint(0, -7), "lay up", Ink)); }
+        var pts = plan.Layups.Select(l => l.Target).Concat(green.Cells).Append(plan.From).ToList();
+        double lat0 = pts.Min(p => p.Lat) - 12, lat1 = pts.Max(p => p.Lat) + 12, al0 = pts.Min(p => p.Along) - 14, al1 = pts.Max(p => p.Along) + 15;
+        double ppy = Math.Min(620 / (al1 - al0), 500 / (lat1 - lat0));
+        return RenderPng(m, new MapView
+        {
+            PixelsPerYard = ppy, SelectedPin = m.Pins.Count >= 1 ? m.Pins.MinBy(p => p.Frame.DistanceTo(plan.Go.Aim))!.Number : 1, ShowWidths = false,
+            AlongFrom = al0, AlongTo = al1, LatFrom = lat0, LatTo = lat1, Overlay = new MapOverlay([], rings, labels, squares),
+        });
+    }
+
+    /// <summary>Colour for strokes still to play after a shot, on the map's own range: green at <paramref name="lo"/>, gold halfway, red at <paramref name="hi"/>.</summary>
+    public static SKColor LeaveColour(double e, double lo, double hi) => PuttColour(1 + Math.Clamp((e - lo) / Math.Max(hi - lo, 1e-6), 0, 1) * 2);
+
     /// <summary>Colour for expected putts: green at one putt, gold at two, red at three or more.</summary>
     public static SKColor PuttColour(double e)
     {

@@ -9,6 +9,8 @@
     { "id": "player.normal.carry", "group": "Player", "label": "Normal: driver carry, mean", "kind": "number", "value": "270", "unit": "yd", "source": "PLACEHOLDER", "date": "2026-11-04" },
     { "id": "player.normal.carrySd", "group": "Player", "label": "Normal: carry spread (SD)", "kind": "number", "value": "12", "unit": "yd", "source": "PLACEHOLDER", "date": "2026-11-04" },
     { "id": "player.normal.sideSd", "group": "Player", "label": "Normal: side spread (SD)", "kind": "number", "value": "18", "unit": "yd", "source": "PLACEHOLDER", "date": "2026-11-04" },
+    { "id": "player.power.reach", "group": "Player", "label": "Power Drive: longest club off the fairway, carry and roll", "kind": "number", "value": "265", "unit": "yd", "source": "PLACEHOLDER", "date": "2026-11-06", "note": "Used for the par 5 second shot: can it reach, and how far a lay-up can go. Set it from the game's club distances." },
+    { "id": "player.normal.reach", "group": "Player", "label": "Normal: longest club off the fairway, carry and roll", "kind": "number", "value": "240", "unit": "yd", "source": "PLACEHOLDER", "date": "2026-11-06", "note": "Used for the par 5 second shot." },
     { "id": "aim.reference", "group": "Player", "label": "Aim is measured from", "kind": "choice", "value": "Game's aim marker", "options": [ "Game's aim marker" ], "source": "ALEX", "date": "2026-11-04", "note": "Your choice on 4 Nov 2026: yards right (+) or left (−) of the line from the tee to the game's aim marker." },
 
     { "id": "ground.landingSpeed", "group": "Ground", "label": "Driver landing speed", "kind": "number", "value": "6", "unit": "m/s", "source": "PLACEHOLDER", "date": "2026-11-04" },
