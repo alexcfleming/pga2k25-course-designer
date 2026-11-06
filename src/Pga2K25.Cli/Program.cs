@@ -82,6 +82,12 @@ const string Usage = """
       Studio section asks you to confirm each one. --treat says how unknown surface ids play
       (native, heavy, rough, fairway, bunker, scrub, ignore)
     pga2k25 holesim-terrain <file.course> --holes 11,3,4 [--smooth 8] [--readings 10] [--fit-length 25]
+      --green builds the putting map for every pin (expected putts from each spot on the green, from a
+      putting model fitted to the baseline's green rows); --green-png file.png also draws the chosen pin's map
+      --approach fits the simulated golfer to the baseline's rows off the green (cached in AppData) and
+      plays 600 shots at the green: --from 153[,side] (yds to the pin, yds right of the line) or
+      --from tee (a par 3), --aim best|pin|centre|right,long or --aim-distance yds; --approach-png
+      file.png draws where they finish
       terrain study for the hole design simulator, on a course whose distance markers carry the
       game's ground height (Sangoma): the brush replay and the replay smoothed outside greens,
       each alone and with a correction fitted to the markers nearest the suggested MEASURE spots
@@ -151,7 +157,8 @@ static int HoleSimCommand(string path, string[] rest)
 {
     var inv = CultureInfo.InvariantCulture;
     Console.OutputEncoding = System.Text.Encoding.UTF8;
-    int hole = 0, pin = 1; string? tee = null, png = null, json = null; string player = "power";
+    int hole = 0, pin = 1; string? tee = null, png = null, json = null, greenPng = null; string player = "power"; bool green = false;
+    bool approach = false; double fromYards = 150, fromSide = 0; string aimArg = "best"; double? aimDistance = null; string? approachPng = null; bool fromTee = false;
     var settings = new Pga2K25.HoleSim.RunSettings();
     var treat = new Dictionary<int, Pga2K25.HoleSim.Ground?>();
     for (int i = 0; i < rest.Length; i++)
@@ -168,6 +175,20 @@ static int HoleSimCommand(string path, string[] rest)
             case "--png": png = Next(); break;
             case "--json": json = Next(); break;
             case "--treat":
+            case "--green": green = true; break;
+            case "--green-png": green = true; greenPng = Next(); break;
+            case "--approach": approach = true; break;
+            case "--from":
+                {
+                    var v = Next().ToLowerInvariant();
+                    if (v == "tee") { fromTee = true; break; }
+                    var parts = v.Split(',');
+                    fromYards = double.Parse(parts[0], inv); if (parts.Length > 1) fromSide = double.Parse(parts[1], inv);
+                    break;
+                }
+            case "--aim": aimArg = Next().ToLowerInvariant(); break;
+            case "--aim-distance": aimDistance = double.Parse(Next(), inv); break;
+            case "--approach-png": approach = true; approachPng = Next(); break;
                 foreach (var kv in Next().Split(',', StringSplitOptions.RemoveEmptyEntries))
                 {
                     var parts = kv.Split('=');
@@ -205,7 +226,7 @@ static int HoleSimCommand(string path, string[] rest)
 
     var sheet = Pga2K25.HoleSim.AssumptionSheet.Load();
     var baseline = Pga2K25.HoleSim.TableBaseline.LoadShipped(sheet.BaselineId);
-    var run = Pga2K25.HoleSim.GeometryRun.Run(m, sheet.Profile(player), pin, sheet.GroundRules(), sheet.Lies(), baseline, settings);
+    var run = Pga2K25.HoleSim.GeometryRun.Run(m, sheet.Profile(player), pin, sheet.GroundRules(Pga2K25.HoleSim.GreenPhysics.RollingFriction(Pga2K25.HoleSim.AssumptionSheet.Stimp(course.GreenSpeed) ?? 10)), sheet.Lies(), baseline, settings);
     Console.WriteLine();
     Console.WriteLine($"Geometry-only tee shots, {run.Player.Name} ({run.Player.Carry:0} carry, SD {run.Player.CarrySd:0} / {run.Player.SideSd:0}), {settings.SamplesPerAim:#,0} per aim, seed {settings.Seed}");
     Console.WriteLine($"E(tee, {m.Pins[Math.Clamp(pin - 1, 0, m.Pins.Count - 1)].Frame.Length:0} yds) = {run.TeeExpected:0.000} [{run.TeeCoverage}]");
@@ -219,6 +240,83 @@ static int HoleSimCommand(string path, string[] rest)
     Console.WriteLine($"  Placeholders in use: {sheet.Placeholders.Count} of {sheet.Rows.Count} assumption rows.");
 
     if (png is not null)
+    if (green)
+    {
+        double stimp = Pga2K25.HoleSim.AssumptionSheet.Stimp(course.GreenSpeed) ?? 10;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var terr = Pga2K25.HoleSim.ReplayTerrain.Smoothed(course, m, sheet["terrain.smoothing"].Number);
+        var surface = Pga2K25.HoleSim.GreenSurface.Build(m, terr);
+        var putting = Pga2K25.HoleSim.PuttingModel.Create(stimp, baseline, sheet.Putting());
+        var (p50, p90, steep) = surface.SlopeStats(putting.Friction, putting.Settings.StaticFactor);
+        Console.WriteLine();
+        Console.WriteLine($"Green: {surface.SquareYards:0} sq yd, Stimp {stimp:0.0} (friction {putting.Friction:0.0000}), slope p50 {p50:0.0}% p90 {p90:0.0}%, {steep:P0} too steep to hold a stopped ball");
+        Console.WriteLine($"Putter fitted to {baseline.Id}: aim SD {putting.Skill.AimSdDegrees:0.0} deg, pace SD {putting.Skill.PaceSd:P0}; " +
+            string.Join(", ", putting.Skill.Fit.Select(f => $"{f.Feet:0} ft {f.Model:0.00} (anchor {f.Baseline:0.00})")));
+        var maps = new List<Pga2K25.HoleSim.PuttingMap>();
+        foreach (var pn in m.Pins)
+        {
+            var map = Pga2K25.HoleSim.PuttingMap.Build(surface, putting, pn.Number, pn.Frame);
+            var (above, below) = map.AboveBelow(surface);
+            maps.Add(map);
+            Console.WriteLine($"  pin {pn.Number} ({pn.Where}): average {map.Average:0.00} putts, {map.HardShare():P0} of the green needs 2.3+, 15-30 ft above {above:0.00} / below {below:0.00}, cup slope {surface.Slope(pn.Frame).Length * 100:0.0}%");
+        }
+        Console.WriteLine($"  ({sw.Elapsed.TotalSeconds:0.0} s)");
+        if (greenPng is not null)
+        {
+            var sel = maps[Math.Clamp(pin - 1, 0, maps.Count - 1)];
+            File.WriteAllBytes(greenPng, Pga2K25.HoleSim.HoleMapRenderer.RenderGreenPng(m, surface, sel, sel.Pin, putting.Friction * putting.Settings.StaticFactor * 100));
+            Console.WriteLine($"Wrote {greenPng}");
+        }
+    }
+    if (approach)
+    {
+        double stimp = Pga2K25.HoleSim.AssumptionSheet.Stimp(course.GreenSpeed) ?? 10;
+        var sw = System.Diagnostics.Stopwatch.StartNew();
+        var terr = Pga2K25.HoleSim.ReplayTerrain.Smoothed(course, m, sheet["terrain.smoothing"].Number);
+        var surface = Pga2K25.HoleSim.GreenSurface.Build(m, terr);
+        var cache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CourseDesignerStudio", "holesim");
+        var (ctx, fit) = Pga2K25.HoleSim.ApproachSetup.Build(m, surface, null, sheet, baseline, stimp, cache);
+        Console.WriteLine();
+        Console.WriteLine($"Golfer fitted to {fit.BaselineId}: RMS {fit.RmsError:0.00} strokes over {fit.Rows.Count} anchors (worst {fit.MaxError:0.00}), {fit.Evaluations} tries");
+        foreach (var r in fit.Rows) Console.WriteLine($"  {r.Lie,-9} {r.Yards,4:0} yds  anchor {r.Anchor:0.00}  golfer {r.Model:0.00}  {r.Error,5:+0.00;-0.00}");
+        var gp = fit.Golfer;
+        Console.WriteLine($"  spread {gp.DistPct:P1} long / {gp.SidePct:P1} side of the shot (+{gp.LongGrowth:0.00} per 100 yds past 150), floor {gp.FloorYds:0.0} yds; rough ×{gp.RoughMult:0.00}, sand ×{gp.SandMult:0.00}, recovery ×{gp.RecoveryMult:0.00}, tee ×{gp.TeeMult:0.00}; reach {gp.MaxCarry:0} yds, recovery {gp.RecoveryCarry:0}");
+        var pinAt = m.Pins[Math.Clamp(pin - 1, 0, m.Pins.Count - 1)].Frame;
+        var from = fromTee ? new Pga2K25.HoleSim.FramePoint(0, 0) : Pga2K25.HoleSim.ApproachSetup.SpotOnRoute(m, pin, fromYards, fromSide);
+        Pga2K25.HoleSim.FramePoint aimAt;
+        IReadOnlyList<Pga2K25.HoleSim.AimOption>? sweep = null;
+        if (aimDistance is { } ad)
+        {
+            var dir = (pinAt - from) * (1 / (pinAt - from).Length); aimAt = from + dir * ad;
+        }
+        else if (aimArg == "pin") aimAt = pinAt;
+        else if (aimArg is "centre" or "center") aimAt = m.GreenFrame;
+        else if (aimArg == "best") { sweep = Pga2K25.HoleSim.ApproachSim.Sweep(ctx, from, pin, fromTee: fromTee); aimAt = sweep[0].Aim; }
+        else { var xy = aimArg.Split(','); aimAt = pinAt + new Pga2K25.HoleSim.FramePoint(double.Parse(xy[0], inv), double.Parse(xy[1], inv)); }
+        var res = Pga2K25.HoleSim.ApproachSim.Run(ctx, from, aimAt, pin, fromTee: fromTee);
+        var shotDir = (pinAt - from) * (1 / (pinAt - from).Length);
+        double AimLong() => (aimAt - pinAt).Lat * shotDir.Lat + (aimAt - pinAt).Along * shotDir.Along;
+        double AimSide() => (aimAt - pinAt).Lat * shotDir.Along - (aimAt - pinAt).Along * shotDir.Lat;
+        Console.WriteLine();
+        Console.WriteLine($"Approach from {(fromTee ? "the tee" : $"{res.Yards:0} yds ({Pga2K25.HoleSim.Grounds.Name(res.Lie).ToLowerInvariant()})")} to pin {pin}, plays like {res.PlaysLike:0}, {res.Samples} shots, aim {AimSide():+0;-0;0} right / {AimLong():+0;-0;0} long of the pin");
+        Console.WriteLine($"  green {res.GreenHit:P0}, proximity {res.ProximityFt:0} ft on the green; misses short {res.Short:P0}, long {res.Long:P0}, left {res.Left:P0}, right {res.Right:P0}; bunker {res.Share(Pga2K25.HoleSim.Ground.Bunker):P0}, water {res.Share(Pga2K25.HoleSim.Ground.Water):P0}");
+        Console.WriteLine($"  expected strokes {res.Expected:0.000} ±{res.SgCi95:0.000}; " + (res.StrokesGained is { } sg ? $"SG for the shot {sg:+0.000;-0.000} against E(start) {res.Expected + sg:0.00}" : $"start outside the baseline's rows ({res.StartCoverage})"));
+        if (sweep is not null)
+        {
+            Console.WriteLine("  best aims (yds right / long of the pin):");
+            foreach (var o in sweep.Take(5)) Console.WriteLine($"    {o.Offset.Lat,3:+0;-0;0} / {o.Offset.Along,3:+0;-0;0}   {o.Expected:0.000}   green {o.GreenHit:P0}");
+            var atPin = sweep.First(o => o.Offset.Length < 1e-6);
+            Console.WriteLine($"    at the pin: {atPin.Expected:0.000} (the best aim saves {atPin.Expected - sweep[0].Expected:0.000})");
+        }
+        Console.WriteLine($"  ({sw.Elapsed.TotalSeconds:0.0} s)");
+        if (approachPng is not null)
+        {
+            var pts = res.Shots.Select(s => (s.Finish, SkiaSharp.SKColor.Parse("#1F1D1A"))).ToList();
+            var rings = new List<(Pga2K25.HoleSim.FramePoint, SkiaSharp.SKColor)> { (from, SkiaSharp.SKColor.Parse("#E06A3A")), (aimAt, SkiaSharp.SKColor.Parse("#3A6EA5")) };
+            File.WriteAllBytes(approachPng, Pga2K25.HoleSim.HoleMapRenderer.RenderPng(m, new() { SelectedPin = pin, Overlay = new(pts, rings) }));
+            Console.WriteLine($"Wrote {approachPng}");
+        }
+    }
     {
         var best = run.Best;
         var colours = new[] { SkiaSharp.SKColor.Parse("#E06A3A"), SkiaSharp.SKColor.Parse("#1F1D1A"), SkiaSharp.SKColor.Parse("#3A6EA5") };

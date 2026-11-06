@@ -143,4 +143,65 @@ public static class HoleMapRenderer
         }
         return bmp;
     }
+    /// <summary>Colour for expected putts: green at one putt, gold at two, red at three or more.</summary>
+    public static SKColor PuttColour(double e)
+    {
+        double t = Math.Clamp((e - 1) / 2, 0, 1);
+        SKColor a = SKColor.Parse("#2F7D5B"), b = SKColor.Parse("#B09766"), c = SKColor.Parse("#B5473A");
+        var (p, q, u) = t < 0.5 ? (a, b, t * 2) : (b, c, (t - 0.5) * 2);
+        byte L(byte x, byte y) => (byte)Math.Round(x + (y - x) * u);
+        return new SKColor(L(p.Red, q.Red), L(p.Green, q.Green), L(p.Blue, q.Blue));
+    }
+
+    /// <summary>
+    /// A close-up of the green: expected putts to <paramref name="pin"/> from every spot (when a map is given), arrows
+    /// pointing downhill (longer where steeper), shaded where the slope is too steep to hold a stopped ball, and the pins.
+    /// </summary>
+    public static byte[] RenderGreenPng(HoleModel m, GreenSurface green, PuttingMap? map, int pin, double holdLimitPct, double pixelsPerYard = 12)
+    {
+        double lat0 = green.Cells.Min(c => c.Lat) - 6, lat1 = green.Cells.Max(c => c.Lat) + 6;
+        double al0 = green.Cells.Min(c => c.Along) - 6, al1 = green.Cells.Max(c => c.Along) + 6;
+        double s = pixelsPerYard;
+        using var bmp = Render(m, new MapView { PixelsPerYard = s, LatFrom = lat0, LatTo = lat1, AlongFrom = al0, AlongTo = al1, ShowWidths = false, SelectedPin = pin });
+        using var c = new SKCanvas(bmp);
+        float X(double lat) => (float)((lat - lat0) * s);
+        float Y(double along) => (float)((al1 - along) * s);
+        using var fill = new SKPaint { IsAntialias = false };
+        foreach (var cell in green.Cells)
+        {
+            var key = GreenSurface.Key(cell);
+            if (map is not null && map.Cells.TryGetValue(key, out var v)) fill.Color = PuttColour(v.Expected).WithAlpha(225);
+            else fill.Color = Colours[Ground.Green];
+            c.DrawRect(new SKRect(X(cell.Lat - 0.5), Y(cell.Along + 0.5), X(cell.Lat + 0.5) + 0.5f, Y(cell.Along - 0.5) + 0.5f), fill);
+            if (green.Slope(cell).Length * 100 > holdLimitPct)
+                using (var hatch = new SKPaint { Color = Ink.WithAlpha(70), IsAntialias = true, StrokeWidth = 1, Style = SKPaintStyle.Stroke })
+                    c.DrawLine(X(cell.Lat - 0.5), Y(cell.Along - 0.5), X(cell.Lat + 0.5), Y(cell.Along + 0.5), hatch);
+        }
+        using var arrow = new SKPaint { Color = Ink.WithAlpha(150), IsAntialias = true, StrokeWidth = 1.2f, Style = SKPaintStyle.Stroke };
+        using var head = new SKPaint { Color = Ink.WithAlpha(170), IsAntialias = true };
+        foreach (var cell in green.Cells)
+        {
+            if (((int)Math.Floor(cell.Lat)) % 2 != 0 || ((int)Math.Floor(cell.Along)) % 2 != 0) continue;
+            var sl = green.Slope(cell); double pct = sl.Length * 100; if (pct < 0.3) continue;
+            double len = Math.Min(1.7, 0.5 + pct / 3) * s * 0.6;
+            double dx = -sl.Lat / sl.Length, dy = -sl.Along / sl.Length;
+            float x0 = X(cell.Lat - dx * len / s / 2), y0 = Y(cell.Along - dy * len / s / 2), x1 = X(cell.Lat + dx * len / s / 2), y1 = Y(cell.Along + dy * len / s / 2);
+            c.DrawLine(x0, y0, x1, y1, arrow);
+            c.DrawCircle(x1, y1, 1.6f, head);
+        }
+        using var font = new SKFont(SKTypeface.FromFamilyName("Segoe UI", SKFontStyle.Bold) ?? SKTypeface.Default, 11);
+        using var ink = new SKPaint { Color = Ink, IsAntialias = true };
+        using var paper = new SKPaint { Color = SKColors.White, IsAntialias = true };
+        using var edge = new SKPaint { Color = Ink, IsAntialias = true, StrokeWidth = 1.5f, Style = SKPaintStyle.Stroke };
+        foreach (var p in m.Pins)
+        {
+            bool on = p.Number == pin; var pt = new SKPoint(X(p.Frame.Lat), Y(p.Frame.Along));
+            c.DrawCircle(pt, on ? 9 : 7, on ? ink : paper); c.DrawCircle(pt, on ? 9 : 7, edge);
+            using var t = new SKPaint { Color = on ? SKColors.White : Ink, IsAntialias = true };
+            c.DrawText(p.Number.ToString(), pt.X, pt.Y + 4, SKTextAlign.Center, font, t);
+        }
+        using var image = SKImage.FromBitmap(bmp);
+        using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+        return data.ToArray();
+    }
 }

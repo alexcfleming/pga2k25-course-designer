@@ -82,7 +82,7 @@ public static class TerrainGate
     /// Compares <paramref name="model"/> with the readings. A fitted model is judged on its held-out readings only, since
     /// it was built to match the rest; an unfitted one on all of them.
     /// </summary>
-    public static GateResult Evaluate(ITerrainModel model, IReadOnlyList<HeightReading> readings, bool fitted = false)
+    public static GateResult Evaluate(ITerrainModel model, IReadOnlyList<HeightReading> readings, bool fitted = false, double minRangeInches = 6, int minReadings = MinReadings)
     {
         var checks = readings.Select(r =>
         {
@@ -97,14 +97,14 @@ public static class TerrainGate
         double? heldRms = held.Count == 0 ? null : Math.Sqrt(held.Average(c => c.ErrorInches * c.ErrorInches));
 
         GateBand band; string reason;
-        int needed = fitted ? 2 : MinReadings;
+        int needed = fitted ? 2 : minReadings;
         if (judged.Count < needed)
         {
             band = GateBand.Check;
             reason = fitted ? $"Only {judged.Count} held-out reading{(judged.Count == 1 ? "" : "s")} to test the fit; at least 2 are needed."
-                            : $"Only {readings.Count} reading{(readings.Count == 1 ? "" : "s")}; at least {MinReadings} are needed.";
+                            : $"Only {readings.Count} reading{(readings.Count == 1 ? "" : "s")}; at least {minReadings} are needed.";
         }
-        else if (range < 6)
+        else if (range < minRangeInches)
         {
             band = GateBand.Check;
             reason = $"The readings span only {range:0} in, too flat to judge the error as a share of the range.";

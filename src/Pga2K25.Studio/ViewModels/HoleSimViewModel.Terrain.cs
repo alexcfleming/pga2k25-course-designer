@@ -94,7 +94,7 @@ public partial class HoleSimViewModel
     void UpdateZeroModel()
     {
         double zero = _smoothed is null ? double.NaN : _smoothed.HeightFt(ZeroPoint);
-        foreach (var r in SpotRows) r.ZeroModelFt = zero;
+        foreach (var r in SpotRows.Concat(GreenSpotRows)) r.ZeroModelFt = zero;
     }
 
     void SetZero(int pin)
@@ -134,7 +134,7 @@ public partial class HoleSimViewModel
     {
         if (_model is null) return;
         var zero = _model.Frame.ToWorld(ZeroPoint);
-        _live.Readings = SpotRows.Where(r => r.Feet is not null).Select(r =>
+        _live.Readings = SpotRows.Concat(GreenSpotRows).Where(r => r.Feet is not null).Select(r =>
         {
             var w = _model.Frame.ToWorld(r.Spot.Where);
             return new LiveChecks.SavedReading(r.Spot.Name, w.X, w.Z, zero.X, zero.Z, r.Feet!.Value, r.Label, r.HeldOut,
@@ -144,7 +144,9 @@ public partial class HoleSimViewModel
         SaveLive();
         RenderSpotMap();
         UpdateLiveSummary();
+        UpdateGreenSpotSummary();
         EvaluateGate();
+        EvaluateGreenGate();
     }
 
     void SaveLive() { try { _live.Save(_livePath); } catch (Exception ex) { Show($"Could not save the readings: {ex.Message}", error: true); } }
@@ -176,6 +178,7 @@ public partial class HoleSimViewModel
         double sigma = 8;
         try { sigma = _sheet["terrain.smoothing"].Number; } catch (Exception) { }
         _replay = _smoothed = null; _chosenTerrain = null; _chosenGate = null; _userChose = false;
+        ResetGreen();
         if (Mode != TerrainMode.GeometryOnly) Mode = TerrainMode.GeometryOnly;
         EvaluateGate();
         Task.Run(() =>
@@ -191,6 +194,7 @@ public partial class HoleSimViewModel
                     _replay = replay; _smoothed = smoothed;
                     BuildSpotRows();
                     EvaluateGate();
+                    BuildGreen();
                 });
             }
             catch (Exception ex) { Dispatcher.UIThread.Post(() => Show($"Could not build the terrain: {ex.Message}", error: true)); }
@@ -205,7 +209,8 @@ public partial class HoleSimViewModel
             GateTitle = "Building the terrain…"; GateDetail = ""; ModeButtons.Clear(); UpdateModeText();
             return;
         }
-        var readings = _live.ToReadings(_model);
+        // The fairway gate judges the readings along the hole and G; the readings round the pins go to the green gate.
+        var readings = _live.ToReadings(_model).Where(r => !IsGreenSpot(r.Spot)).ToList();
         var options = new List<(ITerrainModel Model, GateResult Gate)>
         {
             (_replay, TerrainGate.Evaluate(_replay, readings)),
@@ -263,6 +268,8 @@ public partial class HoleSimViewModel
         UpdateContext();
     }
 
+    static bool IsGreenSpot(string name) => name.Length >= 3 && name[0] == 'P' && char.IsDigit(name[1]);
+
     [RelayCommand] private void GoLiveChecks() => Step = LiveChecksStep;
     [RelayCommand] private void GoGate() => Step = GateStep;
 
@@ -292,7 +299,9 @@ public sealed partial class SpotRowViewModel : ObservableObject
     public string Name => Spot.Name;
 
     /// <summary>Where to put the cursor: the game's TO TEE and TO GREEN yardages for this spot.</summary>
-    public string Where { get; }
+    public string Where { get; private set; }
+
+    public void SetWhere(string text) => Where = text;
 
     double _zeroModelFt = double.NaN;
     /// <summary>The model's height at the chosen zero (vs the green centre); the row's model value is shown against it.</summary>
