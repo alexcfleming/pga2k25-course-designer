@@ -190,12 +190,15 @@ public static class ApproachMaps
     /// every <paramref name="step"/>° either side up to <paramref name="maxDegrees"/>, all from a fairway lie with the same
     /// draws and each with its best aim. Spots off the course are played as if they were fairway.
     /// </summary>
+    /// <param name="reference">The line the angles are measured from, as a direction from the pin back toward the
+    /// golfer. By default the line of play (the route, <paramref name="yards"/> back); a par 3 passes the back tee's
+    /// line, so every tee is measured against the same line.</param>
     public static IReadOnlyList<AngleOption> Angles(ShotContext c, int pin, double yards = 150, double maxDegrees = 75, double step = 15, int samples = 240,
-        CancellationToken cancel = default)
+        CancellationToken cancel = default, FramePoint? reference = null)
     {
         c.ShortMap(pin);
         var pinAt = c.Hole.Pins[pin - 1].Frame;
-        var back = ApproachSetup.SpotOnRoute(c.Hole, pin, yards) - pinAt;
+        var back = reference ?? ApproachSetup.SpotOnRoute(c.Hole, pin, yards) - pinAt;
         back = back * (1 / Math.Max(back.Length, 1e-9));
         var degrees = new List<double>();
         for (double d = -maxDegrees; d <= maxDegrees + 1e-9; d += step) degrees.Add(d);
@@ -211,6 +214,23 @@ public static class ApproachMaps
             result[k] = new AngleOption(degrees[k], from, aims[0].Aim, e, hit);
         });
         return result;
+    }
+
+    /// <summary>
+    /// The signed angle (degrees, right + / left −, seen looking at the green) of <paramref name="from"/> against the
+    /// reference line from the pin back toward the golfer: the same convention as <see cref="Angles"/>.
+    /// </summary>
+    public static double AngleOf(FramePoint pinAt, FramePoint reference, FramePoint from)
+    {
+        var u = from - pinAt;
+        return Math.Atan2(reference.Lat * u.Along - reference.Along * u.Lat, reference.Lat * u.Lat + reference.Along * u.Along) * 180 / Math.PI;
+    }
+
+    /// <summary>Par 3: the reference line for the angles, from the pin back toward the back tee.</summary>
+    public static FramePoint BackTeeLine(HoleModel m, int pin)
+    {
+        var d = m.Frame.ToFrame(m.BackTee.World) - m.Pins[pin - 1].Frame;
+        return d * (1 / Math.Max(d.Length, 1e-9));
     }
 
     /// <summary>Par 3 tee shots from every tee to one pin: 49 aims each (7 × 7, 4 yds apart, out to 12 yds from the pin), the best and the pin itself, with strokes gained against the baseline's tee rows.</summary>

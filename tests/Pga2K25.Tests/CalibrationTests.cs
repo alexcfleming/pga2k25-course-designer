@@ -7,10 +7,12 @@ namespace Pga2K25.Tests;
 /// Regression guard for the terrain model: Cassimbo holes 1, 7, 10, 13 were captured in-game
 /// with spot-elevation labels. Any model change must keep every hole in the "trustworthy" band.
 /// </summary>
+[Trait("Area", "Core")]
 public class CalibrationTests
 {
     static readonly string CapturesPath = Path.Combine(TestPaths.RepoRoot, "samples", "calibration", "cassimbo", "captures.json");
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Cassimbo_DefaultModel_MatchesInGameSpotElevations()
     {

@@ -4,6 +4,7 @@ using SkiaSharp;
 
 namespace Pga2K25.Tests;
 
+[Trait("Area", "Products")]
 public class GreensBookTests
 {
     [Theory]
@@ -57,6 +58,7 @@ public class GreensBookTests
         Assert.InRange(g.MedianSlopePct, 0.1, 6);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Build_WritesSheetStudiesAndPdf()
     {

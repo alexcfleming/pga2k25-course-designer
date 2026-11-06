@@ -182,6 +182,7 @@ public partial class HoleSimViewModel
         var ph = _sheet.Rows.Where(x => x.IsPlaceholder && (x.Id == (playerId == "power" ? "player.power.reach" : "player.normal.reach") || x.Group is "Approach" or "Greens")).Select(x => x.Label).ToList();
         SecondDepends = ph.Count == 0 ? "" : $"Depends on {ph.Count} placeholder values, the longest club first: {string.Join("; ", ph)}.";
         HasSecond = true;
+        LogSecond(plan, playerId);
     }
 }
 

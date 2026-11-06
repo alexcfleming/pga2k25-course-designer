@@ -5,6 +5,7 @@ using Pga2K25.HoleSim;
 namespace Pga2K25.Tests;
 
 /// <summary>Stage 4b: the shot model, the golfer fitted to the anchors, the short game and approach runs.</summary>
+[Trait("Area", "HoleSim")]
 public class HoleSimApproachTests
 {
     const string Pilolcura = "pilolcura-analysis-2026-11-02.course";
@@ -49,6 +50,7 @@ public class HoleSimApproachTests
         Assert.True(g.Spread(5, 1).Dist >= g.FloorYds * 0.99, "even a short chip has the floor spread");
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void The_golfer_is_fitted_to_the_anchors_off_the_green()
     {
@@ -66,6 +68,7 @@ public class HoleSimApproachTests
         Assert.InRange(g.RecoveryMult, 1.4, 4.2);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void A_fit_is_cached_on_disk_by_everything_it_depends_on()
     {
@@ -86,6 +89,7 @@ public class HoleSimApproachTests
         finally { try { Directory.Delete(dir, true); } catch (IOException) { } }
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Approach_runs_are_repeatable_and_lies_cost_strokes()
     {
@@ -104,6 +108,7 @@ public class HoleSimApproachTests
         Assert.NotNull(a.StrokesGained);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void On_a_flat_round_green_the_best_aim_is_at_the_pin()
     {
@@ -116,6 +121,7 @@ public class HoleSimApproachTests
         Assert.True(atPin.Expected - aims[0].Expected < 0.03);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void A_green_sloping_toward_the_golfer_holds_and_one_falling_away_runs_on()
     {
@@ -136,6 +142,7 @@ public class HoleSimApproachTests
         Assert.True(into < flat && flat < away, $"roll into {into:0.0}, flat {flat:0.0}, away {away:0.0}");
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Spots_on_the_route_are_measured_back_from_the_pin()
     {
@@ -145,14 +152,12 @@ public class HoleSimApproachTests
         Assert.Equal(5, spot.Lat, 1);
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(Pilolcura)]
     public void Pilolcura_hole_8_approach_from_153_yds()
     {
-        var file = CourseFile.Load(Path.Combine(TestPaths.PrivateDir, Pilolcura));
-        var course = file.ReadModel();
-        var m = HoleModelBuilder.Build(course, file.Description, 8);
-        var green = GreenSurface.Build(m, ReplayTerrain.Smoothed(course, m, 8));
-        var (c, _) = ApproachSetup.Build(m, green, null, Sheet.Value, Anchors.Value, AssumptionSheet.Stimp(course.GreenSpeed)!.Value);
+        var m = Samples.PilolcuraHole(8);
+        var c = Samples.PilolcuraShots(8);
         var from = ApproachSetup.SpotOnRoute(m, 1, 153);
         var r = ApproachSim.Run(c, from, m.Pins[0].Frame, 1, 400);
         Assert.Equal(HoleSim.Ground.Fairway, r.Lie);

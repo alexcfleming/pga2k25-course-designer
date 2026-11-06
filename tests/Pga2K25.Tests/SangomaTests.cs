@@ -10,13 +10,15 @@ namespace Pga2K25.Tests;
 /// The markers caught a replay error the ponds made plain: 1000 m lower squares centred on the plot edge, which the
 /// game doesn't apply, sank the ground 35–100 m and flooded hole 14's plane as a solid rectangle.
 /// </summary>
+[Trait("Area", "Water")]
 public class SangomaTests
 {
     public const string File = "sangoma.course";
     public static CourseModel Load() => CourseFile.Load(Path.Combine(TestPaths.PrivateDir, File)).ReadModel();
 
-    static readonly Lazy<CourseModel> Course = new(Load);
-    static readonly Lazy<WaterMap> Water = new(() => WaterTracer.Trace(Course.Value, new TerrainModelOptions { CellMetres = 0.5 }));
+    // Shared across the run (Samples): read only. The not-water tests load their own copy to change.
+    static readonly Lazy<CourseModel> Course = new(() => Samples.Course(File, privateDir: true));
+    static readonly Lazy<WaterMap> Water = new(() => Samples.Water(File, true, new TerrainModelOptions { CellMetres = 0.5 }));
 
     /// <summary>Replay minus game height (m) at every distance marker.</summary>
     static List<double> MarkerErrors(TerrainModelOptions options)
@@ -30,6 +32,7 @@ public class SangomaTests
 
     static double Rms(List<double> e) => Math.Sqrt(e.Average(x => x * x));
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(File)]
     public void DistanceMarkers_CarryTheGamesGroundHeight()
     {
@@ -38,6 +41,7 @@ public class SangomaTests
         Assert.All(marks, m => Assert.InRange(m.Height, 140, 200));
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(File)]
     public void Replay_MatchesTheDistanceMarkers()
     {
@@ -46,6 +50,7 @@ public class SangomaTests
         Assert.True(Rms(e) < 2.6, $"RMS {Rms(e):0.00} m");                  // 2.3 m; the rest is spread over big soft brushes
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(File)]
     public void EdgeCentredStamps_AreLeftOut()
     {
@@ -57,6 +62,7 @@ public class SangomaTests
         Assert.True(with[0] < -90);                                          // 100 m low at the north end of the routing
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(File)]
     public void Hole14Pond_IsAPond_NotItsRectangle()
     {
@@ -70,6 +76,7 @@ public class SangomaTests
         Assert.Contains(old.Bodies, b => plane.Contains(b.LabelPoint) && b.AreaM2 > 15000);
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(File)]
     public void FourPonds_FromFivePlanes()
     {
@@ -80,6 +87,7 @@ public class SangomaTests
         Assert.All(m.Bodies, b => Assert.InRange(b.MaxDepthMetres, 1, 10));
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(File)]
     public void Hole11Pond_IsOneOval()
     {
@@ -89,37 +97,7 @@ public class SangomaTests
         Assert.Single(body.Shores);                                          // no island, as in game
     }
 
-    [PrivateSampleFact(File)]
-    public void NotWaterMark_DropsTheStripBesideHole11sPond()
-    {
-        // In game the shallow strip west of the pond, along the path, is dry; the model floods it 0.6–1.8 m deep and
-        // joins it to the pond with a channel. Marking it leaves the pond and drops the strip and the channel.
-        var plane = Course.Value.Water[1];
-        var before = Water.Value.Bodies[Water.Value.BodyAt(plane.Position)];
-        Assert.True(before.ChannelMetres > 0);
-        var strip = new Vec2(-697, 594);
-        Assert.True(Water.Value.IsWet(strip));
-
-        var course = Load();
-        course.NotWater = [strip];
-        var marked = WaterTracer.Trace(course, new TerrainModelOptions { CellMetres = 0.5 });
-        Assert.False(marked.IsWet(strip));
-        var pond = marked.Bodies[marked.BodyAt(plane.Position)];
-        Assert.Equal(0, pond.ChannelMetres);
-        Assert.InRange(pond.AreaM2, 6500, 8500);
-        Assert.Equal(Water.Value.Bodies.Count, marked.Bodies.Count);                          // the other ponds stay
-        Assert.Equal(Water.Value.Bodies.Where(b => b != before).Sum(b => b.AreaM2), marked.Bodies.Where(b => b != pond).Sum(b => b.AreaM2), 0);
-    }
-
-    [PrivateSampleFact(File)]
-    public void NotWaterMark_OnDryGround_ChangesNothing()
-    {
-        var course = Load();
-        course.NotWater = [Course.Value.Holes[0].Tees[^1]];
-        var m = WaterTracer.Trace(course, new TerrainModelOptions { CellMetres = 0.5 });
-        Assert.Equal(Water.Value.Bodies.Select(b => Math.Round(b.AreaM2)), m.Bodies.Select(b => Math.Round(b.AreaM2)));
-    }
-
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(File)]
     public void DistanceMarkers_StayOutOfTheWater()
     {
@@ -130,12 +108,51 @@ public class SangomaTests
         Assert.True(wet.Count <= 2, $"{wet.Count} markers in the water");
         Assert.All(wet, d => Assert.InRange(d.Height - m.Bodies[m.BodyAt(d.Position)].Level, -0.5, 0.5));
     }
+
+    /// <summary>The not-water marks, each tracing the whole course again with its own mark. A nested class runs in parallel with the rest of SangomaTests.</summary>
+    [Trait("Area", "Water")]
+    public class NotWaterMarks
+    {
+        [Trait("Speed", "Slow")]
+        [PrivateSampleFact(File)]
+        public void NotWaterMark_DropsTheStripBesideHole11sPond()
+        {
+            // In game the shallow strip west of the pond, along the path, is dry; the model floods it 0.6–1.8 m deep and
+            // joins it to the pond with a channel. Marking it leaves the pond and drops the strip and the channel.
+            var plane = Course.Value.Water[1];
+            var before = Water.Value.Bodies[Water.Value.BodyAt(plane.Position)];
+            Assert.True(before.ChannelMetres > 0);
+            var strip = new Vec2(-697, 594);
+            Assert.True(Water.Value.IsWet(strip));
+
+            var course = Load();
+            course.NotWater = [strip];
+            var marked = WaterTracer.Trace(course, new TerrainModelOptions { CellMetres = 0.5 });
+            Assert.False(marked.IsWet(strip));
+            var pond = marked.Bodies[marked.BodyAt(plane.Position)];
+            Assert.Equal(0, pond.ChannelMetres);
+            Assert.InRange(pond.AreaM2, 6500, 8500);
+            Assert.Equal(Water.Value.Bodies.Count, marked.Bodies.Count);                          // the other ponds stay
+            Assert.Equal(Water.Value.Bodies.Where(b => b != before).Sum(b => b.AreaM2), marked.Bodies.Where(b => b != pond).Sum(b => b.AreaM2), 0);
+        }
+
+        [Trait("Speed", "Slow")]
+        [PrivateSampleFact(File)]
+        public void NotWaterMark_OnDryGround_ChangesNothing()
+        {
+            var course = Load();
+            course.NotWater = [Course.Value.Holes[0].Tees[^1]];
+            var m = WaterTracer.Trace(course, new TerrainModelOptions { CellMetres = 0.5 });
+            Assert.Equal(Water.Value.Bodies.Select(b => Math.Round(b.AreaM2)), m.Bodies.Select(b => Math.Round(b.AreaM2)));
+        }
+    }
 }
 
 /// <summary>Sangoma's ponds in play: the hole inspector's list and the yardage book.</summary>
+[Trait("Area", "Water")]
 public class SangomaWaterInPlayTests
 {
-    static readonly Lazy<CourseModel> Course = new(SangomaTests.Load);
+    static readonly Lazy<CourseModel> Course = new(() => Samples.Course(SangomaTests.File, privateDir: true));
 
     static readonly Lazy<TerrainMap.TerrainSurvey> Survey = new(() => TerrainMap.TerrainSurvey.Build(
         Course.Value, new TerrainMap.TerrainMapOptions { Terrain = new TerrainMap.TerrainMapOptions().Terrain with { CellMetres = 1 } }));
@@ -143,6 +160,7 @@ public class SangomaWaterInPlayTests
     static List<TerrainMap.HoleWaterRow> Along(int hole) =>
         TerrainMap.HoleWater.Along(Survey.Value, Survey.Value.Holes.Single(h => h.Hole.Number == hole));
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(SangomaTests.File)]
     public void Hole11_CarriesThePond()
     {
@@ -152,6 +170,7 @@ public class SangomaWaterInPlayTests
         Assert.InRange(pond.CarryYards, 125, 155);
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(SangomaTests.File)]
     public void Hole2_PondOnTheLeft()
     {
@@ -160,6 +179,7 @@ public class SangomaWaterInPlayTests
         Assert.Equal("left", pond.Side);
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(SangomaTests.File)]
     public void Hole14_PondIsOutOfPlay()
     {
@@ -167,15 +187,21 @@ public class SangomaWaterInPlayTests
         Assert.Empty(Along(14));
     }
 
-    [PrivateSampleFact(SangomaTests.File)]
-    public void Hole11_YardagePage_NumbersTheCarry()   // par 3: the carry 39 yds short of the green still counts
+    /// <summary>The yardage page's water, traced with the yardage book's own terrain settings. A nested class runs in parallel with the rest of SangomaWaterInPlayTests.</summary>
+    [Trait("Area", "Water")]
+    public class YardagePage
     {
-        var c = Course.Value;
-        var water = WaterTracer.Trace(c, new YardageBook.YardageOptions().Terrain);
-        var a = YardageBook.HoleAnalysis.Analyze(c, CourseLayers.From(c), c.Holes.Single(h => h.Number == 11),
-            new YardageBook.YardageOptions(), YardageBook.YardagePageRenderer.MapRect.Width / YardageBook.YardagePageRenderer.MapRect.Height,
-            inlandWater: water);
-        Assert.NotEmpty(a.WaterBodies);
-        Assert.Contains(a.BunkerLabels, l => !l.IsFront && l.FromTeeYards is >= 125 and <= 155);
+        [Trait("Speed", "Slow")]
+        [PrivateSampleFact(SangomaTests.File)]
+        public void Hole11_YardagePage_NumbersTheCarry()   // par 3: the carry 39 yds short of the green still counts
+        {
+            var c = Course.Value;
+            var water = Samples.Water(SangomaTests.File, true, new YardageBook.YardageOptions().Terrain);
+            var a = YardageBook.HoleAnalysis.Analyze(c, CourseLayers.From(c), c.Holes.Single(h => h.Number == 11),
+                new YardageBook.YardageOptions(), YardageBook.YardagePageRenderer.MapRect.Width / YardageBook.YardagePageRenderer.MapRect.Height,
+                inlandWater: water);
+            Assert.NotEmpty(a.WaterBodies);
+            Assert.Contains(a.BunkerLabels, l => !l.IsFront && l.FromTeeYards is >= 125 and <= 155);
+        }
     }
 }

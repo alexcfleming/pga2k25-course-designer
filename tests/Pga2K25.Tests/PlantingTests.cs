@@ -4,6 +4,7 @@ using SkiaSharp;
 
 namespace Pga2K25.Tests;
 
+[Trait("Area", "Products")]
 public class PlantingTests
 {
     static readonly Lazy<CourseModel> Murray = new(() => CourseFile.Load(Path.Combine(TestPaths.SamplesDir, "murray-estate.course")).ReadModel());
@@ -78,6 +79,7 @@ public class PlantingTests
         Assert.True(estimated);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Planting_DrawsOnlyWhenALayerIsOn()
     {

@@ -4,6 +4,7 @@ using Pga2K25.HoleSim;
 namespace Pga2K25.Tests;
 
 /// <summary>Stage 4a: green roll from Stimp, the putting model fitted to the anchors, putting maps and the green gate.</summary>
+[Trait("Area", "HoleSim")]
 public class HoleSimGreenTests
 {
     static string Cassimbo => Path.Combine(TestPaths.SamplesDir, "cassimbo.course");
@@ -37,6 +38,7 @@ public class HoleSimGreenTests
         Assert.True(GreenPhysics.RollingFriction(13) < GreenPhysics.RollingFriction(8));    // faster greens roll further
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void The_putter_is_fitted_to_the_baselines_green_rows()
     {
@@ -51,6 +53,7 @@ public class HoleSimGreenTests
         foreach (var ft in new[] { 2.0, 5, 10, 20, 40, 60 }) { double e = m.ExpectedFlat(ft); Assert.True(e >= last - 0.02, $"{ft} ft {e:0.00}"); last = e; }
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Slopes_change_putts_the_way_greens_do()
     {
@@ -66,6 +69,7 @@ public class HoleSimGreenTests
         Assert.True(read.AimOffsetM > 0.1, $"aim {read.AimOffsetM:0.00} m");
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void The_green_is_the_surface_touching_the_green_point()
     {
@@ -78,6 +82,7 @@ public class HoleSimGreenTests
         Assert.True(p90 >= p50 && steep is >= 0 and <= 1);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void A_putting_map_is_deterministic_and_easiest_at_the_pin()
     {
@@ -94,6 +99,7 @@ public class HoleSimGreenTests
         Assert.All(a.Cells.Values, v => Assert.InRange(v.Expected, 1.0, 4.5));
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Green_spots_sit_round_each_pin_and_hold_one_back()
     {
@@ -106,6 +112,7 @@ public class HoleSimGreenTests
         Assert.Equal("P1a", spots[0].Name);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void The_green_gate_fits_how_much_the_game_smooths_the_contours()
     {
@@ -140,17 +147,17 @@ public class HoleSimGreenTests
         Assert.All(sheet.Rows.Where(r => r.Group == "Greens"), r => Assert.Equal(SourceTag.Placeholder, r.Source));
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(Pilolcura)]
     public void Pilolcura_hole_12s_green_is_too_steep_where_hole_8s_is_not()
     {
-        var file = CourseFile.Load(Path.Combine(TestPaths.PrivateDir, Pilolcura));
-        var course = file.ReadModel();
+        var course = Samples.PilolcuraCourse;
         double mu = GreenPhysics.RollingFriction(AssumptionSheet.Stimp(course.GreenSpeed)!.Value);
-        GreenSurface Green(int hole) { var m = HoleModelBuilder.Build(course, file.Description, hole); return GreenSurface.Build(m, ReplayTerrain.Smoothed(course, m, 8)); }
+        GreenSurface Green(int hole) => Samples.PilolcuraGreen(hole);
         var g8 = Green(8); var g12 = Green(12);
         Assert.True(g8.SlopeStats(mu).TooSteep < 0.05);
         Assert.True(g12.SlopeStats(mu).TooSteep > 0.2, $"hole 12 too steep share {g12.SlopeStats(mu).TooSteep:P0}");
-        var m12 = HoleModelBuilder.Build(course, file.Description, 12);
+        var m12 = Samples.PilolcuraHole(12);
         Assert.True(g12.Slope(m12.Pins[3].Frame).Length > mu * 1.15, "hole 12 pin 4 sits where a ball can't stop");
     }
 }

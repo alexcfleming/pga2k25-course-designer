@@ -3,8 +3,10 @@ using Pga2K25.CourseFormat;
 
 namespace Pga2K25.Tests;
 
+[Trait("Area", "Products")]
 public class HoleNotesTests
 {
+    [Trait("Speed", "Slow")]
     [Fact]
     public void HoleNotes_DescribeEveryGreen_AndHandWrittenNotesWin()
     {

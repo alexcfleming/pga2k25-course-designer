@@ -6,6 +6,7 @@ using Pga2K25.TerrainMap;
 
 namespace Pga2K25.Tests;
 
+[Trait("Area", "Products")]
 public class RoutingTestTests
 {
     [Theory]

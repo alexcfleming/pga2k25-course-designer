@@ -6,6 +6,7 @@ using SkiaSharp;
 
 namespace Pga2K25.Tests;
 
+[Trait("Area", "Products")]
 public class YardageBookTests
 {
     static readonly string CassimboPath = Path.Combine(TestPaths.SamplesDir, "cassimbo.course");
@@ -23,6 +24,7 @@ public class YardageBookTests
             string.Join(", ", a.BunkerLabels.Select(l => $"{(l.IsFront ? "front" : "carry")} {l.FromTeeYards:0}/{l.ToGreenYards:0}")) +
             "; " + string.Join("; ", a.Diagnostics));
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void RockFootprints_AreEstimatedFromTheCourseAndOrderedBySize()
     {
@@ -34,6 +36,7 @@ public class YardageBookTests
         Assert.Equal("cluster", RockFootprints.Family("Assets/Rocks/Desert_Rock_Cluster_03.prefab"));
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Hole4_InPlayDividerGetsFrontAndCarry()
     {
@@ -45,6 +48,7 @@ public class YardageBookTests
         AssertLabel(a, front: false, 308, 45);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Hole11_OwnFairwayIsNotFadedAndCrossHazardIsLabelled()
     {
@@ -54,6 +58,7 @@ public class YardageBookTests
         Assert.Contains(a.BunkerLabels, l => !l.IsFront && Math.Abs(l.FromTeeYards - 326) <= 2);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void EveryHole_HasTeeSetsLabelsAndAGreen()
     {
@@ -69,54 +74,6 @@ public class YardageBookTests
     }
 
     [Fact]
-    public void Builder_WritesPortraitPdfWorkbookAndOptionalPngs()
-    {
-        string dir = Path.Combine(Path.GetTempPath(), "pga2k25-yardage-" + Guid.NewGuid().ToString("N"));
-        try
-        {
-            var result = YardageBookBuilder.Build(CassimboPath, dir, new YardageOptions(),
-                new YardageBookOutputs { Pdf = true, Pngs = true, PngScale = 1 }, [1, 4, 17]);
-
-            Assert.NotNull(result.PdfPath);
-            string pdf = File.ReadAllText(result.PdfPath!, System.Text.Encoding.Latin1);
-            Assert.Equal(3, Regex.Matches(pdf, @"/Type\s*/Page[^s]").Count);
-            Assert.All(Regex.Matches(pdf, @"/MediaBox\s*\[([^\]]*)\]"), m => Assert.Equal("0 0 306 792", m.Groups[1].Value.Trim()));
-            Assert.InRange(new FileInfo(result.PdfPath!).Length, 10_000, 3 * 2_000_000);   // vectors, simplified: well under 2 MB a page
-
-            Assert.Equal(3, result.PngPaths.Count);
-            Assert.All(result.PngPaths, p =>
-            {
-                using var codec = SKCodec.Create(p);
-                Assert.Equal(425, codec.Info.Width);
-                Assert.Equal(1100, codec.Info.Height);
-            });
-            Assert.EndsWith("Hole_17.png", result.PngPaths[^1]);
-        }
-        finally
-        {
-            if (Directory.Exists(dir)) Directory.Delete(dir, true);
-        }
-    }
-
-    [Fact]
-    public void Builder_PngOnly_WritesNoPdf()
-    {
-        string dir = Path.Combine(Path.GetTempPath(), "pga2k25-yardage-" + Guid.NewGuid().ToString("N"));
-        try
-        {
-            var result = YardageBookBuilder.Build(CassimboPath, dir, new YardageOptions(),
-                new YardageBookOutputs { Pdf = false, Pngs = true, PngScale = 0.5f }, [2]);
-            Assert.Null(result.PdfPath);
-            Assert.Single(result.PngPaths);
-            Assert.Empty(Directory.GetFiles(dir, "*.pdf"));
-        }
-        finally
-        {
-            if (Directory.Exists(dir)) Directory.Delete(dir, true);
-        }
-    }
-
-    [Fact]
     public void Projection_SimplifiesDensePolylinesWithoutMovingCorners()
     {
         var proj = MapProjection.Fit([new(0, 0), new(100, 100)], new SKRect(0, 0, 100, 100), 0, 1);
@@ -125,23 +82,80 @@ public class YardageBookTests
         Assert.Equal(3, path.PointCount);                  // start, the corner, the end
         Assert.Equal(proj.Map(new Vec2(100, 0)), path.GetPoint(1));
     }
-    [Fact]
-    public void PlantedAreas_JoinTheVegetationMasses_AndThePageHasRelief()
-    {
-        // Murray's trees are all planted areas (Eastern White Pine, no single trees): the holes beside them still
-        // get canopy masses covering the areas, and every page keeps its terrain for the relief.
-        var course = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, "murray-estate.course")).ReadModel();
-        var layers = CourseLayers.From(course);
-        var analyses = course.Holes.Select(h => HoleAnalysis.Analyze(course, layers, h, new YardageOptions(),
-            YardagePageRenderer.MapRect.Width / YardagePageRenderer.MapRect.Height)).ToList();
-        Assert.All(analyses, a => Assert.NotNull(a.Field));
-        var centres = course.PlacedAreas.Select(a => new Vec2(a.Outline.Average(q => q.X), a.Outline.Average(q => q.Z))).ToList();
-        Assert.Contains(analyses, a => centres.Any(c => a.Vegetation.Any(v => Geometry.Contains(v, c))));
-        Assert.All(analyses, a => Assert.Empty(a.Conifers));   // planted areas are masses, not crowns
 
-        using var renderer = new YardagePageRenderer(new YardageOptions());
-        using var bitmap = new SKBitmap((int)YardagePageRenderer.PageWidth, (int)YardagePageRenderer.PageHeight);
-        using var canvas = new SKCanvas(bitmap);
-        renderer.Draw(canvas, course.Name, analyses[0]);
+    /// <summary>Whole yardage book builds. A nested class runs in parallel with the rest of YardageBookTests.</summary>
+    [Trait("Area", "Products")]
+    public class Builds
+    {
+        [Trait("Speed", "Slow")]
+        [Fact]
+        public void Builder_WritesPortraitPdfWorkbookAndOptionalPngs()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "pga2k25-yardage-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var result = YardageBookBuilder.Build(CassimboPath, dir, new YardageOptions(),
+                    new YardageBookOutputs { Pdf = true, Pngs = true, PngScale = 1 }, [1, 4, 17]);
+
+                Assert.NotNull(result.PdfPath);
+                string pdf = File.ReadAllText(result.PdfPath!, System.Text.Encoding.Latin1);
+                Assert.Equal(3, Regex.Matches(pdf, @"/Type\s*/Page[^s]").Count);
+                Assert.All(Regex.Matches(pdf, @"/MediaBox\s*\[([^\]]*)\]"), m => Assert.Equal("0 0 306 792", m.Groups[1].Value.Trim()));
+                Assert.InRange(new FileInfo(result.PdfPath!).Length, 10_000, 3 * 2_000_000);   // vectors, simplified: well under 2 MB a page
+
+                Assert.Equal(3, result.PngPaths.Count);
+                Assert.All(result.PngPaths, p =>
+                {
+                    using var codec = SKCodec.Create(p);
+                    Assert.Equal(425, codec.Info.Width);
+                    Assert.Equal(1100, codec.Info.Height);
+                });
+                Assert.EndsWith("Hole_17.png", result.PngPaths[^1]);
+            }
+            finally
+            {
+                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            }
+        }
+
+        [Trait("Speed", "Slow")]
+        [Fact]
+        public void Builder_PngOnly_WritesNoPdf()
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "pga2k25-yardage-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var result = YardageBookBuilder.Build(CassimboPath, dir, new YardageOptions(),
+                    new YardageBookOutputs { Pdf = false, Pngs = true, PngScale = 0.5f }, [2]);
+                Assert.Null(result.PdfPath);
+                Assert.Single(result.PngPaths);
+                Assert.Empty(Directory.GetFiles(dir, "*.pdf"));
+            }
+            finally
+            {
+                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+            }
+        }
+
+        [Trait("Speed", "Slow")]
+        [Fact]
+        public void PlantedAreas_JoinTheVegetationMasses_AndThePageHasRelief()
+        {
+            // Murray's trees are all planted areas (Eastern White Pine, no single trees): the holes beside them still
+            // get canopy masses covering the areas, and every page keeps its terrain for the relief.
+            var course = CourseFile.Load(Path.Combine(TestPaths.SamplesDir, "murray-estate.course")).ReadModel();
+            var layers = CourseLayers.From(course);
+            var analyses = course.Holes.Select(h => HoleAnalysis.Analyze(course, layers, h, new YardageOptions(),
+                YardagePageRenderer.MapRect.Width / YardagePageRenderer.MapRect.Height)).ToList();
+            Assert.All(analyses, a => Assert.NotNull(a.Field));
+            var centres = course.PlacedAreas.Select(a => new Vec2(a.Outline.Average(q => q.X), a.Outline.Average(q => q.Z))).ToList();
+            Assert.Contains(analyses, a => centres.Any(c => a.Vegetation.Any(v => Geometry.Contains(v, c))));
+            Assert.All(analyses, a => Assert.Empty(a.Conifers));   // planted areas are masses, not crowns
+
+            using var renderer = new YardagePageRenderer(new YardageOptions());
+            using var bitmap = new SKBitmap((int)YardagePageRenderer.PageWidth, (int)YardagePageRenderer.PageHeight);
+            using var canvas = new SKCanvas(bitmap);
+            renderer.Draw(canvas, course.Name, analyses[0]);
+        }
     }
 }

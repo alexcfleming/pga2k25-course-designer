@@ -3,6 +3,7 @@ using Pga2K25.CourseFormat;
 
 namespace Pga2K25.Tests;
 
+[Trait("Area", "Core")]
 public class CourseFormatTests
 {
     /// <summary>Every sample course, plus any private samples on this checkout, as paths under samples/.</summary>
@@ -32,6 +33,7 @@ public class CourseFormatTests
         Assert.Equal("-Infinity", y.GetValue<string>());
     }
 
+    [Trait("Speed", "Slow")]
     [Theory]
     [MemberData(nameof(SampleCourses))]
     public void Model_MatchesMetadataDerivations(string fileName)

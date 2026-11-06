@@ -4,6 +4,7 @@ using Pga2K25.HoleSim;
 namespace Pga2K25.Tests;
 
 /// <summary>Stage 4c: the approach heat map, the leave map, the ideal angle and par 3 tee shots.</summary>
+[Trait("Area", "HoleSim")]
 public class HoleSimApproachMapTests
 {
     const string Pilolcura = "pilolcura-analysis-2026-11-02.course";
@@ -26,6 +27,7 @@ public class HoleSimApproachMapTests
         public FramePoint Slope(FramePoint p) => new(-ftPerYd / 3, 0);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Heat_spots_lie_in_the_corridor_and_the_distance_window()
     {
@@ -41,6 +43,7 @@ public class HoleSimApproachMapTests
         });
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void On_the_plain_hole_the_fairway_beats_the_rough_at_the_same_distance()
     {
@@ -55,6 +58,7 @@ public class HoleSimApproachMapTests
         Assert.All(map.Spots, s => Assert.NotNull(s.Gain));
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void A_flat_round_green_plays_the_same_from_either_side()
     {
@@ -69,6 +73,7 @@ public class HoleSimApproachMapTests
         }
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void A_green_falling_right_is_best_approached_from_the_right()
     {
@@ -79,6 +84,7 @@ public class HoleSimApproachMapTests
         Assert.True(right < left, $"right {right:0.000}, left {left:0.000}");
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void The_leave_map_is_cheapest_on_the_green()
     {
@@ -92,15 +98,33 @@ public class HoleSimApproachMapTests
         Assert.True(hi - lo >= 0.6 - 1e-9);
     }
 
+    [Trait("Speed", "Slow")]
+    [Fact]
+    public void Angles_can_be_measured_from_a_fixed_line_and_any_spot_read_against_it()
+    {
+        var c = Calibration();
+        var pin = c.Hole.Pins[0].Frame;
+        var back = new FramePoint(0, -1);                                         // from the pin back down the hole
+        Assert.Equal(0, ApproachMaps.AngleOf(pin, back, pin + new FramePoint(0, -100)), 6);
+        Assert.Equal(90, ApproachMaps.AngleOf(pin, back, pin + new FramePoint(100, 0)), 6);    // the golfer's right
+        Assert.Equal(-45, ApproachMaps.AngleOf(pin, back, pin + new FramePoint(-70, -70)), 6);
+        // A fixed reference line turned 30° to the right: its 0° spot sits on that line, at the distance asked for.
+        double th = 30 * Math.PI / 180;
+        var turned = new FramePoint(Math.Sin(th), -Math.Cos(th));
+        var angles = ApproachMaps.Angles(c, 1, yards: 178, samples: 60, reference: turned);
+        var straight = angles.Single(a => Math.Abs(a.Degrees) < 1e-9);
+        Assert.Equal(178, straight.From.DistanceTo(pin), 6);
+        Assert.Equal(30, ApproachMaps.AngleOf(pin, back, straight.From), 6);
+        Assert.All(angles, a => Assert.Equal(a.Degrees, ApproachMaps.AngleOf(pin, turned, a.From), 6));
+    }
+
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(Pilolcura)]
     public void Pilolcura_hole_3_tee_shots_from_every_tee()
     {
-        var file = CourseFile.Load(Path.Combine(TestPaths.PrivateDir, Pilolcura));
-        var course = file.ReadModel();
-        var m = HoleModelBuilder.Build(course, file.Description, 3);
+        var m = Samples.PilolcuraHole(3);
         Assert.Equal(3, m.Par);
-        var green = GreenSurface.Build(m, ReplayTerrain.Smoothed(course, m, 8));
-        var (c, _) = ApproachSetup.Build(m, green, null, Sheet.Value, Anchors.Value, AssumptionSheet.Stimp(course.GreenSpeed)!.Value);
+        var c = Samples.PilolcuraShots(3);
         var shots = ApproachMaps.TeeShots(c, 1, samples: 200);
         Assert.Equal(m.Tees.Count, shots.Count);
         Assert.All(shots, s => Assert.True(s.Best.Expected <= s.AtPin.Expected + 1e-9));

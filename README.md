@@ -43,6 +43,8 @@ Requires the .NET 8 SDK (`winget install Microsoft.DotNet.SDK.8`).
 dotnet test
 ```
 
+The full suite takes a few minutes. While working, run the fast tier (`tools	est.ps1`, about 10 s) or one area (`tools	est.ps1 area HoleSim`); run everything before a commit or release. See [docs/testing.md](docs/testing.md).
+
 ```bash
 dotnet run --project src/Pga2K25.Cli -- greensbook samples/courses/shinnecockhills.course -o out --studies
 ```

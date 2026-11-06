@@ -768,7 +768,7 @@
             <StackPanel Spacing="10">
               <TextBlock Text="The ideal angle in" FontWeight="SemiBold"/>
               <TextBlock Text="{Binding AngleSummary}" TextWrapping="Wrap"/>
-              <Grid ColumnDefinitions="80,80,70,70">
+              <Grid ColumnDefinitions="80,80,70,170">
                 <TextBlock Text="From" Classes="muted small"/>
                 <TextBlock Grid.Column="1" Text="Expected" Classes="muted small" HorizontalAlignment="Right"/>
                 <TextBlock Grid.Column="2" Text="Green" Classes="muted small" HorizontalAlignment="Right"/>
@@ -776,7 +776,7 @@
               <ItemsControl ItemsSource="{Binding AngleRows}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:AngleRowViewModel">
-                    <Grid ColumnDefinitions="80,80,70,70">
+                    <Grid ColumnDefinitions="80,80,70,170">
                       <TextBlock Text="{Binding Degrees}" FontWeight="{Binding Weight}"/>
                       <TextBlock Grid.Column="1" Text="{Binding Expected}" Classes="mono" HorizontalAlignment="Right" FontWeight="{Binding Weight}"/>
                       <TextBlock Grid.Column="2" Text="{Binding Green}" Classes="mono" HorizontalAlignment="Right"/>
@@ -785,7 +785,7 @@
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
-              <TextBlock Text="Degrees right (R) or left (L) of the line of play, seen from the fairway looking at the green, all from 150 yds with each direction's best aim." Classes="muted small" TextWrapping="Wrap"/>
+              <TextBlock Text="{Binding AngleNote}" Classes="muted small" TextWrapping="Wrap"/>
             </StackPanel>
           </Border>
         </Grid>
@@ -969,6 +969,62 @@
           </StackPanel>
         </StackPanel>
       </Border>
+
+      <!-- Hole: the session record -->
+      <StackPanel Spacing="14" IsVisible="{Binding IsRecord}">
+        <Border Classes="card" Padding="16">
+          <StackPanel Spacing="8">
+            <TextBlock Text="Session record" FontSize="16" FontWeight="SemiBold"/>
+            <TextBlock Text="Every result is logged as it finishes. The ones worth checking become findings below: play them in the game and say what you saw. A verdict given on an earlier save is marked for checking again."
+                       Classes="muted small" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding RecordSummary}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding RecordFileText}" Classes="muted small" TextWrapping="Wrap"/>
+            <Button Content="Open the folder" Command="{Binding OpenRecordFolderCommand}" HorizontalAlignment="Left"/>
+          </StackPanel>
+        </Border>
+        <Border Classes="card" Padding="16" IsVisible="{Binding FindingRows.Count}">
+          <StackPanel Spacing="4">
+            <TextBlock Text="Findings to check in the game" FontWeight="SemiBold"/>
+            <ItemsControl ItemsSource="{Binding FindingRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:FindingRowViewModel">
+                  <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,10">
+                    <StackPanel Spacing="6">
+                      <TextBlock Text="{Binding Text}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                      <TextBlock Text="{Binding HowToCheck}" Classes="small" TextWrapping="Wrap"/>
+                      <TextBlock Text="{Binding Meta}" Foreground="{Binding MetaInk}" Classes="small" TextWrapping="Wrap"/>
+                      <ItemsControl ItemsSource="{Binding VerdictButtons}" ItemTemplate="{StaticResource PillTemplate}">
+                        <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                      </ItemsControl>
+                      <TextBox Text="{Binding Note}" PlaceholderText="What you saw (optional)" MinHeight="30" MaxWidth="760" HorizontalAlignment="Left" MinWidth="420"/>
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+        <Border Classes="card" Padding="16" IsVisible="{Binding EntryRows.Count}">
+          <StackPanel Spacing="4">
+            <TextBlock Text="What was run today, newest first" FontWeight="SemiBold"/>
+            <ItemsControl ItemsSource="{Binding EntryRows}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:EntryRowViewModel">
+                  <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,8">
+                    <Grid ColumnDefinitions="60,*" ColumnSpacing="12">
+                      <TextBlock Text="{Binding When}" Classes="mono small"/>
+                      <StackPanel Grid.Column="1" Spacing="2">
+                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding Lines}" Classes="muted small" TextWrapping="Wrap"/>
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+      </StackPanel>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

@@ -3,6 +3,7 @@ using Pga2K25.GreensBook;
 
 namespace Pga2K25.Tests;
 
+[Trait("Area", "Water")]
 public class WaterPathTests
 {
     // drgnslyr221's save of 31 Oct: streams made with "running water", ponds with "create a body of water".
@@ -12,6 +13,7 @@ public class WaterPathTests
 
     static Vec2 Centre(WaterPath p) => new(p.Path.Points.Average(q => q.Anchor.X), p.Path.Points.Average(q => q.Anchor.Z));
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(DevilsPerch)]
     public void DevilsPerch_WaterToolPaths_AreRead()
     {
@@ -24,6 +26,7 @@ public class WaterPathTests
         Assert.True(course.HasWater);
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(DevilsPerch)]
     public void DevilsPerch_PondsAndStreams_AreTracedAsWater()
     {
@@ -46,6 +49,7 @@ public class WaterPathTests
         Assert.True(map.IsWet(mid));
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact("sangoma.course")]
     public void Sangoma_NearlyEmptyRivers_AreLeftOut()
     {

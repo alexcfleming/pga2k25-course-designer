@@ -3,6 +3,7 @@ using Pga2K25.CourseFormat;
 
 namespace Pga2K25.Tests;
 
+[Trait("Area", "Products")]
 public class CoursePlaceTests
 {
     static string TempDir() => Path.Combine(Path.GetTempPath(), "pga2k25-place-" + Guid.NewGuid().ToString("N"));
@@ -51,11 +52,11 @@ public class CoursePlaceTests
         {
             string path = Path.Combine(TestPaths.SamplesDir, "sagan-khushun.course");
             CoursePlaces.Save(dir, new CoursePlace { SeaSide = "EAST", WindFromDegrees = 270 });
-            var fromPlace = CourseCardBuilder.Build(path, dir, new CourseCardConfig { Formats = ["png"] }, force: true);
+            var fromPlace = CourseCardBuilder.Build(path, dir, new CourseCardConfig { Formats = ["png"], Dpi = 30, AutoHoleNotes = false }, force: true);
             Assert.Equal("EAST", fromPlace.OceanSide);
             Assert.DoesNotContain(fromPlace.Issues, i => i.Message.Contains("No prevailing wind"));
 
-            var fromCard = CourseCardBuilder.Build(path, dir, new CourseCardConfig { Formats = ["png"], OceanSide = "SOUTH" }, force: true);
+            var fromCard = CourseCardBuilder.Build(path, dir, new CourseCardConfig { Formats = ["png"], Dpi = 30, AutoHoleNotes = false, OceanSide = "SOUTH" }, force: true);
             Assert.Equal("SOUTH", fromCard.OceanSide);
         }
         finally
@@ -64,6 +65,7 @@ public class CoursePlaceTests
         }
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void SiteInset_CoastalPlotHasSea_InlandPlotDoesNot()
     {

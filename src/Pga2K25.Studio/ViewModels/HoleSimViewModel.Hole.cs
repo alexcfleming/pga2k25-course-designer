@@ -126,6 +126,7 @@ public partial class HoleSimViewModel
         var plans = list.Select(s => s.Plan).Where(t => t.Length > 0).Distinct().ToList();
         SummaryPlan = (m.Par == 3 ? "" : $"Drive aimed {list[0].DriveAim:+0;-0;0} yds off the aim marker. ") + (plans.Count == 0 ? "" : "Plan: " + string.Join("; ", plans.Select((t, i) => list.Count(s => s.Plan == t) == list.Count ? t : $"{t} (pin {string.Join(", ", list.Where(s => s.Plan == t).Select(s => s.Pin))})")) + ".");
         HasSummary = true;
+        LogSummary(list, playerId);
     }
 
     [RelayCommand] private void RunExperiments()
@@ -201,6 +202,7 @@ public partial class HoleSimViewModel
             : $"Biggest effects: " + string.Join("; ", clear.OrderByDescending(r => Math.Abs(r.Delta)).Take(3).Select(r => $"{r.Name.ToLowerInvariant()} {r.Delta:+0.000;-0.000} strokes")) + ". Negative makes the hole easier.";
         OnPropertyChanged(nameof(PreviousSaveText));
         HasExperiments = true;
+        LogExperiments(results, playerId);
     }
 }
 

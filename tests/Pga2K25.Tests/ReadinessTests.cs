@@ -8,16 +8,17 @@ namespace Pga2K25.Tests;
 /// Publish-readiness checks from the course file. Cassimbo was not approved for TGC Tours; with a 360-yd test drive
 /// (about what a reviewer hit) the file alone has to show what the review found.
 /// </summary>
+[Trait("Area", "Readiness")]
 public class ReadinessTests
 {
     static CourseModel Load(string file) => CourseFile.Load(Path.Combine(TestPaths.SamplesDir, file)).ReadModel();
 
-    static readonly Lazy<CourseModel> Cassimbo = new(() => Load("cassimbo.course"));
-    internal static readonly Lazy<ReadinessReport> Report = new(() =>
-        ReadinessChecker.Run(Cassimbo.Value, new ReadinessLimits { TestDriveYards = 360 }));
+    // Cassimbo is measured once per run (Samples); each report here only applies its limits.
+    internal static readonly Lazy<ReadinessReport> Report = new(() => Samples.CassimboReadiness(new ReadinessLimits { TestDriveYards = 360 }));
 
     static ReadinessCheck Check(string id) => Report.Value.Check(id) ?? throw new Xunit.Sdk.XunitException($"no check {id}");
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Cassimbo_Length_ShortPar4sAndPar5s()
     {
@@ -93,6 +94,7 @@ public class ReadinessTests
         Assert.Null(ReadinessChecker.Stimp(-1));
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Cassimbo_LightingIsRecorded()
     {
@@ -116,12 +118,13 @@ public class ReadinessTests
     [Fact]
     public void Limits_AreTheCoursesToSet()
     {
-        var loose = ReadinessChecker.Run(Cassimbo.Value, new ReadinessLimits { ShortestPar5MinYards = 530, MedianPar4MinYards = 380, WidthHighYards = 250 });
+        var loose = Samples.CassimboReadiness(new ReadinessLimits { ShortestPar5MinYards = 530, MedianPar4MinYards = 380, WidthHighYards = 250 });
         Assert.Equal(Severity.Pass, loose.Check("shortest-par5")!.Severity);
         Assert.Equal(Severity.Pass, loose.Check("median-par4")!.Severity);
         Assert.DoesNotContain(12, loose.Check("landing-widths")!.Holes);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void DesignTeeShot_SetsTheWidthStations()
     {
@@ -148,16 +151,18 @@ public class ReadinessTests
         Assert.Equal(Severity.Pass, pairs[1].Severity);   // 80 yds apart: length does it
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Cassimbo_TgcMinimums_ParAndYardageRangePass()
     {
         Assert.Equal(Severity.Pass, Check("par-range").Severity);
         Assert.Equal(Severity.Pass, Check("same-par-range").Severity);
-        var tight = ReadinessChecker.Run(Cassimbo.Value, new ReadinessLimits { TestDriveYards = 360, ParMax = 71, SameParSpreadYards = 120 });
+        var tight = Samples.CassimboReadiness(new ReadinessLimits { TestDriveYards = 360, ParMax = 71, SameParSpreadYards = 120 });
         Assert.Equal(Severity.Flag, tight.Check("par-range")!.Severity);
         Assert.Equal(Severity.Flag, tight.Check("same-par-range")!.Severity);   // par 5s span 95 yds
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Cassimbo_Pins_EdgeAndSlopeAtTheCup()
     {
@@ -187,7 +192,7 @@ public class ReadinessTests
     [Fact]
     public void Overrides_TheDesignersStartAndSharedFairways()
     {
-        var r = ReadinessChecker.Run(Cassimbo.Value, overrides: new Dictionary<int, HoleOverride>
+        var r = Samples.CassimboReadiness(overrides: new Dictionary<int, HoleOverride>
         {
             [1] = new(190, false),
             [12] = new(null, true),
@@ -227,6 +232,7 @@ public class ReadinessTests
         Assert.InRange(Report.Value.Holes[6].ForwardCarryYards!.Value, 170, 215);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Cassimbo_ProvisionalChecks_OnlyWarn()
     {
@@ -240,6 +246,7 @@ public class ReadinessTests
         Assert.Equal([4, 11, 18], Check("card-straight").Holes);
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact("sagan-khushun-2026-10-26.course")]
     public void SaganKhushun_FairwayStart_MatchesTheBookMeasure()
     {

@@ -5,6 +5,7 @@ using Severity = Pga2K25.Readiness.Severity;
 namespace Pga2K25.Tests;
 
 /// <summary>Saved progress, the gate, the HTML checklist import and the final record (Cassimbo, 360-yd drive).</summary>
+[Trait("Area", "Readiness")]
 public class ReadinessStateTests
 {
     static ReadinessReport Report => ReadinessTests.Report.Value;
@@ -53,6 +54,7 @@ public class ReadinessStateTests
         Directory.Delete(dir, recursive: true);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void ItemsTheFileAnswers_CountAsDone_UntilTheDesignerSaysOtherwise()
     {
@@ -67,6 +69,7 @@ public class ReadinessStateTests
         Assert.False(fromFile);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void DeliberateMarks_ClearAFlag_WholeOrHoleByHole()
     {
@@ -84,6 +87,7 @@ public class ReadinessStateTests
         Assert.True(fromFile);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Gate_NeedsEverythingClosed_AndASignOffOnThisVersion()
     {
@@ -185,6 +189,7 @@ public class ReadinessStateTests
         Assert.Throws<InvalidDataException>(() => ChecklistImport.ReadBackup("""{"name":"not a backup"}"""));
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Record_WritesADatedJsonAndPrintablePage()
     {
@@ -212,6 +217,7 @@ public class ReadinessStateTests
         Directory.Delete(dir, recursive: true);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Checklist_KeysMatchTheHtmlChecklist()
     {
@@ -238,6 +244,7 @@ public class ReadinessStateTests
         Assert.Equal(Severity.Flag, Report.Checks.Max(c => c.Severity));   // the drive checks that were High are retired
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void HoleQa_MergedChecks_ReadEitherKey_AndWriteTheirOwn()
     {

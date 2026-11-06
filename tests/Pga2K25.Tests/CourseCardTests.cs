@@ -3,6 +3,7 @@ using Pga2K25.CourseFormat;
 
 namespace Pga2K25.Tests;
 
+[Trait("Area", "Products")]
 public class CourseCardTests
 {
     static readonly string SaganPath = Path.Combine(TestPaths.SamplesDir, "sagan-khushun.course");
@@ -47,6 +48,7 @@ public class CourseCardTests
         Assert.Equal($"OUT {d.Out.Yards[0]:N0}  ·  IN {d.In.Yards[0]:N0}", halves);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Cassimbo_ReportsInvertedTeesWithoutCorrecting_AndTakesNamesFromTheHolesCard()
     {
@@ -81,7 +83,7 @@ public class CourseCardTests
             // Place card and the card settings (as the Sagan-Khushun card file has, from before the wind rose).
             var rose = WindRose.FromHours([10.0, 12.0, 9.0, 15.0], [90.0, 88.0, 95.0, 225.0]);
             CoursePlaces.Save(dir, new CoursePlace { WindSource = "data", WindData = rose, WindFromDegrees = 225 });
-            var config = new CourseCardConfig { Dpi = 30, Formats = ["png"], WindFromDegrees = 225 };
+            var config = new CourseCardConfig { Dpi = 30, Formats = ["png"], WindFromDegrees = 225, AutoHoleNotes = false };
             var withRose = CourseCardBuilder.Build(SaganPath, dir, config);
             Assert.Equal(rose.PrevailingFrom, withRose.WindFromDegrees);   // the Wind Card prints the rose's prevailing direction
             Assert.Equal(WindRose.SectorOf(90), WindRose.SectorOf(withRose.WindFromDegrees!.Value));
@@ -106,13 +108,14 @@ public class CourseCardTests
         }
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Build_StopsOnErrorsUnlessForced()
     {
         string dir = Path.Combine(Path.GetTempPath(), "pga2k25-cards-" + Guid.NewGuid().ToString("N"));
         try
         {
-            var config = new CourseCardConfig { Dpi = 40, Formats = ["png"] };
+            var config = new CourseCardConfig { Dpi = 40, Formats = ["png"], AutoHoleNotes = false };
             Assert.Throws<InvalidDataException>(() => CourseCardBuilder.Build(CassimboPath, dir, config));
             Assert.Empty(Directory.GetFiles(dir, "*.png"));
             var forced = CourseCardBuilder.Build(CassimboPath, dir, config, force: true);
@@ -126,6 +129,7 @@ public class CourseCardTests
         }
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact("luke-normal-golf-course.course")]
     public void Incomplete_course_stops_unless_forced_and_forced_cards_are_drafts()
     {
@@ -134,7 +138,7 @@ public class CourseCardTests
         var dir = Path.Combine(Path.GetTempPath(), $"cards-draft-{Guid.NewGuid():N}");
         try
         {
-            var config = new CourseCardConfig { Formats = ["png"], Dpi = 40 };
+            var config = new CourseCardConfig { Formats = ["png"], Dpi = 40, AutoHoleNotes = false };
             Assert.Throws<InvalidDataException>(() => CourseCardBuilder.Build(path, dir, config));
             var result = CourseCardBuilder.Build(path, dir, config, force: true);
             Assert.Contains(result.Issues, i => i.Severity == Severity.Error && i.Message.Contains("18 holes"));

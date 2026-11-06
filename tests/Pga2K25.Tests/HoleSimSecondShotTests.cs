@@ -4,6 +4,7 @@ using Pga2K25.HoleSim;
 namespace Pga2K25.Tests;
 
 /// <summary>Stage 4d: the par 5 second shot, go or lay up.</summary>
+[Trait("Area", "HoleSim")]
 public class HoleSimSecondShotTests
 {
     const string Pilolcura = "pilolcura-analysis-2026-11-02.course";
@@ -28,6 +29,7 @@ public class HoleSimSecondShotTests
         return SecondShot.Plan(c, heat, new FramePoint(0, 600 - yards), 1, 265, samples: 150);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void With_nothing_round_the_green_it_goes_for_it()
     {
@@ -37,6 +39,7 @@ public class HoleSimSecondShotTests
         Assert.Equal(0, plan.Go.HazardShare, 6);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Water_round_the_green_makes_it_lay_up()
     {
@@ -46,6 +49,7 @@ public class HoleSimSecondShotTests
         Assert.True(plan.BestLayup!.HazardShare < plan.Go.HazardShare);
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Lay_ups_are_in_reach_and_short_of_the_pin()
     {
@@ -65,6 +69,7 @@ public class HoleSimSecondShotTests
         Assert.Equal(bands.OrderBy(b => b.TargetYards).Select(b => b.TargetYards), bands.Select(b => b.TargetYards));
     }
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void Out_of_reach_the_go_option_is_as_close_as_it_goes()
     {
@@ -73,15 +78,13 @@ public class HoleSimSecondShotTests
         Assert.True(plan.Go.GreenHit < 0.05, $"green {plan.Go.GreenHit:P0} from 300 with a 265 club");
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(Pilolcura)]
     public void Pilolcura_hole_10_power_drive_goes_for_it()
     {
-        var file = CourseFile.Load(Path.Combine(TestPaths.PrivateDir, Pilolcura));
-        var course = file.ReadModel();
-        var m = HoleModelBuilder.Build(course, file.Description, 10);
+        var m = Samples.PilolcuraHole(10);
         Assert.Equal(5, m.Par);
-        var green = GreenSurface.Build(m, ReplayTerrain.Smoothed(course, m, 8));
-        var (c, _) = ApproachSetup.Build(m, green, null, Sheet.Value, Anchors.Value, AssumptionSheet.Stimp(course.GreenSpeed)!.Value);
+        var c = Samples.PilolcuraShots(10);
         var from = ApproachSetup.SpotOnRoute(m, 4, 200);
         var heat = ApproachMaps.Heat(c, 4, ApproachMaps.Spots(m, 4, c.Golfer.MaxCarry));
         var plan = SecondShot.Plan(c, heat, from, 4, Sheet.Value.Reach("power"));

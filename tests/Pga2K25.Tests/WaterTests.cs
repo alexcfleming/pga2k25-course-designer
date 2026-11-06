@@ -8,6 +8,7 @@ namespace Pga2K25.Tests;
 /// Water planes (Luke Muscat's Normal Golf Course: nine large <c>water[]</c> rectangles) against painted
 /// streams (Berwick Coast: 55 small dabs whose channel the game cuts).
 /// </summary>
+[Trait("Area", "Water")]
 public class WaterTests
 {
     static CourseModel Load(string file) => CourseFile.Load(Path.Combine(TestPaths.SamplesDir, file)).ReadModel();
@@ -16,9 +17,11 @@ public class WaterTests
     public const string LukeFile = "luke-normal-golf-course.course";
     public static CourseModel LoadLuke() => CourseFile.Load(Path.Combine(TestPaths.PrivateDir, LukeFile)).ReadModel();
 
-    static readonly Lazy<CourseModel> Luke = new(LoadLuke);
-    static readonly Lazy<WaterMap> LukeWater = new(() => WaterTracer.Trace(Luke.Value, new TerrainModelOptions { CellMetres = 0.5 }));
+    // Shared across the run (Samples): read only.
+    static readonly Lazy<CourseModel> Luke = new(() => Samples.Course(LukeFile, privateDir: true));
+    static readonly Lazy<WaterMap> LukeWater = new(() => Samples.Water(LukeFile, true, new TerrainModelOptions { CellMetres = 0.5 }));
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(WaterTests.LukeFile)]
     public void WaterEntries_KeepBothFootprintAxes()
     {
@@ -30,9 +33,11 @@ public class WaterTests
         Assert.True(w[3].Contains(w[3].Position + new Vec2(0, 60)) != w[3].Contains(w[3].Position + new Vec2(60, 0)));
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(LukeFile)]
     public void LargeEntries_ArePlanes() => Assert.All(LukeWater.Value.Strokes, s => Assert.Equal(WaterKind.Plane, s.Kind));
 
+    [Trait("Speed", "Slow")]
     [Fact]
     public void SmallDabs_AreCutStrokes()
     {
@@ -43,6 +48,7 @@ public class WaterTests
         Assert.InRange(berwick.Bodies[0].AreaM2, 6000, 9000);
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(WaterTests.LukeFile)]
     public void Planes_ShowOnlyWhereTheGroundIsBelowTheLevel()
     {
@@ -55,6 +61,7 @@ public class WaterTests
         Assert.All(m.Bodies, b => Assert.InRange(b.MaxDepthMetres, 2, 6));
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(WaterTests.LukeFile)]
     public void ShallowDugChannel_JoinsTheHole1Creek()
     {
@@ -68,6 +75,7 @@ public class WaterTests
         Assert.Single(m.Bodies, b => b.ChannelMetres > 0);                          // nothing else on the course qualifies
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(WaterTests.LukeFile)]
     public void Hole1_CarriesTheCreekOffTheTee()
     {
@@ -83,6 +91,7 @@ public class WaterTests
         Assert.InRange(wetYards.Max(), 35, 65);
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(WaterTests.LukeFile)]
     public void EdgeSlivers_AreDropped()
     {
@@ -92,6 +101,7 @@ public class WaterTests
         Assert.All(m.Bodies, b => Assert.True(b.AreaM2 > 300));
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(WaterTests.LukeFile)]
     public void NarrowOpenWaterSplines_AreWalkingPaths()
     {
@@ -103,16 +113,18 @@ public class WaterTests
 }
 
 /// <summary>Yardage pages on Luke Muscat's course: water planes drawn and given carry numbers.</summary>
+[Trait("Area", "Water")]
 public class WaterYardageTests
 {
-    static readonly Lazy<CourseModel> Course = new(WaterTests.LoadLuke);
-    static readonly Lazy<WaterMap> Water = new(() => WaterTracer.Trace(Course.Value, new YardageBook.YardageOptions().Terrain));
+    static readonly Lazy<CourseModel> Course = new(() => Samples.Course(WaterTests.LukeFile, privateDir: true));
+    static readonly Lazy<WaterMap> Water = new(() => Samples.Water(WaterTests.LukeFile, true, new YardageBook.YardageOptions().Terrain));
 
     static YardageBook.HoleAnalysis Analyze(int number) =>
         YardageBook.HoleAnalysis.Analyze(Course.Value, CourseLayers.From(Course.Value), Course.Value.Holes.Single(h => h.Number == number),
             new YardageBook.YardageOptions(), YardageBook.YardagePageRenderer.MapRect.Width / YardageBook.YardagePageRenderer.MapRect.Height,
             inlandWater: Water.Value);
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(WaterTests.LukeFile)]
     public void Hole1_CreekCarryOffTheTee_IsNumbered()
     {
@@ -123,6 +135,7 @@ public class WaterYardageTests
         Assert.Contains(a.BunkerLabels, l => !l.IsFront && l.FromTeeYards is >= 45 and <= 65);
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(WaterTests.LukeFile)]
     public void Hole6_PondAcrossTheFairway_IsOneCrossing()
     {
@@ -134,13 +147,15 @@ public class WaterYardageTests
     }
 }
 
+[Trait("Area", "Water")]
 public class WaterScorecardTests
 {
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(WaterTests.LukeFile)]
     public void ScorecardLayers_KeepPondsNearPlay_Whole()
     {
-        var course = WaterTests.LoadLuke();
-        var water = WaterTracer.Trace(course, new TerrainModelOptions { CellMetres = 0.5 });
+        var course = Samples.Course(WaterTests.LukeFile, privateDir: true);
+        var water = Samples.Water(WaterTests.LukeFile, true, new TerrainModelOptions { CellMetres = 0.5 });   // the same trace WaterTests uses
         var layers = CourseLayers.From(course).AddInlandWater(water);
         Assert.InRange(layers.WaterBodies.Count, 1, water.Bodies.Count - 1);       // the pond out in the scenery is left off
         Assert.Contains(layers.WaterBodies, b => b.Count > 1);                     // islands kept as separate shores
@@ -150,15 +165,17 @@ public class WaterScorecardTests
 }
 
 /// <summary>The hole inspector's "water in play" list on Luke Muscat's course.</summary>
+[Trait("Area", "Water")]
 public class HoleWaterTests
 {
     static readonly Lazy<TerrainMap.TerrainSurvey> Survey = new(() => TerrainMap.TerrainSurvey.Build(
-        WaterTests.LoadLuke(),
+        Samples.Course(WaterTests.LukeFile, privateDir: true),
         new TerrainMap.TerrainMapOptions { Terrain = new TerrainMap.TerrainMapOptions().Terrain with { CellMetres = 1 } }));
 
     static List<TerrainMap.HoleWaterRow> Along(int hole) =>
         TerrainMap.HoleWater.Along(Survey.Value, Survey.Value.Holes.Single(h => h.Hole.Number == hole));
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(WaterTests.LukeFile)]
     public void Hole1_CarriesTheCreek()
     {
@@ -174,6 +191,7 @@ public class HoleWaterTests
         Assert.Contains("to green", row.Detail);
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(WaterTests.LukeFile)]
     public void Hole6_CarriesThePond_FrontToFarBank()
     {
@@ -182,6 +200,7 @@ public class HoleWaterTests
         Assert.InRange(pond.CarryYards, 300, 360);
     }
 
+    [Trait("Speed", "Slow")]
     [PrivateSampleFact(WaterTests.LukeFile)]
     public void WaterBesideTheLine_IsListedWithItsSide()
     {

@@ -38,7 +38,7 @@ public partial class HoleSimViewModel
     static string SectionOf(string step) => step switch
     {
         ReadBackStep or AssumptionsStep or LiveChecksStep or GateStep => SetupSection,
-        SummaryStep or ExperimentsStep => HoleSection,
+        SummaryStep or ExperimentsStep or RecordStep => HoleSection,
         _ => ShotsSection,
     };
 
@@ -58,7 +58,7 @@ public partial class HoleSimViewModel
         return section switch
         {
             SetupSection => [(ReadBackStep, Tick(0, "Hole")), (AssumptionsStep, Tick(1, "Assumptions")), (LiveChecksStep, Tick(2, "Live checks")), (GateStep, Tick(3, "Terrain"))],
-            HoleSection => [(SummaryStep, "Summary"), (ExperimentsStep, "Experiments")],
+            HoleSection => [(SummaryStep, "Summary"), (ExperimentsStep, "Experiments"), (RecordStep, OpenFindings > 0 ? $"Record · {OpenFindings} to check" : "Record")],
             _ => par == 3 ? [(ApproachStep, "Tee shot"), (GreenStep, "Green")]
                 : par >= 5 ? [(RunStep, "Drive"), (SecondShotStep, "Second shot"), (ApproachStep, "Approach"), (GreenStep, "Green")]
                 : [(RunStep, "Drive"), (ApproachStep, "Approach"), (GreenStep, "Green")],
