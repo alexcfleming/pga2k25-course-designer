@@ -49,7 +49,7 @@ public partial class HoleSimViewModel : ObservableObject
         CourseName = courseName;
         _priorsPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CourseDesignerStudio", "holesim", "assumptions-confirmed.json");
         _sheet = AssumptionSheet.Load(_priorsPath);
-        foreach (var s in new[] { PickStep, ReadBackStep, AssumptionsStep, LiveChecksStep, GateStep, RunStep }) StepButtons.Add(new TabViewModel(s, s == Step, () => Step = s));
+        foreach (var s in new[] { PickStep, ReadBackStep, AssumptionsStep, LiveChecksStep, GateStep, RunStep, GreenStep, ApproachStep }) StepButtons.Add(new TabViewModel(s, s == Step, () => Step = s));
         PlayerButtons.Add(new TabViewModel("Power Drive", true, () => SelectPlayer("power")));
         PlayerButtons.Add(new TabViewModel("Normal", false, () => SelectPlayer("normal")));
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -73,6 +73,9 @@ public partial class HoleSimViewModel : ObservableObject
         foreach (var b in StepButtons) b.IsSelected = b.Label == value;
         OnPropertyChanged(nameof(IsPick)); OnPropertyChanged(nameof(IsReadBack)); OnPropertyChanged(nameof(IsAssumptions));
         OnPropertyChanged(nameof(IsLiveChecks)); OnPropertyChanged(nameof(IsGate)); OnPropertyChanged(nameof(IsRun));
+        OnPropertyChanged(nameof(IsGreen)); OnPropertyChanged(nameof(IsApproach));
+        if (value == GreenStep) RefreshGreenRead();
+        if (value == ApproachStep) RefreshApproach();
     }
     [RelayCommand] private void GoReadBack() => Step = ReadBackStep;
     [RelayCommand] private void GoAssumptions() => Step = AssumptionsStep;
@@ -388,6 +391,7 @@ public partial class HoleSimViewModel : ObservableObject
         if (!ReadBackAccepted) blockers.Add("confirm the read-back (step 2)");
         if (!_sheet.AllConfirmed) blockers.Add($"confirm the assumptions (step 3, {_sheet.Rows.Count - _sheet.ConfirmedCount} left)");
         if (HasNewSave) blockers.Add("reload or set aside the new save");
+        if (_model?.Par == 3) blockers.Add("this is a par 3: the driver sweep doesn't apply, and par 3 tee shots arrive with the approach engine (Stage 4c). The Green read works now");
         CanRun = blockers.Count == 0 && !Busy;
         RunBlockers = blockers.Count == 0 ? "" : "Before running: " + string.Join("; ", blockers) + ".";
     }
@@ -397,6 +401,7 @@ public partial class HoleSimViewModel : ObservableObject
 
     void ClearResults()
     {
+        _lastRun = null;
         HasResults = false; PatternMap = null; AimRows.Clear(); RunNotes.Clear(); PatternLegend.Clear(); BestText = ""; ResultTitle = ""; DependsText = "";
     }
 
@@ -406,14 +411,14 @@ public partial class HoleSimViewModel : ObservableObject
         _sheet.SavePriors(_priorsPath);
         Busy = true;
         Show("Running…");
-        var m = _model; var sheet = _sheet; int pin = _pin; string player = _player; var settings = RunSettingsNow; var terrain = CurrentTerrain();
+        var m = _model; var sheet = _sheet; int pin = _pin; string player = _player; var settings = RunSettingsNow; var terrain = CurrentTerrain(); double greenFriction = GreenFriction;
         Task.Run(() =>
         {
             try
             {
                 var baseline = TableBaseline.LoadShipped(sheet.BaselineId);
                 var profile = sheet.Profile(player);
-                var run = GeometryRun.Run(m, profile, pin, sheet.GroundRules(), sheet.Lies(), baseline, settings, terrain: terrain);
+                var run = GeometryRun.Run(m, profile, pin, sheet.GroundRules(greenFriction), sheet.Lies(), baseline, settings, terrain: terrain);
                 var best = run.Best;
                 var colours = new[] { SKColor.Parse("#E06A3A"), SKColor.Parse("#1F1D1A"), SKColor.Parse("#3A6EA5") };
                 var picks = new[] { best.Aim - 20, best.Aim, best.Aim + 20 }
@@ -441,6 +446,7 @@ public partial class HoleSimViewModel : ObservableObject
     void ShowResults(GeometryRunResult run, byte[] png, IReadOnlyList<(double Aim, SKColor Colour)> shown)
     {
         var m = _model!;
+        _lastRun = run;
         PatternMap = new Bitmap(new MemoryStream(png));
         PatternLegend.Clear();
         foreach (var (aim, c) in shown)

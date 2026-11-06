@@ -31,6 +31,22 @@ Stage 2 built steps 1–3 and a flat-ground run; Stage 3 added live checks, the 
 
    Distance is straight-line to the pin, in yards (feet on the green). Results show the share of finishes by surface, yards left, SG with a 95% band, expected strokes for the hole (E(tee) − SG) and the share of finishes outside the baseline's rows.
 
+7. **Green read** (Stage 4a). Expected putts from every spot on the hole's green to the chosen pin, drawn over the green with arrows pointing downhill. Cells too steep for a stopped ball to stay put are hatched. For each pin it shows:
+   - the average putts from the whole green
+   - the share of the green that needs 2.3 putts or more
+   - from 15–30 ft, putts from above the hole against putts from below
+   - the slope at the cup, in red when a ball can't stop there
+
+   For the green as a whole it shows its size, Stimp, typical and steepest slope, and how much of it can't hold a stopped ball. Maps build in the background when a pin is opened (a few seconds each), or all at once with **Build every pin**. They are kept until the green, its speed or the putting assumptions change.
+
+   On a par 3 the driver sweep in step 6 is switched off with a note; par 3 tee shots are played in step 8.
+8. **Approach** (Stage 4b). Shots at the green, 600 of them, from a spot you pick to an aim you pick:
+   - **From**: yards to the pin and yards right or left of the line of play; on a par 4 or 5, where the best line's drives typically finish (the median of its fairway finishes, once step 6 has run); on a par 3, the tee.
+   - **Aim**: the best aim (25 tried on a 3-yd grid round the pin, the same shots for each), the pin, the green's centre, an aim distance straight at the pin, or a point so many yards right or left and beyond or short of the pin.
+   - **Spreads**: 1 is the golfer fitted to the anchors; 1.5 tries the hole for a weaker player.
+
+   It shows where the shots finish (on the green or not), the share that hold the green, their average distance from the hole, where the misses go, bunker, water and scrub, the expected strokes to hole out and the strokes gained for the shot against the baseline from that lie and distance, with the best aims when it searched. A card underneath shows the fitted golfer against every anchor.
+
 ### Save watcher
 
 The rest of Studio only notices a new course save after backing out to the menu. This section watches the file while it is open: every 2 s it checks the file's time and size, and when a change has held still across two checks, it hashes the file and compares it with what's loaded. A new save is read in the background and compared with the current hole. The banner lists what changed on this hole: tees, pins, aim marker, widths, hazards, surface areas and height brushes near the line. Nothing reloads or runs until you click **Reload this hole**. Reloading keeps confirmed assumptions, asks for the read-back again when surfaces, tees or pins changed, and keeps a one-line summary of the previous results. **Not now** sets the save aside until the file changes again. A waiting save blocks the run.
@@ -73,6 +89,58 @@ What it says:
 
 The study takes about a minute: most of it is tracing Sangoma's water once per course, which the simulator and Studio do only once per course.
 
+## Greens (Stage 4a)
+
+- **Green roll.** The rolling friction comes from the Stimp reading (`greenSpeed` on Alex's two-point line): a ball released at the Stimpmeter's 1.83 m/s rolls the Stimp distance, so Stimp 10.3 gives 0.054. The same friction is used for drives that reach a green; the old green friction row is now bounce only (`ground.greenBounce`). How the game's greens roll isn't known, so this is a PLACEHOLDER row.
+- **The green.** The green cells are the green surface connected to the green point, from the hole's grid. Heights and slopes are sampled once onto a half-yard raster (`GreenSurface`), so putts can roll thousands of times quickly.
+- **Putting model** (`PuttingModel`):
+  - Putts roll with that friction and gravity down the slope. The hole (4.25 in) drops a ball passing over it slower than 1.3 m/s, and a stopped ball stays put on slopes up to 1.15 × the friction.
+  - The golfer reads each putt. For each pace from very soft to firm, it finds the middle of the aims that hole a perfect stroke, then picks the pace and aim that do best under the golfer's own errors, using the same random draws for each.
+  - Pace error scales with the flat-green speed for the distance, because feel is for distance. So a soft downhill putt carries a larger share of error.
+  - A miss costs one stroke plus the expected putts from where it stops, on a flat-green curve.
+- **Fitted to the anchors.** The aim and pace errors are fitted, by a coarse then fine search on a flat green, to the baseline's own green rows, never to values interpolated between them. On the shipped anchors that is 1.04 at 3 ft and 1.62 at 10 ft, against 1.04 and 1.61, with an aim error of 1.4° and a pace error of 10%. The contours then decide every other spot.
+- **The green gate.** Live checks suggest two or three readings per pin: about 4 yds above the pin and 4 below on its fall line, plus one across the slope, held back to test the fit. The readings are compared against G, the green spot read from the tee table, so the tee's height drops out. The candidates are:
+  - the replay's contours
+  - the contours scaled by k, fitted to the readings by least squares and faded out over 3 yds of fringe so the green edge gets no false step (the game may smooth drawn greens)
+  - a flat green
+
+  It uses the same bands as the fairway gate, judged on at least 4 readings and at least 3 in of relief. A green rated Check still gets its putting maps, labelled "contours unverified".
+
+Prototype figures on Pilolcura (the replay contours, before any green readings):
+
+| Hole | Green | Slope typical / steepest tenth | Too steep to hold | Pins |
+|---|---|---|---|---|
+| 8 (par 4) | 577 sq yd | 2.6% / 4.7% | 1% | average putts 2.16, 2.19, 2.24, 2.75; pin 4 sits on the falling front left |
+| 12 (par 3) | 271 sq yd | 4.0% / 13.1% | 30% | pin 4's cup slope is 14.1%, steeper than a ball can stop on |
+
+Hole 12 is the one to read in the game: either the green really is that steep, or the game smooths drawn greens and the scaled candidate will show by how much.
+
+`pga2k25 holesim <file.course> --hole 8 --green [--green-png file.png --pin 4]` prints the same figures and draws a pin's map.
+
+## Approach shots (Stage 4b)
+
+- **The shot.** The golfer aims at a point and works out the plays-like distance, adding 1 yd for every 3 ft the target sits above the ball. It plans a release (5% of the shot, between 1 and 14 yds; chips release more: a 20-yd chip a quarter of its length) and carries the ball short of the aim by that much.
+  - The carry spreads long and short, and side to side, by a share of the shot's length that grows past 150 yds, plus a small spread every shot has. Rough, sand, scrub and the tee multiply it.
+  - The ball lands at the speed that would roll the planned release on a flat green, then bounces and rolls on the ground under it: on the green's contours, with the green's Stimp friction; elsewhere on flat ground (or the gated terrain) with each surface's friction. A ball landing into a slope holds; one landing on a downslope runs on. Bunkers, scrub and water stop it where it lands.
+  - The golfer can't hit further than its reach: past it, it lays up.
+- **What a shot leaves.** On the green: the putting map (Stage 4a). Within 35 yds of the green: a short-game map, built once per pin, of expected strokes from every chip-and-pitch spot (the best of five aims round the pin, then the putting map or the baseline). Further away, the baseline for the lie and distance; water adds its penalty stroke.
+- **The golfer, fitted to the anchors** (`GolferCalibration`). On a plain calibration hole (flat, a 34-yd fairway with rough either side, a round 26-yd green with the pin in the middle) the golfer plays out from every one of the baseline's 21 rows off the green. Tee rows beyond its reach start with a Tour drive; otherwise it goes at the pin when in reach and lays up leaving at least 40 yds when not, then putts with the fitted putter. Its spread, spread floor, long-shot growth, rough, sand, recovery and tee multipliers, reach, recovery reach and Tour drive carry are fitted (Nelder–Mead in two passes, the same random draws every try, kept inside plausible ranges) until the averages match the anchors. The residuals are reported on fresh draws. The fit takes about 3 seconds and is kept in `%AppData%\CourseDesignerStudio\holesim\golfer-fit-<key>.json`, keyed by the baseline rows, the putter, the ground rules, the shot rules and the starting values.
+- **On the shipped anchors** (Stimp 10.3): RMS 0.11 strokes. Every fairway, rough and tee row from 100 to 240 yds is within 0.15. The worst rows are recovery at 100 yds (−0.32: the simple golfer either goes for the green or lays up, while a real recovery is often blocked) and sand at 540 (−0.22). Without the plausible ranges the fit reaches RMS 0.09, but only with a recovery spread ten times the fairway's, so the ranges stay. The fitted reach, about 210–230 yds, is shorter than a Tour 3-wood. That is what makes 240-yd shots from the fairway as hard as the anchors say, and the par 5 second shot (4d) will need the player's real club distances instead.
+- The side spread is kept at 0.78 of the long-and-short spread (the anchors can't tell them apart), and heavy rough isn't fitted (no anchor covers it). Both are PLACEHOLDER rows in the new Approach group, with the release and plays-like rules.
+
+Figures on Pilolcura (green contours unverified, flat outside the green):
+
+| Hole | From | Pin | Green hit | Proximity | Expected | SG for the shot |
+|---|---|---|---|---|---|---|
+| 8 | 153 yds, fairway, best aim (3 right, 3 beyond) | 1 | 78% | 24 ft | 3.21 | −0.17 |
+| 8 | 143 yds, the best drive's typical finish, at the pin | 1 | 74% | 22 ft | 3.17 | −0.17 |
+| 12 (par 3) | the tee, 168 yds, best aim | 1 | 20% | 24 ft | 3.98 | −0.90 |
+| 12 (par 3) | the tee, 179 yds, best aim | 4 | 18% | 34 ft | 4.55 | −1.44 |
+
+Hole 12's replay green sheds most shots (30% of it is too steep to hold a ball) and its pin 4 can't be played at all, so its numbers say "read this green in the game" more than anything about the hole.
+
+`pga2k25 holesim <file.course> --hole 8 --approach --from 153[,side] --aim best|pin|centre|right,long [--aim-distance 150] [--approach-png file.png]` prints the golfer fit and the run; `--from tee` plays a par 3 tee shot.
+
 ## Strokes gained
 
 The method follows Broadie, as set out in the Strokes Gained method prompt (4 Nov 2026):
@@ -90,6 +158,8 @@ Tests cover the prompt's acceptance tests A (four-shot birdie, +0.65), B (OB, �
 ```
 pga2k25 holesim <file.course> --hole 8 [--tee T4|4] [--pin 1] [--player power|normal]
                 [--samples 2000] [--seed 7] [--treat 15=native,16=bunker] [--png map.png] [--json run.json]
+                [--green [--green-png green.png]]
+                [--approach --from 153[,side]|tee --aim best|pin|centre|right,long [--aim-distance 150] [--approach-png a.png]]
 pga2k25 holesim-terrain <file.course> --holes 11,3,4 [--smooth 8] [--readings 10] [--fit-length 25]
 ```
 
@@ -102,4 +172,4 @@ pga2k25 holesim-terrain <file.course> --holes 11,3,4 [--smooth 8] [--readings 10
 
 ## Not yet
 
-Sightlines from the tee (the visibility map) wait on a trusted terrain and the sightline answers collected in step 4. Stage 4: approaches, the approach map by pin, design experiments (paired edits of the hole), in-game verdicts and the session record. Stage 5: wind, the par 5 lay-up decision and session comparison.
+Sightlines from the tee (the visibility map) wait on a trusted terrain and the sightline answers collected in step 4. Stage 4 continues (proposal: https://claude.ai/artifact/7KdJjbPdzKH2tbabsoMX8Q): 4c the approach heat maps by pin and par 3 tee-shot sweeps, 4d the par 5 second shot on Pilolcura hole 10, 4e whole holes. The original Stage 4 list: approaches, the approach map by pin, design experiments (paired edits of the hole), in-game verdicts and the session record. Stage 5: wind, the par 5 lay-up decision and session comparison.
