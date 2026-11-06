@@ -281,4 +281,4 @@ pga2k25 holesim-terrain <file.course> --holes 11,3,4 [--smooth 8] [--readings 10
 
 ## Not yet
 
-Sightlines from the tee (the visibility map) wait on a trusted terrain and the sightline answers collected in Live checks. Stage 4 (proposal: https://claude.ai/artifact/7KdJjbPdzKH2tbabsoMX8Q) is complete. The original Stage 4 list: approaches, the approach map by pin, design experiments (paired edits of the hole), in-game verdicts and the session record. Stage 5: wind, the par 5 lay-up decision and session comparison.
+Sightlines from the tee (the visibility map) wait on a trusted terrain and the sightline answers collected in Live checks. Stage 4 (proposal: https://claude.ai/artifact/7KdJjbPdzKH2tbabsoMX8Q) is complete. The original Stage 4 list: approaches, the approach map by pin, design experiments (paired edits of the hole), in-game verdicts and the session record. Stage 5: wind, comparing session records across days, sightlines from the tee, and picking an approach spot on the map. (The par 5 lay-up decision, first planned for Stage 5, arrived in 4d.)

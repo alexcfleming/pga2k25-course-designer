@@ -115,7 +115,10 @@ public partial class HoleSimViewModel
 
     void LogApproach(ApproachResult r, string aimMode)
     {
-        RecordResult("Approach", $"pin {r.Pin}, {r.Yards:0} yds from the {Grounds.Name(r.Lie).ToLowerInvariant()}", [ApproachTitle, ApproachHeadline, ApproachShape, ApproachSg], ApproachBadge);
+        // A par 3 tee shot is played from the tee (its lie reads as fairway inside the engine).
+        bool tee = _fromMode == "tee";
+        RecordResult(tee ? "Tee shot" : "Approach", $"pin {r.Pin}, {r.Yards:0} yds from the {(tee ? "tee" : Grounds.Name(r.Lie).ToLowerInvariant())}",
+            [ApproachTitle, ApproachHeadline, ApproachShape, ApproachSg], ApproachBadge);
     }
 
     void LogMaps(int pin, ApproachHeatMap? heat, IReadOnlyList<TeeShotOption>? tees, IReadOnlyList<AngleOption> angles,

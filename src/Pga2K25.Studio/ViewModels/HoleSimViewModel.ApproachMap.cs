@@ -141,7 +141,15 @@ public partial class HoleSimViewModel
                 var maps = new PinMaps(heat, tees, leave, angles, heatPng, leavePng, angleYards, lineName, teeAngles);
                 Dispatcher.UIThread.Post(() =>
                 {
-                    if (cancel.IsCancellationRequested || !ReferenceEquals(m, _model) || key != ShotKey()) return;
+                    if (cancel.IsCancellationRequested || !ReferenceEquals(m, _model)) return;
+                    if (key != ShotKey())
+                    {
+                        // The setup changed while this built (the terrain switched on, say): build again for the
+                        // setup as it is now, rather than dropping the result and leaving the step busy.
+                        MapBusy = false;
+                        if (IsApproachMap) RefreshApproachMap();
+                        return;
+                    }
                     _shotContext = ctx; _shotKey = key; _golferFit = fit;
                     _pinMapsKey = key; _pinMaps[pin] = maps;
                     MapBusy = false; MapStatus = "";
