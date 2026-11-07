@@ -85,7 +85,7 @@ Products are listed (and built by **Build all**) in this order: terrain map, hol
 | Course cards | From the course-card settings file, Place and Holes cards. A course with validation errors (an in-progress course such as Murray Estate, or one with fewer than 18 holes) still gets its cards, each marked DRAFT with the first error; the errors are in Card Validation.txt |
 | Greens book | The sheet, a study PNG per green, and the PDF |
 | Yardage book | The PDF and a PNG per hole; tee and hole names from the Holes card; fairway widths at 250 yds and across the design tee shot from Publish readiness |
-| Scorecard map | Vintage, Modern, Illustrated, Plan Sheet and Modern Illustrated, each as PNG and PDF; tee and hole names from the Holes card, the wind rose from the Place card; bunkers merged at the course's Bunker merge |
+| Scorecard map | Vintage, Modern, Illustrated, Plan Sheet, Modern Illustrated and Routing Plan, each as PNG and PDF; tee and hole names from the Holes card, the wind rose from the Place card; bunkers merged at the course's Bunker merge |
 
 Everything else is on the command line (`src/Pga2K25.Cli`): hole subsets, scorecard orientation and waste, and so on. See each product's page in `docs/`.
 

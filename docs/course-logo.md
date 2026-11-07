@@ -29,6 +29,7 @@ PNG with a transparent background works best (JPG and WebP also load). A large f
 | Scorecard maps: Modern, Modern Illustrated | Seal, colour | Strip title column, before the course name (0.58 in); on a portrait page, before the title |
 | Scorecard maps: Vintage, Illustrated | Seal, ink | As above, to match the engraved ink |
 | Scorecard map: Plan Sheet | Seal, ink | On a parchment disc in the emptiest top corner of the map (the title column is full) |
+| Scorecard map: Routing Plan | Seal, colour | In the title box, before the course name |
 | Yardage book pages | Mark, colour | The page header becomes one line: the mark, the course name in spaced capitals, a gold divider, then the hole line (shrinking together if the name is long). The north arrow keeps the right end. |
 | Greens book sheet | Seal, colour | Before the title |
 | Green study pages | Mark, colour | Before the hole title |

@@ -381,6 +381,71 @@ public class ScorecardMapTests
             if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
         }
     }
+    [Fact]
+    public void RoutingPlan_IsItsOwnTheme()
+    {
+        var rp = MapTheme.RoutingPlan;
+        Assert.Same(rp, MapTheme.For(MapThemeKind.RoutingPlan));
+        Assert.Equal("Routing Plan", rp.Name);
+        Assert.False(rp.Landscape);   // its own aerial, not the engraved landscape
+        Assert.Contains(MapThemeKind.RoutingPlan, Enum.GetValues<MapThemeKind>());   // so the Studio builds it with the others
+        Assert.Contains("Beau Welling Design", ScorecardMapRenderer.RoutingPlanStyleCredit);
+    }
+
+    [Fact]
+    public void RoutedOnly_LeavesOutGolfNoHolePlays()
+    {
+        // One hole running east; a fairway along it, a green at its end, and a practice area 300 m off.
+        var hole = new Hole(1, 4, [new(0, 0), new(300, 0)], [new(0, 0)], [new(300, 0)]);
+        List<Vec2> Square(double x, double z, double r) => [new(x - r, z - r), new(x + r, z - r), new(x + r, z + r), new(x - r, z + r)];
+        var fairway = Square(150, 0, 20);
+        var range = Square(150, 300, 40);
+        var layers = new CourseLayers
+        {
+            Grass = [fairway, range], Greens = [Square(300, 0, 12), Square(150, 320, 10)],
+            BunkerAreas = [Square(200, 15, 4), Square(150, 340, 4)], BunkerRibbons = [], BunkerBrushes = [new Disc(new Vec2(250, 10), 2), new Disc(new Vec2(160, 300), 2)],
+            WaterAreas = [], WaterRibbons = [], WasteAreas = [], WasteRibbons = [], WasteBrushes = [],
+            Paths = [], Roads = [], Holes = [new HoleLayout(hole, hole.Route, hole.Tees[0], new Vec2(1, 0))],
+        };
+        layers.Fairways.AddRange([fairway, range]);
+
+        var routed = layers.RoutedOnly(40);
+        Assert.Equal([fairway], routed.Grass);
+        Assert.Equal([fairway], routed.Fairways);
+        Assert.Single(routed.Greens);
+        Assert.Single(routed.BunkerAreas);
+        Assert.Single(routed.BunkerBrushes);
+        Assert.Same(layers.Holes, routed.Holes);
+    }
+
+    [Trait("Speed", "Slow")]
+    [Fact]
+    public void Build_RoutingPlan_IsAlwaysLandscapeOnAGreyAerialWithEveryTeeSet()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "pga2k25-maps-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            string path = Path.Combine(TestPaths.SamplesDir, "cassimbo.course");
+            var options = new ScorecardMapOptions { Orientation = PageOrientation.Portrait, Credit = "Test Designer" };
+            var result = ScorecardMapBuilder.Build(path, dir, options, [MapThemeKind.RoutingPlan], pdf: true, scale: 1);
+            Assert.True(result.Landscape);
+            Assert.Contains(result.Files, f => f.EndsWith("Scorecard Map (Routing Plan).pdf"));
+            Assert.True(new FileInfo(result.Files.Single(f => f.EndsWith(".pdf"))).Length < 20_000_000, "the PDF stays a shareable size");
+            using var bmp = SKBitmap.Decode(result.Files.Single(f => f.EndsWith("Scorecard Map (Routing Plan).png")));
+            Assert.Equal((1100, 850), (bmp.Width, bmp.Height));
+            static int Grey(SKBitmap b) => b.Pixels.Count(p => Math.Max(p.Red, Math.Max(p.Green, p.Blue)) - Math.Min(p.Red, Math.Min(p.Green, p.Blue)) < 8 && p.Red is > 120 and < 235);
+            static int Near(SKBitmap b, SKColor c) => b.Pixels.Count(p => Math.Abs(p.Red - c.Red) + Math.Abs(p.Green - c.Green) + Math.Abs(p.Blue - c.Blue) < 14);
+            Assert.True(Grey(bmp) > 100_000, "the land round the golf is a grey aerial");
+            // Corridors: light green (the rough fill, and the fairways a touch lighter over it).
+            Assert.True(bmp.Pixels.Count(p => p.Green > 200 && p.Green - p.Red is > 8 and < 40 && p.Green - p.Blue > 35) > 20_000, "corridors in light green");
+            Assert.True(Near(bmp, MapTheme.RoutingPlan.GreenFill) > 300, "greens drawn");
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+
     static SKBitmap Render(MapThemeKind theme, ScorecardMapOptions options)
     {
         var course = Cassimbo();

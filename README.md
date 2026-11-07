@@ -2,7 +2,7 @@
 
 A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer `.course` files and produces print-style companion material. It only reads course files; it never edits or writes them.
 
-> Status: **Greens books** (one-page PNG of all greens with slope colour, per-green studies, PDF; terrain calibrated against in-game spot elevations) **scorecard maps** (vintage, modern, illustrated, Plan Sheet and Modern Illustrated themes) **yardage books** (an 18-page portrait PDF workbook, optional PNG per hole) and **terrain maps** (one large contour sheet of a routed plot, plus a Letter-size sketch sheet per hole with its design notes) and **course cards** (compass rose, hole data card with hazards and green notes, course data card, green size card and wind card) are working.
+> Status: **Greens books** (one-page PNG of all greens with slope colour, per-green studies, PDF; terrain calibrated against in-game spot elevations) **scorecard maps** (vintage, modern, illustrated, Plan Sheet, Modern Illustrated and Routing Plan themes) **yardage books** (an 18-page portrait PDF workbook, optional PNG per hole) and **terrain maps** (one large contour sheet of a routed plot, plus a Letter-size sketch sheet per hole with its design notes) and **course cards** (compass rose, hole data card with hazards and green notes, course data card, green size card and wind card) are working.
 
 ## Documentation
 
