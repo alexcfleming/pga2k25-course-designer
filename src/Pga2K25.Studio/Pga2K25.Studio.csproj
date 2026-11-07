@@ -34,6 +34,7 @@
     <ProjectReference Include="..\Pga2K25.Estimate\Pga2K25.Estimate.csproj" />
     <ProjectReference Include="..\Pga2K25.Readiness\Pga2K25.Readiness.csproj" />
     <ProjectReference Include="..\Pga2K25.HoleSim\Pga2K25.HoleSim.csproj" />
+    <ProjectReference Include="..\Pga2K25.HoleIllustrations\Pga2K25.HoleIllustrations.csproj" />
   </ItemGroup>
 
 </Project>

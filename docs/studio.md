@@ -18,7 +18,7 @@ Pass a `.course` path on the command line to open straight into that course.
   - when it was last saved
   - which products are already built
 - **Finding a course:** filter by status, or search by name.
-- **Settings:** the courses folder, the output folder (default `Documents\PGA 2K25 Greens Books`) and the **designer credit**. The credit is the user's own name, printed on the terrain map, hole sheets, greens book, yardage book and scorecard maps. It is blank by default, and a blank credit prints nothing. **Allow online wind data** (off by default) lets a Place card fetch a real place's wind record; with it off Studio makes no network calls. Whatever the credit, every product also carries a small note: "Created using Alex Fleming's Course Designer Studio" (`CourseFormat.Attribution`). It goes in the terrain map's notes, the hole sheet, greens book, yardage book and scorecard footers, the course cards' bottom-right corner and above the estimate's footer rule. They're saved in `%AppData%\CourseDesignerStudio\settings.json`.
+- **Settings:** the courses folder, the output folder (default `Documents\PGA 2K25 Greens Books`) and the **designer credit**. The credit is the user's own name, printed on the terrain map, hole sheets, greens book, yardage book, hole illustrations and scorecard maps. It is blank by default, and a blank credit prints nothing. **Allow online wind data** (off by default) lets a Place card fetch a real place's wind record; with it off Studio makes no network calls. Whatever the credit, every product also carries a small note: "Created using Alex Fleming's Course Designer Studio" (`CourseFormat.Attribution`). It goes in the terrain map's notes, the hole sheet, greens book, yardage book, hole illustration and scorecard footers, the course cards' bottom-right corner and above the estimate's footer rule. They're saved in `%AppData%\CourseDesignerStudio\settings.json`.
 
 ## Course workspace
 
@@ -76,7 +76,7 @@ The left-hand menu has the course's sections, its products with page counts, and
 
 Products are written to `<output folder>\<course>\`:
 
-Products are listed (and built by **Build all**) in this order: terrain map, hole sheets, course cards, greens book, yardage book, construction estimate, scorecard map. The Hole design simulator sits right below the terrain map in the section menu.
+Products are listed (and built by **Build all**) in this order: terrain map, hole sheets, course cards, greens book, yardage book, hole illustrations, construction estimate, scorecard map. The Hole design simulator sits right below the terrain map in the section menu.
 
 | Product | Studio builds |
 |---|---|
@@ -85,6 +85,7 @@ Products are listed (and built by **Build all**) in this order: terrain map, hol
 | Course cards | From the course-card settings file, Place and Holes cards. A course with validation errors (an in-progress course such as Murray Estate, or one with fewer than 18 holes) still gets its cards, each marked DRAFT with the first error; the errors are in Card Validation.txt |
 | Greens book | The sheet, a study PNG per green, and the PDF |
 | Yardage book | The PDF and a PNG per hole; tee and hole names from the Holes card; fairway widths at 250 yds and across the design tee shot from Publish readiness |
+| Hole illustrations | The PDF and a PNG per hole (2550 × 3300 px); tee and hole names from the Holes card, the designer credit from Settings. See [Hole illustrations](hole-illustrations.md) |
 | Scorecard map | Vintage, Modern, Illustrated, Plan Sheet, Modern Illustrated and Routing Plan, each as PNG and PDF; tee and hole names from the Holes card, the wind rose from the Place card; bunkers merged at the course's Bunker merge |
 
 Everything else is on the command line (`src/Pga2K25.Cli`): hole subsets, scorecard orientation and waste, and so on. See each product's page in `docs/`.
