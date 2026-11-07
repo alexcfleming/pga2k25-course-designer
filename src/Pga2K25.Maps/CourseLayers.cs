@@ -141,6 +141,31 @@ public sealed class CourseLayers
             foreach (var p in body[0]) yield return p;
     }
 
+    /// <summary>
+    /// The golf the holes play: grass, greens, bunkers, water and waste shapes with any point within
+    /// <paramref name="reach"/> m of a hole route, kept whole. Practice areas and unfinished corners of the plot are
+    /// left out. Holes, paths, roads and the traced ponds carry over as they are.
+    /// </summary>
+    public CourseLayers RoutedOnly(double reach = 40)
+    {
+        bool Near(IEnumerable<Vec2> pts) => pts.Any(p => DistanceToPlay(p) <= reach);
+        List<List<Vec2>> Keep(List<List<Vec2>> shapes) => shapes.Where(Near).ToList();
+        List<Ribbon> KeepRibbons(List<Ribbon> ribbons) => ribbons.Where(r => Near(r.Points)).ToList();
+        List<Disc> KeepDiscs(List<Disc> discs) => discs.Where(d => DistanceToPlay(d.Centre) <= reach + d.Radius).ToList();
+        var grass = Keep(Grass);
+        var routed = new CourseLayers
+        {
+            Grass = grass, Greens = Keep(Greens),
+            BunkerAreas = Keep(BunkerAreas), BunkerRibbons = KeepRibbons(BunkerRibbons), BunkerBrushes = KeepDiscs(BunkerBrushes),
+            WaterAreas = Keep(WaterAreas), WaterRibbons = KeepRibbons(WaterRibbons),
+            WasteAreas = Keep(WasteAreas), WasteRibbons = KeepRibbons(WasteRibbons), WasteBrushes = KeepDiscs(WasteBrushes),
+            Paths = Paths, Roads = Roads, Holes = Holes,
+        };
+        routed.Fairways.AddRange(Fairways.Where(f => grass.Contains(f)));
+        routed.WaterBodies.AddRange(WaterBodies);
+        return routed;
+    }
+
     /// <summary>Distance (m) from a point to the nearest hole route (back tee → aim points → green).</summary>
     public double DistanceToPlay(Vec2 p)
     {

@@ -8,7 +8,7 @@ Reads your .course files and makes printable products from them:
     (PNG and PDF)
   - Hole sheets: a terrain sketch sheet per hole (PNG and PDF)
   - Greens book: slope and fall of every green
-  - Yardage book, scorecard maps (five styles) and course cards
+  - Yardage book, scorecard maps (six styles) and course cards
     (including a Wind Card when the course has a wind rose)
   - Construction estimate: what the course might cost to build as a real
     course, with a low / likely / high range (illustrative, not a bid)
@@ -222,6 +222,17 @@ USING IT
   Building the course cards takes about a minute longer for it.
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
+
+NEW IN 2.6.0
+- Routing Plan scorecard map: a sixth scorecard style, in the manner of
+  a Beau Welling Design routing plan (credited on the sheet). The land
+  is a grey aerial with white contours; the golf the holes play is
+  lifted out in soft greens, with tree canopy in colour near the golf
+  and grey beyond, thin black shot lines with target dots, labelled
+  clubhouse, range and putting greens, a title box, and a white
+  scorecard box with up to four tee sets. Practice areas and unfinished
+  parts of the plot are left out. Building the scorecard map now makes
+  all six styles.
 
 FIXED IN 2.6.0
 - Hole sketches: scans of sheets printed a while ago came in covered in

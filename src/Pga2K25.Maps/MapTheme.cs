@@ -2,7 +2,7 @@ using SkiaSharp;
 
 namespace Pga2K25.Maps;
 
-public enum MapThemeKind { Vintage, Modern, Illustrated, PlanSheet, ModernIllustrated }
+public enum MapThemeKind { Vintage, Modern, Illustrated, PlanSheet, ModernIllustrated, RoutingPlan }
 
 /// <summary>Colours, strokes and type for a scorecard map style.</summary>
 public sealed record MapTheme
@@ -125,8 +125,40 @@ public sealed record MapTheme
         NumberCircles = true,
     };
 
+    /// <summary>
+    /// A routing plan in the manner of Beau Welling Design's (credited on the sheet): a grey aerial of the land, the
+    /// golf lifted out in soft greens with white contours, tree canopy, black shot lines with target dots, a title box
+    /// and a white scorecard box of up to four tee sets (<see cref="Maps.Aerial"/>). Always landscape.
+    /// </summary>
+    public static MapTheme RoutingPlan { get; } = new()
+    {
+        Kind = MapThemeKind.RoutingPlan,
+        Name = "Routing Plan",
+        Background = SKColor.Parse("#fdfdfb"),
+        Ink = SKColor.Parse("#1c1c1a"),
+        MutedInk = SKColor.Parse("#55554f"),
+        GrassFill = SKColor.Parse("#bcdba0"),
+        GrassOutline = SKColor.Parse("#4e8a3e"),
+        GreenFill = SKColor.Parse("#69a457"),
+        GreenOutline = SKColor.Parse("#3d7633"),
+        TeeFill = SKColor.Parse("#efe7cc"),
+        TeeOutline = SKColor.Parse("#b7aa86"),
+        BunkerFill = SKColor.Parse("#f1e9d2"),
+        WasteFill = SKColor.Parse("#e8e1c8"),
+        WasteStipple = SKColor.Parse("#b7aa86"),
+        WaterFill = SKColor.Parse("#9cc3c2"),
+        PathColour = SKColor.Parse("#f3f0e6"),
+        RoadColour = SKColor.Parse("#e9e8e3"),
+        RouteColour = SKColor.Parse("#1c1c1a"),
+        NumberCircles = true,
+        Frame = false,
+        TitleFonts = ["Palatino Linotype", "Book Antiqua", "Georgia", "Times New Roman"],
+        BodyFonts = ["Palatino Linotype", "Book Antiqua", "Georgia", "Times New Roman"],
+    };
+
     public static MapTheme For(MapThemeKind kind) => kind switch
     {
+        MapThemeKind.RoutingPlan => RoutingPlan,
         MapThemeKind.Modern => Modern,
         MapThemeKind.ModernIllustrated => ModernIllustrated,
         MapThemeKind.Illustrated => Illustrated,

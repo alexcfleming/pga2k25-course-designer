@@ -8,7 +8,7 @@ dotnet run --project src/Pga2K25.Cli -- scorecard "path/to/course.course" -o out
 
 Options:
 
-- `--theme vintage|modern|illustrated|plansheet|modernillustrated|both|all` (default `all`; `both` is Vintage and Modern)
+- `--theme vintage|modern|illustrated|plansheet|modernillustrated|routingplan|both|all` (default `all`; `both` is Vintage and Modern)
 - `--landscape` / `--portrait` (default: landscape, unless portrait draws the course at least 15% larger)
 - `--north-up`: disable auto-rotation
 - `--waste`: draw stippled waste areas (off by default; on desert courses everything off the fairway is waste)
@@ -18,9 +18,9 @@ Options:
 - `--credit "NAME"`, `--subtitle "TEXT"`
 - `--location "PLACE, REGION"`: Plan Sheet only, printed under the course name, one line per comma-separated part. Without it the place lines come from the course's `Place.json` (the Studio Place card); with neither, nothing prints.
 
-Tee set names and hole names come from `Holes.json` in the output folder (`-o`), which the Studio's Holes card writes. The course seal comes from `Logos.json` there (see [Course logo](course-logo.md)): in colour on Modern and Modern Illustrated, in ink on Vintage and Illustrated, before the course name in the strip; on the Plan Sheet, on a parchment disc in the emptiest top corner of the map. The wind rose comes from `Place.json` there (the Studio Place card's Wind rose), when it has one. Pars and yardages always come from the course file. (Earlier releases took tee names from a `--data holes.xlsx|.csv` workbook; it is retired.)
+Tee set names and hole names come from `Holes.json` in the output folder (`-o`), which the Studio's Holes card writes. The course seal comes from `Logos.json` there (see [Course logo](course-logo.md)): in colour on Modern and Modern Illustrated, in ink on Vintage and Illustrated, before the course name in the strip; on the Plan Sheet, on a parchment disc in the emptiest top corner of the map; on the Routing Plan, in colour in its title box. The wind rose comes from `Place.json` there (the Studio Place card's Wind rose), when it has one. Pars and yardages always come from the course file. (Earlier releases took tee names from a `--data holes.xlsx|.csv` workbook; it is retired.)
 
-[Course Designer Studio](studio.md) builds all five themes as PNG and PDF, with the names from the course's Holes card and the bunker merge from its Course settings (**Bunker merge**: 10, 6, 4 or 2 m, saved per course). The other options are on the command line.
+[Course Designer Studio](studio.md) builds all six themes as PNG and PDF, with the names from the course's Holes card and the bunker merge from its Course settings (**Bunker merge**: 10, 6, 4 or 2 m, saved per course). The other options are on the command line.
 
 ## Themes
 
@@ -64,6 +64,25 @@ Modern with the land painted in, and room for every tee set in the table. Everyt
 
 On Sagan-Khushun (4,305 trees) and Devil's Perch, a PNG and PDF build in 7–15 seconds. The PDF is 5–10 MB.
 
+## Routing Plan
+
+A routing plan in the manner of a Beau Welling Design plan: the land as a grey aerial, the golf lifted out in soft greens. The sheet credits that style ("In the style of a Beau Welling Design routing plan") before the designer credit, and carries no Beau Welling branding. Everything comes from the course file (`Aerial`, `Scenery`, `ScorecardMapRenderer.RoutingPlan.cs`).
+
+- **Always landscape.** The aerial runs under the whole page. The course is fitted to the largest of four frames (left of the scorecard box at full height, the same below the title box, or the full width with or without the title band) whose course points stay clear of the title and scorecard boxes, each at its best rotation.
+- **Only the golf the holes play:** grass, greens, bunkers, water and waste shapes with a point within 40 m of a hole route, kept whole (`CourseLayers.RoutedOnly`). Practice areas and unfinished corners of the plot are left out, except up to two putting greens (below).
+- **Aerial:** the replayed terrain (2 m cells, slope across 12 m) as a grey hillshade lit from the upper left, with a fine seeded noise texture for scrub and ground. Ground below the sea level is grey-blue.
+- **Property:** grass, greens and tees grown by 26 m and merged, with pockets under 9,000 square page units (about 0.9 sq in) filled; larger open land between loops stays aerial. The same terrain shows through it in soft greens, with a feathered edge.
+- **Contours:** white, traced from the same terrain. The interval is the first of 0.5, 1, 2, 2.5, 5 and 10 m that gives no more than 26 lines over the relief along the hole routes; every fifth line is heavier. They are faint over the aerial, brighter on the property and in between over the corridors. Each segment is drawn once, in its zone, chained into polylines, so the PDF stays 7-12 MB.
+- **Golf:** fairway, rough and heavy rough as one light-green field with a darker edge line and a soft shadow, the fairways a touch lighter; greens darker with a fine edge; tees and bunkers cream, bunkers with a shaded lip; water blue-green with a darker bank; cart paths pale.
+- **Planting:** trees are lobed crowns spread 1.45 times their canopy, so stands read as masses, with one shadow layer under them. Trees within 34 m of the property are in colour and trees further out grey, so the canopy rings the golf wherever the designer planted it. A course with no trees, such as Cassimbo, has no ring. Bushes, grasses and flowers are olive scrub on the property and grey beyond; every other grass tuft is drawn, as a tiny square, gathered into one path per colour.
+- **Shot lines:** thin black lines, back tee to aim points to green, with a circled cross at every waypoint. Hole numbers are white discs with a black ring, beside the line about a third of the way along, clear of each other and of the boxes.
+- **Facilities:** clubhouse, maintenance and range buildings as small roofs, with one label of each kind; up to two greens no hole plays, within 160 m of the first tee or the last green, labelled Putting Green. Labels are spaced small capitals on a white halo, stepped clear of the numbers and of each other.
+- **Title box** (top left): the course seal in colour when there is a logo set, the name in spaced capitals, and "Routing Plan · PGA TOUR 2K25".
+- **Scorecard box** (lower right): Hole, a yardage column for each of the longest four tee sets (longest first, named from the Holes card, else Back Tee and Front Tee on two sets or Tee n), Par; Total on nine holes, Out, In and Total on more. Under it a bar scale in yards, the contour interval, a north arrow, the style credit, "Designed by" and the credit when set, and the "Created using" note.
+- **Wind rose:** in a white box in the map spot with the least of the course under it, clear of the title and scorecard boxes.
+
+On Luke Muscat's Normal Golf Course (3,760 trees, 170,000 grass plants) a PNG and PDF build in about 16 seconds.
+
 ## Illustrated landscape
 
 The Illustrated theme is Vintage with the land around the holes drawn like an old engraved map (`Landscape`). Everything comes from the course file, and the course is drawn on top, so fairways, greens and bunkers stay clean.
@@ -82,7 +101,7 @@ The landscape is built once per map and shared by the PNG and the PDF. On Sagan-
 - **Compass.** Game north is **-Z** (east is -X), fitted from the designer's tee/approach bearings. North-up is a 180 degree rotation of the raw X/Z plane.
 - **Auto-rotation.** Every rotation within 90 degrees of north-up is tried, so north always points into the upper half of the page, and the one that fills the map area at the largest scale is kept. Both page orientations are tried, and the better fit wins unless one is forced.
 - **Zoom.** The fit uses hole routes, tees, and the parts of features within 60 m of a hole, so outlying shapes don't shrink the map. Paths and roads are drawn only within 45 m of a hole.
-Vintage, Modern, Illustrated and Modern Illustrated share one layout (`ScorecardMapRenderer.Strip.cs`); the Plan Sheet keeps its title column.
+Vintage, Modern, Illustrated and Modern Illustrated share one layout (`ScorecardMapRenderer.Strip.cs`); the Plan Sheet keeps its title column and the Routing Plan its title and scorecard boxes.
 
 - **Landscape** (the default, and always for Modern Illustrated) puts the map across the whole page, 10.4 × 6.1 in (10.2 × 5.9 in inside the Vintage frame). Under it, a title column holds the course name, the subtitle and designer credit on one line, and the legend in two columns. Beside that is the **scorecard strip**.
 - **Portrait** is chosen only when it draws the course at least 15% larger (or with `--portrait`). The title goes across the top, the map in the middle, then the strip across the page with the totals, credit and legend in a row under it.
