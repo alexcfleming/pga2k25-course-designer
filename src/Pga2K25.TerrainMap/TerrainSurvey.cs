@@ -376,16 +376,23 @@ public sealed class TerrainSurvey
     /// Survey of an arbitrary axis-aligned window. The contour interval is chosen from the relief of the
     /// ground where <paramref name="focus"/> holds (at most <see cref="TerrainMapOptions.MaxCorridorLevels"/>
     /// levels). Without a sea, <paramref name="datumMetres"/> fixes the 0 ft level so several sheets agree;
-    /// null uses the lowest ground in the window.
+    /// null uses the lowest ground in the window. <paramref name="sameGround"/>, a survey of the same window with the
+    /// same options, lends its ground and traced water, so only the contours and heights are worked out again (the
+    /// sketch import tries several datums this way).
     /// </summary>
     public static TerrainSurvey Build(CourseModel course, TerrainMapOptions o, CourseLayers layers, Vec2 min, Vec2 max,
-        Func<Vec2, bool> focus, double? datumMetres)
+        Func<Vec2, bool> focus, double? datumMetres, TerrainSurvey? sameGround = null)
     {
-        // Replay a little beyond the window so blur and gradients are clean at the edges.
-        double padM = 4 * o.Terrain.CellMetres + 3 * o.SmoothMetres;
-        var pad = new Vec2(padM, padM);
-        var field = TerrainReplay.Build(course, min - pad, max + pad, o.Terrain);
-        TerrainReplay.Smooth(field, o.SmoothMetres);
+        Heightfield field;
+        if (sameGround is not null) field = sameGround.Field;
+        else
+        {
+            // Replay a little beyond the window so blur and gradients are clean at the edges.
+            double padM = 4 * o.Terrain.CellMetres + 3 * o.SmoothMetres;
+            var pad = new Vec2(padM, padM);
+            field = TerrainReplay.Build(course, min - pad, max + pad, o.Terrain);
+            TerrainReplay.Smooth(field, o.SmoothMetres);
+        }
 
         double lo = double.MaxValue, hi = double.MinValue;
         for (int iz = 0; iz < field.Height; iz++)
@@ -422,7 +429,8 @@ public sealed class TerrainSurvey
         double minFragment = o.MinContourSpacingPixels > 0 ? 6 * o.MinContourSpacingPixels / o.PixelsPerMetre : 0;
         var contours = TraceContours(field, datum, minFeet, maxFeet, interval, indexEvery, maxMinorSlope)
             .Where(c => c.Index || Length(c.Points) >= minFragment).ToList();
-        var inland = o.ShowWater && course.HasWater ? WaterTracer.Trace(course, field) : null;
+        var inland = sameGround is not null ? sameGround.InlandWater
+            : o.ShowWater && course.HasWater ? WaterTracer.Trace(course, field) : null;
         var survey = new TerrainSurvey
         {
             Course = course, Layers = layers, Min = min, Max = max, Field = field, DatumMetres = datum, MaxFeet = maxFeet,

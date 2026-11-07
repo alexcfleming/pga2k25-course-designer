@@ -307,6 +307,83 @@ public static class SheetScan
         return alpha;
     }
 
+    /// <summary>Tile size (px) for <see cref="AlignTo"/>: 40 pt, small enough to follow a curled page.</summary>
+    public const int AlignTile = 120;
+    /// <summary>Furthest <see cref="AlignTo"/> moves the print (px, about 1 mm).</summary>
+    public const int AlignReach = 8;
+
+    /// <summary>
+    /// The reference moved, a little differently across the page, to sit on the scan's print. A phone scan of a sheet
+    /// that wasn't quite flat is a few pixels off in places even after the frame is straightened, more than the
+    /// pencil test allows. Each tile's shift (up to <see cref="AlignReach"/> px) is the one where the reference's ink
+    /// best matches the scan's. A tile with too little print to tell, or whose shift disagrees with its
+    /// neighbours (pencil can pull it), takes its neighbours' median. Shifts are blended between tile centres.
+    /// </summary>
+    public static byte[] AlignTo(byte[] scanNormalised, byte[] referenceNormalised, int w, int h)
+    {
+        int t = AlignTile, r = AlignReach, tx = (w + t - 1) / t, ty = (h + t - 1) / t;
+        var dx = new double[tx * ty];
+        var dy = new double[tx * ty];
+        var known = new bool[tx * ty];
+        Parallel.For(0, tx * ty, k =>
+        {
+            int x0 = k % tx * t, y0 = k / tx * t, x1 = Math.Min(w, x0 + t), y1 = Math.Min(h, y0 + t);
+            // Ink in the tile (darkness summed); a tile of paper has no shift to find.
+            double ink = 0;
+            for (int y = y0; y < y1; y += 2) for (int x = x0; x < x1; x += 2) ink += 255 - referenceNormalised[y * w + x];
+            double best = double.MaxValue, atZero = 0;
+            int bx = 0, by = 0;
+            for (int sy = -r; sy <= r; sy++)
+            for (int sx = -r; sx <= r; sx++)
+            {
+                double sad = 0;
+                for (int y = Math.Max(y0, r); y < Math.Min(y1, h - r); y += 2)
+                for (int x = Math.Max(x0, r); x < Math.Min(x1, w - r); x += 2)
+                    sad += Math.Abs(scanNormalised[y * w + x] - referenceNormalised[(y + sy) * w + x + sx]);
+                if (sx == 0 && sy == 0) atZero = sad;
+                if (sad < best || (sad == best && sx * sx + sy * sy < bx * bx + by * by)) { best = sad; bx = sx; by = sy; }
+            }
+            dx[k] = bx; dy[k] = by;
+            known[k] = ink > 0 && atZero - best > 0.05 * ink;
+        });
+        // Each tile's neighbourhood median (3 × 3, known tiles only); outliers and blank tiles take it.
+        var mx = new double[dx.Length];
+        var my = new double[dy.Length];
+        for (int k = 0; k < dx.Length; k++)
+        {
+            int i = k % tx, j = k / tx;
+            var nx = new List<double>(); var ny = new List<double>();
+            for (int b = Math.Max(0, j - 1); b <= Math.Min(ty - 1, j + 1); b++)
+            for (int a = Math.Max(0, i - 1); a <= Math.Min(tx - 1, i + 1); a++)
+                if (known[b * tx + a]) { nx.Add(dx[b * tx + a]); ny.Add(dy[b * tx + a]); }
+            (mx[k], my[k]) = nx.Count == 0 ? (0, 0) : (Median(nx), Median(ny));
+            if (known[k] && Math.Abs(dx[k] - mx[k]) <= 1.5 && Math.Abs(dy[k] - my[k]) <= 1.5) (mx[k], my[k]) = (dx[k], dy[k]);
+        }
+        var aligned = new byte[referenceNormalised.Length];
+        Parallel.For(0, h, y =>
+        {
+            double fy = Math.Clamp((y - t / 2.0) / t, 0, ty - 1);
+            int j0 = (int)fy, j1 = Math.Min(ty - 1, j0 + 1);
+            double ay = fy - j0;
+            for (int x = 0; x < w; x++)
+            {
+                double fx = Math.Clamp((x - t / 2.0) / t, 0, tx - 1);
+                int i0 = (int)fx, i1 = Math.Min(tx - 1, i0 + 1);
+                double ax = fx - i0;
+                double Blend(double[] v) => (v[j0 * tx + i0] * (1 - ax) + v[j0 * tx + i1] * ax) * (1 - ay) + (v[j1 * tx + i0] * (1 - ax) + v[j1 * tx + i1] * ax) * ay;
+                int xr = Math.Clamp((int)Math.Round(x + Blend(mx)), 0, w - 1), yr = Math.Clamp((int)Math.Round(y + Blend(my)), 0, h - 1);
+                aligned[y * w + x] = referenceNormalised[yr * w + xr];
+            }
+        });
+        return aligned;
+    }
+
+    static double Median(List<double> v)
+    {
+        v.Sort();
+        return v.Count % 2 == 1 ? v[v.Count / 2] : (v[v.Count / 2 - 1] + v[v.Count / 2]) / 2;
+    }
+
     /// <summary>How strongly each pixel is pencil, 0–1 (see <see cref="PencilAlpha(SKBitmap, byte[], byte[], int)"/>).</summary>
     public static float[] PencilScore(SKBitmap scanRgba, byte[] scanNormalised, byte[] referenceNormalised)
     {

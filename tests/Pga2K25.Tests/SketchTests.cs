@@ -24,6 +24,55 @@ public class SketchTests
         }
     }
 
+    /// <summary>
+    /// A scan whose print sits 5 px low in one half (paper that wasn't flat): against the reference as rendered, its
+    /// contour lines there read as pencil; aligned tile by tile, none do, and a real pencil stroke still does.
+    /// </summary>
+    [Fact]
+    public void AlignTo_MovesThePrintOntoACurledScan()
+    {
+        const int w = 600, h = 480;
+        // Wavy "contours" every 24 px, in a brown that's dark enough to read as pencil if the print is missed.
+        SKBitmap Draw(Func<int, int> shiftY, bool pencil)
+        {
+            var b = new SKBitmap(new SKImageInfo(w, h, SKColorType.Rgba8888, SKAlphaType.Premul));
+            using var c = new SKCanvas(b);
+            c.Clear(new SKColor(250, 248, 240));
+            using var ink = new SKPaint { Color = new SKColor(150, 140, 130), StrokeWidth = 2, IsAntialias = true, Style = SKPaintStyle.Stroke };
+            for (int row = 12; row < h; row += 24)
+            {
+                using var path = new SKPath();
+                for (int x = 0; x <= w; x += 4)
+                {
+                    float y = row + 6 * MathF.Sin(x / 37f + row);
+                    var p = new SKPoint(x, y + shiftY(row));
+                    if (x == 0) path.MoveTo(p); else path.LineTo(p);
+                }
+                c.DrawPath(path, ink);
+            }
+            if (pencil)
+            {
+                using var graphite = new SKPaint { Color = new SKColor(70, 70, 70), StrokeWidth = 3, IsAntialias = true };
+                c.DrawLine(100, 100, 500, 380, graphite);
+            }
+            return b;
+        }
+        using var reference = Draw(_ => 0, false);
+        using var scan = Draw(row => row > h / 2 ? 5 : 0, true);
+        var refNorm = SheetScan.PaperNormalised(reference);
+        var scanNorm = SheetScan.PaperNormalised(scan);
+
+        bool[] Pencil(byte[] r) => SheetScan.PencilScore(scan, scanNorm, r).Select(s => s > 0.25).ToArray();
+        int Count(bool[] p, Func<int, int, bool> where) => Enumerable.Range(0, w * h).Count(i => p[i] && where(i % w, i / w));
+        bool OffTheStroke(int x, int y) => Math.Abs((y - 100) * 400 - (x - 100) * 280) / Math.Sqrt(400 * 400 + 280 * 280) > 6;
+        bool LowerHalf(int x, int y) => y > h / 2 + 30 && x > 20 && x < w - 20 && OffTheStroke(x, y);
+
+        Assert.True(Count(Pencil(refNorm), LowerHalf) > 2000, "the test's shift should leave print as pencil");
+        var aligned = Pencil(SheetScan.AlignTo(scanNorm, refNorm, w, h));
+        Assert.True(Count(aligned, LowerHalf) < 100, $"{Count(aligned, LowerHalf)} px of print left");
+        Assert.True(Count(aligned, (x, y) => !OffTheStroke(x, y)) > 800, "the pencil stroke was lost");
+    }
+
     [Theory]
     [InlineData(2)]
     [InlineData(12)]
@@ -55,20 +104,35 @@ public class SketchTests
     /// A hole sheet "scanned" (printed sheet on a darker desk, turned 1.5°, with a grey pencil line drawn across
     /// it) is matched to its hole, and the pencil lands on the ground where it was drawn. Sheets printed before 2.5
     /// (full width) still import; on a 2.5 strip sheet, writing in the notes column stays off the ground.
+    /// Wakinyan Dunes (2.6): a sheet printed before the plot's lowest point moved has every contour off today's
+    /// render; on paper that wasn't flat, the print sits a few pixels off in the middle. Neither comes through as
+    /// pencil (Murray Estate, whose heights are from its lowest point; Sagan-Khushun's are from the sea).
     /// </summary>
     [Trait("Speed", "Slow")]
     [Theory]
-    [InlineData(HoleSheetLayout.Strip)]
-    [InlineData(HoleSheetLayout.FullWidth)]
-    public void Import_MatchesTheHoleAndPutsThePencilOnTheGround(HoleSheetLayout kind)
+    [InlineData("sagan-khushun", HoleSheetLayout.Strip, 0.0, false)]
+    [InlineData("sagan-khushun", HoleSheetLayout.FullWidth, 0.0, false)]
+    [InlineData("murray-estate", HoleSheetLayout.Strip, 0.8, true)]
+    public void Import_MatchesTheHoleAndPutsThePencilOnTheGround(string courseName, HoleSheetLayout kind, double printedLowerFeet, bool bowed)
     {
         string dir = Path.Combine(Path.GetTempPath(), "pga2k25-sketch-" + Guid.NewGuid().ToString("N"));
         try
         {
+            Directory.CreateDirectory(dir);
+            string coursePath = Path.Combine(TestPaths.SamplesDir, courseName + ".course");
+            var course = CourseFile.Load(coursePath).ReadModel();
             var options = new HoleSheetOptions { Dpi = 150, CellMetres = 1 };
-            var built = HoleSheetBuilder.Build(SaganPath, dir, options with { Pdf = false, Layout = kind }, [7]);
-            var sheet = built.Sheets.Single();
-            using var page = SKBitmap.Decode(built.PngPaths.Single());
+            // The sheet as printed: today's, or with every height read lower (the datum raised).
+            var printOptions = options with { Pdf = false, Layout = kind };
+            var (datum, sea) = HoleSheetBuilder.PlotDatum(course, printOptions);
+            Assert.Equal(printedLowerFeet == 0, sea);
+            var sheet = HoleSheet.Build(course, Pga2K25.Maps.CourseLayers.From(course), course.Holes.Single(h => h.Number == 7), printOptions,
+                datum + printedLowerFeet / TerrainSurvey.FeetPerMetre, sea);
+            using var renderer = new HoleSheetRenderer(printOptions);
+            using var surface = SKSurface.Create(new SKImageInfo(renderer.PixelSize.Width, renderer.PixelSize.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
+            renderer.Draw(surface.Canvas, course.Name, sheet);
+            using var printed = SKBitmap.FromImage(surface.Snapshot());
+            using var page = bowed ? Bow(printed, 3.5) : printed.Copy();
             float u = (float)(options.Dpi / 72);
 
             // A pencil line across the fairway, 40 m either side of the route's midpoint.
@@ -124,15 +188,22 @@ public class SketchTests
             }
 
             string folder = Path.Combine(dir, "Sketches");
-            var results = HoleSketches.Import(SaganPath, [scanPath], folder, options);
+            var log = new List<string>();
+            var results = HoleSketches.Import(coursePath, [scanPath], folder, options, new Collector(log));
             var r = Assert.Single(results);
             Assert.True(r.Saved, r.Message);
             Assert.Equal(7, r.Hole);
             Assert.True(r.Match > 0.6, $"{r.Match}");
+            if (printedLowerFeet != 0)
+            {
+                // Found to the nearest sixteenth of a contour interval.
+                var found = log.Select(l => System.Text.RegularExpressions.Regex.Match(l, @"read ([\d.]+) ft lower than today's")).Single(m => m.Success);
+                Assert.InRange(double.Parse(found.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture), printedLowerFeet - 0.15, printedLowerFeet + 0.15);
+            }
 
             var saved = Assert.Single(HoleSketches.Load(folder).Sheets);
             // Tied to the ground through the layout it was printed in.
-            var layoutCorners = HoleSheet.LayoutFor(Pga2K25.Maps.CourseLayers.From(Course.Value), sheet.Routing.Hole, options with { Layout = kind }).FrameCorners();
+            var layoutCorners = HoleSheet.LayoutFor(Pga2K25.Maps.CourseLayers.From(course), sheet.Routing.Hole, options with { Layout = kind }).FrameCorners();
             for (int i = 0; i < 4; i++) Assert.True(Vec2.Distance(layoutCorners[i], saved.FrameCorners()[i]) < 0.01, $"corner {i}");
             using var png = SKBitmap.Decode(Path.Combine(folder, saved.Pencil));
             using var alpha = png.Copy(SKColorType.Alpha8)!;
@@ -182,5 +253,32 @@ public class SketchTests
         {
             if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
         }
+    }
+
+    /// <summary>Synchronous progress, so every line is in before the import returns.</summary>
+    sealed class Collector(List<string> lines) : IProgress<string>
+    {
+        public void Report(string value) { lock (lines) lines.Add(value); }
+    }
+
+    /// <summary>
+    /// The page bowed as a sheet that isn't flat scans: the print moves up to <paramref name="pixels"/> in the middle,
+    /// diagonally, and not at all at the edges (so the frame stays straight).
+    /// </summary>
+    static SKBitmap Bow(SKBitmap src, double pixels)
+    {
+        using var rgba = src.Copy(SKColorType.Rgba8888)!;
+        var bowed = new SKBitmap(new SKImageInfo(src.Width, src.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
+        var from = rgba.GetPixelSpan();
+        var to = bowed.GetPixelSpan();
+        int w = src.Width, h = src.Height;
+        for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++)
+        {
+            double bump = Math.Pow(Math.Sin(Math.PI * x / w) * Math.Sin(Math.PI * y / h), 2) * pixels;
+            int sx = Math.Clamp((int)Math.Round(x - bump), 0, w - 1), sy = Math.Clamp((int)Math.Round(y - 0.6 * bump), 0, h - 1);
+            for (int c = 0; c < 4; c++) to[4 * (y * w + x) + c] = from[4 * (sy * w + sx) + c];
+        }
+        return bowed;
     }
 }
