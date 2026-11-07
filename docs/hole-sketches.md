@@ -20,7 +20,14 @@ For each page:
 2. **Hole.** The page is compared (normalised cross-correlation of small thumbnails) with every hole's sheet, either way up.
    - Page order doesn't matter, and a page that matches nothing (below 0.3) is skipped.
    - On Murray Estate, Berwick Coast and Sagan-Khushun, every sheet matched at 0.69–0.91, with the next-best hole at 0.22 or less.
+   - **Printed heights.** Unless a course's heights are from the sea, a sheet measures them from the plot's lowest point. Reworking the ground there, or a terrain model change, moves that point and so every printed contour. For each scan file, the best-matched page searches for how far its print's heights are off, within one index-contour period around today's (`HoleSketches.FitDatum`):
+     - quarter-interval steps, compared by thumbnail;
+     - then sixteenths around the best, scored by how much of the print would be left as pencil.
+   - The search reuses the hole's ground and re-traces only the contours. When the print is off, every hole is rendered that way too and the pages are matched again. The log gives the shift, for example "read 0.8 ft lower than today's".
+   - Contours repeat every index period, so a print off by a whole period (10 ft at 2 ft contours) lines up anyway. Only its labels differ.
+   - Wakinyan Dunes' sheets, printed before its low point moved 0.8 ft, matched at 0.30–0.48 (half the colour scans were skipped) and came in as a cloud of contours. Fitted, they match at 0.66–0.85 with no contours left.
 3. **Pencil.** Pencil is grey and darker than anything printed within 3 px on the matching sheet. Printed lines, labels and the route drop out even where the frame fit is a pixel or two off.
+   - **Paper that isn't flat.** A phone scan of a curled sheet is still several pixels off in places after straightening. So the sheet is first moved onto the scan tile by tile (`SheetScan.AlignTo`, 40 pt tiles, up to 8 px each). A tile with too little print to tell, or one out of step with its neighbours, takes their median. Pencil within 8 px of the frame is dropped.
    - Coloured ink and the faded blue of the sea are rejected, and specks under 25 px are dropped.
    - Pencil that crosses the printed route or text is lost there in the pencil image; the traced lines bridge it.
 4. **Lines.** The pencil is traced into lines:
@@ -38,8 +45,8 @@ For each page:
 6. **Reference sheet.** Each page is compared with a fresh render of the hole's sheet and, when present, with the **Hole sheets** build's PNG (`<course> - Hole Sheets/Hole_NN.png`, usually what was printed). Whichever matches better is used.
    - **Both layouts:** every hole is rendered both as the 2.5 strip sheet and as the full-width sheet printed before 2.5. The page is tied to the ground through whichever it matches, and the log says when it was a pre-2.5 sheet.
    - **Notes column:** on a strip sheet, only pencil on the map strip is kept. Writing in the notes column stays on the paper and isn't laid on the ground.
-   - Where the ground has changed since printing, only the built PNG still explains the printed contours.
-   - If the sheets were rebuilt after printing *and* the terrain changed, some old contours will come through as pencil.
+   - Where the ground has changed since printing, only the built PNG still explains the printed contours. A change that only moved the plot's lowest point is handled by the height fit in step 2.
+   - If the sheets were rebuilt after printing *and* the ground the sheet shows was reshaped, the old contours there will come through as pencil.
 
 Written to `<output folder>/<course> - Sketches/`:
 
@@ -85,4 +92,4 @@ Because the sketch is tied to the ground, it stays put if the map's area or the 
 - `HoleSketches`: the import and `sketches.json`.
 - `HoleSheet.LayoutFor`: a sheet's window, rotation and frame corners without surveying terrain.
 - Studio: `Views/MapSurface` (the map canvas: view transform, sketch layers, pins, animation), `ViewModels/WorkspaceViewModel.Sketches`, `Services/CourseNotes`.
-- Tests: `tests/Pga2K25.Tests/SketchTests.cs`, including an end-to-end import of a rendered, turned and pencilled sheet.
+- Tests: `tests/Pga2K25.Tests/SketchTests.cs`, including an end-to-end import of a rendered, turned and pencilled sheet, and one printed 0.8 ft off today's heights on bowed paper (Murray Estate).

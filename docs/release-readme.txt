@@ -223,6 +223,18 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
+FIXED IN 2.6.0
+- Hole sketches: scans of sheets printed a while ago came in covered in
+  the printed contours, traced as if they were pencil. The heights on a
+  sheet are measured from the plot's lowest point, so reshaping the
+  ground there (or a terrain model update) moves every printed contour
+  off today's. Import now finds how far the print's heights are off
+  (the log says, for example, "read 0.8 ft lower than today's") and
+  matches the contours as printed. It also allows for a page that wasn't
+  lying flat when it was scanned. Pages that matched poorly or were
+  skipped (colour scans especially) now match. Import the scans again to
+  replace sketches brought in before.
+
 NEW IN 2.5.0
 - Hole design simulator, new layout: a bar along the top picks the hole,
   tee, pin and player for every view. Under it are three sections:

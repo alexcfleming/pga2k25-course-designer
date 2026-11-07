@@ -220,8 +220,10 @@ public sealed class HoleSheet
         return new Layout(back, fwd, side, rotation, (a0, a1), across, window, strip, o.Layout);
     }
 
+    /// <param name="sameGround">A sheet of the same hole with the same options: its ground is reused, so only the
+    /// contours and heights are worked out again for <paramref name="datumMetres"/>.</param>
     public static HoleSheet Build(CourseModel course, CourseLayers layers, Hole hole, HoleSheetOptions o, double datumMetres,
-        bool datumIsSeaLevel = false)
+        bool datumIsSeaLevel = false, HoleSheet? sameGround = null)
     {
         var layout = layers.Holes.Single(h => h.Hole.Number == hole.Number);
         var (back, fwd, side, rotation, (a0, a1), across, window, strip, kind) = LayoutFor(layers, hole, o);
@@ -246,7 +248,7 @@ public sealed class HoleSheet
         var pad = new Vec2(10, 10);
         var min = new Vec2(window.Min(p => p.X), window.Min(p => p.Z)) - pad;
         var max = new Vec2(window.Max(p => p.X), window.Max(p => p.Z)) + pad;
-        var survey = TerrainSurvey.Build(course, map, layers, min, max, NearPlay, datumMetres);
+        var survey = TerrainSurvey.Build(course, map, layers, min, max, NearPlay, datumMetres, sameGround?.Survey);
         return new HoleSheet
         {
             Routing = survey.Holes.Single(h => h.Hole.Number == hole.Number), Survey = survey,

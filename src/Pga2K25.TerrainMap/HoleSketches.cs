@@ -130,69 +130,91 @@ public static class HoleSketches
         var (datum, sea) = HoleSheetBuilder.PlotDatum(course, options);
         HoleSheetLayout[] kinds = [HoleSheetLayout.Strip, HoleSheetLayout.FullWidth];
         int n = course.Holes.Count;
-        var references = new (byte[] Norm, float[] Thumb)[n * kinds.Length];
-        Parallel.For(0, references.Length, new ParallelOptions { MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount / 2, 1, 4) }, j =>
+        var parallel = new ParallelOptions { MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount / 2, 1, 4) };
+        var references = new Reference[n * kinds.Length];
+        Parallel.For(0, references.Length, parallel, j =>
         {
             int i = j % n;
-            var renderOptions = options with { Dpi = 72.0 * k, Layout = kinds[j / n] };
-            var sheet = HoleSheet.Build(course, layers, course.Holes[i], renderOptions, datum, sea);
-            using var renderer = new HoleSheetRenderer(renderOptions);
-            var full = renderer.PixelSize;
-            using var surface = SKSurface.Create(new SKImageInfo(full.Width, full.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
-            renderer.Draw(surface.Canvas, course.Name, sheet);
-            var r = HoleSheet.MapRectPoints;
-            using var image = surface.Snapshot(new SKRectI((int)Math.Round(r.Left * k), (int)Math.Round(r.Top * k),
-                (int)Math.Round(r.Left * k) + size.Width, (int)Math.Round(r.Top * k) + size.Height));
-            using var bmp = SKBitmap.FromImage(image);
-            using var rgba = SheetScan.ToRgba(bmp);
-            var norm = SheetScan.PaperNormalised(rgba);
-            references[j] = (norm, SheetScan.Thumbnail(norm, size.Width, size.Height));
+            references[j] = Render(course, layers, course.Holes[i], options with { Layout = kinds[j / n] }, datum, sea, size);
             if (j < n) log?.Report($"Rendered hole {course.Holes[i].Number}'s sheet.");
         });
-        // A built sheet is in whichever layout its fresh render looks more like.
-        var built = new (byte[] Norm, float[] Thumb, HoleSheetLayout Kind)?[n];
-        if (printedSheets is not null)
-            for (int i = 0; i < n; i++)
-                if (BuiltSheet(Path.Combine(printedSheets, $"Hole_{course.Holes[i].Number:00}.png"), size) is { } b)
-                    built[i] = (b.Norm, b.Thumb, SheetScan.Correlation(b.Thumb, references[i].Thumb) >= SheetScan.Correlation(b.Thumb, references[n + i].Thumb)
-                        ? HoleSheetLayout.Strip : HoleSheetLayout.FullWidth);
-        // Per hole, the sheets to compare a page against.
-        IEnumerable<(byte[] Norm, float[] Thumb, bool Built, HoleSheetLayout Kind)> Candidates(int i)
+        // Per hole, the sheets to compare a page against. A built sheet is in whichever layout its fresh render looks more like.
+        var candidates = new List<Candidate>[n];
+        for (int i = 0; i < n; i++)
         {
-            for (int t = 0; t < kinds.Length; t++) yield return (references[t * n + i].Norm, references[t * n + i].Thumb, false, kinds[t]);
-            if (built[i] is { } b) yield return (b.Norm, b.Thumb, true, b.Kind);
+            candidates[i] = kinds.Select((kind, t) => new Candidate(references[t * n + i].Norm, references[t * n + i].Thumb, false, kind, 0)).ToList();
+            if (printedSheets is not null && BuiltSheet(Path.Combine(printedSheets, $"Hole_{course.Holes[i].Number:00}.png"), size) is { } b)
+                candidates[i].Add(new Candidate(b.Norm, b.Thumb, true,
+                    SheetScan.Correlation(b.Thumb, references[i].Thumb) >= SheetScan.Correlation(b.Thumb, references[n + i].Thumb)
+                        ? HoleSheetLayout.Strip : HoleSheetLayout.FullWidth, 0));
+        }
+        var pageNorms = new byte[pages.Count][];
+        var pageThumbs = new float[pages.Count][];
+        for (int pi = 0; pi < pages.Count; pi++)
+        {
+            pageNorms[pi] = SheetScan.PaperNormalised(pages[pi].Rect);
+            pageThumbs[pi] = SheetScan.Thumbnail(pageNorms[pi], size.Width, size.Height);
+        }
+        // A page's closest sheet (either way up), and the closest of any other hole's.
+        ((int Hole, double Score, bool Flip, Candidate Sheet) Best, double RunnerUp) Closest(int pi)
+        {
+            var scores = Enumerable.Range(0, n)
+                .SelectMany(i => candidates[i].SelectMany(c => new[]
+                {
+                    (Hole: i, Score: SheetScan.Correlation(pageThumbs[pi], c.Thumb), Flip: false, Sheet: c),
+                    (Hole: i, Score: SheetScan.Correlation(pageThumbs[pi], c.Thumb, flip: true), Flip: true, Sheet: c),
+                }))
+                .OrderByDescending(x => x.Score).ToList();
+            var best = scores[0];
+            return (best, scores.FirstOrDefault(x => x.Hole != best.Hole).Score);
         }
 
-        // 3. Match each page to a hole (either way up), keeping the best page when two match the same hole.
+        // 3. The heights on a sheet are measured from the plot's lowest point, which moves when the ground there is
+        //    reworked (or the terrain model improves), shifting every printed contour off today's. Per scan file, the
+        //    best-matched page finds how far its print's heights are off, within one index-contour period, and every
+        //    hole is rendered that way too. Sea-level heights don't move.
+        if (!sea)
+            foreach (var file in pages.Select(p => p.Page.File).Distinct())
+            {
+                var filePages = Enumerable.Range(0, pages.Count).Where(pi => pages[pi].Page.File == file).ToList();
+                var (lead, leadBest) = filePages.Select(pi => (pi, Closest(pi).Best)).MaxBy(x => x.Best.Score);
+                using var upright = leadBest.Flip ? Rotate180(pages[lead].Rect) : null;
+                var leadScan = upright ?? pages[lead].Rect;
+                var fit = FitDatum(course, layers, course.Holes[leadBest.Hole], options with { Layout = leadBest.Sheet.Kind }, datum, size,
+                    leadScan, upright is null ? pageNorms[lead] : SheetScan.PaperNormalised(upright), parallel);
+                if (Math.Abs(fit.Shift) < 0.05 || fit.Score < fit.AtZero + 0.02) continue;
+                if (candidates.Any(cs => cs.Any(c => Math.Abs(c.ShiftFeet - fit.Shift) < 0.05))) continue;   // another file's print
+                log?.Report($"{Path.GetFileName(file)}: the printed heights read {Math.Abs(fit.Shift):0.0} ft {(fit.Shift > 0 ? "lower" : "higher")} than " +
+                            $"today's (the plot's lowest point has moved since it was printed); matching the contours as printed.");
+                var used = filePages.Select(pi => Closest(pi).Best.Sheet.Kind).Distinct().ToArray();
+                var shifted = new Reference[n * used.Length];
+                Parallel.For(0, shifted.Length, parallel, j =>
+                    shifted[j] = Render(course, layers, course.Holes[j % n], options with { Layout = used[j / n] }, datum + fit.Shift / TerrainSurvey.FeetPerMetre, sea, size));
+                for (int j = 0; j < shifted.Length; j++)
+                    candidates[j % n].Add(new Candidate(shifted[j].Norm, shifted[j].Thumb, false, used[j / n], fit.Shift));
+            }
+
+        // 4. Match each page to a hole (either way up), keeping the best page when two match the same hole.
         var matched = new List<(int Page, int HoleIndex, double Score, bool Flip, byte[] Norm, byte[] Reference, bool Built, HoleSheetLayout Kind)>();
         for (int pi = 0; pi < pages.Count; pi++)
         {
-            var (p, rect, _) = pages[pi];
-            var norm = SheetScan.PaperNormalised(rect);
-            var thumb = SheetScan.Thumbnail(norm, size.Width, size.Height);
-            var scores = Enumerable.Range(0, n)
-                .SelectMany(i => Candidates(i).SelectMany(c => new[]
-                {
-                    (i, s: SheetScan.Correlation(thumb, c.Thumb), flip: false, c.Norm, c.Built, c.Kind),
-                    (i, s: SheetScan.Correlation(thumb, c.Thumb, flip: true), flip: true, c.Norm, c.Built, c.Kind),
-                }))
-                .OrderByDescending(x => x.s).ToList();
-            var best = scores[0];
-            double runnerUp = scores.FirstOrDefault(x => x.i != best.i).s;
-            int number = course.Holes[best.i].Number;
-            if (best.s < MinMatch)
+            var (p, _, _) = pages[pi];
+            var (best, runnerUp) = Closest(pi);
+            int number = course.Holes[best.Hole].Number;
+            if (best.Score < MinMatch)
             {
-                results.Add(new ScanResult(p.File, p.Page, null, best.s, $"doesn't match any hole's sheet (closest hole {number}, {best.s:0.00})"));
-                log?.Report($"{Path.GetFileName(p.File)} p{p.Page}: doesn't match any hole's sheet (closest hole {number}, {best.s:0.00}), skipped.");
+                results.Add(new ScanResult(p.File, p.Page, null, best.Score, $"doesn't match any hole's sheet (closest hole {number}, {best.Score:0.00})"));
+                log?.Report($"{Path.GetFileName(p.File)} p{p.Page}: doesn't match any hole's sheet (closest hole {number}, {best.Score:0.00}), skipped.");
                 continue;
             }
-            log?.Report($"{Path.GetFileName(p.File)} p{p.Page}: hole {number} ({best.s:0.00}, next best {runnerUp:0.00}" +
-                        $"{(best.flip ? ", upside down" : "")}{(best.Built ? ", against the built sheet" : "")}" +
-                        $"{(best.Kind == HoleSheetLayout.FullWidth ? ", a pre-2.5 full-width sheet" : "")}).");
-            matched.Add((pi, best.i, best.s, best.flip, norm, best.Norm, best.Built, best.Kind));
+            log?.Report($"{Path.GetFileName(p.File)} p{p.Page}: hole {number} ({best.Score:0.00}, next best {runnerUp:0.00}" +
+                        $"{(best.Flip ? ", upside down" : "")}{(best.Sheet.Built ? ", against the built sheet" : "")}" +
+                        $"{(best.Sheet.Kind == HoleSheetLayout.FullWidth ? ", a pre-2.5 full-width sheet" : "")}" +
+                        $"{(best.Sheet.ShiftFeet != 0 ? $", contours as printed {Math.Abs(best.Sheet.ShiftFeet):0.0} ft {(best.Sheet.ShiftFeet > 0 ? "lower" : "higher")}" : "")}).");
+            matched.Add((pi, best.Hole, best.Score, best.Flip, pageNorms[pi], best.Sheet.Norm, best.Sheet.Built, best.Sheet.Kind));
         }
 
-        // 4. Separate the pencil and save.
+        // 5. Separate the pencil and save.
         var set = Load(folder);
         Directory.CreateDirectory(folder);
         var saved = new HashSet<int>();
@@ -212,11 +234,16 @@ public static class HoleSketches
                 scanRect = Rotate180(rect);
                 norm = SheetScan.PaperNormalised(scanRect);
             }
-            var score = SheetScan.PencilScore(scanRect, norm, m.Reference);
+            // The print moved onto the scan's, tile by tile, where the paper wasn't flat.
+            var reference = SheetScan.AlignTo(norm, m.Reference, size.Width, size.Height);
+            var score = SheetScan.PencilScore(scanRect, norm, reference);
             var layout = HoleSheet.LayoutFor(layers, hole, options with { Layout = m.Kind });
-            // Only pencil on the map strip is on the ground; writing in the notes column stays on the paper.
-            var strip = HoleSheet.Within(layout.StripPoints, new SKRect(0, 0, size.Width, size.Height));
-            if (m.Kind == HoleSheetLayout.Strip) MaskOutside(score, size, strip);
+            // Only pencil on the map strip is on the ground; writing in the notes column stays on the paper. The
+            // frame line itself is kept out: the alignment can move it.
+            var strip = m.Kind == HoleSheetLayout.Strip ? HoleSheet.Within(layout.StripPoints, new SKRect(0, 0, size.Width, size.Height))
+                : new SKRect(0, 0, size.Width, size.Height);
+            strip.Inflate(-SheetScan.AlignReach, -SheetScan.AlignReach);
+            MaskOutside(score, size, strip);
             var alpha = SheetScan.PencilAlpha(score, size.Width, size.Height);
             var traced = SketchTracer.Trace(score, norm, size.Width, size.Height, out double? faintBelow);
             string stem = $"Hole_{hole.Number:00}";
@@ -242,6 +269,75 @@ public static class HoleSketches
         Save(folder, set);
         log?.Report($"Sketches for {saved.Count} hole(s) saved: {folder}");
         return results.OrderBy(r => r.Source, StringComparer.OrdinalIgnoreCase).ThenBy(r => r.Page).ToList();
+    }
+
+    /// <summary>A sheet rendered to compare pages with: its map frame normalised, and a thumbnail of that.</summary>
+    sealed record Reference(byte[] Norm, float[] Thumb);
+
+    /// <summary>
+    /// A sheet a page may be: rendered now or the build's PNG (<paramref name="Built"/>), in a layout, with its heights
+    /// <paramref name="ShiftFeet"/> lower than today's (the datum raised that much).
+    /// </summary>
+    sealed record Candidate(byte[] Norm, float[] Thumb, bool Built, HoleSheetLayout Kind, double ShiftFeet);
+
+    static Reference Render(CourseModel course, Maps.CourseLayers layers, Hole hole, HoleSheetOptions options, double datum, bool sea, SKSizeI size) =>
+        Render(course, layers, hole, options, datum, sea, size, null).Reference;
+
+    /// <summary>A hole's sheet rendered at <see cref="SheetScan.PixelsPerPoint"/>, its map frame normalised as a scan is.</summary>
+    static (Reference Reference, HoleSheet Sheet) Render(CourseModel course, Maps.CourseLayers layers, Hole hole, HoleSheetOptions options,
+        double datum, bool sea, SKSizeI size, HoleSheet? sameGround)
+    {
+        int k = SheetScan.PixelsPerPoint;
+        var renderOptions = options with { Dpi = 72.0 * k };
+        var sheet = HoleSheet.Build(course, layers, hole, renderOptions, datum, sea, sameGround);
+        using var renderer = new HoleSheetRenderer(renderOptions);
+        var full = renderer.PixelSize;
+        using var surface = SKSurface.Create(new SKImageInfo(full.Width, full.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
+        renderer.Draw(surface.Canvas, course.Name, sheet);
+        var r = HoleSheet.MapRectPoints;
+        using var image = surface.Snapshot(new SKRectI((int)Math.Round(r.Left * k), (int)Math.Round(r.Top * k),
+            (int)Math.Round(r.Left * k) + size.Width, (int)Math.Round(r.Top * k) + size.Height));
+        using var bmp = SKBitmap.FromImage(image);
+        using var rgba = SheetScan.ToRgba(bmp);
+        var norm = SheetScan.PaperNormalised(rgba);
+        return (new Reference(norm, SheetScan.Thumbnail(norm, size.Width, size.Height)), sheet);
+    }
+
+    /// <summary>
+    /// How far a printed sheet's heights are off today's: the shift (ft, positive when the print reads lower) that
+    /// best explains the straightened page <paramref name="scan"/> (upright, normalised as <paramref name="scanNormalised"/>),
+    /// searched within one index-contour period around today's. Contours repeat every period, so only the labels
+    /// tell whole periods apart. Quarter-interval steps are compared by thumbnail; then sixteenths round the best
+    /// by how much of the print would be left as pencil, at full size and after <see cref="SheetScan.AlignTo"/>.
+    /// <see cref="Score"/> and <see cref="AtZero"/> are the thumbnail match at the shift and at today's heights.
+    /// </summary>
+    internal static (double Shift, double Score, double AtZero) FitDatum(CourseModel course, Maps.CourseLayers layers, Hole hole,
+        HoleSheetOptions options, double datum, SKSizeI size, SKBitmap scan, byte[] scanNormalised, ParallelOptions parallel)
+    {
+        var thumb = SheetScan.Thumbnail(scanNormalised, size.Width, size.Height);
+        var (today, ground) = Render(course, layers, hole, options, datum, false, size, null);
+        double interval = ground.Survey.IntervalFeet;
+        int every = Math.Max(1, ground.Survey.IndexEvery);
+        var renders = new Dictionary<double, Reference> { [0] = today };
+        void RenderAll(IEnumerable<double> shifts)
+        {
+            var todo = shifts.Select(s => Math.Round(s, 4)).Where(s => !renders.ContainsKey(s)).Distinct().ToArray();
+            var made = new Reference[todo.Length];
+            Parallel.For(0, todo.Length, parallel, j =>
+                made[j] = Render(course, layers, hole, options, datum + todo[j] / TerrainSurvey.FeetPerMetre, false, size, ground).Reference);
+            for (int j = 0; j < todo.Length; j++) renders[todo[j]] = made[j];
+        }
+        double Match(double s) => SheetScan.Correlation(thumb, renders[s].Thumb);
+
+        RenderAll(Enumerable.Range(0, 4 * every).Select(j => -interval * every / 2 + j * interval / 4));
+        double coarse = renders.Keys.MaxBy(Match);
+        var fine = Enumerable.Range(-4, 9).Select(j => Math.Round(coarse + j * interval / 16, 4)).ToArray();
+        RenderAll(fine);
+        var left = new double[fine.Length];
+        Parallel.For(0, fine.Length, parallel, j =>
+            left[j] = SheetScan.PencilScore(scan, scanNormalised, SheetScan.AlignTo(scanNormalised, renders[fine[j]].Norm, size.Width, size.Height)).Sum());
+        double best = fine[Array.IndexOf(left, left.Min())];
+        return (best, Match(best), Match(0));
     }
 
     /// <summary>A built hole sheet PNG's frame at the straightened size, normalised; null when there isn't one.</summary>
