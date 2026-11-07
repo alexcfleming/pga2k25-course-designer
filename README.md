@@ -11,6 +11,7 @@ A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer
 - [Greens book](docs/greens-book.md): what it produces, how the terrain is reconstructed, current limits, and calibration.
 - [Scorecard maps](docs/scorecard-maps.md): themes, layout, how features are traced, and known limits.
 - [Yardage book](docs/yardage-book.md): page contents, hazard numbering, rock footprint estimation, and PDF output.
+- [Hole illustrations](docs/hole-illustrations.md): one watercolour-and-ink plate per hole, after the hole plates of Jim Ryan, illustrated by Tyler J. Rae.
 - [Terrain map](docs/terrain-map.md): contour planning sheet of the plot with the routing as sticks and dots; terrain model notes and options.
 - [Course Designer Studio](docs/studio.md): the desktop app, with a course library, a live terrain map, measurements, product viewers and builds.
 - [Routing test](docs/routing-test.md): sketch a routing in Studio with par 3, 4 and 5 arrows and add up par and approximate yards.
@@ -26,6 +27,7 @@ A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer
 | `src/Pga2K25.CourseFormat` | Read-only `.course` decoder (`CourseFile`), typed read model (`CourseModel`: holes, pins, splines, surface brushes, height stamps), shared spline geometry |
 | `src/Pga2K25.GreensBook` | Terrain replay, green analysis, calibration, SkiaSharp greens-book renderer |
 | `src/Pga2K25.Maps` | Course feature layers, auto-rotating projection, themed scorecard-map renderer |
+| `src/Pga2K25.HoleIllustrations` | Watercolour hole plates on the yardage book's hole analysis: raster washes and ink, vector type, PDF and PNG |
 | `src/Pga2K25.YardageBook` | Per-hole analysis (hazard numbers, widths, spot heights, rock footprints) and the yardage page / PDF workbook renderer |
 | `src/Pga2K25.TerrainMap` | Plot-scale terrain survey (contours, summits, per-hole elevations and green-site slope) and the terrain planning map renderer |
 | `src/Pga2K25.CourseCard` | Course cards: data from the course file (bearings, scorecard yards), validation, rose / table / composite renderer (bundled Lora font) |

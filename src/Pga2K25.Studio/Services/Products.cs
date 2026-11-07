@@ -1,6 +1,7 @@
 using Pga2K25.CourseCard;
 using Pga2K25.Estimate;
 using Pga2K25.GreensBook;
+using Pga2K25.HoleIllustrations;
 using Pga2K25.Maps;
 using Pga2K25.TerrainMap;
 using Pga2K25.YardageBook;
@@ -70,6 +71,13 @@ public static class Products
         })
         {
             Pages = ["{0} - Yardage Book/*.png"], Pdfs = ["{0} - Yardage Book.pdf"],
+        },
+        // One watercolour plate per hole, after the hole plates of Jim Ryan (illustrated by Tyler J. Rae); tee and hole names from Holes.json.
+        new("Hole illustrations", " - Hole Illustrations.pdf", c =>
+            HoleIllustrationBuilder.Build(c.CoursePath, c.OutputDir, new IllustrationOptions { Credit = c.Settings.Credit },
+                new IllustrationOutputs { Pdf = true, Pngs = true }, log: c.Log).PdfPath)
+        {
+            Pages = ["{0} - Hole Illustrations/*.png"], Pdfs = ["{0} - Hole Illustrations.pdf"],
         },
         // Reads Estimate.json from the course's output folder for per-course choices (zones, overrides).
         new("Construction estimate", " - Estimate.pdf", c => EstimateBuilder.Build(c.CoursePath, c.OutputDir, log: c.Log).PdfPath)

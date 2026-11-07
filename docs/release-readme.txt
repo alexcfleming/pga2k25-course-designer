@@ -9,6 +9,8 @@ Reads your .course files and makes printable products from them:
   - Hole sheets: a terrain sketch sheet per hole (PNG and PDF)
   - Greens book: slope and fall of every green
   - Yardage book, scorecard maps (six styles) and course cards
+  - Hole illustrations: a watercolour plate per hole, after the hole
+    plates of Jim Ryan, illustrated by Tyler J. Rae (PNG and PDF)
     (including a Wind Card when the course has a wind rose)
   - Construction estimate: what the course might cost to build as a real
     course, with a low / likely / high range (illustrative, not a bid)
@@ -21,8 +23,8 @@ INSTALL
 1. Unzip this folder anywhere (for example Documents\Course Designer Studio).
 2. Run CourseDesignerStudio.exe. Nothing else needs installing.
    Keep the "fonts" and "estimate" folders next to the exe; the course
-   cards, the yardage book, the Plan Sheet map and the construction
-   estimate use them.
+   cards, the yardage book, the hole illustrations, the Plan Sheet map and
+   the construction estimate use them.
 3. Windows may show "Windows protected your PC" because the app is not
    signed. Click "More info", then "Run anyway".
 Needs 64-bit Windows 10 or 11.
@@ -233,6 +235,19 @@ NEW IN 2.6.0
   scorecard box with up to four tee sets. Practice areas and unfinished
   parts of the plot are left out. Building the scorecard map now makes
   all six styles.
+- Hole illustrations: a new product, one watercolour-and-ink plate per
+  hole on US Letter portrait, after the hole plates of Jim Ryan,
+  illustrated by Tyler J. Rae (both credited on every plate, before
+  your designer credit). The hole plays up the page from the back tee
+  on the "0 YDS." line, beside a yardage ruler fitted to that hole
+  (back-tee yards plus 30, up to the next 50).
+  Fairways in straw with mow bands, greens in blush pink, white bunkers
+  with stipple and a hachured face, big sand (over 1,500 sq yd) as a
+  peach waste wash, tree masses as scalloped canopies, all fading into
+  the paper away from the hole. The header has the course name, the
+  hole's name from the Holes card (when it has one), the hole number,
+  par and back-tee yards; the footer has the tee sets. Find it under
+  Products, after the yardage book; it builds a PDF and a PNG per hole.
 
 FIXED IN 2.6.0
 - Hole sketches: scans of sheets printed a while ago came in covered in

@@ -3,6 +3,7 @@ using Pga2K25.CourseCard;
 using Pga2K25.CourseFormat;
 using Pga2K25.Estimate;
 using Pga2K25.GreensBook;
+using Pga2K25.HoleIllustrations;
 using Pga2K25.Maps;
 using Pga2K25.Readiness;
 using Pga2K25.TerrainMap;
@@ -16,6 +17,14 @@ const string Usage = """
                     [--verbose] [--credit "NAME"]
       default output: one PDF workbook, a portrait 4.25 x 11 in page per hole
       --png       also write a 1275 x 3300 px PNG per hole
+    pga2k25 illustrations <file.course> [-o <dir>] [--holes 1,4,11] [--png] [--no-pdf] [--waste]
+                          [--credit "NAME"] [--year 2026] [--verbose]
+      hole illustrations: one watercolour-and-ink plate per hole, 8.5 x 11 in portrait
+      ("<course> - Hole Illustrations.pdf"), after the hole plates of Jim Ryan, illustrated
+      by Tyler J. Rae; the ruler
+      is fitted to each hole (back-tee yards + 30, up to the next 50)
+      --png       also write a 2550 x 3300 px PNG per hole
+      --waste     also draw surface-15 waste areas (big sand over 1,500 sq yd always reads as waste)
     pga2k25 terrain <file.course> [-o <dir>] [--full-plot|--buildable] [--margin 150] [--interval 5] [--index 5]
                     [--shading relief|slope|none] [--ppm 4] [--cell 1.0] [--grid 100] [--no-features]
                     [--hardness 0.85] [--large-hardness 0.3] [--smooth 0] [--sea-level <m>] [--no-water]
@@ -63,7 +72,7 @@ const string Usage = """
                       [--north-up] [--waste] [--raw-bunkers] [--no-paths]
                       [--pdf] [--credit "NAME"] [--subtitle "TEXT"]
 
-      yardage, cards and scorecard read tee names, hole names and hand-written hazards and
+      yardage, illustrations, cards and scorecard read tee names, hole names and hand-written hazards and
       green notes from Holes.json in the output folder (the Studio's Holes card)
 
       default output: one PNG page with every green ("<course> - Greens Book.png")
@@ -115,6 +124,7 @@ try
         case "greensbook": return GreensBook(args[1], args[2..]);
         case "scorecard": return Scorecard(args[1], args[2..]);
         case "yardage": return Yardage(args[1], args[2..]);
+        case "illustrations": return Illustrations(args[1], args[2..]);
         case "terrain": return Terrain(args[1], args[2..]);
         case "cards": return Cards(args[1], args[2..]);
         case "hole-notes": return HoleNotesCommand(args[1]);
@@ -717,6 +727,34 @@ static int Yardage(string path, string[] rest)
     }
     if (!outputs.Pdf && !outputs.Pngs) throw new ArgumentException("--no-pdf needs --png, or there is nothing to write");
     YardageBookBuilder.Build(path, outDir, options, outputs, holes, new SyncProgress(Console.WriteLine), verbose);
+    return 0;
+}
+
+static int Illustrations(string path, string[] rest)
+{
+    var options = new IllustrationOptions();
+    string outDir = Path.GetDirectoryName(Path.GetFullPath(path))!;
+    List<int>? holes = null;
+    var outputs = new IllustrationOutputs();
+    bool verbose = false;
+    for (int i = 0; i < rest.Length; i++)
+    {
+        string Next() => i + 1 < rest.Length ? rest[++i] : throw new ArgumentException($"{rest[i]} needs a value");
+        switch (rest[i])
+        {
+            case "-o": case "--out": outDir = Next(); break;
+            case "--holes": holes = Next().Split(',').Select(int.Parse).ToList(); break;
+            case "--verbose": verbose = true; break;
+            case "--png": outputs = outputs with { Pngs = true }; break;
+            case "--no-pdf": outputs = outputs with { Pdf = false }; break;
+            case "--waste": options = options with { Waste = true }; break;
+            case "--credit": options = options with { Credit = Next() }; break;
+            case "--year": options = options with { Year = int.Parse(Next(), CultureInfo.InvariantCulture) }; break;
+            default: throw new ArgumentException($"unknown option {rest[i]}");
+        }
+    }
+    if (!outputs.Pdf && !outputs.Pngs) throw new ArgumentException("--no-pdf needs --png, or there is nothing to write");
+    HoleIllustrationBuilder.Build(path, outDir, options, outputs, holes, new SyncProgress(Console.WriteLine), verbose);
     return 0;
 }
 
