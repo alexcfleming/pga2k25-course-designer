@@ -260,6 +260,12 @@ FIXED IN 2.6.0
   lying flat when it was scanned. Pages that matched poorly or were
   skipped (colour scans especially) now match. Import the scans again to
   replace sketches brought in before.
+- Terrain and sea: flatten strokes dragged off the side of the plot were
+  left out of the map, so a coast shaped that way came out wrong. Links
+  Lowland showed a few inland lakes where the game has ocean down both
+  sides. They now count. Land past the routing can change on other
+  courses, sometimes a lot, and rebuilt maps may gain sea at the plot's
+  edge. Holes barely move.
 
 NEW IN 2.5.0
 - Hole design simulator, new layout: a bar along the top picks the hole,

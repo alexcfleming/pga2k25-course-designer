@@ -35,10 +35,12 @@ public sealed record TerrainModelOptions
     public bool BrushShapes { get; init; } = true;
 
     /// <summary>
-    /// Leave out stamps whose centre sits on the plot edge (±<see cref="PlotHalfMetres"/>). The designer clamps the
-    /// centre of a brush dragged past the edge to the edge, and the game doesn't apply those stamps to the plot:
-    /// Sangoma's six 1000 m lower squares centred on z = ±1000 would sink the ground 35–100 m below its 2,290
-    /// in-game distance markers (RMS 5.7 m with them, 2.3 m without).
+    /// Leave out raise and lower stamps whose centre sits on the plot edge (±<see cref="PlotHalfMetres"/>). The designer
+    /// clamps the centre of a brush dragged past the edge to the edge, and the game doesn't apply those stamps to the
+    /// plot: Sangoma's six 1000 m lower squares centred on z = ±1000 would sink the ground 35–100 m below its 2,290
+    /// in-game distance markers (RMS 5.7 m with them, 2.3 m without). Flattens on the edge do apply: Links Lowland's
+    /// ocean is 19 large flattens dragged along its two sides, and without them the model shows inland lakes instead.
+    /// No in-game marker lies under an edge flatten on any course yet.
     /// </summary>
     public bool SkipEdgeStamps { get; init; } = true;
 
@@ -174,7 +176,7 @@ public static class TerrainReplay
     }
 
     static bool Applies(HeightStamp s, TerrainModelOptions options) =>
-        s.Scale > 0 && double.IsFinite(s.Value) && !(options.SkipEdgeStamps && IsOnPlotEdge(s, options.PlotHalfMetres));
+        s.Scale > 0 && double.IsFinite(s.Value) && !(options.SkipEdgeStamps && s.Tool != 0 && IsOnPlotEdge(s, options.PlotHalfMetres));
 
     static readonly System.Runtime.CompilerServices.ConditionalWeakTable<CourseModel, Dictionary<TerrainModelOptions, double[]>> ShiftCache = new();
 
