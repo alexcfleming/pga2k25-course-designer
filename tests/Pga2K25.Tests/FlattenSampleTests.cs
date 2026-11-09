@@ -31,6 +31,30 @@ public class FlattenSampleTests
         return (f.Sample(new Vec2(0, 0)) - ring.Average(f.Sample)) * Inches;
     }
 
+    /// <summary>
+    /// Brushes dragged past the plot edge are clamped to it. The game ignores raises and lowers there (Sangoma) but
+    /// applies flattens: Links Lowland's ocean is big flattens dragged along its two sides.
+    /// </summary>
+    [Fact]
+    public void OnThePlotEdge_FlattensApplyAndLowersDont()
+    {
+        var course = new CourseModel
+        {
+            Name = "Synthetic", Version = GameVersion.PGA2K25, SchemaVersion = 49, Holes = [],
+            SurfaceSplines = [], SurfaceBrushes = [], PlacedObjects = [],
+            HeightStamps =
+            [
+                new HeightStamp(0, 0, 72, new Vec2(0, 0), 1400, 0, 8),
+                new HeightStamp(1, 0, 54, new Vec2(1000, 0), 400, 0, -12),     // flatten, dragged off the +X side
+                new HeightStamp(2, 1, 54, new Vec2(-1000, 0), 400, 0, -12),    // lower, dragged off the -X side
+            ],
+        };
+        var f = TerrainReplay.Build(course, new Vec2(-1000, -100), new Vec2(1000, 100), new TerrainModelOptions { CellMetres = 4 });
+        Assert.True(f.Sample(new Vec2(960, 0)) < 0, $"flatten side {f.Sample(new Vec2(960, 0)):0.0} m");
+        Assert.Equal(8, f.Sample(new Vec2(-960, 0)), 1);
+        Assert.Equal(8, f.Sample(new Vec2(0, 0)), 1);
+    }
+
     [Fact]
     public void SmallFlatten_ShiftsTheGroundInsteadOfBuildingATable()
     {
