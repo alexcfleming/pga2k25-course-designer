@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 2.5.0
+COURSE DESIGNER STUDIO - release 2.6.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -9,9 +9,9 @@ Reads your .course files and makes printable products from them:
   - Hole sheets: a terrain sketch sheet per hole (PNG and PDF)
   - Greens book: slope and fall of every green
   - Yardage book, scorecard maps (six styles) and course cards
+    (including a Wind Card when the course has a wind rose)
   - Hole illustrations: a watercolour plate per hole, after the hole
     plates of Jim Ryan, illustrated by Tyler J. Rae (PNG and PDF)
-    (including a Wind Card when the course has a wind rose)
   - Construction estimate: what the course might cost to build as a real
     course, with a low / likely / high range (illustrative, not a bid)
 And a Hole design simulator that plays one hole thousands of times, tee
