@@ -224,6 +224,9 @@ public sealed class CourseModel
 
     /// <summary>Distance markers with the game's ground height under each (empty in most files).</summary>
     public IReadOnlyList<DistanceMarker> DistanceMarkers { get; init; } = [];
+
+    /// <summary>The same markers joined into the lines drawn with the measure tool (<see cref="CourseFormat.MeasureLines"/>).</summary>
+    public IReadOnlyList<MeasureLine> MeasureLines { get; init; } = [];
     public bool FlattenGreens { get; init; }
     public bool BlurHeight { get; init; }
     public double GreenSpeed { get; init; }
@@ -266,6 +269,7 @@ public sealed class CourseModel
             DistanceMarkers = Array(desc["distanceMarkers"]).Select(m => m?["position"])
                 .Where(p => p is not null && double.IsFinite(Num(p["y"], double.NaN)))
                 .Select(p => new DistanceMarker(ReadVec(p), Num(p!["y"]))).ToList(),
+            MeasureLines = CourseFormat.MeasureLines.Read(desc["distanceMarkers"] as JsonArray),
             FlattenGreens = desc["flattenGreens"]?.GetValue<bool>() ?? false,
             BlurHeight = desc["blurHeight"]?.GetValue<bool>() ?? false,
             GreenSpeed = Num(desc["greenSpeed"], -1),

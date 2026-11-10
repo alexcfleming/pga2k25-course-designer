@@ -868,6 +868,12 @@
       <ScrollViewer Grid.Row="1" Grid.ColumnSpan="2" IsVisible="{Binding IsMeasurements}">
         <StackPanel Spacing="16" MaxWidth="980" HorizontalAlignment="Left">
           <Border Classes="card" Padding="16">
+            <StackPanel Spacing="8">
+              <TextBlock Classes="h2" Text="Read from the course file"/>
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Nothing to type: in the designer, draw a measure line on each hole from the tee marker to the aim-point marker and on to the green circle (one line with three clicks, or two lines), then save the course. The course file keeps every measure point with the game's own height, so each leg whose ends sit within 5 yds of the markers is read here when the course is opened again. These replace a typed reading for the same leg. Every other measure line in the file is listed too, with the game's height change along it against the model's, so a line laid anywhere checks the terrain. Leave the lines in place while you want them checked; delete them in the game to drop them."/>
+            </StackPanel>
+          </Border>
+          <Border Classes="card" Padding="16">
             <StackPanel Spacing="12">
               <TextBlock Classes="h2" Text="Add a reading"/>
               <TextBlock Classes="muted" TextWrapping="Wrap" Text="Use the in-game measure tool from the back tee square to the aim-point marker, or from the aim point to the green circle. Yards are filled in from the course file, so you can check the click landed on the marker."/>
@@ -910,6 +916,7 @@
                 <TextBlock Grid.Column="3" Text="Game" Classes="muted small" TextAlignment="Right"/>
                 <TextBlock Grid.Column="4" Text="Model" Classes="muted small" TextAlignment="Right"/>
                 <TextBlock Grid.Column="5" Text="Off by" Classes="muted small" TextAlignment="Right"/>
+                <TextBlock Grid.Column="6" Text="From" Classes="muted small" Margin="16,0,0,0"/>
               </Grid>
               <ItemsControl ItemsSource="{Binding MeasurementRows}">
                 <ItemsControl.ItemTemplate>
@@ -922,7 +929,8 @@
                         <TextBlock Grid.Column="3" Text="{Binding Game}" Classes="mono" TextAlignment="Right" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="4" Text="{Binding Model}" Classes="mono" TextAlignment="Right" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="5" Text="{Binding Diff}" Classes="mono" TextAlignment="Right" Foreground="{Binding DiffBrush}" VerticalAlignment="Center"/>
-                        <Button Grid.Column="6" Content="Remove" Command="{Binding RemoveCommand}" HorizontalAlignment="Right" MinHeight="28" Padding="10,0"/>
+                        <TextBlock Grid.Column="6" Text="{Binding Source}" Classes="muted small" Margin="16,0,0,0" VerticalAlignment="Center"/>
+                        <Button Grid.Column="6" Content="Remove" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}" HorizontalAlignment="Right" MinHeight="28" Padding="10,0"/>
                       </Grid>
                     </Border>
                   </DataTemplate>

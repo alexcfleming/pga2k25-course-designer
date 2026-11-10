@@ -45,13 +45,14 @@ public partial class HoleSimViewModel
         if (_model is null || _greenBase is null) { GreenSpotSummary = "Building the green…"; return; }
         foreach (var s in GreenGate.SuggestSpots(_model, _greenBase))
         {
-            var saved = _live.Readings.FirstOrDefault(r => r.Spot == s.Name);
+            var saved = _live.Readings.FirstOrDefault(r => r.Spot == s.Name && !r.FromFile);
             var row = new SpotRowViewModel(s, _model, saved?.Label ?? "", saved?.HeldOut ?? s.HeldOut, ReadingsChanged);
             row.SetWhere(GreenSpotText(s));
             GreenSpotRows.Add(row);
         }
         UpdateZeroModel();
         UpdateGreenSpotSummary();
+        ApplyFileReadings();
     }
 
     string GreenSpotText(MeasureSpot s)
@@ -67,7 +68,7 @@ public partial class HoleSimViewModel
         int n = GreenSpotRows.Count(r => r.Feet is not null);
         bool g = SpotRows.Any(r => r.Spot.Name == "G" && r.Feet is not null);
         GreenSpotSummary = n == 0
-            ? $"No green readings yet. Two or three per pin ({GreenSpotRows.Count} spots); the third (across) is held back to test the fit."
+            ? $"No green readings yet. Two or three per pin ({GreenSpotRows.Count} spots). Tick Hold back on a few to test a fitted green."
             : $"{n} green reading{(n == 1 ? "" : "s")}." + (g ? " Compared against G, so the tee's height doesn't count." : " Read G too, so the contours are judged against the green itself.");
     }
 

@@ -88,7 +88,7 @@ public class HoleSimTerrainTests
 
     [Trait("Speed", "Slow")]
     [Fact]
-    public void Suggested_spots_run_along_the_line_and_hold_back_every_fourth()
+    public void Suggested_spots_run_along_the_line_and_none_is_held_back()
     {
         var (_, m) = Hole3.Value;
         var all = TerrainGate.SuggestSpots(m);
@@ -98,7 +98,7 @@ public class HoleSimTerrainTests
         Assert.False(all[0].HeldOut);
         var spots = all.Skip(1).ToList();
         Assert.InRange(spots.Count, 8, 13);
-        Assert.Equal(spots.Count / 4 + (spots.Count % 4 >= 3 ? 1 : 0), spots.Count(s => s.HeldOut));
+        Assert.DoesNotContain(all, s => s.HeldOut);   // until the user ticks one
         Assert.All(spots, s => Assert.True(Polyline.Nearest(m.Route, s.Where).Distance < 25));
         Assert.Equal(Ground.Green, m.Grid.At(spots[^1].Where));
         Assert.Equal(Enumerable.Range(1, spots.Count).Select(i => $"M{i}"), spots.Select(s => s.Name));

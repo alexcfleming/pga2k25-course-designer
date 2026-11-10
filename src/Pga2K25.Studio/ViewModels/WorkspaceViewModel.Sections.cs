@@ -170,7 +170,8 @@ public partial class WorkspaceViewModel
     void RebuildMeasurementRows()
     {
         MeasurementRows.Clear();
-        foreach (var m in _measured.OrderBy(m => m.Hole).ThenBy(m => m.TeeToAim ? 0 : 1))
+        var all = AllMeasured;
+        foreach (var m in all.OrderBy(m => m.Hole).ThenBy(m => m.TeeToAim ? 0 : 1))
         {
             double? model = null;
             if (_survey?.Holes.FirstOrDefault(h => h.Hole.Number == m.Hole) is { } h)
@@ -181,9 +182,16 @@ public partial class WorkspaceViewModel
             }
             MeasurementRows.Add(new MeasurementRowViewModel(m, model, () => RemoveMeasurement(m)));
         }
-        MeasurementSummary = _measured.Count == 0 ? "No measurements yet" : HasModelCheck ? ModelCheck : $"{_measured.Count} measurement(s)";
+        foreach (var l in _fileLines.OrderBy(l => l.Hole == 0 ? int.MaxValue : l.Hole))
+            MeasurementRows.Add(new MeasurementRowViewModel(l, _survey is null ? null : _survey.Feet(l.To) - _survey.Feet(l.From)));
+        int replaced = _measured.Count - all.Count(m => !m.FromCourseFile);
+        int fromFile = _fileLegs.Count + _fileLines.Count;
+        string source = fromFile == 0 ? ""
+            : $" · {fromFile} from the course file's measure lines" + (replaced > 0 ? $" (replacing {replaced} typed)" : "");
+        int total = all.Count + _fileLines.Count;
+        MeasurementSummary = total == 0 ? "No measurements yet" : (HasModelCheck ? ModelCheck : $"{total} measurement(s)") + source;
         var nav = Sections.FirstOrDefault(s => s.Label == MeasurementsSection);
-        if (nav is not null) nav.Detail = _measured.Count > 0 ? _measured.Count.ToString() : "";
+        if (nav is not null) nav.Detail = total > 0 ? total.ToString() : "";
     }
 
     // ───────────────────────── course settings ─────────────────────────
@@ -264,15 +272,37 @@ public partial class RecentCourseViewModel : ObservableObject
     [RelayCommand] private void Open() => _open();
 }
 
-public partial class MeasurementRowViewModel(MeasuredLeg m, double? model, Action remove) : ObservableObject
+public partial class MeasurementRowViewModel : ObservableObject
 {
+    readonly Action? _remove;
+
+    MeasurementRowViewModel(string hole, string leg, int yards, double feet, double? model, bool fromFile, Action? remove)
+    {
+        _remove = remove;
+        Hole = hole; Leg = leg; Yards = $"{yards} yd"; Game = Signed(feet) + " ft";
+        CanRemove = !fromFile; Source = fromFile ? "course file" : "typed";
+        Model = model is double v ? Signed(v) + " ft" : "—";
+        Diff = model is double d ? Signed(d - feet) + " ft" : "";
+        DiffBrush = Brush.Parse(model is double e && Math.Abs(e - feet) > 4 ? "#8A5300" : "#1F4D30");
+    }
+
+    public MeasurementRowViewModel(MeasuredLeg m, double? model, Action remove)
+        : this(m.Hole.ToString(), m.TeeToAim ? "Tee → aim" : "Aim → green", m.Yards, m.Feet, model, m.FromCourseFile, remove) { }
+
+    /// <summary>Another leg of a measure line in the course file.</summary>
+    public MeasurementRowViewModel(MeasuredLine l, double? model)
+        : this(l.Hole > 0 ? l.Hole.ToString() : "—", "Measure line", l.Yards, l.Feet, model, true, null) { }
+
     static string Signed(double v) => (v > 0.05 ? "+" : v < -0.05 ? "−" : "") + Math.Abs(v).ToString("0.0");
-    public string Hole { get; } = m.Hole.ToString();
-    public string Leg { get; } = m.TeeToAim ? "Tee → aim" : "Aim → green";
-    public string Yards { get; } = $"{m.Yards} yd";
-    public string Game { get; } = Signed(m.Feet) + " ft";
-    public string Model { get; } = model is double v ? Signed(v) + " ft" : "—";
-    public string Diff { get; } = model is double d ? Signed(d - m.Feet) + " ft" : "";
-    public IBrush DiffBrush { get; } = Brush.Parse(model is double e && Math.Abs(e - m.Feet) > 4 ? "#8A5300" : "#1F4D30");
-    [RelayCommand] private void Remove() => remove();
+    public string Hole { get; }
+    public string Leg { get; }
+    public string Yards { get; }
+    public string Game { get; }
+    /// <summary>Typed readings can be removed here; a course-file one goes when its measure line is deleted in the game.</summary>
+    public bool CanRemove { get; }
+    public string Source { get; }
+    public string Model { get; }
+    public string Diff { get; }
+    public IBrush DiffBrush { get; }
+    [RelayCommand] private void Remove() => _remove?.Invoke();
 }

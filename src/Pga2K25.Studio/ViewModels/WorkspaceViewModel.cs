@@ -30,7 +30,12 @@ public partial class WorkspaceViewModel : ObservableObject
     TerrainMapRenderer? _renderer;
     SKRect _mapRect;
     Pga2K25.Maps.MapProjection? _projection;
-    List<MeasuredLeg> _measured = [];
+    List<MeasuredLeg> _measured = [];   // typed in, saved in Measurements.csv
+    List<MeasuredLeg> _fileLegs = [];   // read from the measure lines saved in the course file
+    List<MeasuredLine> _fileLines = []; // the file's other measure-line legs, off the route markers
+
+    /// <summary>The readings in use: the course file's legs, and the typed ones it doesn't replace.</summary>
+    List<MeasuredLeg> AllMeasured => Measurements.Combine(_fileLegs, _measured);
     int _selectedHole;
 
     [ObservableProperty] private WriteableBitmap? _mapImage;
@@ -104,9 +109,13 @@ public partial class WorkspaceViewModel : ObservableObject
             // Hilltops are always surveyed; the layer toggle only decides whether they are drawn.
             var survey = TerrainSurvey.Build(course, ViewerOptions() with { ShowSummits = true });
             _measured = Measurements.Load(Measurements.PathFor(Settings, Entry.Name));
+            var fileLegs = Measurements.FromCourse(course);
+            var fileLines = Measurements.OtherLegs(course);
             Dispatcher.UIThread.Post(() =>
             {
                 _survey = survey;
+                _fileLegs = fileLegs;
+                _fileLines = fileLines;
                 HasInlandWater = survey.InlandWater is not null || _notWater.Count > 0;
                 RebuildNotWaterRows();
                 RebuildRoutingRows();
@@ -199,12 +208,14 @@ public partial class WorkspaceViewModel : ObservableObject
         Legs.Clear();
         // The file's own route waypoints: readings are taken from the route's tee marker, not necessarily the back tee.
         var r = h.Hole.Route;
-        foreach (var m in _measured.Where(m => m.Hole == number))
+        foreach (var m in AllMeasured.Where(m => m.Hole == number))
         {
             var (a, b) = m.TeeToAim ? (r[0], r[1]) : (r[^2], r[^1]);
             double model = _survey.Feet(b) - _survey.Feet(a);
             Legs.Add(new LegRowViewModel((m.TeeToAim ? "Tee → aim · " : "Aim → green · ") + $"{m.Yards} yd", m.Feet, model));
         }
+        foreach (var l in _fileLines.Where(l => l.Hole == number))
+            Legs.Add(new LegRowViewModel($"Measure line · {l.Yards} yd", l.Feet, _survey.Feet(l.To) - _survey.Feet(l.From)));
         HasLegs = Legs.Count > 0;
 
         WaterRows.Clear();
@@ -222,10 +233,11 @@ public partial class WorkspaceViewModel : ObservableObject
 
     void UpdateModelCheck()
     {
-        if (_survey is null || _measured.Count == 0) { HasModelCheck = false; return; }
+        var all = AllMeasured;
+        if (_survey is null || all.Count + _fileLines.Count == 0) { HasModelCheck = false; return; }
         double sum = 0;
         int n = 0;
-        foreach (var m in _measured)
+        foreach (var m in all)
         {
             if (_survey.Holes.FirstOrDefault(h => h.Hole.Number == m.Hole) is not { } h) continue;
             var r = h.Hole.Route;
@@ -234,8 +246,13 @@ public partial class WorkspaceViewModel : ObservableObject
             sum += e * e;
             n++;
         }
-        HasModelCheck = n > 0;
-        ModelCheck = n > 0 ? $"Model check · {Math.Sqrt(sum / n):0.0} ft RMS over {n} measured legs" : "";
+        double lineSum = _fileLines.Sum(l => Math.Pow(_survey.Feet(l.To) - _survey.Feet(l.From) - l.Feet, 2));
+        int lines = _fileLines.Count;
+        HasModelCheck = n + lines > 0;
+        var parts = new List<string>();
+        if (n > 0) parts.Add($"{Math.Sqrt(sum / n):0.0} ft RMS over {n} measured leg{(n == 1 ? "" : "s")}");
+        if (lines > 0) parts.Add($"{Math.Sqrt(lineSum / lines):0.0} ft over {lines} other measure-line leg{(lines == 1 ? "" : "s")}");
+        ModelCheck = parts.Count > 0 ? "Model check · " + string.Join(" · ", parts) : "";
     }
 
     // ───────────────────────── products ─────────────────────────
