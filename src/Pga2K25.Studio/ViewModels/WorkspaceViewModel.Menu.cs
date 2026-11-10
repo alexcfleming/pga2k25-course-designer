@@ -97,7 +97,8 @@ public partial class WorkspaceViewModel
         int built = ProductNav.Items.Count(n => n.State != ProductState.NotBuilt);
         int stale = ProductNav.Items.Count(n => n.State == ProductState.OlderThanSave);
         ProductNav.Summary = $"{built} of {ProductNav.Items.Count} built";
-        ProductNav.Tip = stale == 0 ? ProductNav.Summary : $"{ProductNav.Summary}, {stale} older than the course file's last save";
+        ProductNav.Tip = (stale == 0 ? ProductNav.Summary : $"{ProductNav.Summary}, {stale} older than the course file's last save")
+            + ". Dots: green built, amber built before the course file's last save, hollow not built.";
         if (ProductViewer is { } v)
             ProductViewer = NewViewer(v.Product);
     }

@@ -89,15 +89,23 @@
         </Grid>
       </Button>
     </DataTemplate>
+    <DataTemplate x:Key="SettingsHeadTemplate" x:DataType="vm:PanelCardViewModel">
+      <Button Classes="settinghead" Command="{Binding ToggleCommand}" AutomationProperties.Name="{Binding Title, StringFormat='{}{0} section'}">
+        <Grid ColumnDefinitions="24,Auto,*,Auto" ColumnSpacing="10">
+          <TextBlock Classes="icon big" Text="{Binding Icon}"/>
+          <TextBlock Grid.Column="1" Classes="h2" Text="{Binding Title}" VerticalAlignment="Center"/>
+          <TextBlock Grid.Column="2" Classes="muted small" Text="{Binding Summary}" IsVisible="{Binding !IsOpen}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+          <TextBlock Grid.Column="3" Classes="icon tiny" Text="&#xE76C;" IsVisible="{Binding !IsOpen}"/>
+          <TextBlock Grid.Column="3" Classes="icon tiny" Text="&#xE70D;" IsVisible="{Binding IsOpen}"/>
+        </Grid>
+      </Button>
+    </DataTemplate>
   </UserControl.Resources>
   <DockPanel>
     <!-- Title bar -->
     <Border DockPanel.Dock="Top" Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,0,1" Padding="20,10">
       <DockPanel>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <Border Classes="chip" Background="{StaticResource Tint}" VerticalAlignment="Center">
-            <TextBlock Text="Read only" FontSize="12" Foreground="#3F4A43"/>
-          </Border>
           <Button Content="Open output folder" Command="{Binding OpenOutputFolderCommand}"/>
           <Button Classes="primary" Content="Build all products" Command="{Binding BuildAllCommand}" IsEnabled="{Binding !Busy}"/>
         </StackPanel>
@@ -124,12 +132,6 @@
         <!-- Full menu -->
         <DockPanel IsVisible="{Binding !MenuCollapsed}" Margin="10,14,10,10">
           <StackPanel DockPanel.Dock="Bottom" Spacing="6">
-            <StackPanel Orientation="Horizontal" Spacing="10" Margin="8,0" ToolTip.Tip="Product dots: built, built before the course file was last saved, not built">
-              <StackPanel Orientation="Horizontal" Spacing="4"><Ellipse Width="7" Height="7" Fill="#3B8B54" VerticalAlignment="Center"/><TextBlock Text="built" Classes="muted small"/></StackPanel>
-              <StackPanel Orientation="Horizontal" Spacing="4"><Ellipse Width="7" Height="7" Fill="#D9A033" VerticalAlignment="Center"/><TextBlock Text="older than save" Classes="muted small"/></StackPanel>
-              <StackPanel Orientation="Horizontal" Spacing="4"><Ellipse Width="7" Height="7" Stroke="#9AA39D" StrokeThickness="1.5" VerticalAlignment="Center"/><TextBlock Text="not built" Classes="muted small"/></StackPanel>
-            </StackPanel>
-            <TextBlock Text="{Binding OutputFolder}" Classes="mono" FontSize="10.5" Foreground="#6B746E" TextWrapping="Wrap" Margin="8,0" ToolTip.Tip="Output folder"/>
             <Button Classes="nav" Command="{Binding ToggleMenuCommand}" Padding="8,5" AutomationProperties.Name="Fold the menu">
               <StackPanel Orientation="Horizontal" Spacing="10">
                 <TextBlock Classes="icon" Width="22" Text="{Binding MenuToggleGlyph}"/>
@@ -152,6 +154,7 @@
                 <StackPanel VerticalAlignment="Center">
                   <TextBlock Text="{Binding CourseName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
                   <TextBlock Text="{Binding CourseKindText}" Classes="muted small"/>
+                  <TextBlock Text="{Binding CourseMeta}" Classes="muted small" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding CourseMeta}"/>
                 </StackPanel>
               </DockPanel>
               <ContentControl Content="{Binding TerrainNav}" ContentTemplate="{StaticResource NavItemTemplate}"/>
@@ -236,21 +239,14 @@
             <Button Content="Open image" Command="{Binding OpenTerrainImageCommand}" IsVisible="{Binding HasTerrainImage}" ToolTip.Tip="Open the terrain map PNG"/>
             <Button Content="Build terrain map" Command="{Binding BuildTerrainCommand}" IsVisible="{Binding TerrainNotBuilt}" IsEnabled="{Binding !Busy}"/>
           </StackPanel>
-          <Border Classes="chip" Background="{StaticResource AccentTint}" CornerRadius="8" IsVisible="{Binding HasModelCheck}">
+          <Border Classes="chip" Background="{StaticResource AccentTint}" CornerRadius="8" IsVisible="{Binding ShowsModelCheck}">
             <TextBlock Text="{Binding ModelCheck}" FontSize="12" Foreground="{StaticResource AccentInk}"/>
           </Border>
-          <Border Classes="chip" Background="#E3EDF5" CornerRadius="8">
+          <Border Classes="chip" Background="#E3EDF5" CornerRadius="8" IsVisible="{Binding ShowsHeightStrip}">
             <TextBlock Text="{Binding SeaText}" FontSize="12" Foreground="#1E4A70"/>
           </Border>
         </StackPanel>
-        <StackPanel Spacing="4">
-          <TextBlock Classes="h1" Text="{Binding Section}"/>
-          <TextBlock Classes="muted">
-            <Run Text="{Binding CourseName}"/>
-            <Run Text=" · "/>
-            <Run Text="{Binding CourseMeta}"/>
-          </TextBlock>
-        </StackPanel>
+        <TextBlock Classes="h1" Text="{Binding Section}" VerticalAlignment="Bottom"/>
       </DockPanel>
 
       <!-- Viewer -->
@@ -968,13 +964,17 @@
           <Border Classes="card" Padding="16">
             <StackPanel Spacing="8">
               <TextBlock Classes="h2" Text="Read from the course file"/>
-              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Nothing to type: in the designer, draw a measure line on each hole from the tee marker to the aim-point marker and on to the green circle (one line with three clicks, or two lines), then save the course. The course file keeps every measure point with the game's own height, so each leg whose ends sit within 5 yds of the markers is read here when the course is opened again. These replace a typed reading for the same leg. Every other measure line in the file is listed too, with the game's height change along it against the model's, so a line laid anywhere checks the terrain. Leave the lines in place while you want them checked; delete them in the game to drop them."/>
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Draw measure lines in the designer and save: each tee → aim → green leg is read here with the game's own heights."/>
+              <ToggleButton Name="HowMeasureFile" Classes="howto" Content="How this works"/>
+              <TextBlock Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding #HowMeasureFile.IsChecked}" Text="Nothing to type: in the designer, draw a measure line on each hole from the tee marker to the aim-point marker and on to the green circle (one line with three clicks, or two lines), then save the course. The course file keeps every measure point with the game's own height, so each leg whose ends sit within 5 yds of the markers is read here when the course is opened again. These replace a typed reading for the same leg. Every other measure line in the file is listed too, with the game's height change along it against the model's, so a line laid anywhere checks the terrain. Leave the lines in place while you want them checked; delete them in the game to drop them."/>
             </StackPanel>
           </Border>
           <Border Classes="card" Padding="16">
             <StackPanel Spacing="12">
               <TextBlock Classes="h2" Text="Add a reading"/>
-              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Use the in-game measure tool from the back tee square to the aim-point marker, or from the aim point to the green circle. Yards are filled in from the course file, so you can check the click landed on the marker."/>
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Or type one from the in-game measure tool."/>
+              <ToggleButton Name="HowMeasureType" Classes="howto" Content="How this works"/>
+              <TextBlock Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding #HowMeasureType.IsChecked}" Text="Use the in-game measure tool from the back tee square to the aim-point marker, or from the aim point to the green circle. Yards are filled in from the course file, so you can check the click landed on the marker."/>
               <WrapPanel Orientation="Horizontal" ItemSpacing="10" LineSpacing="10">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Hole" Classes="muted small"/>
@@ -1019,7 +1019,7 @@
               <ItemsControl ItemsSource="{Binding MeasurementRows}">
                 <ItemsControl.ItemTemplate>
                   <DataTemplate x:DataType="vm:MeasurementRowViewModel">
-                    <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,4">
+                    <Border Classes="readingrow" BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,4">
                       <Grid ColumnDefinitions="60,130,90,100,100,100,*">
                         <TextBlock Text="{Binding Hole}" FontWeight="Medium" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="{Binding Leg}" VerticalAlignment="Center"/>
@@ -1028,7 +1028,10 @@
                         <TextBlock Grid.Column="4" Text="{Binding Model}" Classes="mono" TextAlignment="Right" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="5" Text="{Binding Diff}" Classes="mono" TextAlignment="Right" Foreground="{Binding DiffBrush}" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="6" Text="{Binding Source}" Classes="muted small" Margin="16,0,0,0" VerticalAlignment="Center"/>
-                        <Button Grid.Column="6" Content="Remove" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}" HorizontalAlignment="Right" MinHeight="28" Padding="10,0"/>
+                        <Button Grid.Column="6" Classes="rowremove" Command="{Binding RemoveCommand}" IsVisible="{Binding CanRemove}" HorizontalAlignment="Right"
+                                ToolTip.Tip="Remove this reading" AutomationProperties.Name="Remove reading">
+                          <TextBlock Classes="icon" Text="&#xE711;"/>
+                        </Button>
                       </Grid>
                     </Border>
                   </DataTemplate>
@@ -1046,11 +1049,14 @@
 
       <!-- Course settings -->
       <ScrollViewer Grid.Row="1" Grid.ColumnSpan="2" IsVisible="{Binding IsCourseSettings}">
-        <Border Classes="card" Padding="20" MaxWidth="820" HorizontalAlignment="Left" VerticalAlignment="Top">
-          <StackPanel Spacing="18">
+        <StackPanel Spacing="10" MaxWidth="820" HorizontalAlignment="Left" VerticalAlignment="Top">
+            <Border Classes="card" Padding="16,12">
             <StackPanel Spacing="8">
-              <TextBlock Classes="h2" Text="Place"/>
-              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Optional. Where the course is, real or invented. The place lines print under the name on the Plan Sheet scorecard map and before the terrain map's subtitle; the description and sea side fill the course cards wherever a card settings file leaves them unset. With a wind rose, the course data card's wind arrow follows the rose, as the Wind Card does; without one, it follows Prevailing wind from."/>
+              <ContentControl Content="{Binding SetPlace}" ContentTemplate="{StaticResource SettingsHeadTemplate}"/>
+            <StackPanel Spacing="8" IsVisible="{Binding SetPlace.IsOpen}">
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Optional. Where the course is, real or invented, for the maps, cards and wind."/>
+              <ToggleButton Name="HowPlace" Classes="howto" Content="How this works"/>
+              <TextBlock Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding #HowPlace.IsChecked}" Text="The place lines print under the name on the Plan Sheet scorecard map and before the terrain map's subtitle; the description and sea side fill the course cards wherever a card settings file leaves them unset. With a wind rose, the course data card's wind arrow follows the rose, as the Wind Card does; without one, it follows Prevailing wind from."/>
               <Grid ColumnDefinitions="*,10,*,10,*" Margin="0,4,0,0">
                 <StackPanel Grid.Column="0" Spacing="3">
                   <TextBlock Text="Place line 1" Classes="muted small"/>
@@ -1160,9 +1166,15 @@
                 <Run Text=". The course file is never changed."/>
               </TextBlock>
             </StackPanel>
+            </StackPanel>
+            </Border>
+            <Border Classes="card" Padding="16,12">
             <StackPanel Spacing="8">
-              <TextBlock Classes="h2" Text="Holes"/>
-              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Optional. What the course file can't say about its holes. Tee names head the yardage columns of the yardage book, scorecard maps and course cards; hole names add a Name column to every scorecard table (left out when no hole is named). Hazards and green notes fill the hole data card: leave them blank to use what is read from the course file, shown faint. Pars, yardages and bearings always come from the course file."/>
+              <ContentControl Content="{Binding SetHoles}" ContentTemplate="{StaticResource SettingsHeadTemplate}"/>
+            <StackPanel Spacing="8" IsVisible="{Binding SetHoles.IsOpen}">
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Optional. Tee and hole names, and hand-written hazards and green notes."/>
+              <ToggleButton Name="HowHoles" Classes="howto" Content="How this works"/>
+              <TextBlock Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding #HowHoles.IsChecked}" Text="Tee names head the yardage columns of the yardage book, scorecard maps and course cards; hole names add a Name column to every scorecard table (left out when no hole is named). Hazards and green notes fill the hole data card: leave them blank to use what is read from the course file, shown faint. Pars, yardages and bearings always come from the course file."/>
               <StackPanel Spacing="3" Margin="0,4,0,0">
                 <TextBlock Text="Tee set names, shortest first" Classes="muted small"/>
                 <TextBox Text="{Binding TeeNamesText}" PlaceholderText="e.g. Red, Green, White, Blue" AutomationProperties.Name="Tee set names"/>
@@ -1192,9 +1204,15 @@
                 <Run Text=". The course file is never changed."/>
               </TextBlock>
             </StackPanel>
+            </StackPanel>
+            </Border>
+            <Border Classes="card" Padding="16,12">
             <StackPanel Spacing="8">
-              <TextBlock Classes="h2" Text="Logo"/>
-              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Optional. The course's logo, in as many versions as you have: a seal (round, with the name), a mark (no text) and a lockup (mark beside the name), each in colour, ink (one dark colour) and light (for dark backgrounds). Each product prints the version that suits its paper: colour on the Modern maps, cards, greens and yardage books and the terrain map; ink on the engraved maps and the hole sketch sheets. A missing version falls back to the nearest one you gave. PNG with a transparent background works best."/>
+              <ContentControl Content="{Binding SetLogo}" ContentTemplate="{StaticResource SettingsHeadTemplate}"/>
+            <StackPanel Spacing="8" IsVisible="{Binding SetLogo.IsOpen}">
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Optional. Your course logo, in up to nine versions."/>
+              <ToggleButton Name="HowLogo" Classes="howto" Content="How this works"/>
+              <TextBlock Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding #HowLogo.IsChecked}" Text="The course's logo, in as many versions as you have: a seal (round, with the name), a mark (no text) and a lockup (mark beside the name), each in colour, ink (one dark colour) and light (for dark backgrounds). Each product prints the version that suits its paper: colour on the Modern maps, cards, greens and yardage books and the terrain map; ink on the engraved maps and the hole sketch sheets. A missing version falls back to the nearest one you gave. PNG with a transparent background works best."/>
               <Grid ColumnDefinitions="64,*" Margin="0,4,0,0">
                 <StackPanel Grid.Column="0" Margin="0,22,0,0">
                   <TextBlock Text="Seal" Classes="muted small" Height="118" VerticalAlignment="Top" Padding="0,34,0,0"/>
@@ -1235,13 +1253,23 @@
                 <Run Text=" and listed in Logos.json, so the course keeps them."/>
               </TextBlock>
             </StackPanel>
-            <StackPanel Spacing="4">
-              <TextBlock Classes="h2" Text="Scorecard maps"/>
-              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Bunker merge: painted bunker dabs closer than this are drawn as one bunker. 10 m suits sand painted as scattered dabs; 4 m keeps pots in a complex apart. Rebuild the scorecard maps to see it."/>
+            </StackPanel>
+            </Border>
+            <Border Classes="card" Padding="16,12">
+            <StackPanel Spacing="8">
+              <ContentControl Content="{Binding SetMaps}" ContentTemplate="{StaticResource SettingsHeadTemplate}"/>
+            <StackPanel Spacing="4" IsVisible="{Binding SetMaps.IsOpen}">
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Painted bunker dabs closer than this print as one bunker."/>
+              <ToggleButton Name="HowMaps" Classes="howto" Content="How this works"/>
+              <TextBlock Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding #HowMaps.IsChecked}" Text="10 m suits sand painted as scattered dabs; 4 m keeps pots in a complex apart. Rebuild the scorecard maps to see it."/>
               <ComboBox ItemsSource="{Binding BunkerMerges}" SelectedItem="{Binding BunkerMerge}" MinWidth="160" Margin="0,6,0,0" AutomationProperties.Name="Bunker merge"/>
             </StackPanel>
-            <StackPanel Spacing="4">
-              <TextBlock Classes="h2" Text="Course card settings"/>
+            </StackPanel>
+            </Border>
+            <Border Classes="card" Padding="16,12">
+            <StackPanel Spacing="8">
+              <ContentControl Content="{Binding SetCards}" ContentTemplate="{StaticResource SettingsHeadTemplate}"/>
+            <StackPanel Spacing="4" IsVisible="{Binding SetCards.IsOpen}">
               <TextBlock Classes="muted" TextWrapping="Wrap" Text="Optional. A card settings file (wind, ocean side, formats) for the course cards."/>
               <DockPanel Margin="0,6,0,0">
                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" Margin="8,0,0,0">
@@ -1251,15 +1279,20 @@
                 <TextBox Text="{Binding CardConfigPath}" IsReadOnly="True" PlaceholderText="None"/>
               </DockPanel>
             </StackPanel>
-            <StackPanel Spacing="4">
-              <TextBlock Classes="h2" Text="Files"/>
+            </StackPanel>
+            </Border>
+            <Border Classes="card" Padding="16,12">
+            <StackPanel Spacing="8">
+              <ContentControl Content="{Binding SetFiles}" ContentTemplate="{StaticResource SettingsHeadTemplate}"/>
+            <StackPanel Spacing="4" IsVisible="{Binding SetFiles.IsOpen}">
               <TextBlock Text="Course file (read only)" Classes="muted small"/>
               <TextBlock Text="{Binding CoursePath}" Classes="mono small" TextWrapping="Wrap"/>
               <TextBlock Text="Products and measurements" Classes="muted small" Margin="0,6,0,0"/>
               <TextBlock Text="{Binding OutputFolder}" Classes="mono small" TextWrapping="Wrap"/>
             </StackPanel>
+            </StackPanel>
+            </Border>
           </StackPanel>
-        </Border>
       </ScrollViewer>
 
       <!-- Estimate inputs -->
@@ -1275,7 +1308,6 @@
                 <Button Classes="primary" Content="Save and rebuild estimate" Command="{Binding SaveAndRebuildCommand}" IsEnabled="{Binding !Busy}"/>
               </StackPanel>
               <StackPanel Spacing="4">
-                <TextBlock Classes="h2" Text="Estimate inputs"/>
                 <TextBlock Classes="muted" TextWrapping="Wrap" Text="Leave a box blank to use the default. Course choices are saved for this course; prices are saved for every course."/>
                 <TextBlock Text="{Binding Message}" Foreground="{Binding MessageBrush}" TextWrapping="Wrap"
                            IsVisible="{Binding Message, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
@@ -1287,7 +1319,9 @@
           <Border Classes="card" Padding="16">
             <StackPanel Spacing="12">
               <TextBlock Classes="h2" Text="Land"/>
-              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Ground inside the play splines is built; everything else is natural. Each hole's zone class sets how much of the finished relief counts as given. Fidelity shifts every class: more fidelity, more ground treated as natural, less earthwork."/>
+              <TextBlock Classes="muted" TextWrapping="Wrap" Text="Ground inside the play splines is built; everything else is natural."/>
+              <ToggleButton Name="HowLand" Classes="howto" Content="How this works"/>
+              <TextBlock Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding #HowLand.IsChecked}" Text="Each hole's zone class sets how much of the finished relief counts as given. Fidelity shifts every class: more fidelity, more ground treated as natural, less earthwork."/>
               <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="Fidelity offset" VerticalAlignment="Center" Width="110"/>
                 <Slider Minimum="-0.5" Maximum="0.5" TickFrequency="0.05" IsSnapToTickEnabled="True" Value="{Binding FidelityOffset}" Width="320"/>

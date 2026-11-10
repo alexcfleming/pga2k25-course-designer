@@ -207,6 +207,18 @@ public class StudioTests
     }
 
     [Fact]
+    public void CourseSettings_FoldedSectionsSayWhatIsSet()
+    {
+        Assert.Equal("No place set", Pga2K25.Studio.ViewModels.WorkspaceViewModel.PlaceSummary(["", " ", ""], null, false));
+        Assert.Equal("Olkhon Island, Lake Baikal · generated region · wind rose",
+            Pga2K25.Studio.ViewModels.WorkspaceViewModel.PlaceSummary([" Olkhon Island", "Lake Baikal", ""], "generated region", true));
+        Assert.Equal("Tee names not set", Pga2K25.Studio.ViewModels.WorkspaceViewModel.HolesSummary("", 0));
+        Assert.Equal("Tees: Red, White · 1 hole named", Pga2K25.Studio.ViewModels.WorkspaceViewModel.HolesSummary("Red, White ", 1));
+        Assert.Equal("No logo", Pga2K25.Studio.ViewModels.WorkspaceViewModel.LogoSummary(0, 9));
+        Assert.Equal("3 of 9 versions", Pga2K25.Studio.ViewModels.WorkspaceViewModel.LogoSummary(3, 9));
+    }
+
+    [Fact]
     public void ScorecardMap_CountsAsBuiltWithoutTheVintageStyle()
     {
         string root = Path.Combine(Path.GetTempPath(), $"studio-scorecard-{Guid.NewGuid():N}");

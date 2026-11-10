@@ -19,7 +19,10 @@
 
     <ScrollViewer>
       <StackPanel Margin="28,24" Spacing="18" MaxWidth="860" HorizontalAlignment="Left">
-        <TextBlock Classes="h1" Text="Settings"/>
+        <StackPanel Spacing="4">
+          <TextBlock Classes="h1" Text="Settings"/>
+          <TextBlock Classes="muted" Text="Studio only reads your course files. It never changes or writes them; everything it makes goes to the output folder."/>
+        </StackPanel>
         <Border Classes="card" Padding="20">
           <StackPanel Spacing="20">
             <StackPanel Spacing="4">
