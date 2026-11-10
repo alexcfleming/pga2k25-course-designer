@@ -35,7 +35,15 @@ public sealed class CourseFile
     public JsonNode? GetBlob(string name) =>
         _blobs.FirstOrDefault(kv => kv.Key == name).Value;
 
-    public CourseModel ReadModel() => CourseModel.From(Description);
+    public CourseModel ReadModel()
+    {
+        var model = CourseModel.From(Description);
+        model.DescriptionBytes = DescriptionBytes;
+        return model;
+    }
+
+    /// <summary>The course description blob's unpacked size in bytes (what the game's file size counter follows).</summary>
+    public long DescriptionBytes { get; private set; }
 
     public static CourseFile Load(string path) => Load(File.ReadAllBytes(path));
 
@@ -47,14 +55,16 @@ public sealed class CourseFile
             ?? throw new InvalidDataException("Course envelope has no binaryData object.");
 
         var blobs = new List<KeyValuePair<string, JsonNode>>();
+        long descriptionBytes = 0;
         foreach (var (name, value) in binary)
         {
             var raw = Gunzip(Convert.FromBase64String(value!.GetValue<string>()));
+            if (name == DescriptionKey) descriptionBytes = raw.Length;
             blobs.Add(new(name, ParseText(raw)
                 ?? throw new InvalidDataException($"binaryData.{name} decoded to null.")));
         }
         envelope.Remove("binaryData");
-        return new CourseFile(envelope, blobs);
+        return new CourseFile(envelope, blobs) { DescriptionBytes = descriptionBytes };
     }
 
     static JsonNode? ParseText(byte[] raw)

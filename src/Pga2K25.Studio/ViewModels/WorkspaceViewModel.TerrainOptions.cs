@@ -29,6 +29,17 @@ public partial class WorkspaceViewModel
     [ObservableProperty] private string _optSummary = "";
 
     public bool OptMarginEnabled => OptArea == TerrainSettings.Routing;
+
+    /// <summary>The live map turned to the game's opening view (south up); Whole map then fits it that way round.</summary>
+    [ObservableProperty] private bool _gameView;
+    partial void OnGameViewChanged(bool value)
+    {
+        Terrain.GameView = value;
+        Settings.Save();
+        HoleView = false;
+        ViewText = "";
+        FitRequested?.Invoke();
+    }
     partial void OnOptAreaChanged(string value) => OnPropertyChanged(nameof(OptMarginEnabled));
 
     static readonly CultureInfo Inv = CultureInfo.InvariantCulture;
@@ -41,6 +52,8 @@ public partial class WorkspaceViewModel
         _showSurfaces = t.ShowSurfaces;
         _showGrid = t.ShowGrid;
         _showHilltops = t.ShowHilltops;
+        _gameView = t.GameView;
+        OnPropertyChanged(nameof(GameView));
         OnPropertyChanged(nameof(Shading));
         OnPropertyChanged(nameof(ShowSurfaces));
         OnPropertyChanged(nameof(ShowGrid));

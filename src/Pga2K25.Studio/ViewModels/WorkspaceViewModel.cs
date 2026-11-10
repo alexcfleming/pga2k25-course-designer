@@ -55,6 +55,8 @@ public partial class WorkspaceViewModel : ObservableObject
     [ObservableProperty] private bool _hasHole;
     [ObservableProperty] private string _holeTitle = "";
     [ObservableProperty] private string _holeParYards = "";
+    /// <summary>A warning when the plot's pre-made hills are on (hillsHeight): the map can't show that ground.</summary>
+    [ObservableProperty] private string _premadeHillsText = "";
     [ObservableProperty] private string _teeFeet = "";
     [ObservableProperty] private string _greenFeet = "";
     [ObservableProperty] private string _changeFeet = "";
@@ -121,6 +123,9 @@ public partial class WorkspaceViewModel : ObservableObject
                 RebuildPlanting();
                 SetSheetLayouts(survey);
                 SeaText = survey.SeaLevelMetres is null ? "No sea on the sheet" : "Elevations above sea level";
+                PremadeHillsText = course.HasPremadeHills
+                    ? $"Pre-made hills {course.HillsHeightMetres * 3.2808399:0} ft: not on this map"
+                    : "";
                 Holes.Clear();
                 foreach (var h in survey.Holes)
                     Holes.Add(new HoleButtonViewModel(h.Hole.Number, n => SelectHole(n, centre: true)));

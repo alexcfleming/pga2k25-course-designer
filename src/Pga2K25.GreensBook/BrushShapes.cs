@@ -18,6 +18,35 @@ public sealed class BrushShape
 
     BrushShape(int size, float[] w) { Size = size; _w = w; Peak = w.Max(); }
 
+    /// <summary>
+    /// The measured model's scale on the icon: a brush peaks at (icon peak / 0.9529)^0.65 in game, so the soft round
+    /// reaches about 60 % of its dial, not the icon's 45 %. Fitted by Plot Starter to the 36 in-game distance markers of
+    /// its PS0 Calibration plot (2026-11-08, plot-starter data/brush_response.json).
+    /// </summary>
+    public double ResponseGain => Peak > 0 ? Math.Pow(Peak / ResponseWhite, ResponseGamma) / Peak : 1;
+
+    public const double ResponseWhite = 0.9529, ResponseGamma = 0.65;
+
+    /// <summary>
+    /// A brush whose real shape was measured in game, in place of its icon (plot-starter data/brush_profiles.json, from
+    /// the PS0 Calibration plot's markers): weight at brush-local (u, v) in fractions of scale, or null if unmeasured.
+    /// Soft round (54) falls from 0.604 at the centre to nothing at 1.36 × scale; hard round (8) is a long slope from
+    /// 56 % to 105 %; the big square (72) is a cliff at 97.6 %.
+    /// </summary>
+    public static double? MeasuredWeight(int type, double u, double v) => type switch
+    {
+        54 => 0.6039 * Math.Pow(Smooth((1.3635 - Math.Sqrt(u * u + v * v)) / 1.3635), 3.1613),
+        8 => Math.Pow(Smooth((1.0519 - Math.Sqrt(u * u + v * v)) / (1.0519 - 0.5622)), 2.0772),
+        72 => Smooth((0.9761 + 0.0114 - Math.Max(Math.Abs(u), Math.Abs(v))) / (2 * 0.0114)),
+        _ => null,
+    };
+
+    static double Smooth(double t)
+    {
+        t = Math.Clamp(t, 0, 1);
+        return t * t * (3 - 2 * t);
+    }
+
     /// <summary>Palette slot for a stamp type, or null when the type isn't a palette brush.</summary>
     public static int? Slot(int type) => type switch
     {

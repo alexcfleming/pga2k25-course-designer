@@ -25,6 +25,32 @@ public sealed record ReadinessLimits
     /// <summary>Aim points of two holes closer than this (yds) share a landing zone.</summary>
     public double AimSpacingYards { get; init; } = 35;
 
+    /// <summary>Longest green-to-tee walk (yds). Alex's ten courses: longest walks 90–241 yds (Plot Starter, 2026-11-08).</summary>
+    public double MaxWalkYards { get; init; } = 240;
+
+    /// <summary>Most a walk may climb or drop along the way (ft): more is a walk through a gorge (Plot Starter's ground rules).</summary>
+    public double WalkClimbFeet { get; init; } = 60;
+
+    /// <summary>Most one shot may rise or fall, tee to aim point or aim point to green (ft).</summary>
+    public double ShotRiseFeet { get; init; } = 60;
+
+    /// <summary>A tee, aim point or green on ground this steep (%) sits on a cliff edge.</summary>
+    public double SteepSitePct { get; init; } = 35;
+
+    /// <summary>A shot crossing at least <see cref="GorgeRunYards"/> of ground this far below both its ends (ft) plays over a gorge.</summary>
+    public double GorgeFeet { get; init; } = 60;
+    public double GorgeRunYards { get; init; } = 60;
+
+    /// <summary>Play kept this far inside the plot edge (m) leaves room to hide it with planting and hills (Alex: 200 m).</summary>
+    public double EdgeSetbackMetres { get; init; } = 200;
+
+    /// <summary>A par 4 or 5 turning this much (°) at its first aim point is a dogleg.</summary>
+    public double DoglegDegrees { get; init; } = 10;
+
+    /// <summary>Doglegs are lopsided when more than this share bend one way (with six or more), or this many in a row do.</summary>
+    public double DoglegShareMax { get; init; } = 0.7;
+    public int DoglegRunMax { get; init; } = 5;
+
     /// <summary>Largest tee-to-green drop and climb (ft).</summary>
     public double MaxDropFeet { get; init; } = 50;
     public double MaxClimbFeet { get; init; } = 30;

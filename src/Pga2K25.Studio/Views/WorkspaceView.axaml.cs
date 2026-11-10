@@ -97,7 +97,7 @@ public partial class WorkspaceView : UserControl
 
     void CentreOn(Point px) => _map.CentreOn(px);
     void ShowFrame(IReadOnlyList<Point> corners, Vector up) => _map.ShowFrame(corners, up);
-    void Fit() => _map.Fit();
+    void Fit() => _map.Fit(baseDegrees: _vm?.GameView == true ? 180 : 0);
 
     void FocusNoteEditor() =>
         Dispatcher.UIThread.Post(() => this.FindControl<TextBox>("NoteText")?.Focus(), DispatcherPriority.Background);

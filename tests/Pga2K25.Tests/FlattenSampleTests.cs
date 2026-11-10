@@ -111,13 +111,14 @@ public class FlattenSampleTests
     public void SaganGreen9_MatchesInGameSpotElevations()
     {
         // Overhead capture of green 9 with 14 measure labels, zeroed on the pin 1 cup (samples/calibration/sagan-khushun).
-        // The green is nearly flat in game; the replay was 10.3 in RMS (49 % of range) without flatten samples.
+        // The green is nearly flat in game. Icon brush model: 10.3 in RMS without flatten samples, 5.4 with. Measured model
+        // (2026-11-10): 8.2 without, 4.3 with.
         var course = CourseFile.Load(Path.Combine(TestPaths.PrivateDir, Sagan)).ReadModel();
         var captures = Calibration.LoadCaptures(Path.Combine(TestPaths.RepoRoot, "samples", "calibration", "sagan-khushun", "captures.json"));
         var without = Calibration.Evaluate(course, captures, new GreensBookOptions { Terrain = new TerrainModelOptions { FlattenSamples = false } }).Single();
         var with = Calibration.Evaluate(course, captures, new GreensBookOptions()).Single();
         Assert.True(with.PinFitMetres < 0.5, $"pins fit to {with.PinFitMetres:0.00} m");
-        Assert.True(without.RmsInches > 9, $"{without.RmsInches:0.0} in without");
-        Assert.True(with.RmsInches < 6, $"{with.RmsInches:0.0} in with");   // 5.4 in
+        Assert.True(without.RmsInches > with.RmsInches + 3, $"{without.RmsInches:0.0} in without, {with.RmsInches:0.0} with");
+        Assert.True(with.RmsInches < 5, $"{with.RmsInches:0.0} in with");   // 4.3 in
     }
 }

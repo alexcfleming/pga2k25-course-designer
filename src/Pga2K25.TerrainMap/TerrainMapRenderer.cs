@@ -316,7 +316,8 @@ public sealed class TerrainMapRenderer : TerrainInk
         }
         Meter("Objects", budget.ObjectPercent);
         Meter("Memory", budget.MemoryPercent);
-        Text(canvas, $"≈ {budget.Objects:N0} objects, {budget.UniqueAssets} different assets. Fitted to four courses'", r.Left, y + 5 * u, 6.4f * u, _sansItalic, Grey);
+        if (budget.FilePercent is { } filePct) Meter("File size", filePct);
+        Text(canvas, $"≈ {budget.Objects:N0} objects, {budget.UniqueAssets} different assets. Fitted to six courses'", r.Left, y + 5 * u, 6.4f * u, _sansItalic, Grey);
         y += 9 * u;
         Text(canvas, "in-game readings; the designer's own counters are the real figures.", r.Left, y + 5 * u, 6.4f * u, _sansItalic, Grey);
         y += 20 * u;

@@ -242,6 +242,10 @@
           <Border Classes="chip" Background="{StaticResource AccentTint}" CornerRadius="8" IsVisible="{Binding ShowsModelCheck}">
             <TextBlock Text="{Binding ModelCheck}" FontSize="12" Foreground="{StaticResource AccentInk}"/>
           </Border>
+          <Border Classes="chip" Background="#FAEEDA" CornerRadius="8" IsVisible="{Binding PremadeHillsText, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                  ToolTip.Tip="The plot's pre-made hills setting is on. That ground comes before any brush and isn't in the model, so heights and slopes here can be wrong. Set it to 0 and flatten the plot, or check heights in game.">
+            <TextBlock Text="{Binding PremadeHillsText}" FontSize="12" Foreground="#854F0B"/>
+          </Border>
           <Border Classes="chip" Background="#E3EDF5" CornerRadius="8" IsVisible="{Binding ShowsHeightStrip}">
             <TextBlock Text="{Binding SeaText}" FontSize="12" Foreground="#1E4A70"/>
           </Border>
@@ -281,7 +285,9 @@
               <Button Content="Hole view" Command="{Binding ShowHoleViewCommand}" IsEnabled="{Binding HasHole}" MinHeight="30" Padding="10,0"
                       VerticalAlignment="Center" ToolTip.Tip="Turn and zoom the map to the selected hole's sheet: tee at the bottom, green at the top"/>
               <Button Content="Whole map" Command="{Binding ShowWholeMapCommand}" MinHeight="30" Padding="10,0" VerticalAlignment="Center"
-                      ToolTip.Tip="Back out to the whole map, north up"/>
+                      ToolTip.Tip="Back out to the whole map, north up (south up in Game view)"/>
+              <ToggleButton Classes="pill" Content="Game view" IsChecked="{Binding GameView}" VerticalAlignment="Center"
+                            ToolTip.Tip="Turn the map to the way the game first shows a plot: south at the top, the north-up map turned round. The compass still points north."/>
             </WrapPanel>
           </Border>
 

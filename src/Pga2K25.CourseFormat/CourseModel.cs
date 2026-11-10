@@ -229,6 +229,17 @@ public sealed class CourseModel
     public IReadOnlyList<MeasureLine> MeasureLines { get; init; } = [];
     public bool FlattenGreens { get; init; }
     public bool BlurHeight { get; init; }
+
+    /// <summary>
+    /// The plot's pre-made hills setting (<c>hillsHeight</c>, metres; the designer shows it in feet, 10 → 33). Terrain the
+    /// game makes before any brush, which the brush replay can't see. 0 on every built sample; a fresh blank plot may
+    /// have 10. Found by Plot Starter (2026-11-08), which writes it; Studio only reads it.
+    /// </summary>
+    public double HillsHeightMetres { get; init; }
+    public bool HasPremadeHills => HillsHeightMetres > 0.01;
+
+    /// <summary>The course description's unpacked size (bytes), set by <see cref="CourseFile.ReadModel"/>; 0 when unknown.</summary>
+    public long DescriptionBytes { get; set; }
     public double GreenSpeed { get; init; }
 
     /// <summary><c>greenFringeRadius</c>: −1 is the game's default; 0.5 shows no visible fringe (Cassimbo, Sagan-Khushun).</summary>
@@ -272,6 +283,7 @@ public sealed class CourseModel
             MeasureLines = CourseFormat.MeasureLines.Read(desc["distanceMarkers"] as JsonArray),
             FlattenGreens = desc["flattenGreens"]?.GetValue<bool>() ?? false,
             BlurHeight = desc["blurHeight"]?.GetValue<bool>() ?? false,
+            HillsHeightMetres = Num(desc["hillsHeight"]),
             GreenSpeed = Num(desc["greenSpeed"], -1),
             GreenFringeRadius = Num(desc["greenFringeRadius"], -1),
             Atmosphere = ReadAtmosphere(desc),

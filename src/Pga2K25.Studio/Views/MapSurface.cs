@@ -451,13 +451,14 @@ public sealed class MapSurface : Control
     // ───────────────────────────── view moves ─────────────────────────────
 
     /// <summary>The whole map, north up.</summary>
-    public void Fit(bool animate = true)
+    /// <param name="baseDegrees">The turn to fit at: 0 north up, 180 the game's opening view (south up).</param>
+    public void Fit(bool animate = true, double baseDegrees = 0)
     {
         _fitPending = false;
         if (_source is null || Bounds.Width <= 0) return;
         var s = ImageSize;
         double scale = Math.Clamp(Math.Min((Bounds.Width - 16) / s.Width, (Bounds.Height - 16) / s.Height), MinScale, MaxScale);
-        MoveTo(new Point(s.Width / 2, s.Height / 2), scale, 0, animate);
+        MoveTo(new Point(s.Width / 2, s.Height / 2), scale, baseDegrees * Math.PI / 180, animate);
     }
 
     /// <summary>Centre on a map pixel, zooming in a little if the whole map is showing; keeps the turn.</summary>

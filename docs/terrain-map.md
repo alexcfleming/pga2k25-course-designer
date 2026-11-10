@@ -91,12 +91,13 @@ dotnet run --project src/Pga2K25.Cli -- terrain samples/courses/sagan-khushun.co
 
 ## Game budget (rough estimate)
 
-The side panel shows two meters for the course designer's budget counters: **Objects** (how many things are in the plot) and **Memory** (driven mostly by how many different things there are). The file doesn't store either counter; the game works them out when it loads the course. `GameBudget` in `src/Pga2K25.TerrainMap/GameBudget.cs` estimates them from what the file holds:
+The side panel shows meters for the course designer's budget counters: **Objects** (how many things are in the plot), **Memory** (driven mostly by how many different things there are) and **File size**. The file doesn't store either counter; the game works them out when it loads the course. `GameBudget` in `src/Pga2K25.TerrainMap/GameBudget.cs` estimates them from what the file holds:
 
-- **Objects** = placed items + plants in scatter groups + planted-area trees (area × `fillPct` × 31.9) + 2.4 per metre of wall, fence or other object path + 46 per hole, out of about 119,350.
+- **Objects** = placed items + plants in scatter groups + planted-area trees (area × `fillPct` × 33.5) + 2.5 per metre of wall, fence or other object path + 8 per hole + 0.118 per terrain stamp, out of about 119,350.
 - **Memory %** ≈ 9.8 + 0.32 × the number of different assets + 0.10 × √objects.
+- **File size %** ≈ the course description's unpacked size ÷ 384 MB.
 
-The constants come from four in-game readings taken on 2026-10-26 (object % / memory %): Sagan-Khushun 72.5 / 62.7, Wakinyan Dunes 0.7 / 14.3, Blackwolf Lenz Upper 6.3 / 46.9 and Murray Estate 11.7 / 28.1. Those four fit the object formula exactly and the memory formula to within 0.9 points. Neither formula has been checked on a course it wasn't fitted to, so the panel labels both as rough, and the designer's own counters remain the real figures. The meters turn red from 90 %.
+The object constants fit six in-game readings (object % / memory %): Sagan-Khushun 72.5 / 62.7, Wakinyan Dunes 0.7 / 14.3, Blackwolf Lenz Upper 6.3 / 46.9 and Murray Estate 11.7 / 28.1 (2026-10-26), and two of Plot Starter's generated plots with nothing placed and no holes (2026-11-08): PS2 Dunes Layered, 2,455 stamps, 0.2 / 16.8, and PS4 Chop Hills, 19,086 stamps, 1.9 / 12.6. Those two show that terrain stamps count as objects (0.118 each); all six now fit within 0.11 points. Memory is the 2026-10-26 fit and still matches the first four within a point, but the two bare plots read 16.8 % and 12.6 % where it gives about 11.5 and 14.6, the other way round from anything in the file (the second had its theme and backdrop changed), so something the file doesn't show adds to memory. The file size meter rests on those two bare plots only (7.29 MB of description read 1.9 %, 0.94 MB read 0.2 %). The panel labels all three as rough, and the designer's own counters are the real figures. The meters turn red from 90 %.
 
 Readings from Halvoy (almost nothing placed, no holes) and Berwick Coast (few items, 833 m of walls) would test the per-hole and per-metre parts. A count of Murray's pines in game would test the planted-area scale. That scale suggests planted areas hold far more trees than the plain area × `fillPct` the planting overlay uses.
 
@@ -140,8 +141,9 @@ The terrain is rebuilt by replaying the file's height stamps in order (`TerrainR
 - The designer has 69 landscaping brushes (`assets/brushes`, cut from the palette). A stamp's `type` is the palette slot + 8 for slots 0–29 and + 9 for slots 30–68. Type 38 isn't in the palette. This was found on a test plot with one dab of each brush (`samples/courses/brush-test-plot.course`).
 - The brush image spans **±scale** metres around the stamp. The designer's "100 yd" brush is stored as scale 17.81, and its hard circle is about 32 m across in game.
 - At rotation 0 the image's top points to +Z. `rotation.y` turns it like a Unity Y rotation.
-- **Raise** (tool 1) adds the value × the image's brightness, so soft brushes add less. The most-used soft round brush (type 54) peaks at about 0.45.
-- **Flatten** (tool 0) moves the ground towards the value, by the brightness divided by the brush's peak, so every flatten reaches its value at its centre.
+- **Raise** (tool 1) adds the value × the brush's in-game strength. Since 2.8.0 that is the **measured model** (`MeasuredBrushes`, on by default), from Plot Starter's PS0 Calibration plot: a brush peaks at (icon peak ÷ 0.9529)^0.65, so the soft round (type 54) reaches about 60 % of its dial, not the icon's 45 %. Three brushes use shapes measured from in-game points: the soft round falls from 0.60 at its centre to nothing at 1.36 × scale; the hard round (8) is a long slope from 56 % to 105 % of scale; the big square (72) is a cliff at 97.6 %. Every other brush keeps its icon at the in-game strength.
+- **Flatten** (tool 0) moves the ground towards the value, scaled so every flatten reaches its value at the brush's strongest point. (Plot Starter found one soft round that didn't; reaching the value fits Cassimbo's greens and Devil's Perch far better.)
+- **No final blur** in the measured model: the measured shapes already include the game's smoothing, and a cliff's edge fits best without. The icon model (`MeasuredBrushes = false`) blurs 1 m where the course sets `blurHeight`.
 - **Small flattens are read as ground samples** (`FlattenSamples`). The designer's flatten picks up the height under the cursor, so a small flatten's value is the game's own ground there: 85 % of Sagan-Khushun's sub-4 m flatten dabs sit within 3 in of the replay. Where a flatten under 8 m (`FlattenSampleMaxScale`) is up to 1 m (`FlattenSampleMaxMetres`) away from the replayed ground, the ground is first shifted by that gap, fading out at twice the stamp's scale (`FlattenSampleReach`). Larger gaps are taken as a height set on purpose. Without it, Sagan-Khushun green 9 showed a 17.6 in crown at pin 1, where the game has a gentle hollow: two 7.1 m dabs landed on ground the big sculpting brushes had left 0.84 m too low. Settings were swept against Cassimbo's spot heights: flattens up to 30 m with a 1.5 m gap also cleaned up the rest of Sagan green 9, but took Cassimbo holes 1 and 7 to 22 % and 26 % of range. An in-game capture of Sagan green 9 (docs/greens-book.md) scores 10.3 in RMS without and 5.4 in with the defaults.
 - Unknown types fall back to the old round disc (diameter = scale, `Hardness` 0.85, `LargeBrushHardness` for brushes 40 m or more).
 - **Raises and lowers centred on the plot edge are left out; flattens there count** (`SkipEdgeStamps`). The designer clamps the centre of a brush dragged past the edge to ±1000 m.
@@ -151,6 +153,25 @@ The terrain is rebuilt by replaying the file's height stamps in order (`TerrainR
 
 **Checks:**
 
+The measured model against the icon model on every measured set (2026-11-10, `samples/calibration/brush-markers` and the course files' measure points):
+
+| Set | Points | Icon model | Measured model |
+|---|---|---|---|
+| PS0 Calibration plot (Plot Starter) | 96 | 11.6 ft | 1.4 ft |
+| Sangoma markers (two saves) | 3,582 / 2,275 | 2.7 / 7.6 ft | 1.5 / 5.3 ft |
+| Devil's Perch markers | 42 | 15.5 ft | 11.2 ft |
+| Halvoy markers | 12 | 8.1 ft | 4.3 ft |
+| Berwick Coast saved points | 46 | 1.6 ft | 0.8 ft |
+| Cassimbo greens 1, 7, 10, 13 (% of range) | | 3.3, 12.6, 7.7, 6.6 | 2.5, 10.0, 7.5, 5.9 |
+| Sagan-Khushun green 9 | 14 | 5.4 in | 4.3 in |
+| Berwick route legs, typed | 36 | 2.21 ft | 2.32 ft |
+| Murray route legs, typed | 8 | 9.3 ft | 9.5 ft |
+
+Water traced over the new ground: Luke's seven ponds and joined creek hold; Sangoma's dry strip west of hole 11's pond now traces dry, as in game; but hole 11's pond reads about 4,650 m² (9,300 before) with its front 50 yds from the tee, where the screenshot shows nearer 20–45, and hole 14's spreads to about 11,200 m² where the game shows a small pond (3,000–8,000 before). Pond banks hinge on sub-metre heights near the water line, so Sangoma's ponds are the place to watch. On Luke's plot, soft lowers near the east edge now dip about 3 m below the sea plane over 4,500 m² out past play, so the map takes the sea plane as its datum there; whether that ground is under water in game isn't known yet.
+
+Earlier checks, on the icon model:
+
+
 - **Berwick Coast:** 36 tee → aim and aim → green height changes, measured in game on the route markers (`samples/calibration/route-heights`). RMS error 2.2 ft; the old round-disc model was 22 ft.
 - **Murray Estate:** 7 legs, 7.4 ft (was 15 ft). Hole 3 aim → green is still 17 ft out.
 - **Cassimbo greens:** calibration stays within 3–13 % of each green's range (holes 1, 7, 10, 13: 3.3, 12.6, 7.7, 6.6 % with flatten samples; 4.1, 11.5, 9.2, 6.1 % without).
@@ -159,7 +180,7 @@ The terrain is rebuilt by replaying the file's height stamps in order (`TerrainR
 
 - **Test plot peaks:** raises set to +100 ft, measured in game. The rough streak (type 53) reaches at least 94.7 ft (model 91). The splatter (type 49) has peaks of 49, 68 and 71 ft (model 60). So a raise does rise by value × brightness, with dim brushes rising less. Rescaling raises to the icons' white level (243, not 255) made the route heights slightly worse, so it isn't applied.
 
-**Pre-made plot terrain.** Some designer plots come with terrain that exists before any brushes, controlled by a plot setting. It behaves differently from brush terrain and isn't modelled here: the replay only knows the brushes in `height[]`. Set that option to zero and flatten the plot (as Alex does) before relying on these maps. If a plot still has its pre-made terrain, the maps will be wrong wherever it shows.
+**Pre-made plot terrain.** Some designer plots come with terrain that exists before any brushes, controlled by a plot setting: `hillsHeight`, in metres (a fresh blank plot has 10, shown in the designer as 33 ft; Plot Starter found the field). Studio reads it: when it is above 0, an amber chip beside the terrain map's title says so, and Publish readiness flags `premade-hills`. It behaves differently from brush terrain and isn't modelled here: the replay only knows the brushes in `height[]`. Set that option to zero and flatten the plot (as Alex does) before relying on these maps. If a plot still has its pre-made terrain, the maps will be wrong wherever it shows.
 
 The images come from screenshots of the palette icons, so fine detail is approximate (texture brushes, exact edge softness). That is the likely cause of Murray Estate hole 3: its green sits partway out on a splatter and two streak raises, where the placement of the texture's lumps matters. Check critical grades in the game.
 

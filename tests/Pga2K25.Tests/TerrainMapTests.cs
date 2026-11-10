@@ -201,9 +201,12 @@ public class WaterAndGreenSiteTests
         var water = Assert.IsType<WaterMap>(s.InlandWater);
         Assert.All(water.Strokes, k => Assert.Equal(WaterKind.Plane, k.Kind));
         Assert.Equal(7, water.Bodies.Count);
-        Assert.Single(water.Bodies, b => b.ChannelMetres > 0);                 // the hole 1 creek, joined up
+        Assert.Equal(water.BodyAt(new Vec2(400, -497)), water.BodyAt(new Vec2(338, -479)));   // the hole 1 creek, joined up
         Assert.False(s.IsWet(s.Course.Water[0].Position));                     // the ring pond's island
-        Assert.Null(s.SeaLevelMetres);                                         // inland water doesn't set the datum
+        // Inland water doesn't set the datum. With the measured brushes, soft lowers near the east edge (X 950–998) dip
+        // about 3 m below the sea plane over 4,500 m² out past play, so the sea plane (0 m) becomes the datum; nothing in
+        // game says yet whether that ground is under water.
+        Assert.True(s.SeaLevelMetres is null or 0, $"datum {s.SeaLevelMetres}");
         Assert.Empty(s.Layers.WaterRibbons);                                   // the narrow blue lines are paths
     }
 

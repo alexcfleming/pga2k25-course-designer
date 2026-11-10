@@ -168,8 +168,10 @@ public class ReadinessTests
     {
         var c = Check("pins");
         Assert.Equal(Severity.Flag, c.Severity);
-        Assert.Equal([1, 3, 4, 9, 15], c.Holes);
-        Assert.InRange(Report.Value.Holes[8].Pins[0].SlopePct!.Value, 12, 20);
+        Assert.Equal([3, 4, 8, 9, 15, 16], c.Holes);   // icon brush model: 1, 3, 4, 9, 15; the measured brushes move pin slopes
+        // The icon brush model put hole 9's pin 1 on a 12–20 % slope; the measured brushes read about 1.4 % there. At
+        // least one pin is still over the steep limit.
+        Assert.Contains(Report.Value.Holes.SelectMany(h => h.Pins), p => p.SlopePct > new ReadinessLimits().PinSteepPct);
         Assert.InRange(Report.Value.Holes[3].Pins[3].EdgeYards!.Value, 0.3, 1.2);
     }
 

@@ -92,6 +92,14 @@ Yardages are from the back tees. Lengths use card yards; yards left use the stra
 | `corridor` | Nearest other green, or practice green, to each line of play. Crossing one is High | 25 yds | §11.3 A |
 | `aim-spacing` | Aim points of two holes | 35 yds apart | §11.3 A |
 | `own-green` | Each route ends on a drawn green of its own; a shared green is flagged (fine for a double green) | | §11.3 F |
+| `walks` | Green-to-tee walks, each green to the next back tee (Warning) | 240 yds | Routing (your courses: longest 90–241) |
+| `walk-climb` | Rise and fall along each walk (Warning): more is a walk through a gorge or over a ridge | 60 ft | Routing |
+| `shot-rise` | Each shot's rise or fall, tee to aim point and aim point to green (Warning) | 60 ft | Routing |
+| `steep-sites` | Back tees, aim points and green anchors on cliff-steep ground, slope read across about 12 m (Warning) | 35 % | Routing |
+| `gorges` | Shots crossing a run of ground far below both their ends: listed as carries, with yards and depth (Info) | 60 yds of ground 60 ft below | Routing |
+| `edge-setback` | Each hole's closest tee or route point to the plot edge (Warning): room to hide the edge with planting and hills | 200 m (219 yds) | Routing |
+| `doglegs` | Par 4s and 5s turning 10° or more at the first aim point, left against right (Warning): lopsided over 70 % one way (six or more), or five in a row | | Routing |
+| `premade-hills` | The plot's pre-made hills setting (`hillsHeight`): above 0, that ground isn't in the terrain model (Flag) | 0 | Studio terrain model |
 | `green-speed` | `greenSpeed` as Stimp | 8–13 | Build checks |
 | `fringe` | `greenFringeRadius` | 0.5 or less | §5 |
 | `lighting` | Time of day, sun, cloud layers, fog, haze, rain as recorded | | Lighting section |
@@ -102,6 +110,8 @@ Yardages are from the back tees. Lengths use card yards; yards left use the stra
 | `forward-tees` | The longest carry from a forward tee to where the main fairway starts (prompt) | | §2 |
 
 Retired in the November revision (Principles §11.4): drivable and near-drivable par 4s per nine, par 5s leaving 220 after the test drive, every tee set 6,500–7,500, landing width against the course median, and the short-lived ≤380 par 4, small-green, par 3 green and under-25 narrow-fairway checks, which the checks above replace.
+
+**Routing checks.** `walks`, `walk-climb`, `shot-rise`, `steep-sites`, `gorges`, `edge-setback` and `doglegs` come from Plot Starter's route engine (`RoutingChecks`). Its limits were taken from Alex's ten 18-hole courses (walks: medians 52–84 yds, longest 90–241) and from its ground rules after Peahi, where holes ran off 200 ft cliffs and walks crossed a 200 ft gorge. They are warnings or information and never hold the gate, and every limit is editable. Heights and slopes come from the replayed terrain, so check a flagged spot in game. Two of Plot Starter's rules are left out on purpose: holes 45 yds apart (your courses come as close as 23 yds; `corridor` and `aim-spacing` cover crowding) and the clubhouse tie for returning nines.
 
 **Widths.** The line of play (tee, aim points, green) is measured across at each station; the fairway strip under the line, or the nearest within 15 yds of it, counts. No strip that close is "no fairway" and warns as under 25. A station within 40 yds of the green isn't measured, so a short par 4 may have fewer than three.
 
