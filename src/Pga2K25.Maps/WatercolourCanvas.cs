@@ -1,12 +1,13 @@
 using SkiaSharp;
 
-namespace Pga2K25.HoleIllustrations;
+namespace Pga2K25.Maps;
 
 /// <summary>
 /// The plate's art as float RGB over white paper, with the raster primitives the watercolour look is made of:
 /// masks rasterised from paths, seeded value noise, Gaussian blur, a Euclidean distance transform, multiply
 /// washes with pigment pooling at the edges, opaque covers, and ink overlays drawn with Skia and composited in.
-/// Everything is deterministic for a given seed, so the same hole renders the same pixels twice.
+/// Everything is deterministic for a given seed, so the same hole renders the same pixels twice. Shared by the hole
+/// illustrations and the Course Portrait scorecard map.
 /// </summary>
 public sealed class WatercolourCanvas
 {
@@ -19,15 +20,18 @@ public sealed class WatercolourCanvas
     public float[] N2 { get; }
     public float[] NF { get; }
 
-    public WatercolourCanvas(int width, int height, int seed)
+    public WatercolourCanvas(int width, int height, int seed) : this(width, height, seed, (220, 4), (60, 3), (6, 2)) { }
+
+    /// <summary>A canvas with its own noise scales (px, octaves) for <see cref="N1"/>, <see cref="N2"/> and <see cref="NF"/>.</summary>
+    public WatercolourCanvas(int width, int height, int seed, (int Scale, int Octaves) n1, (int Scale, int Octaves) n2, (int Scale, int Octaves) nf)
     {
         Width = width; Height = height;
         int n = width * height;
         _r = new float[n]; _g = new float[n]; _b = new float[n];
         Array.Fill(_r, 1f); Array.Fill(_g, 1f); Array.Fill(_b, 1f);
-        N1 = Noise(width, height, 220, 4, seed * 7919 + 1);
-        N2 = Noise(width, height, 60, 3, seed * 7919 + 2);
-        NF = Noise(width, height, 6, 2, seed * 7919 + 3);
+        N1 = Noise(width, height, n1.Scale, n1.Octaves, seed * 7919 + 1);
+        N2 = Noise(width, height, n2.Scale, n2.Octaves, seed * 7919 + 2);
+        NF = Noise(width, height, nf.Scale, nf.Octaves, seed * 7919 + 3);
     }
 
     // ───────────────────────── washes ─────────────────────────
@@ -68,6 +72,28 @@ public sealed class WatercolourCanvas
             }
         });
     }
+
+    /// <summary>Opaque cover where the colour varies by pixel (a mottled ground): pixel += (colour(i) − pixel)·mask.</summary>
+    public void Cover(float[] mask, Func<int, (float R, float G, float B)> colour) => Rows(y =>
+    {
+        for (int i = y * Width, end = i + Width; i < end; i++)
+        {
+            float m = mask[i];
+            if (m <= 0) continue;
+            var (cr, cg, cb) = colour(i);
+            _r[i] += (cr - _r[i]) * m; _g[i] += (cg - _g[i]) * m; _b[i] += (cb - _b[i]) * m;
+        }
+    });
+
+    /// <summary>Multiplies every channel by <paramref name="factor"/>(i), capped at white.</summary>
+    public void Multiply(Func<int, float> factor) => Rows(y =>
+    {
+        for (int i = y * Width, end = i + Width; i < end; i++)
+        {
+            float k = factor(i);
+            _r[i] = Math.Min(1, _r[i] * k); _g[i] = Math.Min(1, _g[i] * k); _b[i] = Math.Min(1, _b[i] * k);
+        }
+    });
 
     /// <summary>Draws ink with Skia on a transparent layer (antialiased) and composites it over the art.</summary>
     public void Ink(Action<SKCanvas> draw)

@@ -8,7 +8,7 @@ dotnet run --project src/Pga2K25.Cli -- scorecard "path/to/course.course" -o out
 
 Options:
 
-- `--theme vintage|modern|illustrated|plansheet|modernillustrated|routingplan|both|all` (default `all`; `both` is Vintage and Modern)
+- `--theme vintage|modern|illustrated|plansheet|modernillustrated|routingplan|portrait|both|all`, or a comma list such as `vintage,routing-plan` (default `all`; `both` is Vintage and Modern)
 - `--landscape` / `--portrait` (default: landscape, unless portrait draws the course at least 15% larger)
 - `--north-up`: disable auto-rotation
 - `--waste`: draw stippled waste areas (off by default; on desert courses everything off the fairway is waste)
@@ -16,11 +16,12 @@ Options:
 - `--no-paths`
 - `--pdf`
 - `--credit "NAME"`, `--subtitle "TEXT"`
+- `--title "TEXT"`, `--year N`, `--no-coast`: Course Portrait only (the title under the art, default the course name in capitals; the year after the credit, default this year; leave out the sea)
 - `--location "PLACE, REGION"`: Plan Sheet only, printed under the course name, one line per comma-separated part. Without it the place lines come from the course's `Place.json` (the Studio Place card); with neither, nothing prints.
 
 Tee set names and hole names come from `Holes.json` in the output folder (`-o`), which the Studio's Holes card writes. The course seal comes from `Logos.json` there (see [Course logo](course-logo.md)): in colour on Modern and Modern Illustrated, in ink on Vintage and Illustrated, before the course name in the strip; on the Plan Sheet, on a parchment disc in the emptiest top corner of the map; on the Routing Plan, in colour in its title box. The wind rose comes from `Place.json` there (the Studio Place card's Wind rose), when it has one. Pars and yardages always come from the course file. (Earlier releases took tee names from a `--data holes.xlsx|.csv` workbook; it is retired.)
 
-[Course Designer Studio](studio.md) builds all six themes as PNG and PDF, with the names from the course's Holes card and the bunker merge from its Course settings (**Bunker merge**: 10, 6, 4 or 2 m, saved per course). The other options are on the command line.
+[Course Designer Studio](studio.md) builds the themes ticked under **Styles to build** on the Scorecard map page (all seven to start with, saved per course; one always stays ticked) as PNG and PDF, for Build and Build all alike, with the names from the course's Holes card and the bunker merge from its Course settings (**Bunker merge**: 10, 6, 4 or 2 m, saved per course). A style unticked after an earlier build keeps its old files, which still show in the viewer until they are deleted. The other options are on the command line.
 
 ## Themes
 
@@ -82,6 +83,19 @@ A routing plan in the manner of a Beau Welling Design plan: the land as a grey a
 - **Wind rose:** in a white box in the map spot with the least of the course under it, clear of the title and scorecard boxes.
 
 On Luke Muscat's Normal Golf Course (3,760 trees, 170,000 grass plants) a PNG and PDF build in about 16 seconds.
+
+## Course Portrait
+
+A wall print rather than a scorecard: the whole course as a watercolour aerial cut-out on white paper, with a centred spaced-caps title underneath, adapted from Brush & Birdie's course prints. Every print carries "IN THE STYLE OF BRUSH & BIRDIE" under the designer credit: the print is the designer's work in their visual language, not their product. `CoursePortraitRenderer`.
+
+- **Page:** 12 × 16 in (3600 × 4800 px at 300 dpi), or 16 × 12 when the parcel is wider than tall. North up, no rotation. No scorecard, hole numbers, ball flight, legend, scale bar, seal or wind rose.
+- **Property parcel** (`PortraitParcel`): every hole route (back tee through the waypoints) widened 42 m and every fairway (surface 2) and green widened 18 m; closed so the gaps between holes fill (grow 170 m, shrink 150 m); the largest piece with no holes; simplified (Douglas–Peucker, 16 m) into long straight property-line facets. It is built on a 2 m raster with exact distance transforms, not NetTopologySuite, so the closing has round joins that the simplify straightens. The parcel fills the art box (x 10–90 %, y 8–80 % of the page).
+- **Outside the parcel:** white paper with a soft green watercolour bleed off the property line. Where the course has `OceanFoam` objects (345 on Cassimbo), the foam joined in order of bearing round the parcel's centre is the land (closed by 45 m); the sea beyond it is a pale blue-grey wash fading with distance from the foam. No foam, no sea: water is never invented.
+- **Inside, in order:** mottled rough `#55722f`; waste scrub from surface-15 brushes and areas; rough and heavy rough splines darker; weathering (surface 18) as a light fairway tint, since it is a tint over the ground, not a surface (Cassimbo's carries the fairway green out over the rough); fescue tufts (`/Grass/Fescue` objects); roads and cart paths; fairways `#8fb24a`, lighter in the middle; 9 × 5 m tee pads; inland water (surface 10, and the traced ponds and creeks of `water[]`); bush and tree masses with a soft shadow and sunlit rim; rocks; bunkers (the merged outlines at the course's Bunker merge) in cream sand with a faint lip; greens `#b3d466` with a 1.4 m collar; a crisp dark property line with a slight inner shade, and satellite grain. Nothing but the bleed and sea falls outside the parcel.
+- **Type** (Lora, vector in the PDF): the title 22 pt with +22 % tracking at 88.5 % of the page height; the designer credit in capitals and the year (7.5 pt, just the year without a credit); "IN THE STYLE OF BRUSH & BIRDIE" (6.5 pt); the Course Designer Studio attribution (5 pt).
+- **Output:** PNG, and a PDF with the art embedded as a JPEG (about 1 MB for Cassimbo) and the type drawn as vectors. The noise is seeded from the course name, so a course renders the same twice. Cassimbo builds in about 15 seconds.
+
+Not done yet: the `links` and `desert` palettes and the framed presentation preview from the hand-off. Bushes are discs; at print scale they read as tree masses.
 
 ## Illustrated landscape
 

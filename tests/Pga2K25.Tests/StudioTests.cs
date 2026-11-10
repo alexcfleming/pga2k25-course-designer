@@ -88,6 +88,50 @@ public class StudioTests
     }
 
     [Fact]
+    public void ScorecardStyles_BuildOnlyTheTickedOnes_AndOneAlwaysStays()
+    {
+        var extras = new CourseExtras();
+        Assert.Equal(Enum.GetValues<MapThemeKind>(), extras.ScorecardThemeKinds());   // default: every style
+
+        Assert.True(extras.SetScorecardTheme(MapThemeKind.Modern, false));
+        Assert.True(extras.SetScorecardTheme(MapThemeKind.Illustrated, false));
+        Assert.DoesNotContain(MapThemeKind.Modern, extras.ScorecardThemeKinds());
+        Assert.Equal(Enum.GetValues<MapThemeKind>().Length - 2, extras.ScorecardThemeKinds().Count);
+
+        // Down to one: it can't be unticked.
+        foreach (var k in new[] { MapThemeKind.Vintage, MapThemeKind.PlanSheet, MapThemeKind.ModernIllustrated, MapThemeKind.CoursePortrait })
+            Assert.True(extras.SetScorecardTheme(k, false));
+        Assert.False(extras.SetScorecardTheme(MapThemeKind.RoutingPlan, false));
+        Assert.Equal([MapThemeKind.RoutingPlan], extras.ScorecardThemeKinds());
+
+        // Saved by name, and survives a settings round trip.
+        Assert.True(extras.SetScorecardTheme(MapThemeKind.Vintage, true));
+        var json = System.Text.Json.JsonSerializer.Serialize(extras);
+        var back = System.Text.Json.JsonSerializer.Deserialize<CourseExtras>(json)!;
+        Assert.Equal([MapThemeKind.Vintage, MapThemeKind.RoutingPlan], back.ScorecardThemeKinds());
+
+        // Ticking them all goes back to the default, so a style added later is built too; unknown names are ignored.
+        foreach (var k in Enum.GetValues<MapThemeKind>()) back.SetScorecardTheme(k, true);
+        Assert.Null(back.ScorecardThemes);
+        Assert.Equal(Enum.GetValues<MapThemeKind>(), new CourseExtras { ScorecardThemes = ["Retired"] }.ScorecardThemeKinds());
+    }
+
+    [Fact]
+    public void ScorecardMap_CountsAsBuiltWithoutTheVintageStyle()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"studio-scorecard-{Guid.NewGuid():N}");
+        var settings = new StudioSettings { OutputRoot = root };
+        var map = Products.All.Single(p => p.Name == "Scorecard map");
+        Assert.Null(Products.BuiltFile(map, settings, "Test Course"));
+        string dir = Products.OutputDir(settings, "Test Course");
+        Directory.CreateDirectory(dir);
+        string routing = Path.Combine(dir, "Test Course - Scorecard Map (Routing Plan).png");
+        File.WriteAllBytes(routing, [0]);
+        Assert.Equal(routing, Products.BuiltFile(map, settings, "Test Course"));
+        Directory.Delete(root, recursive: true);
+    }
+
+    [Fact]
     public void TerrainSettings_MapOntoTheTerrainMapOptions()
     {
         var t = new TerrainSettings

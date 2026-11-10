@@ -71,4 +71,35 @@ public sealed class CourseExtras
 
     public const double DefaultBunkerMerge = 10;
     public static readonly IReadOnlyList<double> BunkerMergeChoices = [10, 6, 4, 2];
+
+    /// <summary>
+    /// The scorecard map styles to build, by name (<see cref="Pga2K25.Maps.MapThemeKind"/>). Null (the default) builds
+    /// every style; names the app no longer knows are ignored, and a list with none it knows builds every style.
+    /// </summary>
+    public List<string>? ScorecardThemes { get; set; }
+
+    /// <summary>The styles "Build" makes for this course, in menu order.</summary>
+    public IReadOnlyList<Pga2K25.Maps.MapThemeKind> ScorecardThemeKinds()
+    {
+        var all = Enum.GetValues<Pga2K25.Maps.MapThemeKind>();
+        if (ScorecardThemes is null) return all;
+        var picked = all.Where(k => ScorecardThemes.Contains(k.ToString(), StringComparer.OrdinalIgnoreCase)).ToList();
+        return picked.Count > 0 ? picked : all;
+    }
+
+    /// <summary>
+    /// Ticks or unticks one style. The last ticked style can't be unticked (returns false), so Build always makes
+    /// something. Ticking every style goes back to the default (null), so styles added later are built too.
+    /// </summary>
+    public bool SetScorecardTheme(Pga2K25.Maps.MapThemeKind kind, bool on)
+    {
+        var picked = ScorecardThemeKinds().ToList();
+        if (on == picked.Contains(kind)) return true;
+        if (on) picked.Add(kind);
+        else if (picked.Count == 1) return false;
+        else picked.Remove(kind);
+        var all = Enum.GetValues<Pga2K25.Maps.MapThemeKind>();
+        ScorecardThemes = picked.Count == all.Length ? null : all.Where(picked.Contains).Select(k => k.ToString()).ToList();
+        return true;
+    }
 }

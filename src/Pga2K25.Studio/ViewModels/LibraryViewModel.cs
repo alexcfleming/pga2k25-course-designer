@@ -125,7 +125,7 @@ public partial class CourseCardViewModel : ObservableObject
         {
             try { Thumbnail = Bitmap.DecodeToWidth(new MemoryStream(bytes), 480); } catch (Exception) { Thumbnail = null; }
         }
-        Built = Products.All.Where(p => File.Exists(Products.FileFor(p, main.Settings, entry.Name))).Select(p => p.Name).ToList();
+        Built = Products.All.Where(p => Products.BuiltFile(p, main.Settings, entry.Name) is not null).Select(p => p.Name).ToList();
     }
 
     [RelayCommand] private void Open()

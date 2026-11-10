@@ -45,6 +45,11 @@ public static class ScorecardMapBuilder
         foreach (var theme in themes ?? [options.Theme])
         {
             var themed = options with { Theme = theme };
+            if (theme == MapThemeKind.CoursePortrait)
+            {
+                files.AddRange(BuildPortrait(course, layers, themed, Path.Combine(outputDir, $"{baseName} - Scorecard Map ({MapTheme.For(theme).Name})"), pdf, scale, log));
+                continue;
+            }
             using var renderer = new ScorecardMapRenderer(themed);
             var (page, land, rot) = renderer.Plan(layers);
             rotation = rot; landscape = land;
@@ -81,6 +86,41 @@ public static class ScorecardMapBuilder
     }
 
     static SKCanvas Also(this SKCanvas canvas, Action<SKCanvas> act) { act(canvas); return canvas; }
+
+    /// <summary>The Course Portrait: 12 × 16 in (300 dpi at the default scale), north up; PNG, and a PDF of the art with vector type.</summary>
+    static List<string> BuildPortrait(CourseModel course, CourseLayers layers, ScorecardMapOptions options, string stem, bool pdf, float scale, IProgress<string>? log)
+    {
+        using var renderer = new CoursePortraitRenderer(course, layers, options);
+        var files = new List<string>();
+        string png = stem + ".png";
+        var info = new SKImageInfo((int)Math.Round(renderer.Page.Width * scale), (int)Math.Round(renderer.Page.Height * scale));
+        using (var surface = SKSurface.Create(info))
+        {
+            surface.Canvas.Scale(scale);
+            renderer.Draw(surface.Canvas, scale);
+            using var image = surface.Snapshot();
+            using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+            using var f = File.Create(png);
+            data.SaveTo(f);
+        }
+        files.Add(png);
+        log?.Report($"CoursePortrait: {(renderer.Landscape ? "landscape" : "portrait")}, north up, parcel {renderer.Parcel.Count} corners, " +
+                    $"{(renderer.Land is null ? "no coast" : $"coast from {CoursePortraitRenderer.Foam(course).Count} foam objects")}  →  {png}");
+        if (pdf)
+        {
+            string pdfPath = stem + ".pdf";
+            using var stream = File.Create(pdfPath);
+            using var doc = SKDocument.CreatePdf(stream, new SKDocumentPdfMetadata
+            {
+                Title = $"{course.Name} — Course Portrait", Author = options.Credit, Creator = "PGA 2K25 Course Designer",
+            });
+            renderer.Draw(doc.BeginPage(renderer.Page.Width * 72 / 100, renderer.Page.Height * 72 / 100).Also(c => c.Scale(0.72f)), scale, jpegArt: true);
+            doc.EndPage();
+            doc.Close();
+            files.Add(pdfPath);
+        }
+        return files;
+    }
 
     static string SafeFileName(string name) =>
         string.Concat(name.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)).Trim();

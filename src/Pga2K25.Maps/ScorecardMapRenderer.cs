@@ -47,6 +47,15 @@ public sealed record ScorecardMapOptions
     /// <summary>The course's wind rose (Place.json): drawn in a map corner, or in the Plan Sheet's title column; null for none.</summary>
     public WindRose? Wind { get; init; }
 
+    /// <summary>Course Portrait only: the title under the art (blank = the course name, in capitals).</summary>
+    public string Title { get; init; } = "";
+
+    /// <summary>Course Portrait only: the year after the designer credit (null = this year).</summary>
+    public int? Year { get; init; }
+
+    /// <summary>Course Portrait only: wash the sea in where the course has ocean foam (off = no coast).</summary>
+    public bool ShowCoast { get; init; } = true;
+
     /// <summary>The course's logo set (Logos.json); null reads it from the output folder. The builder owns and disposes it.</summary>
     public GreensBook.CourseLogoArt? Logos { get; init; }
 }

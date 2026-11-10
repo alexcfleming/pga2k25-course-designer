@@ -4,6 +4,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Pga2K25.Maps;
 using Pga2K25.Studio.Services;
 
 namespace Pga2K25.Studio.ViewModels;
@@ -64,8 +65,29 @@ public partial class WorkspaceViewModel
             });
         foreach (var s in Sections.Concat(ProductSections)) s.IsSelected = s.Label == value;
         ProductViewer = Products.All.FirstOrDefault(p => p.Name == value && p.Name != TerrainSection) is { } product
-            ? new ProductViewerViewModel(product, Settings, Entry.Name, () => BuildAsync([product]))
+            ? NewViewer(product)
             : null;
+    }
+
+    ProductViewerViewModel NewViewer(ProductDefinition product) =>
+        new(product, Settings, Entry.Name, () => BuildAsync([product]), product.Name == ScorecardProduct ? ScorecardStyles() : null);
+
+    const string ScorecardProduct = "Scorecard map";
+
+    /// <summary>A tick per scorecard map style, saved for this course; Build and Build all make only the ticked ones.</summary>
+    List<StyleChoiceViewModel> ScorecardStyles()
+    {
+        var picked = Settings.ExtrasFor(Entry.Path).ScorecardThemeKinds();
+        return Enum.GetValues<MapThemeKind>().Select(kind => new StyleChoiceViewModel(MapTheme.For(kind).Name, picked.Contains(kind), on =>
+        {
+            if (!Settings.ExtrasFor(Entry.Path).SetScorecardTheme(kind, on))
+            {
+                Status = "At least one scorecard map style stays ticked.";
+                return false;
+            }
+            Settings.Save();
+            return true;
+        })).ToList();
     }
 
     /// <summary>Page counts beside each product in the menu; the open viewer reloads after a build.</summary>
@@ -78,7 +100,7 @@ public partial class WorkspaceViewModel
             nav.Detail = pages == 0 ? "—" : pages.ToString();
         }
         if (ProductViewer is { } v)
-            ProductViewer = new ProductViewerViewModel(v.Product, Settings, Entry.Name, () => BuildAsync([v.Product]));
+            ProductViewer = NewViewer(v.Product);
     }
 
     void InitSections()

@@ -68,7 +68,7 @@ const string Usage = """
       fringe and lighting. Yardages from the back tees. --limits overrides any ReadinessLimits
       value; --holes adds the per-hole table; --json writes the whole report
     pga2k25 calibrate <file.course> <captures.json> [--hardness 0.85] [--blur 1.0]
-    pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|illustrated|plansheet|modernillustrated|routingplan|both|all] [--landscape|--portrait]
+    pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|illustrated|plansheet|modernillustrated|routingplan|portrait|both|all, or a comma list] [--title TEXT] [--year N] [--no-coast] [--landscape|--portrait]
                       [--north-up] [--waste] [--raw-bunkers] [--no-paths]
                       [--pdf] [--credit "NAME"] [--subtitle "TEXT"]
 
@@ -909,7 +909,8 @@ static int Scorecard(string path, string[] rest)
         {
             case "-o": case "--out": outDir = Next(); break;
             case "--theme":
-                themes = Next().ToLowerInvariant() switch
+                // One style, "both", "all", or a comma list ("vintage,routing-plan").
+                themes = Next().ToLowerInvariant().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).SelectMany(name => name switch
                 {
                     "vintage" => [MapThemeKind.Vintage],
                     "modern" => [MapThemeKind.Modern],
@@ -917,10 +918,11 @@ static int Scorecard(string path, string[] rest)
                     "plansheet" or "plan-sheet" or "plan" => [MapThemeKind.PlanSheet],
                     "modernillustrated" or "modern-illustrated" => [MapThemeKind.ModernIllustrated],
                     "routingplan" or "routing-plan" or "routing" => [MapThemeKind.RoutingPlan],
+                    "portrait" or "courseportrait" or "course-portrait" => [MapThemeKind.CoursePortrait],
                     "both" => [MapThemeKind.Vintage, MapThemeKind.Modern],
                     "all" => Enum.GetValues<MapThemeKind>(),
                     var t => throw new ArgumentException($"unknown theme {t}"),
-                };
+                }).Distinct().ToList();
                 break;
             case "--landscape": options = options with { Orientation = PageOrientation.Landscape }; break;
             case "--portrait": options = options with { Orientation = PageOrientation.Portrait }; break;
@@ -932,6 +934,9 @@ static int Scorecard(string path, string[] rest)
             case "--pdf": pdf = true; break;
             case "--credit": options = options with { Credit = Next() }; break;
             case "--subtitle": options = options with { Subtitle = Next() }; break;
+            case "--title": options = options with { Title = Next() }; break;
+            case "--year": options = options with { Year = int.Parse(Next()) }; break;
+            case "--no-coast": options = options with { ShowCoast = false }; break;
             case "--location": options = options with { Location = Next() }; break;
             case "--region": regionShape = Next(); break;
             case "--seed": regionSeed = int.Parse(Next()); break;
