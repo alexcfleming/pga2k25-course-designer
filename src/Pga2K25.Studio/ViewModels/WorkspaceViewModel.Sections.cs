@@ -33,11 +33,6 @@ public partial class WorkspaceViewModel
     /// <summary>The estimate's inputs, read fresh from Estimate.json and the price overrides each time the section opens.</summary>
     [ObservableProperty] private EstimateInputsViewModel? _estimateInputs;
 
-    public ObservableCollection<NavItemViewModel> Sections { get; } = [];
-
-    /// <summary>The built products other than the terrain map (which has its live view), each with an in-app viewer.</summary>
-    public ObservableCollection<NavItemViewModel> ProductSections { get; } = [];
-
     [ObservableProperty] private ProductViewerViewModel? _productViewer;
     public bool IsProductView => ProductViewer is not null;
     partial void OnProductViewerChanged(ProductViewerViewModel? value) => OnPropertyChanged(nameof(IsProductView));
@@ -57,13 +52,16 @@ public partial class WorkspaceViewModel
         HoleSim?.SetActive(value == HoleSimSection);
         if (value == EstimateInputsSection) OpenEstimateInputs();
         if (value == SettingsSection) LoadCourseFileNotes();
-        if (value == ReadinessSection)
-            Readiness ??= new ReadinessViewModel(Entry.Path, OutputFolder, Entry.Name, hole =>
+        if (value == ReadinessSection && Readiness is null)
+        {
+            Readiness = new ReadinessViewModel(Entry.Path, OutputFolder, Entry.Name, hole =>
             {
                 Section = TerrainSection;
                 SelectHole(hole, centre: true);
             });
-        foreach (var s in Sections.Concat(ProductSections)) s.IsSelected = s.Label == value;
+            WatchReadiness(Readiness);
+        }
+        foreach (var s in AllNav) s.IsSelected = s.Label == value;
         ProductViewer = Products.All.FirstOrDefault(p => p.Name == value && p.Name != TerrainSection) is { } product
             ? NewViewer(product)
             : null;
@@ -90,30 +88,14 @@ public partial class WorkspaceViewModel
         })).ToList();
     }
 
-    /// <summary>Page counts beside each product in the menu; the open viewer reloads after a build.</summary>
-    void RefreshProductSections()
-    {
-        foreach (var nav in ProductSections)
-        {
-            var p = Products.All.First(x => x.Name == nav.Label);
-            int pages = Products.PagesOf(p, Settings, Entry.Name).Count;
-            nav.Detail = pages == 0 ? "—" : pages.ToString();
-        }
-        if (ProductViewer is { } v)
-            ProductViewer = NewViewer(v.Product);
-    }
-
     void InitSections()
     {
         if (Entry.Thumbnail is { } bytes)
         {
             try { CourseThumbnail = Bitmap.DecodeToWidth(new MemoryStream(bytes), 96); } catch (Exception) { CourseThumbnail = null; }
         }
-        foreach (var label in new[] { TerrainSection, HoleSimSection, MeasurementsSection, SettingsSection, EstimateInputsSection, ReadinessSection })
-            Sections.Add(new NavItemViewModel(label, label == Section, () => Section = label));
-        foreach (var p in Products.All.Where(p => p.Name != TerrainSection))
-            ProductSections.Add(new NavItemViewModel(p.Name, false, () => Section = p.Name));
-        RefreshProductSections();
+        InitMenu();
+        InitPanel();
         var extras = Settings.ExtrasFor(Entry.Path);
         CardConfigPath = extras.CardConfig ?? "";
         _bunkerMerge = BunkerMergeLabel(extras.BunkerMergeMetres);
@@ -212,8 +194,7 @@ public partial class WorkspaceViewModel
             : $" · {fromFile} from the course file's measure lines" + (replaced > 0 ? $" (replacing {replaced} typed)" : "");
         int total = all.Count + _fileLines.Count;
         MeasurementSummary = total == 0 ? "No measurements yet" : (HasModelCheck ? ModelCheck : $"{total} measurement(s)") + source;
-        var nav = Sections.FirstOrDefault(s => s.Label == MeasurementsSection);
-        if (nav is not null) nav.Detail = total > 0 ? total.ToString() : "";
+        if (Nav(MeasurementsSection) is { } nav) nav.Detail = total > 0 ? total.ToString() : "";
     }
 
     // ───────────────────────── course settings ─────────────────────────
@@ -265,14 +246,6 @@ public partial class WorkspaceViewModel
         extras.BunkerMergeMetres = metres;
         Settings.Save();
     }
-}
-
-public partial class NavItemViewModel(string label, bool selected, Action select) : ObservableObject
-{
-    public string Label { get; } = label;
-    [ObservableProperty] private bool _isSelected = selected;
-    [ObservableProperty] private string _detail = "";
-    [RelayCommand] private void Select() => select();
 }
 
 public partial class RecentCourseViewModel : ObservableObject

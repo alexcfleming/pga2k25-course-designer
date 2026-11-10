@@ -69,7 +69,6 @@ public partial class WorkspaceViewModel : ObservableObject
     /// <summary>Ponds and creeks the selected hole plays over or beside.</summary>
     public ObservableCollection<WaterRowViewModel> WaterRows { get; } = [];
     [ObservableProperty] private bool _hasWater;
-    public ObservableCollection<ProductRowViewModel> ProductRows { get; } = [];
     public ObservableCollection<string> Log { get; } = [];
     public IReadOnlyList<string> Shadings { get; } = ["Relief", "Slope", "Plain"];
 
@@ -277,13 +276,6 @@ public partial class WorkspaceViewModel : ObservableObject
         TerrainPdf = Products.PdfsOf(TerrainProduct, Settings, Entry.Name).FirstOrDefault();
         string image = Products.FileFor(TerrainProduct, Settings, Entry.Name);
         TerrainImage = File.Exists(image) ? image : null;
-        ProductRows.Clear();
-        foreach (var p in Products.All)
-        {
-            string? file = Products.BuiltFile(p, Settings, Entry.Name);
-            ProductRows.Add(new ProductRowViewModel(p.Name, file is not null ? File.GetLastWriteTime(file) : null,
-                view: () => Section = p.Name, build: () => BuildAsync([p])));
-        }
     }
 
     [RelayCommand] private Task BuildAll() => BuildAsync(Products.All);
@@ -347,15 +339,4 @@ public sealed class LegRowViewModel(string label, double game, double model)
     public string Model { get; } = Signed(model);
     public string Diff { get; } = Signed(model - game) + " ft";
     public IBrush DiffBrush { get; } = Brush.Parse(Math.Abs(model - game) > 4 ? "#8A5300" : "#1F4D30");
-}
-
-public sealed partial class ProductRowViewModel(string name, DateTime? built, Action view, Func<Task> build) : ObservableObject
-{
-    public string Name { get; } = name;
-    public string StatusText { get; } = built is { } t ? $"Built {t:d MMM HH:mm}" : "Not built";
-    public IBrush StatusBrush { get; } = Brush.Parse(built is null ? "#56605A" : "#1F4D30");
-    public bool CanOpen { get; } = built is not null;
-    public string BuildLabel { get; } = built is null ? "Build" : "Rebuild";
-    [RelayCommand] private void View() => view();
-    [RelayCommand] private Task Build() => build();
 }

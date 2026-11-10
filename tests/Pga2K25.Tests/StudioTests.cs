@@ -117,6 +117,96 @@ public class StudioTests
     }
 
     [Fact]
+    public void ProductState_IsBuiltOlderThanTheSaveOrNotBuilt()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"studio-state-{Guid.NewGuid():N}");
+        var settings = new StudioSettings { OutputRoot = root };
+        var greens = Products.All.Single(p => p.Name == "Greens book");
+        var saved = new DateTime(2026, 11, 10, 12, 0, 0);
+        Assert.Equal(ProductState.NotBuilt, Products.StateOf(greens, settings, "Test Course", saved));
+
+        string dir = Products.OutputDir(settings, "Test Course");
+        Directory.CreateDirectory(dir);
+        string sheet = Path.Combine(dir, "Test Course - Greens Book.png");
+        File.WriteAllBytes(sheet, [0]);
+        File.SetLastWriteTime(sheet, saved.AddHours(-1));
+        Assert.Equal(ProductState.OlderThanSave, Products.StateOf(greens, settings, "Test Course", saved));
+        File.SetLastWriteTime(sheet, saved.AddMinutes(5));
+        Assert.Equal(ProductState.Built, Products.StateOf(greens, settings, "Test Course", saved));
+        Directory.Delete(root, recursive: true);
+    }
+
+    [Fact]
+    public void Menu_StartsFullWithSetupAndRecentFolded_AndRemembersFolds()
+    {
+        var settings = new StudioSettings();
+        Assert.False(settings.MenuCollapsed);
+        Assert.Equal(["Course setup", "Recent"], settings.ClosedMenuGroups);
+
+        bool? saved = null;
+        var group = new Pga2K25.Studio.ViewModels.NavGroupViewModel("Products", "", [], true, open => saved = open);
+        group.ToggleCommand.Execute(null);
+        Assert.False(group.IsOpen);
+        Assert.False(saved);
+        Assert.Equal("PRODUCTS", group.Heading);
+
+        settings.MenuCollapsed = true;
+        settings.ClosedMenuGroups = ["Products"];
+        var back = System.Text.Json.JsonSerializer.Deserialize<StudioSettings>(System.Text.Json.JsonSerializer.Serialize(settings))!;
+        Assert.True(back.MenuCollapsed);
+        Assert.Equal(["Products"], back.ClosedMenuGroups);
+    }
+
+    [Fact]
+    public void Menu_HasAnIconForEveryPageAndProduct()
+    {
+        var labels = Products.All.Select(p => p.Name).Concat([
+            Pga2K25.Studio.ViewModels.WorkspaceViewModel.HoleSimSection, Pga2K25.Studio.ViewModels.WorkspaceViewModel.MeasurementsSection,
+            Pga2K25.Studio.ViewModels.WorkspaceViewModel.ReadinessSection, Pga2K25.Studio.ViewModels.WorkspaceViewModel.SettingsSection,
+            Pga2K25.Studio.ViewModels.WorkspaceViewModel.EstimateInputsSection]);
+        // A label without its own icon falls back to the hole sheets' page icon.
+        foreach (var label in labels.Where(l => l != "Hole sheets"))
+            Assert.True(Pga2K25.Studio.ViewModels.WorkspaceViewModel.IconFor(label) != Pga2K25.Studio.ViewModels.WorkspaceViewModel.Glyph.Sheets, label);
+    }
+
+    [Fact]
+    public void Panel_OpensTheHole_AToolJumpsToTheTop_AndTheHoleReturnsWhenItStops()
+    {
+        bool hole = false, routing = false, planting = false;
+        bool Shows(string k) => k switch { "hole" => hole, "routing" => routing, "planting" => planting, _ => true };
+        var panel = new Pga2K25.Studio.ViewModels.PanelStack(["hole", "sketches", "notes", "map"], Shows);
+
+        // No hole yet: the next card shows; once a hole is picked it takes over, since nothing was chosen by hand.
+        panel.Settle();
+        Assert.Equal("sketches", panel.Open);
+        hole = true; panel.Settle();
+        Assert.Equal("hole", panel.Open);
+
+        // A tool switched on goes to the top, open; a second one goes above it.
+        routing = true; panel.Work("routing");
+        Assert.Equal(["routing", "hole", "sketches", "notes", "map"], panel.Order);
+        Assert.Equal("routing", panel.Open);
+        planting = true; panel.Work("planting");
+        Assert.Equal(["planting", "routing", "hole", "sketches", "notes", "map"], panel.Order);
+
+        // Switched off, in turn: the next one up opens, then the hole.
+        planting = false; panel.Stop("planting");
+        Assert.Equal("routing", panel.Open);
+        routing = false; panel.Stop("routing");
+        Assert.Equal("hole", panel.Open);
+        Assert.Equal(["hole", "sketches", "notes", "map"], panel.Order);
+
+        // A card clicked opens where it is and stays open; clicked again, everything folds.
+        panel.Toggle("notes");
+        Assert.Equal("notes", panel.Open);
+        panel.Settle();
+        Assert.Equal("notes", panel.Open);
+        panel.Toggle("notes");
+        panel.Settle();
+        Assert.Null(panel.Open);
+    }
+
+    [Fact]
     public void ScorecardMap_CountsAsBuiltWithoutTheVintageStyle()
     {
         string root = Path.Combine(Path.GetTempPath(), $"studio-scorecard-{Guid.NewGuid():N}");

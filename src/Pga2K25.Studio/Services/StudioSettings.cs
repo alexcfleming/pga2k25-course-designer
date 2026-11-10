@@ -28,6 +28,12 @@ public sealed class StudioSettings
         if (Recent.Count > MaxRecent) Recent.RemoveRange(MaxRecent, Recent.Count - MaxRecent);
     }
 
+    /// <summary>The workspace menu folded to its icon rail (the terrain map gets the width).</summary>
+    public bool MenuCollapsed { get; set; }
+
+    /// <summary>The workspace menu's groups that are folded shut, by title. Course setup and Recent start folded.</summary>
+    public List<string> ClosedMenuGroups { get; set; } = ["Course setup", "Recent"];
+
     /// <summary>Course files added by hand from outside the courses folder (e.g. a published course's saved copy).</summary>
     public List<string> ExtraCourses { get; set; } = [];
 

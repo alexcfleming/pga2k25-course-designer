@@ -26,6 +26,69 @@
     <DataTemplate x:Key="ToggleTemplate" x:DataType="vm:ToggleItemViewModel">
       <ToggleButton Classes="pill" Content="{Binding Label}" IsChecked="{Binding IsOn}" MinHeight="30" Padding="10,0"/>
     </DataTemplate>
+    <!-- Workspace menu (WorkspaceViewModel.Menu.cs) -->
+    <DataTemplate x:Key="NavItemTemplate" x:DataType="vm:NavItemViewModel">
+      <Button Classes="nav" Classes.selected="{Binding IsSelected}" Command="{Binding SelectCommand}" Margin="0,1" Padding="8,5"
+              ToolTip.Tip="{Binding Tip}" AutomationProperties.Name="{Binding Label}">
+        <Grid ColumnDefinitions="22,*,Auto" ColumnSpacing="10">
+          <TextBlock Classes="icon" Text="{Binding Icon}"/>
+          <TextBlock Grid.Column="1" Text="{Binding Label}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+          <Panel Grid.Column="2" VerticalAlignment="Center">
+            <TextBlock Text="{Binding Detail}" Classes="muted small" IsVisible="{Binding ShowsDetail}"/>
+            <Border Classes="navbadge" IsVisible="{Binding HasBadge}">
+              <TextBlock Text="{Binding Badge}" FontSize="11" FontWeight="SemiBold" Foreground="#854F0B" HorizontalAlignment="Center"/>
+            </Border>
+            <Ellipse Width="8" Height="8" Fill="{Binding StateFill}" Stroke="{Binding StateEdge}" StrokeThickness="1.5" IsVisible="{Binding HasState}"/>
+          </Panel>
+        </Grid>
+      </Button>
+    </DataTemplate>
+    <DataTemplate x:Key="RailItemTemplate" x:DataType="vm:NavItemViewModel">
+      <Button Classes="nav rail" Classes.selected="{Binding IsSelected}" Command="{Binding SelectCommand}" Margin="0,1"
+              ToolTip.Tip="{Binding Tip}" ToolTip.Placement="Right" AutomationProperties.Name="{Binding Label}">
+        <Panel>
+          <TextBlock Classes="icon big" Text="{Binding Icon}"/>
+          <Ellipse Width="7" Height="7" Fill="#D9A033" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,-3,-6,0" IsVisible="{Binding HasBadge}"/>
+        </Panel>
+      </Button>
+    </DataTemplate>
+    <DataTemplate x:Key="NavGroupTemplate" x:DataType="vm:NavGroupViewModel">
+      <StackPanel>
+        <Button Classes="navgroup" Command="{Binding ToggleCommand}" ToolTip.Tip="{Binding Tip}" AutomationProperties.Name="{Binding Title}">
+          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+            <TextBlock Classes="icon tiny" Text="{Binding Chevron}"/>
+            <TextBlock Grid.Column="1" Text="{Binding Heading}" LetterSpacing="0.5"/>
+            <TextBlock Grid.Column="2" Text="{Binding Summary}"/>
+          </Grid>
+        </Button>
+        <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource NavItemTemplate}" IsVisible="{Binding IsOpen}"/>
+      </StackPanel>
+    </DataTemplate>
+    <DataTemplate x:Key="RecentTemplate" x:DataType="vm:RecentCourseViewModel">
+      <Button Classes="nav" Command="{Binding OpenCommand}" Margin="0,1" Padding="8,4" AutomationProperties.Name="{Binding Name}">
+        <StackPanel Orientation="Horizontal" Spacing="10">
+          <Border Width="24" Height="24" CornerRadius="5" ClipToBounds="True" Background="#E6E9E3">
+            <Image Source="{Binding Thumbnail}" Stretch="UniformToFill"/>
+          </Border>
+          <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+        </StackPanel>
+      </Button>
+    </DataTemplate>
+    <DataTemplate x:Key="PanelFoldedTemplate" x:DataType="vm:PanelCardViewModel">
+      <Button Classes="panelrow" Command="{Binding ToggleCommand}" ToolTip.Tip="{Binding Summary}" AutomationProperties.Name="{Binding Title, StringFormat='{}{0} card'}">
+        <Grid ColumnDefinitions="22,*,Auto" ColumnSpacing="10">
+          <TextBlock Classes="icon big" Text="{Binding Icon}"/>
+          <StackPanel Grid.Column="1" Spacing="1">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+              <Border Classes="workingtag" IsVisible="{Binding IsWorking}"><TextBlock Text="working on" FontSize="11" FontWeight="SemiBold" Foreground="#1F4D30"/></Border>
+            </StackPanel>
+            <TextBlock Text="{Binding Summary}" Classes="muted small" TextTrimming="CharacterEllipsis"/>
+          </StackPanel>
+          <TextBlock Grid.Column="2" Classes="icon tiny" Text="&#xE76C;"/>
+        </Grid>
+      </Button>
+    </DataTemplate>
   </UserControl.Resources>
   <DockPanel>
     <!-- Title bar -->
@@ -55,74 +118,113 @@
       </DockPanel>
     </Border>
 
-    <!-- Section menu -->
-    <Border DockPanel.Dock="Left" Width="236" Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,1,0" Padding="12,16">
-      <DockPanel>
-        <StackPanel DockPanel.Dock="Bottom" Spacing="4">
-          <TextBlock Text="Output folder" Classes="muted small" Margin="10,0"/>
-          <TextBlock Text="{Binding OutputFolder}" Classes="mono" FontSize="11" Foreground="#3F4A43" TextWrapping="Wrap" Margin="10,0"/>
-        </StackPanel>
-        <StackPanel Spacing="18">
-          <Button Classes="nav" Command="{Binding BackToLibraryCommand}">
-            <TextBlock Text="← Library"/>
+    <!-- Section menu: the terrain map, folding groups with icons, and an icon rail when folded (WorkspaceViewModel.Menu.cs) -->
+    <Border DockPanel.Dock="Left" Width="{Binding MenuWidth}" Background="{StaticResource Surface}" BorderBrush="{StaticResource Hairline}" BorderThickness="0,0,1,0">
+      <Panel>
+        <!-- Full menu -->
+        <DockPanel IsVisible="{Binding !MenuCollapsed}" Margin="10,14,10,10">
+          <StackPanel DockPanel.Dock="Bottom" Spacing="6">
+            <StackPanel Orientation="Horizontal" Spacing="10" Margin="8,0" ToolTip.Tip="Product dots: built, built before the course file was last saved, not built">
+              <StackPanel Orientation="Horizontal" Spacing="4"><Ellipse Width="7" Height="7" Fill="#3B8B54" VerticalAlignment="Center"/><TextBlock Text="built" Classes="muted small"/></StackPanel>
+              <StackPanel Orientation="Horizontal" Spacing="4"><Ellipse Width="7" Height="7" Fill="#D9A033" VerticalAlignment="Center"/><TextBlock Text="older than save" Classes="muted small"/></StackPanel>
+              <StackPanel Orientation="Horizontal" Spacing="4"><Ellipse Width="7" Height="7" Stroke="#9AA39D" StrokeThickness="1.5" VerticalAlignment="Center"/><TextBlock Text="not built" Classes="muted small"/></StackPanel>
+            </StackPanel>
+            <TextBlock Text="{Binding OutputFolder}" Classes="mono" FontSize="10.5" Foreground="#6B746E" TextWrapping="Wrap" Margin="8,0" ToolTip.Tip="Output folder"/>
+            <Button Classes="nav" Command="{Binding ToggleMenuCommand}" Padding="8,5" AutomationProperties.Name="Fold the menu">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Classes="icon" Width="22" Text="{Binding MenuToggleGlyph}"/>
+                <TextBlock Text="{Binding MenuToggleText}" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+          </StackPanel>
+          <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="2">
+              <Button Classes="nav" Command="{Binding BackToLibraryCommand}" Padding="8,5">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <TextBlock Classes="icon" Width="22" Text="{Binding BackGlyph}"/>
+                  <TextBlock Text="Library" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+              <DockPanel Margin="8,6,0,10">
+                <Border DockPanel.Dock="Left" Width="40" Height="40" CornerRadius="6" ClipToBounds="True" Background="#E6E9E3" Margin="0,0,10,0">
+                  <Image Source="{Binding CourseThumbnail}" Stretch="UniformToFill"/>
+                </Border>
+                <StackPanel VerticalAlignment="Center">
+                  <TextBlock Text="{Binding CourseName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                  <TextBlock Text="{Binding CourseKindText}" Classes="muted small"/>
+                </StackPanel>
+              </DockPanel>
+              <ContentControl Content="{Binding TerrainNav}" ContentTemplate="{StaticResource NavItemTemplate}"/>
+              <ContentControl Content="{Binding Design}" ContentTemplate="{StaticResource NavGroupTemplate}"/>
+              <ContentControl Content="{Binding ProductNav}" ContentTemplate="{StaticResource NavGroupTemplate}"/>
+              <ContentControl Content="{Binding Setup}" ContentTemplate="{StaticResource NavGroupTemplate}"/>
+              <StackPanel IsVisible="{Binding !!Recent.Count}">
+                <Button Classes="navgroup" Command="{Binding RecentNav.ToggleCommand}" AutomationProperties.Name="Recent">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Classes="icon tiny" Text="{Binding RecentNav.Chevron}"/>
+                    <TextBlock Text="RECENT" LetterSpacing="0.5"/>
+                  </StackPanel>
+                </Button>
+                <ItemsControl ItemsSource="{Binding Recent}" ItemTemplate="{StaticResource RecentTemplate}" IsVisible="{Binding RecentNav.IsOpen}"/>
+              </StackPanel>
+            </StackPanel>
+          </ScrollViewer>
+        </DockPanel>
+
+        <!-- Icon rail -->
+        <DockPanel IsVisible="{Binding MenuCollapsed}" Margin="6,14,6,10">
+          <Button DockPanel.Dock="Bottom" Classes="nav rail" Command="{Binding ToggleMenuCommand}" ToolTip.Tip="{Binding MenuToggleText}" ToolTip.Placement="Right" AutomationProperties.Name="Show the menu">
+            <TextBlock Classes="icon big" Text="{Binding MenuToggleGlyph}"/>
           </Button>
           <StackPanel Spacing="2">
-            <DockPanel Margin="10,0,0,10">
-              <Border DockPanel.Dock="Left" Width="40" Height="40" CornerRadius="6" ClipToBounds="True" Background="#E6E9E3" Margin="0,0,10,0">
-                <Image Source="{Binding CourseThumbnail}" Stretch="UniformToFill"/>
-              </Border>
-              <StackPanel VerticalAlignment="Center">
-                <TextBlock Text="{Binding CourseName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                <TextBlock Text="{Binding CourseKindText}" Classes="muted small"/>
-              </StackPanel>
-            </DockPanel>
-            <ItemsControl ItemsSource="{Binding Sections}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="vm:NavItemViewModel">
-                  <Button Classes="nav" Classes.selected="{Binding IsSelected}" Command="{Binding SelectCommand}" Margin="0,1" AutomationProperties.Name="{Binding Label}">
-                    <DockPanel>
-                      <TextBlock DockPanel.Dock="Right" Text="{Binding Detail}" Classes="muted small" VerticalAlignment="Center"/>
-                      <TextBlock Text="{Binding Label}"/>
+            <Button Classes="nav rail" Command="{Binding BackToLibraryCommand}" ToolTip.Tip="Library" ToolTip.Placement="Right" AutomationProperties.Name="Library">
+              <TextBlock Classes="icon big" Text="{Binding BackGlyph}"/>
+            </Button>
+            <Border Width="36" Height="36" CornerRadius="6" ClipToBounds="True" Background="#E6E9E3" Margin="0,6,0,8" ToolTip.Tip="{Binding CourseName}" ToolTip.Placement="Right">
+              <Image Source="{Binding CourseThumbnail}" Stretch="UniformToFill"/>
+            </Border>
+            <ContentControl Content="{Binding TerrainNav}" ContentTemplate="{StaticResource RailItemTemplate}"/>
+            <ItemsControl ItemsSource="{Binding Design.Items}" ItemTemplate="{StaticResource RailItemTemplate}"/>
+            <Border Height="1" Background="{StaticResource Hairline}" Margin="8,6"/>
+            <Button Name="ProductsRail" Classes="nav rail" Classes.selected="{Binding ProductNav.HasSelection}" ToolTip.Tip="{Binding ProductNav.Tip}" ToolTip.Placement="Right" AutomationProperties.Name="Products">
+              <TextBlock Classes="icon big" Text="{Binding ProductNav.Icon}"/>
+              <Button.Flyout>
+                <Flyout Placement="RightEdgeAlignedTop">
+                  <StackPanel Width="260" Spacing="2" x:DataType="vm:WorkspaceViewModel">
+                    <DockPanel Margin="8,2,8,6">
+                      <TextBlock DockPanel.Dock="Right" Text="{Binding ProductNav.Summary}" Classes="muted small"/>
+                      <TextBlock Text="PRODUCTS" Classes="muted small" LetterSpacing="0.5"/>
                     </DockPanel>
-                  </Button>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
+                    <ItemsControl ItemsSource="{Binding ProductNav.Items}" ItemTemplate="{StaticResource NavItemTemplate}"/>
+                  </StackPanel>
+                </Flyout>
+              </Button.Flyout>
+            </Button>
+            <Button Name="SetupRail" Classes="nav rail" Classes.selected="{Binding Setup.HasSelection}" ToolTip.Tip="Course setup" ToolTip.Placement="Right" AutomationProperties.Name="Course setup">
+              <TextBlock Classes="icon big" Text="{Binding Setup.Icon}"/>
+              <Button.Flyout>
+                <Flyout Placement="RightEdgeAlignedTop">
+                  <StackPanel Width="240" Spacing="2" x:DataType="vm:WorkspaceViewModel">
+                    <TextBlock Text="COURSE SETUP" Classes="muted small" LetterSpacing="0.5" Margin="8,2,8,6"/>
+                    <ItemsControl ItemsSource="{Binding Setup.Items}" ItemTemplate="{StaticResource NavItemTemplate}"/>
+                  </StackPanel>
+                </Flyout>
+              </Button.Flyout>
+            </Button>
+            <Button Name="RecentRail" Classes="nav rail" ToolTip.Tip="Recent courses" ToolTip.Placement="Right" IsVisible="{Binding !!Recent.Count}" AutomationProperties.Name="Recent courses">
+              <TextBlock Classes="icon big" Text="{Binding RecentNav.Icon}"/>
+              <Button.Flyout>
+                <Flyout Placement="RightEdgeAlignedTop">
+                  <StackPanel Width="240" Spacing="2" x:DataType="vm:WorkspaceViewModel">
+                    <TextBlock Text="RECENT" Classes="muted small" LetterSpacing="0.5" Margin="8,2,8,6"/>
+                    <ItemsControl ItemsSource="{Binding Recent}" ItemTemplate="{StaticResource RecentTemplate}"/>
+                  </StackPanel>
+                </Flyout>
+              </Button.Flyout>
+            </Button>
           </StackPanel>
-          <StackPanel Spacing="2">
-            <TextBlock Text="Products" Classes="muted small" Margin="10,0,0,4"/>
-            <ItemsControl ItemsSource="{Binding ProductSections}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="vm:NavItemViewModel">
-                  <Button Classes="nav" Classes.selected="{Binding IsSelected}" Command="{Binding SelectCommand}" Margin="0,1" AutomationProperties.Name="{Binding Label}">
-                    <DockPanel>
-                      <TextBlock DockPanel.Dock="Right" Text="{Binding Detail}" Classes="muted small" VerticalAlignment="Center"/>
-                      <TextBlock Text="{Binding Label}"/>
-                    </DockPanel>
-                  </Button>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </StackPanel>
-          <StackPanel Spacing="4" IsVisible="{Binding !!Recent.Count}">
-            <TextBlock Text="Recent" Classes="muted small" Margin="10,0"/>
-            <ItemsControl ItemsSource="{Binding Recent}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="vm:RecentCourseViewModel">
-                  <Button Classes="nav" Command="{Binding OpenCommand}" Margin="0,1" AutomationProperties.Name="{Binding Name}">
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                      <Border Width="28" Height="28" CornerRadius="5" ClipToBounds="True" Background="#E6E9E3">
-                        <Image Source="{Binding Thumbnail}" Stretch="UniformToFill"/>
-                      </Border>
-                      <TextBlock Text="{Binding Name}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                    </StackPanel>
-                  </Button>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </StackPanel>
-        </StackPanel>
-      </DockPanel>
+        </DockPanel>
+      </Panel>
     </Border>
 
     <Grid ColumnDefinitions="*,340" RowDefinitions="Auto,*" Margin="24,20,24,16" ColumnSpacing="16" RowSpacing="16">
@@ -323,13 +425,15 @@
       </Border>
 
       <!-- Inspector -->
+      <!-- Right-hand panel: one card open, the rest folded to a line; a tool switched on jumps to the top (WorkspaceViewModel.Panel.cs) -->
       <ScrollViewer Grid.Row="1" Grid.Column="1" IsVisible="{Binding IsTerrain}">
-        <StackPanel Spacing="16">
-          <Border Classes="card" Padding="16" IsVisible="{Binding ShowPlanting}">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+          <ContentControl Grid.Row="{Binding PlantingCard.Row}" Content="{Binding PlantingCard}" ContentTemplate="{StaticResource PanelFoldedTemplate}" IsVisible="{Binding PlantingCard.ShowsFolded}" Margin="0,0,0,8"/>
+          <Border Classes="card" Padding="16" Grid.Row="{Binding PlantingCard.Row}" Margin="0,0,0,12" IsVisible="{Binding PlantingCard.ShowsFull}">
             <StackPanel Spacing="12">
               <DockPanel>
                 <TextBlock DockPanel.Dock="Right" Text="from the course file" Classes="muted" VerticalAlignment="Bottom"/>
-                <TextBlock Text="Planting" FontSize="20" FontWeight="SemiBold"/>
+                <StackPanel Orientation="Horizontal"><TextBlock Text="Planting" FontSize="20" FontWeight="SemiBold"/><Border Classes="workingtag" IsVisible="{Binding PlantingCard.IsWorking}" VerticalAlignment="Center" Margin="8,0,0,0"><TextBlock Text="working on" FontSize="11" FontWeight="SemiBold" Foreground="#1F4D30"/></Border></StackPanel>
               </DockPanel>
               <TextBlock Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding !HasPlanting}"
                          Text="Nothing has been planted in the designer yet."/>
@@ -390,11 +494,12 @@
               </StackPanel>
             </StackPanel>
           </Border>
-          <Border Classes="card" Padding="16" IsVisible="{Binding RoutingTestOn}">
+          <ContentControl Grid.Row="{Binding RoutingCard.Row}" Content="{Binding RoutingCard}" ContentTemplate="{StaticResource PanelFoldedTemplate}" IsVisible="{Binding RoutingCard.ShowsFolded}" Margin="0,0,0,8"/>
+          <Border Classes="card" Padding="16" Grid.Row="{Binding RoutingCard.Row}" Margin="0,0,0,12" IsVisible="{Binding RoutingCard.ShowsFull}">
             <StackPanel Spacing="12">
               <DockPanel>
                 <TextBlock DockPanel.Dock="Right" Text="{Binding RoutingCount}" Classes="muted" VerticalAlignment="Bottom"/>
-                <TextBlock Text="Routing test" FontSize="20" FontWeight="SemiBold"/>
+                <StackPanel Orientation="Horizontal"><TextBlock Text="Routing test" FontSize="20" FontWeight="SemiBold"/><Border Classes="workingtag" IsVisible="{Binding RoutingCard.IsWorking}" VerticalAlignment="Center" Margin="8,0,0,0"><TextBlock Text="working on" FontSize="11" FontWeight="SemiBold" Foreground="#1F4D30"/></Border></StackPanel>
               </DockPanel>
               <UniformGrid Columns="2" ColumnSpacing="8">
                 <Border Background="{StaticResource Ground}" CornerRadius="8" Padding="10">
@@ -530,15 +635,13 @@
               </Border>
             </StackPanel>
           </Border>
-          <Border Classes="card" Padding="4">
-            <Expander HorizontalAlignment="Stretch" Background="Transparent" BorderThickness="0" AutomationProperties.Name="Map options">
-              <Expander.Header>
+          <ContentControl Grid.Row="{Binding MapCard.Row}" Content="{Binding MapCard}" ContentTemplate="{StaticResource PanelFoldedTemplate}" IsVisible="{Binding MapCard.ShowsFolded}" Margin="0,0,0,8"/>
+          <Border Classes="card" Padding="16" Grid.Row="{Binding MapCard.Row}" Margin="0,0,0,12" IsVisible="{Binding MapCard.ShowsFull}">
+              <StackPanel Spacing="10">
                 <StackPanel Spacing="2">
-                  <TextBlock Text="Map options" FontWeight="SemiBold"/>
+                  <TextBlock Text="Map options" FontSize="20" FontWeight="SemiBold"/>
                   <TextBlock Text="{Binding OptSummary}" Classes="muted small" TextWrapping="Wrap"/>
                 </StackPanel>
-              </Expander.Header>
-              <StackPanel Spacing="10">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Area" Classes="muted small"/>
                   <ComboBox ItemsSource="{Binding Areas}" SelectedItem="{Binding OptArea}" HorizontalAlignment="Stretch" AutomationProperties.Name="Area"/>
@@ -591,9 +694,9 @@
                 <TextBlock Classes="muted small" TextWrapping="Wrap"
                            Text="Saved for this course. The live map, the terrain map build and the hole sheets use them; hole sheets keep their own finer contours."/>
               </StackPanel>
-            </Expander>
           </Border>
-          <Border Classes="card" Padding="16" IsVisible="{Binding HasHole}">
+          <ContentControl Grid.Row="{Binding HoleCard.Row}" Content="{Binding HoleCard}" ContentTemplate="{StaticResource PanelFoldedTemplate}" IsVisible="{Binding HoleCard.ShowsFolded}" Margin="0,0,0,8"/>
+          <Border Classes="card" Padding="16" Grid.Row="{Binding HoleCard.Row}" Margin="0,0,0,12" IsVisible="{Binding HoleCard.ShowsFull}">
             <StackPanel Spacing="14">
               <DockPanel>
                 <TextBlock DockPanel.Dock="Right" Text="{Binding HoleParYards}" Classes="muted" VerticalAlignment="Bottom"/>
@@ -659,13 +762,14 @@
           </Border>
 
           <!-- Selected note -->
-          <Border Classes="card" Padding="16" IsVisible="{Binding HasSelectedNote}">
+          <ContentControl Grid.Row="{Binding NoteCard.Row}" Content="{Binding NoteCard}" ContentTemplate="{StaticResource PanelFoldedTemplate}" IsVisible="{Binding NoteCard.ShowsFolded}" Margin="0,0,0,8"/>
+          <Border Classes="card" Padding="16" Grid.Row="{Binding NoteCard.Row}" Margin="0,0,0,12" IsVisible="{Binding NoteCard.ShowsFull}">
             <StackPanel Spacing="10">
               <DockPanel>
                 <Border DockPanel.Dock="Left" Width="24" Height="24" CornerRadius="12" Background="{Binding SelectedNote.KindBrush, FallbackValue=Gray}" Margin="0,0,10,0">
                   <TextBlock Text="{Binding SelectedNote.Number, FallbackValue=''}" Foreground="White" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
-                <TextBlock Text="Note" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                <StackPanel Orientation="Horizontal"><TextBlock Text="Note" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/><Border Classes="workingtag" IsVisible="{Binding NoteCard.IsWorking}" VerticalAlignment="Center" Margin="8,0,0,0"><TextBlock Text="working on" FontSize="11" FontWeight="SemiBold" Foreground="#1F4D30"/></Border></StackPanel>
               </DockPanel>
               <ListBox Classes="segmented" ItemsSource="{Binding NoteKinds}" SelectedItem="{Binding SelectedNote.Kind}" AutomationProperties.Name="Kind of note">
                 <ListBox.ItemsPanel>
@@ -688,7 +792,8 @@
           </Border>
 
           <!-- Sketches -->
-          <Border Classes="card" Padding="16">
+          <ContentControl Grid.Row="{Binding SketchesCard.Row}" Content="{Binding SketchesCard}" ContentTemplate="{StaticResource PanelFoldedTemplate}" IsVisible="{Binding SketchesCard.ShowsFolded}" Margin="0,0,0,8"/>
+          <Border Classes="card" Padding="16" Grid.Row="{Binding SketchesCard.Row}" Margin="0,0,0,12" IsVisible="{Binding SketchesCard.ShowsFull}">
             <StackPanel Spacing="10">
               <DockPanel>
                 <Button DockPanel.Dock="Right" Content="Import scans…" Click="ImportScans_Click" IsEnabled="{Binding !Busy}" MinHeight="30" Padding="10,0"/>
@@ -751,7 +856,8 @@
           </Border>
 
           <!-- Notes -->
-          <Border Classes="card" Padding="16">
+          <ContentControl Grid.Row="{Binding NotesCard.Row}" Content="{Binding NotesCard}" ContentTemplate="{StaticResource PanelFoldedTemplate}" IsVisible="{Binding NotesCard.ShowsFolded}" Margin="0,0,0,8"/>
+          <Border Classes="card" Padding="16" Grid.Row="{Binding NotesCard.Row}" Margin="0,0,0,12" IsVisible="{Binding NotesCard.ShowsFull}">
             <StackPanel Spacing="8">
               <DockPanel>
                 <ToggleButton DockPanel.Dock="Right" Classes="pill" Content="+ Add note" IsChecked="{Binding PlacingNote}"/>
@@ -784,30 +890,7 @@
             </StackPanel>
           </Border>
 
-          <Border Classes="card" Padding="16">
-            <StackPanel Spacing="4">
-              <TextBlock Classes="h2" Text="Products" Margin="0,0,0,6"/>
-              <ItemsControl ItemsSource="{Binding ProductRows}">
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="vm:ProductRowViewModel">
-                    <Border BorderBrush="{StaticResource Tint}" BorderThickness="0,1,0,0" Padding="0,8">
-                      <DockPanel>
-                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                          <Button Content="View" Command="{Binding ViewCommand}" IsEnabled="{Binding CanOpen}" MinHeight="30" Padding="10,0"/>
-                          <Button Content="{Binding BuildLabel}" Command="{Binding BuildCommand}" MinHeight="30" Padding="10,0"/>
-                        </StackPanel>
-                        <StackPanel>
-                          <TextBlock Text="{Binding Name}" FontWeight="Medium"/>
-                          <TextBlock Text="{Binding StatusText}" FontSize="12" Foreground="{Binding StatusBrush}"/>
-                        </StackPanel>
-                      </DockPanel>
-                    </Border>
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-              </ItemsControl>
-            </StackPanel>
-          </Border>
-        </StackPanel>
+        </Grid>
       </ScrollViewer>
 
       <!-- Product viewer -->

@@ -320,6 +320,7 @@ public partial class WorkspaceViewModel
     public async Task ImportScansAsync(IReadOnlyList<string> files)
     {
         if (Busy || files.Count == 0) return;
+        ShowSketchesCard();
         Busy = true;
         ImportResults.Clear();
         HasImportResults = false;

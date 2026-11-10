@@ -72,6 +72,10 @@ public partial class WorkspaceView : UserControl
         if (_vm is null) return;
         if (e.PropertyName == nameof(WorkspaceViewModel.MapImage)) _map.Source = _vm.MapImage;
         else if (e.PropertyName == nameof(WorkspaceViewModel.PlacingNote)) _map.Placing = _vm.PlacingNote;
+        else if (e.PropertyName == nameof(WorkspaceViewModel.Section))
+            // A page picked from one of the icon rail's pop-out lists closes the list.
+            foreach (var name in new[] { "ProductsRail", "SetupRail", "RecentRail" })
+                this.FindControl<Button>(name)?.Flyout?.Hide();
     }
 
     void PullLayers()

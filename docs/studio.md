@@ -22,7 +22,7 @@ Pass a `.course` path on the command line to open straight into that course.
 
 ## Course workspace
 
-The left-hand menu has the course's sections, its products with page counts, and recently opened courses.
+The left-hand menu has the course's sections, its products with a built dot each, and recently opened courses (see **The section menu** below).
 
 - **Terrain map:** drawn live by the same code as the printed terrain map. Once the terrain map product is built, **Open PDF** and **Open image** in the page header open it; before that, **Build terrain map** builds it.
   - Relief / Slope / Plain shading; Surfaces, Grid and Hilltops layers.
@@ -39,7 +39,8 @@ The left-hand menu has the course's sections, its products with page counts, and
     - **Beside the line:** which side the water is on, how far off, and at what yardage.
     - Yards are measured on the line itself, so a carry can read a few yards shorter than the yardage book. The book takes the farthest bank within 15 m of the line, which matters where a creek crosses at an angle.
   - The model check above the map is the RMS difference over every measured leg.
-  - **Map options** (top of the right-hand panel):
+  - **The right-hand panel** (`WorkspaceViewModel.Panel.cs`, `PanelStack`) shows one card open at a time; every other card is a single line with its summary (the hole's par, yards and heights; how many sketches; how many notes; the map options), and clicking a line opens that card in place. The open card starts as the hole. A tool you switch on is what you're working on: **Routing test**, **Planting** or a selected note jumps to the top, open and marked "working on", the newest on top. Switch it off (or close the note) and the card under it opens, back to the hole. Starting a scan import opens Hole sketches, and **+ Add note** opens Notes. Products are no longer listed here: the section menu shows what is built, and each product's page builds it.
+  - **Map options** (a card in the right-hand panel):
     - **Area:** the routing plus a margin, the whole plot, or the buildable ground. A small margin (even 0) still keeps 20 m round every tee and green site.
     - **Contours:** the interval (blank for Auto) and how often an index line is drawn.
     - **Grid:** the grid square size.
@@ -50,7 +51,7 @@ The left-hand menu has the course's sections, its products with page counts, and
 - **Products:**
   - **Viewer:** each product's pages as thumbnails, with the selected page large (zoom, pan, fit). Open PDF, Open image, Show in folder and Rebuild are in the toolbar.
   - **Not built yet:** a product shows a Build button instead.
-  - **Building:** use the viewer, the products panel, or **Build all products**.
+  - **Building:** use the product's page, or **Build all products**.
 - **Measurements:** in-game measure-tool readings along the route, from the tee marker to the aim point and from the aim point to the green. The yards fill in from the course file. Heights can be typed as the tool shows them (`+13'6"`, `-0'7`, `13 ft 6 in`) or in decimal feet. Readings are saved to `Measurements.csv` in the course's output folder, in the same format as `samples/calibration/route-heights`.
   - **Read from the course file (new in 2.7.0).** The designer's measure tool saves every point it places, with the game's own ground height, in the course file (`distanceMarkers`, read into lines by `MeasureLines`). Draw a line from the tee marker to the aim-point marker and on to the green circle, save, and open the course again: each leg whose two ends sit within 5 yds of a hole's route markers becomes that leg's reading (`Measurements.FromCourse`), marked "course file" in the table and never written to the CSV. It replaces a typed reading for the same leg. Every other measure-line leg is listed as well, under its nearest hole (within 60 m of the line of play, else "—"), with the game's height change along it against the model's (`Measurements.OtherLegs`). A height change needs no datum, so any line laid anywhere checks the terrain. The model check covers both: "x ft RMS over N measured legs · y ft over M other measure-line legs".
 - **Course settings:** the course's **Place**, **Holes** and **Logo**, the scorecard maps' **Bunker merge** (10 m by default; 6, 4 or 2 m keep the pots of a bunker complex apart), and a course-card settings file for this course.
@@ -77,7 +78,16 @@ The left-hand menu has the course's sections, its products with page counts, and
 
 Products are written to `<output folder>\<course>\`:
 
-Products are listed (and built by **Build all**) in this order: terrain map, hole sheets, course cards, greens book, yardage book, hole illustrations, construction estimate, scorecard map. The Hole design simulator sits right below the terrain map in the section menu.
+Products are listed (and built by **Build all**) in this order: terrain map, hole sheets, course cards, greens book, yardage book, hole illustrations, construction estimate, scorecard map.
+
+**The section menu** (`WorkspaceViewModel.Menu.cs`), down the left of a course:
+
+- **Library**, the course's thumbnail and name, then **Terrain map** on its own: the home page.
+- **Design and check**: Hole design simulator, Measurements (with its count of readings) and Publish readiness. Once the readiness page has run its checks, an amber badge gives the number still to fix or mark deliberate.
+- **Products**: every product but the terrain map, with "n of m built" on the heading. Each has a dot: green when built, amber when it was built before the course file's last save (rebuild it to catch up), hollow when not built. Hover for the page count.
+- **Course setup** (Course settings: Place, Holes, Logo, bunker merge; and Estimate inputs) and **Recent** courses start folded.
+- Click a group's heading to fold or open it. **Fold the menu** at the foot shrinks the menu to a 60 px icon rail, so the terrain map gets the width: each page is an icon (hover for its name), and Products, Course setup and Recent open as pop-out lists. Which groups are folded, and the rail, are saved in `settings.json` (`ClosedMenuGroups`, `MenuCollapsed`).
+- Icons are Windows' own icon font: Segoe Fluent Icons on Windows 11, Segoe MDL2 Assets on Windows 10.
 
 | Product | Studio builds |
 |---|---|
