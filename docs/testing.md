@@ -5,7 +5,7 @@ The suite is one xUnit project, `tests/Pga2K25.Tests`. Every test is labelled wi
 ## How to run it
 
 ```powershell
-tools\test.ps1                 # fast: 313 tests, about 10 s of testing (plus the build)
+tools\test.ps1                 # fast: 324 tests, about 10 s of testing (plus the build)
 tools\test.ps1 area HoleSim    # one area, slow tests included
 tools\test.ps1 slow            # only the slow end-to-end tests
 tools\test.ps1 full            # everything: before a commit, a push or a release

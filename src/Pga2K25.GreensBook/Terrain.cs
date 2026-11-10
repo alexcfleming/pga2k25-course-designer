@@ -15,6 +15,19 @@ public sealed record TerrainModelOptions
     /// </summary>
     public double Hardness { get; init; } = 0.85;
 
+    /// <summary>
+    /// The brush model measured in game by Plot Starter (2026-11-08, on its PS0 Calibration plot): a raise peaks at
+    /// (icon peak / 0.9529)^0.65, so soft brushes are stronger than their icons (the soft round about 60 %, not 45 %);
+    /// the soft round, hard round and big square use their measured shapes; and there is no final blur, since the
+    /// measured shapes already include the game's smoothing. A flatten still reaches its value at the brush's
+    /// strongest point: Plot Starter's evidence for otherwise is one soft-round reading, and reaching the value fits
+    /// Cassimbo's greens and Devil's Perch far better. Against the icon model (false) over every measured set
+    /// (2026-11-10): calibration plot 11.6 → 1.4 ft, Sangoma's markers 2.7 → 1.5 and 7.6 → 5.3 ft, Devil's Perch
+    /// 15.5 → 11.2 ft, Halvoy 8.1 → 4.3 ft, Berwick's saved points 1.6 → 0.8 ft, all four Cassimbo greens better
+    /// (hole 7 12.6 → 10.0 % of range); typed route legs a little worse (Berwick 2.21 → 2.32, Murray 9.3 → 9.5 ft).
+    /// </summary>
+    public bool MeasuredBrushes { get; init; } = true;
+
     /// <summary>Gaussian blur sigma (m) applied when the course sets blurHeight; 0 disables.</summary>
     public double BlurSigmaMetres { get; init; } = 1.0;   // calibrated with Hardness
 
@@ -126,7 +139,7 @@ public static class TerrainReplay
     public static Heightfield Build(CourseModel course, Vec2 min, Vec2 max, TerrainModelOptions options)
     {
         double cell = options.CellMetres;
-        double sigma = course.BlurHeight ? options.BlurSigmaMetres : 0;
+        double sigma = course.BlurHeight && !options.MeasuredBrushes ? options.BlurSigmaMetres : 0;
         double margin = sigma * 3;
         var origin = new Vec2(min.X - margin, min.Z - margin);
         int w = (int)Math.Ceiling((max.X - min.X + 2 * margin) / cell);
@@ -144,7 +157,7 @@ public static class TerrainReplay
             if (shifts is not null && shifts[i] != 0) Shift(field, s.Position, s.Scale * options.FlattenSampleReach, shifts[i]);
             if (options.BrushShapes && BrushShape.ForType(s.Type) is { } shape)
             {
-                StampShape(field, s, shape);
+                StampShape(field, s, shape, options);
                 continue;
             }
             double r = s.Scale / 2;
@@ -251,14 +264,31 @@ public static class TerrainReplay
         {
             double half = s.Scale;
             double th = s.RotationY * Math.PI / 180, cos = Math.Cos(th), sin = Math.Sin(th);
-            double gain = s.Tool == 0 && shape.Peak > 0 ? 1 / shape.Peak : 1;
-            return Math.Min(1, shape.Weight((dx * cos - dz * sin) / half, (dx * sin + dz * cos) / half) * gain);
+            return ShapeWeight(s, shape, (dx * cos - dz * sin) / half, (dx * sin + dz * cos) / half, options);
         }
         double d = Math.Sqrt(dx * dx + dz * dz) / (s.Scale / 2);
         if (d >= 1) return 0;
         double inner = s.Scale >= options.LargeBrushMetres ? soft : hard;
         double tt = Math.Clamp((1 - d) / (1 - inner), 0, 1);
         return tt * tt * (3 - 2 * tt);
+    }
+
+    /// <summary>
+    /// A shaped brush's weight at brush-local (u, v). Icon model: the icon's brightness. Measured model: the measured
+    /// shape where there is one, else the icon at its in-game strength. In both, a flatten is scaled to reach its value
+    /// at the brush's strongest point.
+    /// </summary>
+    static double ShapeWeight(HeightStamp s, BrushShape shape, double u, double v, TerrainModelOptions options)
+    {
+        if (options.MeasuredBrushes)
+        {
+            bool toValue = s.Tool == 0;
+            if (BrushShape.MeasuredWeight(s.Type, u, v) is { } m)
+                return Math.Min(1, toValue && BrushShape.MeasuredWeight(s.Type, 0, 0) is > 0 and var top ? m / top : m);
+            return Math.Min(1, shape.Weight(u, v) * (toValue && shape.Peak > 0 ? 1 / shape.Peak : shape.ResponseGain));
+        }
+        double gain = s.Tool == 0 && shape.Peak > 0 ? 1 / shape.Peak : 1;
+        return Math.Min(1, shape.Weight(u, v) * gain);
     }
 
     /// <summary>The game's sea plane (world m): every plot has it, though it only shows where the ground dips below.</summary>
@@ -287,7 +317,7 @@ public static class TerrainReplay
     /// towards the value by brightness ÷ the brush's peak, so every flatten reaches its value at its centre.
     /// That split fits both Cassimbo's flattened greens and Berwick Coast's measured heights.
     /// </summary>
-    static void StampShape(Heightfield field, HeightStamp s, BrushShape shape)
+    static void StampShape(Heightfield field, HeightStamp s, BrushShape shape, TerrainModelOptions options)
     {
         double half = s.Scale, reach = half * Math.Sqrt(2), cell = field.Cell;
         var origin = field.Origin;
@@ -298,7 +328,6 @@ public static class TerrainReplay
         int z1 = Math.Min(h - 1, (int)Math.Ceiling((s.Position.Z + reach - origin.Z) / cell));
         if (x0 > x1 || z0 > z1) return;
         double th = s.RotationY * Math.PI / 180, cos = Math.Cos(th), sin = Math.Sin(th);
-        double gain = s.Tool == 0 && shape.Peak > 0 ? 1 / shape.Peak : 1;
         var values = field.Values;
         Parallel.For(z0, z1 + 1, iz =>
         {
@@ -308,7 +337,7 @@ public static class TerrainReplay
                 double dx = origin.X + (ix + 0.5) * cell - s.Position.X;
                 // World offset into brush axes: local +X = (cos, −sin), local +Z = (sin, cos).
                 double u = (dx * cos - dz * sin) / half, v = (dx * sin + dz * cos) / half;
-                double weight = Math.Min(1, shape.Weight(u, v) * gain);
+                double weight = ShapeWeight(s, shape, u, v, options);
                 if (weight <= 0) continue;
                 int k = iz * w + ix;
                 values[k] = s.Tool == 0 ? values[k] + (s.Value - values[k]) * weight : values[k] + s.Value * weight;

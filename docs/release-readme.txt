@@ -228,6 +228,27 @@ USING IT
   top open the built terrain map, so you no longer need the folder.
 
 NEW IN 2.8.0
+- A more accurate terrain model. Studio now uses the brush strengths and
+  shapes measured in game by its sister tool: soft brushes are stronger
+  than their palette icons suggest, and the big square and hard round
+  have their real edges. Against the measure points saved in course
+  files, heights fit much better (Sangoma 2.7 -> 1.5 ft, Halvoy 8.1 ->
+  4.3 ft, a calibration plot 11.6 -> 1.4 ft), and greens match their
+  in-game spot heights more closely. Every product uses it, so rebuilt
+  maps and books may change a little, ponds included.
+- Publish readiness checks the routing: green-to-tee walks (240 yds),
+  walks climbing through a gorge, any one shot rising or falling more
+  than 60 ft, tees, aim points and greens on cliff-steep ground, shots
+  played over a gorge (listed as carries), holes near the plot edge
+  (200 m, room to hide it) and doglegs all bending one way. Limits came
+  from your own courses and are editable. All are warnings or notes.
+- Pre-made hills: a plot whose pre-made hills setting is on now says so
+  beside the terrain map and in Publish readiness, since that ground
+  isn't in the map.
+- Game budget: the Objects meter now counts terrain stamps (fitted to
+  six in-game readings), and a rough File size meter joins it.
+- Game view: a toggle on the terrain map turns it the way the game first
+  shows a plot, south at the top.
 - A tidier workspace. Page titles stand alone (the course's holes, par
   and yards are under its name in the left menu), and the model check
   shows only on the terrain map and Measurements. Course settings is a

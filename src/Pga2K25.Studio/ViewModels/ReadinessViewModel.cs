@@ -259,6 +259,16 @@ public partial class ReadinessViewModel : ObservableObject
         Add("startHold", "Fairway start: held for (yds)", L.FairwayStartHoldYards);
         Add("corridor", "Corridor (yds)", L.CorridorYards);
         Add("aim", "Aim points apart (yds)", L.AimSpacingYards);
+        Add("walk", "Longest walk (yds)", L.MaxWalkYards);
+        Add("walkClimb", "Walk climb or drop at most (ft)", L.WalkClimbFeet);
+        Add("shotRise", "Shot rise or fall at most (ft)", L.ShotRiseFeet);
+        Add("steepSite", "Cliff-steep site from (%)", L.SteepSitePct);
+        Add("gorge", "Gorge: ground below both ends (ft)", L.GorgeFeet);
+        Add("gorgeRun", "Gorge: run at least (yds)", L.GorgeRunYards);
+        Add("edge", "Play from the plot edge at least (m)", L.EdgeSetbackMetres);
+        Add("dogleg", "Dogleg from (°)", L.DoglegDegrees);
+        Add("doglegShare", "Doglegs one way at most (share)", L.DoglegShareMax);
+        Add("doglegRun", "Doglegs the same way in a row under", L.DoglegRunMax);
         Add("drop", "Largest drop (ft)", L.MaxDropFeet);
         Add("climb", "Largest climb (ft)", L.MaxClimbFeet);
         Add("rangeMin", "Plot range from (ft)", L.PlotRangeMinFeet);
@@ -311,6 +321,16 @@ public partial class ReadinessViewModel : ObservableObject
             FairwayStartHoldYards = Get("startHold") ?? L.FairwayStartHoldYards,
             CorridorYards = Get("corridor") ?? L.CorridorYards,
             AimSpacingYards = Get("aim") ?? L.AimSpacingYards,
+            MaxWalkYards = Get("walk") ?? L.MaxWalkYards,
+            WalkClimbFeet = Get("walkClimb") ?? L.WalkClimbFeet,
+            ShotRiseFeet = Get("shotRise") ?? L.ShotRiseFeet,
+            SteepSitePct = Get("steepSite") ?? L.SteepSitePct,
+            GorgeFeet = Get("gorge") ?? L.GorgeFeet,
+            GorgeRunYards = Get("gorgeRun") ?? L.GorgeRunYards,
+            EdgeSetbackMetres = Get("edge") ?? L.EdgeSetbackMetres,
+            DoglegDegrees = Get("dogleg") ?? L.DoglegDegrees,
+            DoglegShareMax = Get("doglegShare") ?? L.DoglegShareMax,
+            DoglegRunMax = (int)(Get("doglegRun") ?? L.DoglegRunMax),
             MaxDropFeet = Get("drop") ?? L.MaxDropFeet,
             MaxClimbFeet = Get("climb") ?? L.MaxClimbFeet,
             PlotRangeMinFeet = Get("rangeMin") ?? L.PlotRangeMinFeet,

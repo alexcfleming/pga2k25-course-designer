@@ -28,6 +28,8 @@ The left-hand menu has the course's sections, its products with a built dot each
   - Relief / Slope / Plain shading; Surfaces, Grid and Hilltops layers.
   - Zoom with the mouse wheel or the buttons, drag to pan, and turn it with right-drag, Shift + drag or the turn buttons. Fit (or **Whole map**) shows the whole map north up.
   - **Hole view** turns and zooms to the selected hole's sheet, tee at the bottom.
+  - **Game view** turns the map the way the game first shows a plot: south at the top (+Z away, +X to the right), the north-up map turned round. **Whole map** then fits it that way round; the compass still points north. It is saved with the course's map choices, and printed maps stay north up.
+  - A plot whose pre-made hills setting is on gets an amber chip beside the title ("Pre-made hills 33 ft: not on this map"): that ground comes before any brush and the model can't see it.
   - **Hole sketches:** scanned hole sheets with pencil on them, laid on the ground, one hole or all at once, coloured per hole. See [Hole sketches and notes](hole-sketches.md).
   - **Notes:** pinned to the ground (Build, Planting, Concept, Note), saved in `Notes.json` beside the products.
   - **Not water…:** shown when the course has modelled ponds or creeks. Turn it on, then click a piece of water that is dry in game. It's marked with a ✕ pin, saved to `NotWater.json` beside the products, and the map re-surveys without it. Rebuild the products to update them. The marks are listed under Map options, each with Remove.

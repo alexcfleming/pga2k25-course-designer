@@ -184,6 +184,14 @@ public static class ReadinessChecker
         checks.AddRange(WidthChecks(measures, L));
         checks.AddRange(TerrainChecks(measures, plotRange, L));
         checks.AddRange(CorridorChecks(holes, measures, outlines, L));
+        // Slope read across about 12 m, so the 2 m raster's single-cell steps don't count as cliffs.
+        checks.AddRange(RoutingChecks.Run(holes, survey.Feet, p =>
+        {
+            const double d = 6;
+            double gx = (survey.Feet(p + new Vec2(d, 0)) - survey.Feet(p - new Vec2(d, 0))) / (2 * d * FeetPerMetre);
+            double gz = (survey.Feet(p + new Vec2(0, d)) - survey.Feet(p - new Vec2(0, d))) / (2 * d * FeetPerMetre);
+            return Math.Sqrt(gx * gx + gz * gz) * 100;
+        }, L));
         checks.AddRange(SettingChecks(course, stimp, L));
         checks.AddRange(PromptChecks(measures, medGreen, medStart, L));
 
@@ -732,6 +740,14 @@ public static class ReadinessChecker
             : f <= NoFringeRadius + 1e-6
                 ? new("fringe", "No green fringe", Severity.Pass, $"Fringe setting {f:0.##}: no visible fringe.", "Principles §5 · no green fringes", [])
                 : new("fringe", "No green fringe", Severity.Flag, $"Fringe setting {f:0.##} is above {NoFringeRadius:0.0}, where no fringe shows.", "Principles §5 · no green fringes", []);
+
+        // Pre-made hills (hillsHeight) are terrain the brush replay can't see, so every height here would be off.
+        yield return course.HasPremadeHills
+            ? new("premade-hills", "No pre-made plot hills", Severity.Flag,
+                $"The plot's pre-made hills are set to {course.HillsHeightMetres * 3.2808399:0} ft. That ground isn't in the terrain model, so elevations, slopes " +
+                "and green relief here can be wrong. Set the hills to 0 and flatten the plot before building, or confirm heights in game.",
+                "Studio terrain model · pre-made plot terrain", [])
+            : new("premade-hills", "No pre-made plot hills", Severity.Pass, "Pre-made hills are off: all the ground comes from brushes.", "Studio terrain model · pre-made plot terrain", []);
 
         if (course.Atmosphere is { } a)
         {

@@ -26,6 +26,11 @@ public sealed class TerrainSettings
     public bool ShowWaterFootprints { get; set; }
     /// <summary>Green-site circles on holes whose green spline is drawn (off: only greens not yet drawn keep theirs).</summary>
     public bool ShowDrawnGreenSites { get; set; } = true;
+    /// <summary>
+    /// The live map turned to the game's opening view of a plot: south at the top (+Z away from the camera, +X to the
+    /// right), the north-up map turned 180°. Studio only; printed maps stay north up.
+    /// </summary>
+    public bool GameView { get; set; }
     /// <summary>Pixels per metre of the built PNG.</summary>
     public double PrintPixelsPerMetre { get; set; } = 4;
 
