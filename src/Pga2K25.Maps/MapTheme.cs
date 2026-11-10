@@ -2,7 +2,7 @@ using SkiaSharp;
 
 namespace Pga2K25.Maps;
 
-public enum MapThemeKind { Vintage, Modern, Illustrated, PlanSheet, ModernIllustrated, RoutingPlan }
+public enum MapThemeKind { Vintage, Modern, Illustrated, PlanSheet, ModernIllustrated, RoutingPlan, CoursePortrait }
 
 /// <summary>Colours, strokes and type for a scorecard map style.</summary>
 public sealed record MapTheme
@@ -156,8 +156,20 @@ public sealed record MapTheme
         BodyFonts = ["Palatino Linotype", "Book Antiqua", "Georgia", "Times New Roman"],
     };
 
+    /// <summary>
+    /// Course Portrait: a wall print, the whole course as a watercolour aerial cut-out on white paper, north up, with a
+    /// spaced-caps title, in the style of Brush &amp; Birdie (credited on the print). Drawn by
+    /// <see cref="CoursePortraitRenderer"/>; only its name and type colours are used from here.
+    /// </summary>
+    public static MapTheme CoursePortrait { get; } = Vintage with
+    {
+        Kind = MapThemeKind.CoursePortrait, Name = "Course Portrait",
+        Background = SKColors.White, Ink = SKColor.Parse("#1f1d1a"), MutedInk = SKColor.Parse("#6b665e"),
+    };
+
     public static MapTheme For(MapThemeKind kind) => kind switch
     {
+        MapThemeKind.CoursePortrait => CoursePortrait,
         MapThemeKind.RoutingPlan => RoutingPlan,
         MapThemeKind.Modern => Modern,
         MapThemeKind.ModernIllustrated => ModernIllustrated,

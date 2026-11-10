@@ -829,6 +829,21 @@
               </StackPanel>
             </DockPanel>
           </Border>
+          <Border DockPanel.Dock="Top" BorderBrush="#E6E9E3" BorderThickness="0,0,0,1" Padding="14,6" IsVisible="{Binding HasStyles}">
+            <WrapPanel Orientation="Horizontal" ItemSpacing="14" LineSpacing="4">
+              <TextBlock Text="Styles to build:" Classes="muted small" VerticalAlignment="Center"/>
+              <ItemsControl ItemsSource="{Binding Styles}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="14"/></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:StyleChoiceViewModel">
+                    <CheckBox Content="{Binding Label}" IsChecked="{Binding IsChecked}"/>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </WrapPanel>
+          </Border>
           <ListBox DockPanel.Dock="Left" Width="214" ItemsSource="{Binding Pages}" SelectedItem="{Binding SelectedPage}"
                    IsVisible="{Binding ManyPages}" Background="{StaticResource Ground}" BorderThickness="0">
             <ListBox.ItemTemplate>

@@ -87,12 +87,13 @@ public static class Products
         new("Scorecard map", " - Scorecard Map (Vintage).png", c =>
         {
             var options = new ScorecardMapOptions { Credit = c.Settings.Credit, BunkerMergeMetres = c.Extras.BunkerMergeMetres };
-            return ScorecardMapBuilder.Build(c.CoursePath, c.OutputDir, options, Enum.GetValues<MapThemeKind>(), pdf: true, log: c.Log)
+            // Only the styles ticked for this course (every style unless the user picked some on the Scorecard map page).
+            return ScorecardMapBuilder.Build(c.CoursePath, c.OutputDir, options, c.Extras.ScorecardThemeKinds(), pdf: true, log: c.Log)
                 .Files.FirstOrDefault();
         })
         {
-            Pages = ["{0} - Scorecard Map (Vintage).png", "{0} - Scorecard Map (Modern).png", "{0} - Scorecard Map (Illustrated).png", "{0} - Scorecard Map (Plan Sheet).png", "{0} - Scorecard Map (Modern Illustrated).png", "{0} - Scorecard Map (Routing Plan).png"],
-            Pdfs = ["{0} - Scorecard Map (Vintage).pdf", "{0} - Scorecard Map (Modern).pdf", "{0} - Scorecard Map (Illustrated).pdf", "{0} - Scorecard Map (Plan Sheet).pdf", "{0} - Scorecard Map (Modern Illustrated).pdf", "{0} - Scorecard Map (Routing Plan).pdf"],
+            Pages = ["{0} - Scorecard Map (Vintage).png", "{0} - Scorecard Map (Modern).png", "{0} - Scorecard Map (Illustrated).png", "{0} - Scorecard Map (Plan Sheet).png", "{0} - Scorecard Map (Modern Illustrated).png", "{0} - Scorecard Map (Routing Plan).png", "{0} - Scorecard Map (Course Portrait).png"],
+            Pdfs = ["{0} - Scorecard Map (Vintage).pdf", "{0} - Scorecard Map (Modern).pdf", "{0} - Scorecard Map (Illustrated).pdf", "{0} - Scorecard Map (Plan Sheet).pdf", "{0} - Scorecard Map (Modern Illustrated).pdf", "{0} - Scorecard Map (Routing Plan).pdf", "{0} - Scorecard Map (Course Portrait).pdf"],
         },
     ];
 
@@ -101,6 +102,16 @@ public static class Products
 
     public static string FileFor(ProductDefinition p, StudioSettings settings, string courseName) =>
         Path.Combine(OutputDir(settings, courseName), CourseLibrary.FileStem(courseName) + p.FileSuffix);
+
+    /// <summary>
+    /// The file that shows the product has been built, or null: its main file, else its first page on disk (a
+    /// scorecard map built without the Vintage style still counts as built).
+    /// </summary>
+    public static string? BuiltFile(ProductDefinition p, StudioSettings settings, string courseName)
+    {
+        string main = FileFor(p, settings, courseName);
+        return File.Exists(main) ? main : PagesOf(p, settings, courseName).FirstOrDefault()?.Path;
+    }
 
     /// <summary>The page images the product has written, in reading order; empty when it hasn't been built.</summary>
     public static List<ProductPage> PagesOf(ProductDefinition p, StudioSettings settings, string courseName)

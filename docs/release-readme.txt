@@ -8,7 +8,7 @@ Reads your .course files and makes printable products from them:
     (PNG and PDF)
   - Hole sheets: a terrain sketch sheet per hole (PNG and PDF)
   - Greens book: slope and fall of every green
-  - Yardage book, scorecard maps (six styles) and course cards
+  - Yardage book, scorecard maps (seven styles) and course cards
     (including a Wind Card when the course has a wind rose)
   - Hole illustrations: a watercolour plate per hole, after the hole
     plates of Jim Ryan, illustrated by Tyler J. Rae (PNG and PDF)
@@ -226,6 +226,21 @@ USING IT
   Building the course cards takes about a minute longer for it.
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
+
+NEW IN 2.8.0
+- Course Portrait: a seventh scorecard map style, made as a wall print.
+  The whole course is a watercolour aerial cut out along a property
+  line, north up, on white paper, with the sea washed in where the
+  course has ocean foam, and the course name, your designer credit and
+  the year centred underneath. 12 x 16 in (or 16 x 12 for a wide
+  course), PNG and PDF. Adapted from Brush & Birdie's course prints and
+  credited on every print as "In the style of Brush & Birdie". No
+  scorecard, numbers or legend.
+- Scorecard map: choose which styles to build. The Scorecard map page
+  has a "Styles to build" tick for each of the seven styles, saved for
+  each course. Build and Build all make only the ticked ones (all seven
+  to start with; one always stays ticked). Files from a style you
+  untick stay in the folder until you delete them.
 
 NEW IN 2.7.0
 - Measurements from the course file: nothing to type. In the designer,

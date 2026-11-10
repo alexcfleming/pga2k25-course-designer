@@ -124,7 +124,7 @@ public static class ShapeMerger
     /// Squared Euclidean distance (in cells) from every cell to the nearest <c>true</c> cell
     /// (Felzenszwalb–Huttenlocher separable transform).
     /// </summary>
-    static double[] DistanceTransform(bool[] target, int w, int h)
+    internal static double[] DistanceTransform(bool[] target, int w, int h)
     {
         const double Inf = 1e20;
         var d = new double[w * h];
@@ -197,7 +197,7 @@ public static class ShapeMerger
     }
 
     /// <summary>Marching squares on a zero-bordered grid; returns closed loops in grid coordinates.</summary>
-    static List<List<SKPoint>> Contours(float[] f, int w, int h, float level)
+    internal static List<List<SKPoint>> Contours(float[] f, int w, int h, float level)
     {
         var segs = new List<(long A, long B, SKPoint PA, SKPoint PB)>();
         long HE(int x, int y) => ((long)y * w + x) * 2;

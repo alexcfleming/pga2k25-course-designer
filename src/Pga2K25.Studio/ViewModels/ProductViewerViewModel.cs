@@ -32,10 +32,16 @@ public partial class ProductViewerViewModel : ObservableObject
     /// <summary>Why an open didn't happen, shown in the toolbar; empty when all is well.</summary>
     [ObservableProperty] private string _message = "";
 
-    public ProductViewerViewModel(ProductDefinition product, StudioSettings settings, string courseName, Func<Task> build)
+    /// <summary>Which styles Build makes (the scorecard map's); empty for a product with one look.</summary>
+    public IReadOnlyList<StyleChoiceViewModel> Styles { get; }
+    public bool HasStyles => Styles.Count > 0;
+
+    public ProductViewerViewModel(ProductDefinition product, StudioSettings settings, string courseName, Func<Task> build,
+        IReadOnlyList<StyleChoiceViewModel>? styles = null)
     {
         Product = product;
         _build = build;
+        Styles = styles ?? [];
         var pages = Products.PagesOf(product, settings, courseName);
         _pdfs = Products.PdfsOf(product, settings, courseName);
         foreach (var p in pages) Pages.Add(new PageItemViewModel(p));
@@ -111,6 +117,21 @@ public partial class ProductViewerViewModel : ObservableObject
     }
 
     [RelayCommand] private Task Build() => _build();
+}
+
+/// <summary>
+/// One tick box for a product style. <paramref name="change"/> applies the tick and returns false when it is refused
+/// (the last ticked style), and the box then springs back.
+/// </summary>
+public partial class StyleChoiceViewModel(string label, bool isChecked, Func<bool, bool> change) : ObservableObject
+{
+    public string Label { get; } = label;
+    [ObservableProperty] private bool _isChecked = isChecked;
+
+    partial void OnIsCheckedChanged(bool value)
+    {
+        if (!change(value)) Dispatcher.UIThread.Post(() => IsChecked = !value);
+    }
 }
 
 public partial class PageItemViewModel(ProductPage page) : ObservableObject

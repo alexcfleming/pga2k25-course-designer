@@ -280,8 +280,8 @@ public partial class WorkspaceViewModel : ObservableObject
         ProductRows.Clear();
         foreach (var p in Products.All)
         {
-            string file = Products.FileFor(p, Settings, Entry.Name);
-            ProductRows.Add(new ProductRowViewModel(p.Name, File.Exists(file) ? File.GetLastWriteTime(file) : null,
+            string? file = Products.BuiltFile(p, Settings, Entry.Name);
+            ProductRows.Add(new ProductRowViewModel(p.Name, file is not null ? File.GetLastWriteTime(file) : null,
                 view: () => Section = p.Name, build: () => BuildAsync([p])));
         }
     }

@@ -26,7 +26,7 @@ Type is Lora only (bundled in `fonts/lora`; Georgia if it's missing, which the b
 
 ## How it's drawn
 
-The art is raster, the type is vector. `HoleIllustrationRenderer` renders the art zone (x 147–806, y 132–973 in page units of 1/100 in) at 300 dpi in float RGB over white paper (`WatercolourCanvas`): masks rasterised from the projected shapes, three seeded value-noise fields, Gaussian blur, a Euclidean distance transform for the rough corridor and its fade, multiply washes with pigment pooling at the edges, opaque covers, and ink drawn with Skia and composited in. The noise and every random choice are seeded by the hole number, so a hole renders the same pixels every time. The art feathers to paper inside the zone's edges (more tightly under the tee).
+The art is raster, the type is vector. `HoleIllustrationRenderer` renders the art zone (x 147–806, y 132–973 in page units of 1/100 in) at 300 dpi in float RGB over white paper (`WatercolourCanvas`, in `Pga2K25.Maps` since 2.8.0 and shared with the Course Portrait scorecard map): masks rasterised from the projected shapes, three seeded value-noise fields, Gaussian blur, a Euclidean distance transform for the rough corridor and its fade, multiply washes with pigment pooling at the edges, opaque covers, and ink drawn with Skia and composited in. The noise and every random choice are seeded by the hole number, so a hole renders the same pixels every time. The art feathers to paper inside the zone's edges (more tightly under the tee).
 
 The PDF embeds each plate's art as a JPEG (quality 90) and draws the frame, ruler and every word as vectors on top, so the text is sharp and selectable. A plate is about 0.5 MB.
 
