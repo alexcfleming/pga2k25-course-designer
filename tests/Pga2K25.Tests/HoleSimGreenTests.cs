@@ -101,14 +101,13 @@ public class HoleSimGreenTests
 
     [Trait("Speed", "Slow")]
     [Fact]
-    public void Green_spots_sit_round_each_pin_and_hold_one_back()
+    public void Green_spots_sit_round_each_pin_and_none_is_held_back()
     {
         var (_, m, _, green) = Hole3.Value;
         var spots = GreenGate.SuggestSpots(m, green);
         Assert.Equal(3 * m.Pins.Count, spots.Count);
         Assert.All(spots, s => Assert.True(green.OnGreen(s.Where), s.Name));
-        Assert.Equal(m.Pins.Count, spots.Count(s => s.HeldOut));
-        Assert.All(spots.Where(s => s.HeldOut), s => Assert.EndsWith("c", s.Name));
+        Assert.DoesNotContain(spots, s => s.HeldOut);   // until the user ticks one
         Assert.Equal("P1a", spots[0].Name);
     }
 
@@ -121,7 +120,7 @@ public class HoleSimGreenTests
         var truth = new ScaledGreenTerrain(terrain, green.OnGreen, green.GreenPoint, 0.5, "t", "truth");
         var spots = GreenGate.SuggestSpots(m, green);
         var gSpot = m.GreenFrame;
-        var readings = spots.Select(s => new HeightReading(s.Name, s.Where, new FramePoint(0, 0), truth.HeightFt(s.Where) - truth.HeightFt(new FramePoint(0, 0)), "", s.HeldOut))
+        var readings = spots.Select(s => new HeightReading(s.Name, s.Where, new FramePoint(0, 0), truth.HeightFt(s.Where) - truth.HeightFt(new FramePoint(0, 0)), "", HeldOut: s.Name.EndsWith('c')))   // the user holds back the across spots
             .Append(new HeightReading("G", gSpot, new FramePoint(0, 0), truth.HeightFt(gSpot) - truth.HeightFt(new FramePoint(0, 0)), "")).ToList();
         var options = GreenGate.Evaluate(terrain, green, readings);
         var scaled = Assert.Single(options, o => o.Model.Id == "green-scaled");

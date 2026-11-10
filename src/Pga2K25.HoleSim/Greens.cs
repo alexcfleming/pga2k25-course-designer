@@ -199,7 +199,7 @@ public static class GreenGate
 
     /// <summary>
     /// Two or three MEASURE spots per pin on the green: 4 yds above the pin and 4 yds below on its fall line, and 4 yds
-    /// across (held back to test a fit). On a flat spot the line runs long and short of the pin from the tee.
+    /// across. None is held back until the user ticks it. On a flat spot the line runs long and short of the pin from the tee.
     /// </summary>
     public static IReadOnlyList<MeasureSpot> SuggestSpots(HoleModel hole, GreenSurface green)
     {
@@ -214,7 +214,7 @@ public static class GreenGate
                 for (double d = 4; d >= 1.5; d -= 0.5) { var q = p + dir * d; if (green.OnGreen(q)) return q; }
                 return p + dir * 1.5;
             }
-            var spots = new[] { ("a", Place(downhill * -1), false), ("b", Place(downhill), false), ("c", Place(across), true) };
+            var spots = new[] { ("a", Place(downhill * -1), false), ("b", Place(downhill), false), ("c", Place(across), false) };
             foreach (var (tag, at, held) in spots)
                 list.Add(new MeasureSpot($"P{pin.Number}{tag}", at, (int)Math.Round(at.Length), green.HeightFt(at), held));
         }

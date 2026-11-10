@@ -121,7 +121,7 @@ public static class TerrainGate
     /// <summary>
     /// Suggested spots for MEASURE readings: along the line of play (every 50 yds on a long hole, closer on a short one) from the tee to
     /// the green, alternating a little left and right of the line so slope across the hole shows, plus the green's front
-    /// and back. Every fourth spot is held back to test a fitted correction.
+    /// and back. None is held back until the user ticks it (held-back readings test a fitted correction).
     /// </summary>
     public static IReadOnlyList<MeasureSpot> SuggestSpots(HoleModel hole, ITerrainModel? model = null, int? spacing = null)
     {
@@ -150,7 +150,7 @@ public static class TerrainGate
         if (back - front >= 12) { spots.Add(new FramePoint(g.Lat, front + 4)); spots.Add(new FramePoint(g.Lat, back - 4)); }
         else spots.Add(new FramePoint(g.Lat, (front + back) / 2 - 3));
         var list = spots.Select((p, i) => new MeasureSpot($"M{i + 1}", p, (int)Math.Round(p.Length),
-            model is null ? double.NaN : model.HeightFt(p) - model.HeightFt(g), i % 4 == 2)).ToList();
+            model is null ? double.NaN : model.HeightFt(p) - model.HeightFt(g), false)).ToList();
         // G: the green's height in the game's tee table (GREEN HEIGHT for the chosen tee), no cursor needed.
         list.Insert(0, new MeasureSpot("G", g, (int)Math.Round(g.Length), model is null ? double.NaN : 0, false));
         return list;
@@ -163,7 +163,8 @@ public static class TerrainGate
 /// </summary>
 public sealed class LiveChecks
 {
-    public sealed record SavedReading(string Spot, double X, double Z, double RefX, double RefZ, double Feet, string Label, bool HeldOut, string Reference, int Pin, DateTime TakenAt);
+    /// <summary><c>FromFile</c>: read from a measure point in the course file, so it is read again from the file, not from here.</summary>
+    public sealed record SavedReading(string Spot, double X, double Z, double RefX, double RefZ, double Feet, string Label, bool HeldOut, string Reference, int Pin, DateTime TakenAt, bool FromFile = false);
     public sealed record Drive(double? Carry, double? Total, string Side, DateTime TakenAt);
 
     public int Version { get; set; } = 1;

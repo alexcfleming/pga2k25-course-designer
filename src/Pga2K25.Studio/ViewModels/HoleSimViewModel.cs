@@ -197,6 +197,11 @@ public partial class HoleSimViewModel : ObservableObject
         BuildHoleButtons();
         ShowModel();
         if (p.Changes.Terrain || p.Changes.Surfaces || p.Changes.TeesOrPins) BuildTerrain();   // the gate re-checks the readings on the new ground
+        else
+        {
+            ApplyFileReadings();   // measure lines laid down since the last save fill the live checks
+            if (HasFileReadings) ReloadedText += " " + FileReadingsText;
+        }
     }
 
     [RelayCommand] private void NotNow()

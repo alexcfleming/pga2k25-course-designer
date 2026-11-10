@@ -211,9 +211,17 @@
         </Border>
         <StackPanel Grid.Column="1" Spacing="14">
           <Border Classes="card" Padding="16">
+            <StackPanel Spacing="8">
+              <TextBlock Text="Read them from the course file" FontSize="16" FontWeight="SemiBold"/>
+              <TextBlock Text="Instead of typing, lay the readings down with the designer's measure tool and save the course: the file keeps each measure point with the game's own height. One line per hole does it. Start on the chosen tee, click each spot in A in turn (find it by its TO TEE and TO GREEN yards), then G (the green point), then the spots round each pin in B. The order and the number of lines don't matter, and a click a few yards off a spot is fine, since the reading is taken where the point is. A point within 6 yds of a spot along the hole, 3 of G or 2 of a pin spot fills that row; other points within 40 yds of the line become extra readings D1, D2… The save watcher picks up the new save. Drives and the sightline are still typed."
+                         Classes="muted small" TextWrapping="Wrap"/>
+              <TextBlock Text="{Binding FileReadingsText}" Classes="small" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+          <Border Classes="card" Padding="16">
             <StackPanel Spacing="10">
               <TextBlock Text="A. Height readings with MEASURE" FontSize="16" FontWeight="SemiBold"/>
-              <TextBlock Text="Move the MEASURE cursor until the game's TO TEE and TO GREEN match the spot's yards, then type the height against the zero as the game shows it: ▲ or + for above, ▼ or − for below. +1'4&quot; is 16 in and +1' is 12 in. For G, copy GREEN HEIGHT from the tee table. Skip any spot you can't reach; five or more are needed."
+              <TextBlock Text="Move the MEASURE cursor until the game's TO TEE and TO GREEN match the spot's yards, then type the height against the zero as the game shows it: ▲ or + for above, ▼ or − for below. +1'4&quot; is 16 in and +1' is 12 in. For G, copy GREEN HEIGHT from the tee table. Skip any spot you can't reach; five or more are needed. Nothing is held back unless you tick it: tick Hold back on two or more to test a fitted correction."
                          Classes="muted small" TextWrapping="Wrap"/>
               <StackPanel Orientation="Horizontal" Spacing="8">
                 <TextBlock Text="ZERO IS AT" Classes="muted small" FontWeight="SemiBold" VerticalAlignment="Center"/>
@@ -228,7 +236,7 @@
                       <Grid ColumnDefinitions="44,190,130,*,120" ColumnSpacing="10">
                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="{Binding Where}" Classes="muted small" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                        <TextBox Grid.Column="2" Text="{Binding Label}" PlaceholderText="e.g. ▲0'7&quot;" MinHeight="30"/>
+                        <TextBox Grid.Column="2" Text="{Binding Label}" IsReadOnly="{Binding FromFile}" PlaceholderText="e.g. ▲0'7&quot;" MinHeight="30"/>
                         <StackPanel Grid.Column="3" VerticalAlignment="Center">
                           <TextBlock Text="{Binding Parsed}" Foreground="{Binding ParsedInk}" Classes="small" TextWrapping="Wrap"/>
                           <TextBlock Text="{Binding Model}" Classes="muted small"/>
@@ -246,7 +254,7 @@
           <Border Classes="card" Padding="16">
             <StackPanel Spacing="10">
               <TextBlock Text="B. Readings round the pins" FontSize="16" FontWeight="SemiBold"/>
-              <TextBlock Text="Two or three per pin, against the same zero as above: a few yards above the pin and below it on its fall line, and one across the slope (held back to test the fit). They check the green's contours, which decide how putts break and whether shots hold."
+              <TextBlock Text="Two or three per pin, against the same zero as above: a few yards above the pin and below it on its fall line, and one across the slope. None is held back unless you tick it; tick two or more to test the fitted green. They check the green's contours, which decide how putts break and whether shots hold."
                          Classes="muted small" TextWrapping="Wrap"/>
               <ItemsControl ItemsSource="{Binding GreenSpotRows}">
                 <ItemsControl.ItemTemplate>
@@ -255,7 +263,7 @@
                       <Grid ColumnDefinitions="44,190,130,*,120" ColumnSpacing="10">
                         <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="{Binding Where}" Classes="muted small" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                        <TextBox Grid.Column="2" Text="{Binding Label}" PlaceholderText="e.g. ▲0'7&quot;" MinHeight="30"/>
+                        <TextBox Grid.Column="2" Text="{Binding Label}" IsReadOnly="{Binding FromFile}" PlaceholderText="e.g. ▲0'7&quot;" MinHeight="30"/>
                         <StackPanel Grid.Column="3" VerticalAlignment="Center">
                           <TextBlock Text="{Binding Parsed}" Foreground="{Binding ParsedInk}" Classes="small" TextWrapping="Wrap"/>
                           <TextBlock Text="{Binding Model}" Classes="muted small"/>

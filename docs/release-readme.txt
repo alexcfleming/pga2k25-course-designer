@@ -92,7 +92,9 @@ USING IT
   in Map options shows where lowering the ground would flood. Narrow
   blue paths drawn with the water surface now show as walking paths.
 - Measurements: type in-game measure-tool readings (for example +13'6")
-  to check the terrain model against the game.
+  to check the terrain model against the game, or (new in 2.7.0) draw
+  measure lines in the designer and save: they're read from the course
+  file.
 - Publish readiness (new in 1.6.0, left menu): the course QA and tour
   checklist in the Studio. The course file answers what it can:
   scorecard and tee totals, same-par runs, drivable par 4s and the par-5
@@ -224,6 +226,29 @@ USING IT
   Building the course cards takes about a minute longer for it.
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
+
+NEW IN 2.7.0
+- Measurements from the course file: nothing to type. In the designer,
+  draw a measure line on a hole from the tee marker to the aim-point
+  marker and on to the green circle, then save. The course file keeps
+  every measure point with the game's own height, so the Measurements
+  page reads those legs straight from it when you open the course
+  again, marked "course file". Every other measure line in the file is
+  listed too, under its nearest hole, with the game's height change
+  along it against the map's, so a line laid anywhere checks the
+  terrain. Delete a line in the game to drop it.
+- Hole design simulator, Live checks from the course file: lay the
+  height readings down instead of typing them. One measure line per
+  hole: start on the chosen tee, click each suggested spot in turn (by
+  its TO TEE and TO GREEN yards), then G, then the spots round each pin,
+  and save. The order doesn't matter, and a click a few yards off a spot
+  is fine: the reading is taken where the point is. Other points near
+  the hole become extra readings. The simulator's save watcher picks up
+  the save and fills the rows; drives and the sightline are still typed.
+- Live checks: no reading is held back unless you tick "Hold back"
+  (every fourth spot and each pin's across spot used to be ticked to
+  start with). A fitted correction is tested only on held-back
+  readings, so tick two or more when you want one judged.
 
 NEW IN 2.6.0
 - Routing Plan scorecard map: a sixth scorecard style, in the manner of

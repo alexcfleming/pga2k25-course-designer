@@ -71,12 +71,107 @@ public partial class HoleSimViewModel
         SpotRows.Clear();
         foreach (var s in spots)
         {
-            var saved = _live.Readings.FirstOrDefault(r => r.Spot == s.Name);
+            var saved = _live.Readings.FirstOrDefault(r => r.Spot == s.Name && !r.FromFile);
             SpotRows.Add(new SpotRowViewModel(s, m, saved?.Label ?? "", saved?.HeldOut ?? s.HeldOut, ReadingsChanged));
         }
         UpdateZeroModel();
         RenderSpotMap();
         UpdateLiveSummary();
+        ApplyFileReadings();
+    }
+
+    // ───────── readings from the course file's measure lines ─────────
+    FileReadings? _file;
+    FilePoint? _fileZero;
+    bool _applyingFile;
+    [ObservableProperty] private string _fileReadingsText = "";
+    [ObservableProperty] private bool _hasFileReadings;
+
+    static string FeetLabel(double ft) => ft.ToString("+0.00;-0.00;0.00", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// Fills the spot rows from the measure points saved in the course file (<see cref="FileReadings.Match"/>): each
+    /// matched spot takes the point's own position and the game's height there against the zero, and points near the hole
+    /// that sit on no spot are added as D1, D2… The zero is the point on the chosen tee, else the one on G, else the
+    /// point nearest the green; the zero's own row stays empty.
+    /// <paramref name="wantZero"/> asks for a zero (−1 tee, 0 green centre) when there is a point for it.
+    /// </summary>
+    void ApplyFileReadings(int? wantZero = null)
+    {
+        var m = _model; var course = _course;
+        if (m is null || course is null) return;
+        foreach (var r in SpotRows.Where(r => r.FromFile && r.Name.StartsWith('D')).ToList()) SpotRows.Remove(r);
+        _file = FileReadings.Match(course, m, SpotRows.Concat(GreenSpotRows).Select(r => r.Spot));
+        HasFileReadings = _file.Any;
+        int was = _zeroPin;
+        // The zero: the point on the tee, else the one on G, else the point nearest the green (no zero button for that one).
+        var zero = !_file.Any ? null
+            : wantZero switch { -1 => _file.Tee, 0 => _file.Green, _ => null } ?? (was == 0 ? _file.Green ?? _file.Tee : _file.Tee ?? _file.Green)
+              ?? _file.Spots.Concat(_file.Extra).MinBy(p => p.Where.DistanceTo(m.GreenFrame))!;
+        _fileZero = zero;
+
+        // A row filled from a point that has since gone from the file (deleted in the game), or that is now the zero, is empty again.
+        bool cleared = false;
+        _applyingFile = true;
+        try
+        {
+            foreach (var rows in new[] { SpotRows, GreenSpotRows })
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    var old = rows[i];
+                    if (!old.FromFile || _file.Spots.Any(p => p.Spot == old.Name && !ReferenceEquals(p, zero))) continue;
+                    var row = new SpotRowViewModel(old.Spot, m, "", old.HeldOut, ReadingsChanged);
+                    if (ReferenceEquals(rows, GreenSpotRows)) row.SetWhere(GreenSpotText(old.Spot));
+                    rows[i] = row; cleared = true;
+                }
+        }
+        finally { _applyingFile = false; }
+        if (zero is null)
+        {
+            if (cleared) { UpdateZeroModel(); ReadingsChanged(); }
+            FileReadingsText = _file.PointsInFile == 0
+                ? "No measure lines in the course file yet."
+                : $"The course file has {_file.PointsInFile} measure point{(_file.PointsInFile == 1 ? "" : "s")}, none on this hole's spots or near its line.";
+            return;
+        }
+        _zeroPin = ReferenceEquals(zero, _file.Tee) ? -1 : 0;
+        foreach (var b in ZeroButtons) b.IsSelected = _zeroPin == -1 ? b.Label.EndsWith(" tee") : b.Label == "Green centre" && ReferenceEquals(zero, _file.Green);
+
+        double Model(FramePoint p) => _smoothed is null ? double.NaN : _smoothed.HeightFt(p);
+        _applyingFile = true;
+        try
+        {
+            foreach (var p in _file.Spots.Where(p => !ReferenceEquals(p, zero)))   // the zero reads 0 against itself
+                foreach (var rows in new[] { SpotRows, GreenSpotRows })
+                {
+                    int i = rows.ToList().FindIndex(r => r.Name == p.Spot);
+                    if (i < 0) continue;
+                    var old = rows[i];
+                    var spot = old.Spot with { Where = p.Where, FromTeeYards = (int)Math.Round(p.Where.Length), ModelFt = old.Spot.ModelFt + (Model(p.Where) - Model(old.Spot.Where)) };
+                    bool held = _live.Readings.FirstOrDefault(r => r.Spot == p.Spot && r.FromFile)?.HeldOut ?? old.HeldOut;
+                    var row = new SpotRowViewModel(spot, m, FeetLabel(p.HeightFt - zero.HeightFt), held, ReadingsChanged) { FromFile = true };
+                    row.SetWhere((ReferenceEquals(rows, GreenSpotRows) ? GreenSpotText(spot) : row.Where) + " · course file");
+                    rows[i] = row;
+                }
+            int n = 0;
+            foreach (var p in _file.Extra.Where(p => !ReferenceEquals(p, zero)))
+            {
+                var spot = new MeasureSpot(p.Spot, p.Where, (int)Math.Round(p.Where.Length), Model(p.Where) - Model(m.GreenFrame), false);
+                bool held = _live.Readings.FirstOrDefault(r => r.Spot == p.Spot && r.FromFile)?.HeldOut ?? spot.HeldOut;
+                var row = new SpotRowViewModel(spot, m, FeetLabel(p.HeightFt - zero.HeightFt), held, ReadingsChanged) { FromFile = true };
+                row.SetWhere($"Measure point · {row.Where} · course file");
+                SpotRows.Add(row);
+            }
+        }
+        finally { _applyingFile = false; }
+
+        int typed = SpotRows.Concat(GreenSpotRows).Count(r => !r.FromFile && r.HasReading);
+        FileReadingsText = $"{_file.Spots.Count} spot{(_file.Spots.Count == 1 ? "" : "s")} and {_file.Extra.Count} more point{(_file.Extra.Count == 1 ? "" : "s")} read from the course file's measure lines, zero at {ZeroName}."
+            + (typed > 0 && was != _zeroPin ? $" {typed} typed reading{(typed == 1 ? " was" : "s were")} taken against {(was == -1 ? "the tee" : was == 0 ? "the green centre" : $"pin {was}")}: check {(typed == 1 ? "it" : "them")}." : "")
+            + (_fileZero.Spot is "tee" or "G" ? "" : $" No point sits on the {m.Tee.Name} tee or on G, so heights are against the point nearest the green; start the line on the tee next time to match the game's readout.")
+            + " Rows from the file can't be typed over: move or delete the point in the game and save.";
+        UpdateZeroModel();
+        ReadingsChanged();
     }
 
     void RenderSpotMap()
@@ -87,8 +182,8 @@ public partial class HoleSimViewModel
         SpotMap = new Bitmap(new MemoryStream(png));
     }
 
-    FramePoint ZeroPoint => _zeroPin switch { -1 => new FramePoint(0, 0), 0 => _model!.GreenFrame, _ => _model!.Pins[_zeroPin - 1].Frame };
-    string ZeroName => _zeroPin switch { -1 => $"the {_model!.Tee.Name} tee", 0 => "the green centre", _ => $"pin {_zeroPin}" };
+    FramePoint ZeroPoint => _fileZero is { } z ? z.Where : _zeroPin switch { -1 => new FramePoint(0, 0), 0 => _model!.GreenFrame, _ => _model!.Pins[_zeroPin - 1].Frame };
+    string ZeroName => _fileZero is { } fz && fz.Spot != "tee" && fz.Spot != "G" ? $"measure point {fz.Spot} (nearest the green)" : _zeroPin switch { -1 => $"the {_model!.Tee.Name} tee", 0 => "the green centre", _ => $"pin {_zeroPin}" };
 
     /// <summary>Each row's model value is shown against the chosen zero, as the game's reading is.</summary>
     void UpdateZeroModel()
@@ -99,6 +194,19 @@ public partial class HoleSimViewModel
 
     void SetZero(int pin)
     {
+        if (_fileZero is not null)
+        {
+            // Readings from the file need a measure point at the zero.
+            if (pin > 0 || (pin == -1 ? _file?.Tee : _file?.Green) is null)
+            {
+                Show(pin > 0 ? "Readings from the course file are against the tee or G; a pin can't be their zero."
+                    : $"There's no measure point on {(pin == -1 ? "the tee" : "G")} in the course file.", error: true);
+                foreach (var b in ZeroButtons) b.IsSelected = _zeroPin == -1 ? b.Label.EndsWith(" tee") : b.Label == "Green centre";
+                return;
+            }
+            ApplyFileReadings(pin);
+            return;
+        }
         _zeroPin = pin;
         foreach (var b in ZeroButtons) b.IsSelected = pin switch { -1 => b.Label.EndsWith(" tee"), 0 => b.Label == "Green centre", _ => b.Label == $"Pin {pin}" };
         UpdateZeroModel();
@@ -132,14 +240,17 @@ public partial class HoleSimViewModel
 
     void ReadingsChanged()
     {
-        if (_model is null) return;
+        if (_model is null || _applyingFile) return;
         var zero = _model.Frame.ToWorld(ZeroPoint);
+        var kept = _live.Readings.Where(r => IsGreenSpot(r.Spot)).ToList();
         _live.Readings = SpotRows.Concat(GreenSpotRows).Where(r => r.Feet is not null).Select(r =>
         {
             var w = _model.Frame.ToWorld(r.Spot.Where);
             return new LiveChecks.SavedReading(r.Spot.Name, w.X, w.Z, zero.X, zero.Z, r.Feet!.Value, r.Label, r.HeldOut,
-                ZeroName.Replace("the ", ""), _zeroPin, DateTime.Now);
+                ZeroName.Replace("the ", ""), _zeroPin, DateTime.Now, r.FromFile);
         }).ToList();
+        // Until the green is built its rows aren't there yet: keep its saved readings rather than drop them.
+        if (GreenSpotRows.Count == 0) _live.Readings.AddRange(kept);
         _live.FileSha256 = _stamp?.Sha256 ?? "";
         SaveLive();
         RenderSpotMap();
@@ -297,6 +408,9 @@ public sealed partial class SpotRowViewModel : ObservableObject
 
     public MeasureSpot Spot { get; }
     public string Name => Spot.Name;
+
+    /// <summary>Read from a measure point in the course file; the label can't be typed over.</summary>
+    public bool FromFile { get; init; }
 
     /// <summary>Where to put the cursor: the game's TO TEE and TO GREEN yardages for this spot.</summary>
     public string Where { get; private set; }
