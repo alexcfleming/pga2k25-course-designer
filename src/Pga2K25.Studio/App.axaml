@@ -14,6 +14,8 @@
     <SolidColorBrush x:Key="AccentTint" Color="#E4EFE6"/>
     <SolidColorBrush x:Key="AccentInk" Color="#1F4D30"/>
     <SolidColorBrush x:Key="Tint" Color="#EEF0EA"/>
+    <!-- The menu's icons: Windows 11's icon font, else Windows 10's (same code points). -->
+    <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
   </Application.Resources>
 
   <Application.Styles>
@@ -121,6 +123,59 @@
       <Setter Property="FontWeight" Value="SemiBold"/>
     </Style>
 
+    <Style Selector="TextBlock.icon">
+      <Setter Property="FontFamily" Value="{StaticResource IconFont}"/>
+      <Setter Property="FontSize" Value="16"/>
+      <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="TextBlock.icon.big">
+      <Setter Property="FontSize" Value="19"/>
+    </Style>
+    <Style Selector="TextBlock.icon.tiny">
+      <Setter Property="FontSize" Value="10"/>
+      <Setter Property="Foreground" Value="#7A837D"/>
+    </Style>
+    <Style Selector="Button.nav.selected TextBlock.icon">
+      <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+    </Style>
+    <Style Selector="Button.rail">
+      <Setter Property="Height" Value="38"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="HorizontalContentAlignment" Value="Center"/>
+      <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+    <Style Selector="Button.navgroup">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+      <Setter Property="Padding" Value="8,10,8,3"/>
+      <Setter Property="Foreground" Value="#6B746E"/>
+      <Setter Property="FontSize" Value="11.5"/>
+    </Style>
+    <Style Selector="Border.navbadge">
+      <Setter Property="Background" Value="#FAEEDA"/>
+      <Setter Property="CornerRadius" Value="999"/>
+      <Setter Property="Padding" Value="7,0"/>
+      <Setter Property="MinWidth" Value="20"/>
+    </Style>
+
+    <Style Selector="Button.panelrow">
+      <Setter Property="Background" Value="{StaticResource Surface}"/>
+      <Setter Property="BorderBrush" Value="{StaticResource Hairline}"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="10"/>
+      <Setter Property="Padding" Value="14,10"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    </Style>
+    <Style Selector="Border.workingtag">
+      <Setter Property="Background" Value="{StaticResource AccentTint}"/>
+      <Setter Property="CornerRadius" Value="999"/>
+      <Setter Property="Padding" Value="8,1"/>
+    </Style>
     <Style Selector="Button.coursecard">
       <Setter Property="Padding" Value="0"/>
       <Setter Property="CornerRadius" Value="12"/>

@@ -55,6 +55,8 @@ public partial class ReadinessViewModel : ObservableObject
     [ObservableProperty] private string _sourceText = "";
     [ObservableProperty] private string _passCount = "";
     [ObservableProperty] private string _openCount = "";
+    /// <summary>File checks still to fix or mark deliberate (the menu's badge).</summary>
+    [ObservableProperty] private int _openChecks;
 
     // Hole QA.
     public ObservableCollection<HoleGroupHeaderViewModel> HoleQaHeader { get; } = [];
@@ -200,6 +202,7 @@ public partial class ReadinessViewModel : ObservableObject
         int cleared = _report.Checks.Count(c => ReadinessEvaluator.IsCleared(c, _state));
         PassCount = $"{cleared} file checks cleared";
         OpenCount = $"{_report.Checks.Count - cleared} to fix or mark deliberate";
+        OpenChecks = _report.Checks.Count - cleared;
         foreach (var nav in StageNav)
         {
             var p = progress.FirstOrDefault(x => x.Id == nav.Id);

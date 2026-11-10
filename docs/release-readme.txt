@@ -228,6 +228,23 @@ USING IT
   top open the built terrain map, so you no longer need the folder.
 
 NEW IN 2.8.0
+- A shorter right-hand panel beside the terrain map. One card is open at
+  a time and the others fold to a single line with a summary; click a
+  line to open that card. The card you're working with comes to the
+  top: turn on Routing test or Planting, or pick a note, and its card
+  jumps up, open, marked "working on". Turn it off and the hole card
+  comes back. The products list has gone from the panel; the left menu
+  shows what's built.
+- A new left menu in each course. Every page has an icon, and the pages
+  sit in groups you can fold: the terrain map at the top, then "Design
+  and check" (Hole design simulator, Measurements, Publish readiness),
+  Products, Course setup (course settings and estimate inputs) and
+  Recent. Each product has a dot: green when built, amber when built
+  before your last save of the course, hollow when not built yet.
+  Publish readiness shows how many checks are still open once you've
+  opened it. "Fold the menu" at the bottom shrinks it to a strip of
+  icons so the map gets the room; Products, Course setup and Recent then
+  open as pop-out lists. Studio remembers your folds.
 - Course Portrait: a seventh scorecard map style, made as a wall print.
   The whole course is a watercolour aerial cut out along a property
   line, north up, on white paper, with the sea washed in where the

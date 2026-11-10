@@ -20,6 +20,9 @@ public sealed record ProductDefinition(string Name, string FileSuffix, Func<Buil
 
 public sealed record BuildContext(string CoursePath, string OutputDir, StudioSettings Settings, CourseExtras Extras, IProgress<string> Log);
 
+/// <summary>Whether a product's files are there, and whether the course file has been saved since they were built.</summary>
+public enum ProductState { NotBuilt, Built, OlderThanSave }
+
 /// <summary>A page image of a built product.</summary>
 public sealed record ProductPage(string Title, string Path);
 
@@ -102,6 +105,18 @@ public static class Products
 
     public static string FileFor(ProductDefinition p, StudioSettings settings, string courseName) =>
         Path.Combine(OutputDir(settings, courseName), CourseLibrary.FileStem(courseName) + p.FileSuffix);
+
+    /// <summary>
+    /// Built, not built, or built before the course file's last save (<paramref name="courseSaved"/>), going by the
+    /// newest of its files on disk, so a product rebuilt in part (one scorecard style) counts from its latest build.
+    /// </summary>
+    public static ProductState StateOf(ProductDefinition p, StudioSettings settings, string courseName, DateTime courseSaved)
+    {
+        var files = PagesOf(p, settings, courseName).Select(x => x.Path).Concat(PdfsOf(p, settings, courseName)).ToList();
+        if (BuiltFile(p, settings, courseName) is { } main) files.Add(main);
+        if (files.Count == 0) return ProductState.NotBuilt;
+        return files.Max(File.GetLastWriteTime) < courseSaved ? ProductState.OlderThanSave : ProductState.Built;
+    }
 
     /// <summary>
     /// The file that shows the product has been built, or null: its main file, else its first page on disk (a
