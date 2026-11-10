@@ -176,6 +176,41 @@
       <Setter Property="CornerRadius" Value="999"/>
       <Setter Property="Padding" Value="8,1"/>
     </Style>
+    <Style Selector="Button.settinghead">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="0,4"/>
+      <Setter Property="HorizontalAlignment" Value="Stretch"/>
+      <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+    </Style>
+    <Style Selector="ToggleButton.howto">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="0"/>
+      <Setter Property="MinHeight" Value="0"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+    </Style>
+    <Style Selector="ToggleButton.howto:checked /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{StaticResource AccentDark}"/>
+    </Style>
+    <Style Selector="ToggleButton.howto:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="Foreground" Value="{StaticResource AccentDark}"/>
+    </Style>
+    <Style Selector="Button.rowremove">
+      <Setter Property="Background" Value="Transparent"/>
+      <Setter Property="BorderThickness" Value="0"/>
+      <Setter Property="Padding" Value="8,4"/>
+      <Setter Property="Opacity" Value="0"/>
+    </Style>
+    <Style Selector="Border.readingrow:pointerover Button.rowremove">
+      <Setter Property="Opacity" Value="1"/>
+    </Style>
+    <Style Selector="Button.rowremove:focus-visible">
+      <Setter Property="Opacity" Value="1"/>
+    </Style>
     <Style Selector="Button.coursecard">
       <Setter Property="Padding" Value="0"/>
       <Setter Property="CornerRadius" Value="12"/>

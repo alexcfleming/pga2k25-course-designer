@@ -23,6 +23,10 @@ public partial class WorkspaceViewModel
     public bool IsEstimateInputs => Section == EstimateInputsSection;
     public bool IsReadiness => Section == ReadinessSection;
     public bool IsHoleSim => Section == HoleSimSection;
+    /// <summary>The height strip (the sea datum) beside the page title: only where heights are read, the terrain map and measurements.</summary>
+    public bool ShowsHeightStrip => IsTerrain || IsMeasurements;
+    public bool ShowsModelCheck => ShowsHeightStrip && HasModelCheck;
+    partial void OnHasModelCheckChanged(bool value) => OnPropertyChanged(nameof(ShowsModelCheck));
 
     /// <summary>The hole design simulator, made when the section first opens; its save watcher runs only while the section is open.</summary>
     [ObservableProperty] private HoleSimViewModel? _holeSim;
@@ -48,10 +52,13 @@ public partial class WorkspaceViewModel
         OnPropertyChanged(nameof(IsEstimateInputs));
         OnPropertyChanged(nameof(IsReadiness));
         OnPropertyChanged(nameof(IsHoleSim));
+        OnPropertyChanged(nameof(ShowsHeightStrip));
+        OnPropertyChanged(nameof(ShowsModelCheck));
+        if (!Busy) Status = "";   // the last page's status line doesn't carry over
         if (value == HoleSimSection) HoleSim ??= new HoleSimViewModel(Entry.Path, Entry.Name, OutputFolder);
         HoleSim?.SetActive(value == HoleSimSection);
         if (value == EstimateInputsSection) OpenEstimateInputs();
-        if (value == SettingsSection) LoadCourseFileNotes();
+        if (value == SettingsSection) { LoadCourseFileNotes(); RefreshSettingsSummaries(); }
         if (value == ReadinessSection && Readiness is null)
         {
             Readiness = new ReadinessViewModel(Entry.Path, OutputFolder, Entry.Name, hole =>
@@ -96,6 +103,7 @@ public partial class WorkspaceViewModel
         }
         InitMenu();
         InitPanel();
+        InitSettingsCards();
         var extras = Settings.ExtrasFor(Entry.Path);
         CardConfigPath = extras.CardConfig ?? "";
         _bunkerMerge = BunkerMergeLabel(extras.BunkerMergeMetres);

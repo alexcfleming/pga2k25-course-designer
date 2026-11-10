@@ -40,7 +40,7 @@ public partial class LibraryViewModel : ObservableObject
             {
                 _all = cards;
                 Busy = false;
-                Status = cards.Count == 0 ? "No courses found. Check the courses folder." : $"{cards.Count} course(s)";
+                Status = cards.Count == 0 ? "No courses found. Check the courses folder." : "";   // the All chip has the count
                 BuildFilters();
                 Apply();
             });

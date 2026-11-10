@@ -228,6 +228,14 @@ USING IT
   top open the built terrain map, so you no longer need the folder.
 
 NEW IN 2.8.0
+- A tidier workspace. Page titles stand alone (the course's holes, par
+  and yards are under its name in the left menu), and the model check
+  shows only on the terrain map and Measurements. Course settings is a
+  stack: Place, Holes, Logo, Scorecard maps, Course card settings and
+  Files, one open at a time, the others folded to a line saying what's
+  set. Long explanations are one line with a "How this works" link.
+  On Measurements, a typed reading's remove button is a small cross that
+  shows when you point at the row.
 - A shorter right-hand panel beside the terrain map. One card is open at
   a time and the others fold to a single line with a summary; click a
   line to open that card. The card you're working with comes to the

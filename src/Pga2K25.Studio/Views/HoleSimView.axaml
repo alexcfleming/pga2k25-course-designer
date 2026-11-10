@@ -20,7 +20,6 @@
               <ProgressBar IsIndeterminate="True" Width="110" IsVisible="{Binding Busy}" VerticalAlignment="Center"/>
             </StackPanel>
             <StackPanel Spacing="2">
-              <TextBlock Text="Hole design simulator" FontSize="18" FontWeight="SemiBold"/>
               <TextBlock Text="{Binding ContextText}" Classes="mono small"/>
             </StackPanel>
           </DockPanel>
