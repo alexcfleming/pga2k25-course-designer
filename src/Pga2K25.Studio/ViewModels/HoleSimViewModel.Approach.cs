@@ -74,8 +74,7 @@ public partial class HoleSimViewModel
         {
             // Another hole or tee: start from its natural spot (the tee on a par 3, the best drive's finish once there's a run).
             _approachHole = (_model.Number, _model.TeeIndex);
-            _approachPin = 1;
-            _fromMode = _model.Par == 3 ? "tee" : _lastRun is not null ? "drive" : "yards";
+            (_approachPin, _fromMode) = ApproachStart(_pin, _model.Pins.Count, _model.Par, _lastRun is not null);
         }
         if (_approachPin > _model.Pins.Count) _approachPin = 1;
         ApproachPinButtons.Clear();
@@ -93,6 +92,11 @@ public partial class HoleSimViewModel
         UpdateFromText();
         OnPropertyChanged(nameof(ShowFromYards)); OnPropertyChanged(nameof(ShowAimDistance)); OnPropertyChanged(nameof(ShowAimPoint));
     }
+
+    /// <summary>Where the approach starts on a hole or tee it hasn't shown yet: the pin picked in the bar (pin 1 if the
+    /// hole has fewer pins), from the tee on a par 3, else from the best drive's finish once there's a run.</summary>
+    public static (int Pin, string From) ApproachStart(int barPin, int pinCount, int par, bool hasRun) =>
+        (barPin >= 1 && barPin <= pinCount ? barPin : 1, par == 3 ? "tee" : hasRun ? "drive" : "yards");
 
     void SelectApproachPin(int pin)
     {

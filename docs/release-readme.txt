@@ -227,6 +227,12 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
+FIXED IN 3.1.0
+- Hole design simulator: the approach played to pin 1 whatever pin you
+  had picked in the bar. The first time the Approach step opened on a
+  hole or tee, it started over at pin 1; it now plays to the pin in the
+  bar, as the green read, map and second shot already did.
+
 NEW IN 3.0.0
 - Much faster terrain. Everything that rebuilds the ground from your
   brush strokes (the terrain map, hole sheets, greens and yardage books,
