@@ -227,6 +227,22 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
+NEW IN 2.9.0
+- Renaming a course in the designer no longer loses its products.
+  Studio knows the course by its file, so when you rename it, the
+  product folder and the products in it take the new name the next time
+  you open the course: nothing is moved, copied or rebuilt, and your
+  notes, measurements and settings come too. A notice says what was
+  renamed, with Rebuild all products (built pages still print the old
+  name until rebuilt) and Undo. If the new name's folder already holds
+  another course's products, Studio offers "<name> (2)"; if a product
+  file is open in another app, it changes nothing until you close it
+  and press Try again. Studio writes a small Course.json in each product
+  folder to remember which course it belongs to.
+  For a course renamed before 2.9, open it, then Course settings >
+  Files > "Find earlier products...": pick the folder under the old name
+  and press "Use for this course".
+
 NEW IN 2.8.0
 - A more accurate terrain model. Studio now uses the brush strengths and
   shapes measured in game by its sister tool: soft brushes are stronger

@@ -35,7 +35,8 @@ public partial class LibraryViewModel : ObservableObject
         Task.Run(() =>
         {
             var entries = CourseLibrary.Scan(_main.Settings);
-            var cards = entries.Select(e => new CourseCardViewModel(e, _main)).ToList();
+            var folders = CourseFolders.Read(_main.Settings.OutputRoot);
+            var cards = entries.Select(e => new CourseCardViewModel(e, _main, folders)).ToList();
             Dispatcher.UIThread.Post(() =>
             {
                 _all = cards;
@@ -115,9 +116,12 @@ public partial class CourseCardViewModel : ObservableObject
     public string Saved => Entry.Saved.ToString("d MMM");
     public IReadOnlyList<string> Built { get; }
     public bool HasNote => Entry.Error is not null;
+    /// <summary>"Renamed from …" when the designer renamed the course since its products were built.</summary>
+    public string RenamedFrom { get; } = "";
+    public bool IsRenamed => RenamedFrom.Length > 0;
     public string Note => Entry.Error ?? "";
 
-    public CourseCardViewModel(CourseEntry entry, MainViewModel main)
+    public CourseCardViewModel(CourseEntry entry, MainViewModel main, IReadOnlyList<StampedFolder>? folders = null)
     {
         Entry = entry;
         _main = main;
@@ -125,7 +129,11 @@ public partial class CourseCardViewModel : ObservableObject
         {
             try { Thumbnail = Bitmap.DecodeToWidth(new MemoryStream(bytes), 480); } catch (Exception) { Thumbnail = null; }
         }
-        Built = Products.All.Where(p => Products.BuiltFile(p, main.Settings, entry.Name) is not null).Select(p => p.Name).ToList();
+        // A course renamed in the designer still finds its products, under the name they were built with.
+        folders ??= CourseFolders.Read(main.Settings.OutputRoot);
+        var place = CourseFolders.PlaceOf(main.Settings, entry, folders);
+        Built = Products.All.Where(p => Products.BuiltFile(p, place) is not null).Select(p => p.Name).ToList();
+        RenamedFrom = CourseFolders.RenamedFrom(main.Settings, entry, folders) is { } old ? $"Renamed from {old}: products follow when you open it" : "";
     }
 
     [RelayCommand] private void Open()

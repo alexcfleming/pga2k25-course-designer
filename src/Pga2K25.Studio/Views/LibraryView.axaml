@@ -78,6 +78,7 @@
                         </DataTemplate>
                       </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                    <TextBlock Text="{Binding RenamedFrom}" IsVisible="{Binding IsRenamed}" FontSize="12" Foreground="{StaticResource AccentInk}" TextWrapping="Wrap"/>
                     <TextBlock Text="{Binding Note}" IsVisible="{Binding HasNote}" FontSize="12" Foreground="#8A5300" TextWrapping="Wrap"/>
                   </StackPanel>
                 </StackPanel>

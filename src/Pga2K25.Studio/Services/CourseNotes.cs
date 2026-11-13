@@ -27,7 +27,9 @@ public static class CourseNotes
 
     static readonly JsonSerializerOptions Json = new() { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
-    public static string PathFor(StudioSettings settings, string courseName) => Path.Combine(Products.OutputDir(settings, courseName), "Notes.json");
+    public static string PathFor(StudioSettings settings, string courseName) => PathIn(Products.OutputDir(settings, courseName));
+
+    public static string PathIn(string outputDir) => Path.Combine(outputDir, "Notes.json");
 
     public static List<CourseNote> Load(string path)
     {

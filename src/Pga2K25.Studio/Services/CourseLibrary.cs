@@ -6,7 +6,8 @@ public enum CourseKind { Routed, InProgress, Blank }
 
 /// <summary>What the library shows about one course file, read without touching it.</summary>
 public sealed record CourseEntry(
-    string Path, string Name, CourseKind Kind, int Holes, int Par, int Yards, DateTime Saved, byte[]? Thumbnail, string? Error = null);
+    string Path, string Name, CourseKind Kind, int Holes, int Par, int Yards, DateTime Saved, byte[]? Thumbnail, string? Error = null,
+    string Id = "");
 
 public static class CourseLibrary
 {
@@ -36,7 +37,7 @@ public static class CourseLibrary
             bool drawn = model.SurfaceSplines.Any(s => s.Surface is Surfaces.Green or Surfaces.Fairway);
             var kind = model.Holes.Count == 0 ? CourseKind.Blank : drawn ? CourseKind.InProgress : CourseKind.Routed;
             string name = string.IsNullOrWhiteSpace(model.Name) ? System.IO.Path.GetFileNameWithoutExtension(path) : model.Name;
-            return new CourseEntry(path, name, kind, model.Holes.Count, model.Holes.Sum(h => h.Par), yards, saved, thumb);
+            return new CourseEntry(path, name, kind, model.Holes.Count, model.Holes.Sum(h => h.Par), yards, saved, thumb, Id: model.Id);
         }
         catch (Exception ex)
         {

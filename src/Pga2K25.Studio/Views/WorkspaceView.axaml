@@ -233,6 +233,28 @@
     <Grid ColumnDefinitions="*,340" RowDefinitions="Auto,*" Margin="24,20,24,16" ColumnSpacing="16" RowSpacing="16">
       <!-- Header -->
       <DockPanel Grid.ColumnSpan="2">
+        <!-- Renamed in the designer: the products followed (green, with Undo) or couldn't yet (amber, with the way on) -->
+        <Border DockPanel.Dock="Bottom" Margin="0,12,0,0" CornerRadius="7" Padding="14,10" IsVisible="{Binding HasRenameNotice}"
+                Background="{Binding RenameBackground}">
+          <DockPanel>
+            <Button DockPanel.Dock="Right" Content="✕" Padding="6,0" Background="Transparent" BorderThickness="0" VerticalAlignment="Top"
+                    Command="{Binding DismissRenameCommand}" ToolTip.Tip="Close this notice"/>
+            <StackPanel Spacing="6">
+              <TextBlock Text="{Binding RenameTitle}" FontWeight="SemiBold" TextWrapping="Wrap"
+                         Foreground="{Binding RenameForeground}"/>
+              <TextBlock Text="{Binding RenameDetail}" FontSize="12.5" TextWrapping="Wrap"
+                         Foreground="{Binding RenameForeground}"/>
+              <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="6">
+                <Button Classes="primary" Content="Rebuild all products" Command="{Binding BuildAllCommand}" IsVisible="{Binding CanUndoRename}" IsEnabled="{Binding !Busy}"/>
+                <Button Classes="primary" Content="{Binding SuffixFolderLabel}" Command="{Binding UseSuffixFolderCommand}" IsVisible="{Binding HasSuffixFolder}"/>
+                <Button Classes="primary" Content="Try again" Command="{Binding RetryRenameCommand}" IsVisible="{Binding CanRetryRename}"/>
+                <Button Content="Show folder" Command="{Binding OpenOutputFolderCommand}"/>
+                <Button Content="Undo rename" Command="{Binding UndoRenameCommand}" IsVisible="{Binding CanUndoRename}"
+                        ToolTip.Tip="Put the folder and files back under the old name; this course then starts a folder of its own"/>
+              </WrapPanel>
+            </StackPanel>
+          </DockPanel>
+        </Border>
         <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="8" VerticalAlignment="Bottom">
           <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding IsTerrain}" Margin="0,0,8,0">
             <Button Content="Open PDF" Command="{Binding OpenTerrainPdfCommand}" IsVisible="{Binding HasTerrainPdf}" ToolTip.Tip="Open the terrain map PDF"/>
@@ -1295,6 +1317,28 @@
               <TextBlock Text="{Binding CoursePath}" Classes="mono small" TextWrapping="Wrap"/>
               <TextBlock Text="Products and measurements" Classes="muted small" Margin="0,6,0,0"/>
               <TextBlock Text="{Binding OutputFolder}" Classes="mono small" TextWrapping="Wrap"/>
+              <DockPanel Margin="0,8,0,0">
+                <Button DockPanel.Dock="Right" Content="Find earlier products…" Command="{Binding FindEarlierProductsCommand}"
+                        ToolTip.Tip="For a course renamed before Studio 2.9: product folders no course in the library claims"/>
+                <TextBlock Text="Renamed in the designer before Studio 2.9? Its products may be in a folder under the old name." Classes="muted small" TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,0,12,0"/>
+              </DockPanel>
+              <StackPanel Spacing="6" IsVisible="{Binding EarlierSearched}">
+                <TextBlock Text="{Binding EarlierSummary}" Classes="muted small" TextWrapping="Wrap"/>
+                <ItemsControl ItemsSource="{Binding EarlierFolders}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:EarlierFolderViewModel">
+                      <DockPanel Margin="0,2">
+                        <Button DockPanel.Dock="Right" Content="Use for this course" Command="{Binding UseCommand}"
+                                ToolTip.Tip="Rename this folder and its products to this course's name"/>
+                        <StackPanel VerticalAlignment="Center">
+                          <TextBlock Text="{Binding Name}" Classes="mono small"/>
+                          <TextBlock Text="{Binding Detail}" Classes="muted small"/>
+                        </StackPanel>
+                      </DockPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
             </StackPanel>
             </StackPanel>
             </Border>
