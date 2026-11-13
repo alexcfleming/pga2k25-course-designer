@@ -115,7 +115,7 @@ public partial class HoleSimViewModel : ObservableObject
                 var file = CourseFile.Load(_coursePath);
                 var course = file.ReadModel();
                 var layers = CourseLayers.From(course);
-                var water = HoleModelBuilder.TraceWater(course);   // once per course: about a minute on big courses with water planes
+                var water = HoleModelBuilder.TraceWater(course);   // once per course: a few seconds on the biggest courses
                 Dispatcher.UIThread.Post(() =>
                 {
                     _course = course; _desc = file.Description; _layers = layers; _stamp = stamp; _water = water;

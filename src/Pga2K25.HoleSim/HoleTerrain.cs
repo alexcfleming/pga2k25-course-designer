@@ -66,7 +66,9 @@ public sealed class ReplayTerrain : ITerrainModel
         // Weight 1 on the green, fading to 0 by 6 yds outside it; the same round each tee (within 8 yds, fading by 16),
         // because tee boxes are small, sharp flats and readings are often taken against a tee.
         var grid = hole.Grid;
-        var near = DistanceToGreen(grid, 6);
+        var greenCells = new List<int>();
+        for (int y = 0; y < grid.Height; y++) for (int x = 0; x < grid.Width; x++) if (grid[x, y] == Ground.Green) greenCells.Add(y * grid.Width + x);
+        var near = grid.StepsFrom(greenCells, 6);   // yards from the nearest green cell; beyond 6 it no longer matters
         var tees = hole.Tees.Select(t => hole.Frame.ToFrame(t.World)).ToList();
         for (int iz = 0; iz < raw.Height; iz++)
             for (int ix = 0; ix < raw.Width; ix++)
@@ -96,29 +98,6 @@ public sealed class ReplayTerrain : ITerrainModel
         var min = new Vec2(corners.Min(c => c.X) - 20, corners.Min(c => c.Z) - 20);
         var max = new Vec2(corners.Max(c => c.X) + 20, corners.Max(c => c.Z) + 20);
         return TerrainReplay.Build(course, min, max, options);
-    }
-
-    /// <summary>Chessboard distance (yards) from each grid cell to the nearest green cell, capped at <paramref name="cap"/>.</summary>
-    static double[] DistanceToGreen(SurfaceGrid grid, int cap)
-    {
-        int w = grid.Width, h = grid.Height;
-        var d = new double[w * h];
-        Array.Fill(d, cap + 1);
-        var q = new Queue<int>();
-        for (int y = 0; y < h; y++) for (int x = 0; x < w; x++) if (grid[x, y] == Ground.Green) { d[y * w + x] = 0; q.Enqueue(y * w + x); }
-        while (q.Count > 0)
-        {
-            int k = q.Dequeue(), x = k % w, y = k / w;
-            if (d[k] >= cap) continue;
-            for (int dy = -1; dy <= 1; dy++)
-                for (int dx = -1; dx <= 1; dx++)
-                {
-                    int xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
-                    int kk = yy * w + xx; if (d[kk] <= d[k] + 1) continue;
-                    d[kk] = d[k] + 1; q.Enqueue(kk);
-                }
-        }
-        return d;
     }
 }
 

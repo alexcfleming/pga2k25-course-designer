@@ -79,6 +79,36 @@ public sealed class SurfaceGrid
         return new SurfaceGrid(Frame, LatMin, AlongMin, Width, Height, cells);
     }
 
+    /// <summary>
+    /// How many steps each cell is from the nearest of <paramref name="cells"/>, a step being a move to any of the
+    /// eight cells round a cell (so a yard on the diagonal counts as one). Cells more than <paramref name="reach"/>
+    /// steps away, or with none of them in reach, are <see cref="int.MaxValue"/>. Cells are numbered row by row:
+    /// y × <see cref="Width"/> + x.
+    /// </summary>
+    public int[] StepsFrom(IEnumerable<int> cells, int reach)
+    {
+        int w = Width, h = Height;
+        var steps = new int[w * h];
+        Array.Fill(steps, int.MaxValue);
+        var queue = new Queue<int>();
+        foreach (int k in cells) { steps[k] = 0; queue.Enqueue(k); }
+        while (queue.Count > 0)
+        {
+            int k = queue.Dequeue(), x = k % w, y = k / w, d = steps[k];
+            if (d >= reach) continue;
+            for (int dy = -1; dy <= 1; dy++)
+                for (int dx = -1; dx <= 1; dx++)
+                {
+                    int xx = x + dx, yy = y + dy;
+                    if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+                    int kk = yy * w + xx;
+                    if (steps[kk] <= d + 1) continue;
+                    steps[kk] = d + 1; queue.Enqueue(kk);
+                }
+        }
+        return steps;
+    }
+
     /// <summary>Cell count per ground.</summary>
     public int[] Counts()
     {

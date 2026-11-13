@@ -139,11 +139,9 @@ public static class GolferCalibration
     public static double[] Evaluate(ShotContext c, PuttingMap putts, IReadOnlyList<(Lie Lie, double Yards, double E)> targets, int samples, int seedBase)
     {
         var sums = new double[targets.Count * samples];
+        var draws = Draws(seedBase, targets.Count, samples);
         Parallel.For(0, sums.Length, k =>
-        {
-            int row = k / samples, i = k % samples;
-            sums[k] = PlayOut(c, putts, targets[row].Lie, targets[row].Yards, unchecked(seedBase * 7_919_993 + row * 100_003 + i));
-        });
+            sums[k] = PlayOut(c, putts, targets[k / samples].Lie, targets[k / samples].Yards, draws.AsSpan(k * DrawsPerPlayOut, DrawsPerPlayOut)));
         var means = new double[targets.Count];
         for (int row = 0; row < targets.Count; row++)
         {
@@ -159,15 +157,49 @@ public static class GolferCalibration
     /// </summary>
     public static double PlayOut(ShotContext c, PuttingMap putts, Lie lie, double yards, int seed)
     {
-        var r = new Random(seed); var g = c.Golfer;
+        Span<double> draws = stackalloc double[DrawsPerPlayOut];
+        FillDraws(seed, draws);
+        return PlayOut(c, putts, lie, yards, draws);
+    }
+
+    /// <summary>A play-out takes at most twelve strokes, and each stroke two draws (distance or carry, then side).</summary>
+    const int MaxStrokes = 12, DrawsPerPlayOut = 2 * MaxStrokes;
+
+    static void FillDraws(int seed, Span<double> draws)
+    {
+        var r = new Random(seed);
+        for (int j = 0; j < draws.Length; j++) draws[j] = ShotDraws.Normal(r);
+    }
+
+    sealed record DrawTable(int SeedBase, int Rows, int Samples, double[] Normals);
+    static volatile DrawTable? _lastDraws;
+
+    /// <summary>
+    /// The draws of every play-out of an evaluation, row by row. A fit evaluates hundreds of golfers on the same
+    /// numbered play-outs, so the draws are made once and the last table is kept.
+    /// </summary>
+    static double[] Draws(int seedBase, int rows, int samples)
+    {
+        if (_lastDraws is { } t && t.SeedBase == seedBase && t.Rows == rows && t.Samples == samples) return t.Normals;
+        var normals = new double[rows * samples * DrawsPerPlayOut];
+        Parallel.For(0, rows * samples, k =>
+            FillDraws(unchecked(seedBase * 7_919_993 + k / samples * 100_003 + k % samples), normals.AsSpan(k * DrawsPerPlayOut, DrawsPerPlayOut)));
+        _lastDraws = new DrawTable(seedBase, rows, samples, normals);
+        return normals;
+    }
+
+    static double PlayOut(ShotContext c, PuttingMap putts, Lie lie, double yards, ReadOnlySpan<double> draws)
+    {
+        int next = 0; var g = c.Golfer;
         var pinAt = c.Hole.Pins[0].Frame;
         var pos = new FramePoint(0, pinAt.Along - yards);
         Ground? over = lie switch { Lie.Sand => Ground.Bunker, Lie.Recovery => Ground.Scrub, Lie.Rough => Ground.Rough, _ => Ground.Fairway };
         bool tee = lie == Lie.Tee;
         int strokes = 0;
-        for (int k = 0; k < 12; k++)
+        for (int k = 0; k < MaxStrokes; k++)
         {
             var here = over ?? c.Grid.At(pos);
+            double first = draws[next++], second = draws[next++];
             if (here == Ground.Green && c.Green.OnGreen(pos)) return strokes + putts.At(pos, c.Putting);
             double d = Math.Max(pos.DistanceTo(pinAt), 0.5);
             var dir = (pinAt - pos) * (1 / d);
@@ -175,15 +207,15 @@ public static class GolferCalibration
             if (tee && d > g.MaxFrom(Ground.Fairway, true) + 20)
             {
                 var right = new FramePoint(dir.Along, -dir.Lat);
-                double carry = Math.Min(g.TourDriveCarry + ShotEngine.Normal(r) * g.TourDriveCarrySd * g.Skill, d - 30);
-                var land = pos + dir * carry + right * (ShotEngine.Normal(r) * g.TourDriveSideSd * g.Skill);
+                double carry = Math.Min(g.TourDriveCarry + first * g.TourDriveCarrySd * g.Skill, d - 30);
+                var land = pos + dir * carry + right * (second * g.TourDriveSideSd * g.Skill);
                 fin = GeometryRun.Roll(c.Grid, c.Ground, land, dir, c.Ground.LandingSpeed, c.Terrain);
             }
             else
             {
                 double reach = g.MaxFrom(here, tee);
                 var aim = d <= reach ? pinAt : pos + dir * Math.Min(reach, d - 40);
-                fin = ShotEngine.Shoot(c, pos, aim, 1, r, tee, value: false, lieOverride: over).Finish;
+                fin = ShotEngine.Shoot(c, pos, aim, 1, first, second, tee, value: false, lieOverride: over).Finish;
             }
             strokes++; pos = fin; over = null; tee = false;
         }

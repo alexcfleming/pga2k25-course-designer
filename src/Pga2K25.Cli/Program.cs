@@ -400,7 +400,7 @@ static int HoleSimCommand(string path, string[] rest)
             from2 = fins[fins.Count / 2];
             fromText = $"the best drive's typical finish ({run.Player.Name}, aim {run.Best.Aim:+0;-0;0})";
         }
-        var heatMap = Pga2K25.HoleSim.ApproachMaps.Heat(ctx, pn, Pga2K25.HoleSim.ApproachMaps.Spots(m, pn, ctx.Golfer.MaxCarry));
+        var heatMap = ctx.HeatMap(pn);
         double reach = sheet.Reach(run.Player.Id);
         var plan = Pga2K25.HoleSim.SecondShot.Plan(ctx, heatMap, from2, pn, reach);
         Console.WriteLine();

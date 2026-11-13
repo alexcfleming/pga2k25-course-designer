@@ -58,11 +58,15 @@ public sealed class CourseLayers
     /// </summary>
     public List<List<Vec2>> MergedBunkers(double mergeMetres = 10)
     {
-        if (!_mergedBunkers.TryGetValue(mergeMetres, out var loops))
-            _mergedBunkers[mergeMetres] = loops = ShapeMerger.Merge(BunkerAreas, BunkerRibbons, BunkerBrushes,
-                closeRadius: mergeMetres / 2, smooth: Math.Clamp(mergeMetres * 0.15, 0.6, 1.5),
-                keepOut: Grass.Concat(Greens).Select(g => (IReadOnlyList<Vec2>)g).ToList());
-        return loops;
+        // One merge at a time: several holes of a course are often read at once and share these layers.
+        lock (_mergedBunkers)
+        {
+            if (!_mergedBunkers.TryGetValue(mergeMetres, out var loops))
+                _mergedBunkers[mergeMetres] = loops = ShapeMerger.Merge(BunkerAreas, BunkerRibbons, BunkerBrushes,
+                    closeRadius: mergeMetres / 2, smooth: Math.Clamp(mergeMetres * 0.15, 0.6, 1.5),
+                    keepOut: Grass.Concat(Greens).Select(g => (IReadOnlyList<Vec2>)g).ToList());
+            return loops;
+        }
     }
 
     static readonly HashSet<int> GrassSurfaces = [Surfaces.Fairway, Surfaces.Rough, Surfaces.HeavyRough];
