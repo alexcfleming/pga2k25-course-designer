@@ -61,6 +61,13 @@
       <Setter Property="VerticalContentAlignment" Value="Center"/>
     </Style>
 
+    <Style Selector="Border.surfacenote">
+      <Setter Property="Background" Value="#FBF6E9"/>
+      <Setter Property="BorderBrush" Value="#E7D9B0"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="6"/>
+      <Setter Property="Padding" Value="9,6"/>
+    </Style>
     <Style Selector="Button.primary">
       <Setter Property="Background" Value="{StaticResource Accent}"/>
       <Setter Property="BorderBrush" Value="{StaticResource Accent}"/>

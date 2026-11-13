@@ -196,6 +196,9 @@ public sealed class CourseModel
     /// course in the designer keeps it; a copy saved as a new file gets its own. Empty when the file has none.
     /// </summary>
     public string Id { get; init; } = "";
+
+    /// <summary>Theme, backdrop, surface materials, terrain painting layers and surface weathering as the designer set them.</summary>
+    public CourseSurfaces Look { get; init; } = new();
     public required GameVersion Version { get; init; }
     public required int SchemaVersion { get; init; }
     public required IReadOnlyList<Hole> Holes { get; init; }
@@ -270,6 +273,7 @@ public sealed class CourseModel
         return new CourseModel
         {
             Name = desc["name"]?.GetValue<string>() ?? "",
+            Look = CourseSurfaces.From(desc),
             Id = desc["_id"] is JsonValue id && id.TryGetValue(out string? s) ? s : "",
             Version = version,
             SchemaVersion = (int)Num(desc["version"]),

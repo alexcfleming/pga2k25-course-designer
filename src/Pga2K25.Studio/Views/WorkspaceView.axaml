@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Pga2K25.Studio.ViewModels"
+             xmlns:svc="using:Pga2K25.Studio.Services"
              xmlns:views="using:Pga2K25.Studio.Views"
              x:Class="Pga2K25.Studio.Views.WorkspaceView"
              x:DataType="vm:WorkspaceViewModel">
@@ -451,7 +452,7 @@
       <!-- Inspector -->
       <!-- Right-hand panel: one card open, the rest folded to a line; a tool switched on jumps to the top (WorkspaceViewModel.Panel.cs) -->
       <ScrollViewer Grid.Row="1" Grid.Column="1" IsVisible="{Binding IsTerrain}">
-        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <ContentControl Grid.Row="{Binding PlantingCard.Row}" Content="{Binding PlantingCard}" ContentTemplate="{StaticResource PanelFoldedTemplate}" IsVisible="{Binding PlantingCard.ShowsFolded}" Margin="0,0,0,8"/>
           <Border Classes="card" Padding="16" Grid.Row="{Binding PlantingCard.Row}" Margin="0,0,0,12" IsVisible="{Binding PlantingCard.ShowsFull}">
             <StackPanel Spacing="12">
@@ -657,6 +658,88 @@
                   <TextBlock Text="Delete every arrow? This can't be undone." TextWrapping="Wrap" VerticalAlignment="Center"/>
                 </DockPanel>
               </Border>
+            </StackPanel>
+          </Border>
+          <!-- Surfaces: theme, materials, terrain painting and weathering from the course file -->
+          <ContentControl Grid.Row="{Binding SurfacesCard.Row}" Content="{Binding SurfacesCard}" ContentTemplate="{StaticResource PanelFoldedTemplate}" IsVisible="{Binding SurfacesCard.ShowsFolded}" Margin="0,0,0,8"/>
+          <Border Classes="card" Padding="16" Grid.Row="{Binding SurfacesCard.Row}" Margin="0,0,0,12" IsVisible="{Binding SurfacesCard.ShowsFull}">
+            <StackPanel Spacing="10">
+              <StackPanel Spacing="2">
+                <TextBlock Text="Surfaces" FontSize="20" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding SurfacesHeading}" Classes="muted small" TextWrapping="Wrap"/>
+              </StackPanel>
+              <ItemsControl ItemsSource="{Binding SurfaceGroups}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:SurfaceGroupViewModel">
+                    <StackPanel Spacing="3" Margin="0,0,0,12">
+                      <TextBlock Text="{Binding Title}" Classes="muted small" FontWeight="SemiBold"/>
+                      <ItemsControl ItemsSource="{Binding Rows}">
+                        <ItemsControl.ItemTemplate>
+                          <DataTemplate x:DataType="vm:SurfaceRowViewModel">
+                            <StackPanel Spacing="3" Margin="0,1">
+                              <Grid ColumnDefinitions="104,*,Auto,Auto">
+                                <TextBlock Text="{Binding Label}" Classes="muted small" TextWrapping="Wrap" Margin="0,0,8,0"/>
+                                <StackPanel Grid.Column="1">
+                                  <TextBlock Text="{Binding Value}" FontSize="12.5" TextWrapping="Wrap"
+                                             FontStyle="{Binding IsDefault, Converter={x:Static vm:SurfaceStyles.Italic}}"
+                                             Foreground="{Binding IsDefault, Converter={x:Static vm:SurfaceStyles.ValueBrush}}"/>
+                                  <TextBlock Text="{Binding Source}" Classes="muted small" TextWrapping="Wrap" IsVisible="{Binding Source, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                </StackPanel>
+                                <TextBlock Grid.Column="2" Text="{Binding Detail}" Classes="muted small" Margin="8,0,0,0"/>
+                                <Button Grid.Column="3" Content="{Binding PenText}" Command="{Binding EditCommand}" IsVisible="{Binding CanNote}"
+                                        Padding="5,0" Margin="6,0,0,0" Background="Transparent" BorderThickness="0" VerticalAlignment="Top"
+                                        Foreground="{StaticResource Accent}" FontSize="12" ToolTip.Tip="Add or edit a note on this"/>
+                              </Grid>
+                              <Border Classes="surfacenote" IsVisible="{Binding HasMaterialNote}">
+                                <StackPanel Spacing="2">
+                                  <TextBlock Text="{Binding MaterialNote}" FontSize="12" TextWrapping="Wrap" Foreground="#5B4A1E"/>
+                                  <TextBlock Text="{Binding MaterialMeta}" FontSize="11" TextWrapping="Wrap" Foreground="#8A7A4E"/>
+                                </StackPanel>
+                              </Border>
+                              <Border Classes="surfacenote" IsVisible="{Binding HasCourseNote}">
+                                <StackPanel Spacing="2">
+                                  <TextBlock Text="{Binding CourseNote}" FontSize="12" TextWrapping="Wrap" Foreground="#5B4A1E"/>
+                                  <TextBlock Text="{Binding CourseOnlyLabel}" FontSize="11" Foreground="#8A7A4E"/>
+                                </StackPanel>
+                              </Border>
+                              <StackPanel Spacing="6" IsVisible="{Binding IsEditing}">
+                                <TextBox Text="{Binding EditText}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" PlaceholderText="A note on this choice; leave blank to remove it"/>
+                                <RadioButton Content="{Binding EveryCourseLabel}" IsChecked="{Binding ForEveryCourse}" FontSize="12"/>
+                                <RadioButton Content="{Binding CourseOnlyLabel}" IsChecked="{Binding !ForEveryCourse}" FontSize="12"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                  <Button Classes="primary" Content="Save" Command="{Binding SaveCommand}"/>
+                                  <Button Content="Cancel" Command="{Binding CancelCommand}"/>
+                                </StackPanel>
+                              </StackPanel>
+                            </StackPanel>
+                          </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                      </ItemsControl>
+                      <Border Classes="surfacenote" Margin="0,4,0,0" IsVisible="{Binding HasNote}">
+                        <DockPanel>
+                          <Button DockPanel.Dock="Right" Content="&#x270E;" Command="{Binding EditCommand}" Padding="5,0" Background="Transparent" BorderThickness="0"
+                                  VerticalAlignment="Top" Foreground="{StaticResource Accent}" ToolTip.Tip="Edit this note"/>
+                          <StackPanel Spacing="2">
+                            <TextBlock Text="{Binding NoteTitle}" FontSize="12" FontWeight="SemiBold" Foreground="#5B4A1E"/>
+                            <TextBlock Text="{Binding Note}" FontSize="12" TextWrapping="Wrap" Foreground="#5B4A1E"/>
+                          </StackPanel>
+                        </DockPanel>
+                      </Border>
+                      <Button Content="{Binding AddNoteLabel}" Command="{Binding EditCommand}" IsVisible="{Binding CanAddNote}" Padding="0,2"
+                              Background="Transparent" BorderThickness="0" Foreground="{StaticResource Accent}" FontSize="12" HorizontalAlignment="Left"/>
+                      <StackPanel Spacing="6" IsVisible="{Binding IsEditing}">
+                        <TextBlock Text="{Binding NoteTitle}" Classes="muted small"/>
+                        <TextBox Text="{Binding EditText}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="64" PlaceholderText="How these work together on this course; leave blank to remove"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                          <Button Classes="primary" Content="Save" Command="{Binding SaveCommand}"/>
+                          <Button Content="Cancel" Command="{Binding CancelCommand}"/>
+                        </StackPanel>
+                      </StackPanel>
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Text="The course file names only the materials you changed; the rest are the theme's own." Classes="muted small" TextWrapping="Wrap"/>
             </StackPanel>
           </Border>
           <ContentControl Grid.Row="{Binding MapCard.Row}" Content="{Binding MapCard}" ContentTemplate="{StaticResource PanelFoldedTemplate}" IsVisible="{Binding MapCard.ShowsFolded}" Margin="0,0,0,8"/>
