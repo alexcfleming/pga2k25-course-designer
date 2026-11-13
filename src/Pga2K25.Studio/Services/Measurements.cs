@@ -23,8 +23,9 @@ public sealed record MeasuredLine(int Hole, Vec2 From, Vec2 To, int Yards, doubl
 /// </summary>
 public static partial class Measurements
 {
-    public static string PathFor(StudioSettings settings, string courseName) =>
-        Path.Combine(Products.OutputDir(settings, courseName), "Measurements.csv");
+    public static string PathFor(StudioSettings settings, string courseName) => PathIn(Products.OutputDir(settings, courseName));
+
+    public static string PathIn(string outputDir) => Path.Combine(outputDir, "Measurements.csv");
 
     public static List<MeasuredLeg> Load(string path)
     {

@@ -103,17 +103,21 @@ public static class Products
     public static string OutputDir(StudioSettings settings, string courseName) =>
         Path.Combine(settings.OutputRoot, CourseLibrary.FileStem(courseName));
 
-    public static string FileFor(ProductDefinition p, StudioSettings settings, string courseName) =>
-        Path.Combine(OutputDir(settings, courseName), CourseLibrary.FileStem(courseName) + p.FileSuffix);
+    public static string FileFor(ProductDefinition p, StudioSettings settings, string courseName) => FileFor(p, ProductPlace.Named(settings, courseName));
+
+    public static string FileFor(ProductDefinition p, ProductPlace place) => Path.Combine(place.Dir, place.Stem + p.FileSuffix);
 
     /// <summary>
     /// Built, not built, or built before the course file's last save (<paramref name="courseSaved"/>), going by the
     /// newest of its files on disk, so a product rebuilt in part (one scorecard style) counts from its latest build.
     /// </summary>
-    public static ProductState StateOf(ProductDefinition p, StudioSettings settings, string courseName, DateTime courseSaved)
+    public static ProductState StateOf(ProductDefinition p, StudioSettings settings, string courseName, DateTime courseSaved) =>
+        StateOf(p, ProductPlace.Named(settings, courseName), courseSaved);
+
+    public static ProductState StateOf(ProductDefinition p, ProductPlace place, DateTime courseSaved)
     {
-        var files = PagesOf(p, settings, courseName).Select(x => x.Path).Concat(PdfsOf(p, settings, courseName)).ToList();
-        if (BuiltFile(p, settings, courseName) is { } main) files.Add(main);
+        var files = PagesOf(p, place).Select(x => x.Path).Concat(PdfsOf(p, place)).ToList();
+        if (BuiltFile(p, place) is { } main) files.Add(main);
         if (files.Count == 0) return ProductState.NotBuilt;
         return files.Max(File.GetLastWriteTime) < courseSaved ? ProductState.OlderThanSave : ProductState.Built;
     }
@@ -122,16 +126,20 @@ public static class Products
     /// The file that shows the product has been built, or null: its main file, else its first page on disk (a
     /// scorecard map built without the Vintage style still counts as built).
     /// </summary>
-    public static string? BuiltFile(ProductDefinition p, StudioSettings settings, string courseName)
+    public static string? BuiltFile(ProductDefinition p, StudioSettings settings, string courseName) => BuiltFile(p, ProductPlace.Named(settings, courseName));
+
+    public static string? BuiltFile(ProductDefinition p, ProductPlace place)
     {
-        string main = FileFor(p, settings, courseName);
-        return File.Exists(main) ? main : PagesOf(p, settings, courseName).FirstOrDefault()?.Path;
+        string main = FileFor(p, place);
+        return File.Exists(main) ? main : PagesOf(p, place).FirstOrDefault()?.Path;
     }
 
     /// <summary>The page images the product has written, in reading order; empty when it hasn't been built.</summary>
-    public static List<ProductPage> PagesOf(ProductDefinition p, StudioSettings settings, string courseName)
+    public static List<ProductPage> PagesOf(ProductDefinition p, StudioSettings settings, string courseName) => PagesOf(p, ProductPlace.Named(settings, courseName));
+
+    public static List<ProductPage> PagesOf(ProductDefinition p, ProductPlace place)
     {
-        string dir = OutputDir(settings, courseName), stem = CourseLibrary.FileStem(courseName);
+        string dir = place.Dir, stem = place.Stem;
         var pages = new List<ProductPage>();
         foreach (var pattern in p.Pages)
         {
@@ -153,11 +161,10 @@ public static class Products
     }
 
     /// <summary>The PDFs the product has written.</summary>
-    public static List<string> PdfsOf(ProductDefinition p, StudioSettings settings, string courseName)
-    {
-        string dir = OutputDir(settings, courseName), stem = CourseLibrary.FileStem(courseName);
-        return p.Pdfs.Select(x => Path.Combine(dir, string.Format(x, stem))).Where(File.Exists).ToList();
-    }
+    public static List<string> PdfsOf(ProductDefinition p, StudioSettings settings, string courseName) => PdfsOf(p, ProductPlace.Named(settings, courseName));
+
+    public static List<string> PdfsOf(ProductDefinition p, ProductPlace place) =>
+        p.Pdfs.Select(x => Path.Combine(place.Dir, string.Format(x, place.Stem))).Where(File.Exists).ToList();
 
     /// <summary>"Hole_07" → "Hole 7"; anything else unchanged.</summary>
     static string PageTitle(string fileStem) =>

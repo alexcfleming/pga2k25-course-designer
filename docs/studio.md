@@ -18,6 +18,7 @@ Pass a `.course` path on the command line to open straight into that course.
   - when it was last saved
   - which products are already built
 - **Finding a course:** filter by status, or search by name.
+- **Renamed in the designer:** a card whose course has been renamed since its products were built says "Renamed from …" and still counts its products; they take the new name when the course is opened (see **Renaming a course** below).
 - **Settings:** the courses folder, the output folder (default `Documents\PGA 2K25 Greens Books`) and the **designer credit**. The credit is the user's own name, printed on the terrain map, hole sheets, greens book, yardage book, hole illustrations and scorecard maps. It is blank by default, and a blank credit prints nothing. **Allow online wind data** (off by default) lets a Place card fetch a real place's wind record; with it off Studio makes no network calls. Whatever the credit, every product also carries a small note: "Created using Alex Fleming's Course Designer Studio" (`CourseFormat.Attribution`). It goes in the terrain map's notes, the hole sheet, greens book, yardage book, hole illustration and scorecard footers, the course cards' bottom-right corner and above the estimate's footer rule. They're saved in `%AppData%\CourseDesignerStudio\settings.json`.
 
 ## Course workspace
@@ -75,6 +76,17 @@ The left-hand menu has the course's sections, its products with a built dot each
   - **Publish gate:** the publish items, what still blocks the gate, designer, version and tee names, the sign-off, and the lighting recorded from the file. **Sign off this version** ties the sign-off to the course file's fingerprint, so a later change re-opens the gate.
   - **Import checklist backup…** reads the HTML checklist's Export backup and brings in the course of the same name, or asks which. It only fills what's still open or empty.
   - **Export record** writes `<course> - Readiness record <date>.html` (printable) and `.json` into the output folder: the final record of the course.
+
+## Renaming a course (new in 2.9.0)
+
+A course's products go in a folder named after the course, with file names that start with its name. Renaming a course in the designer used to leave all of that under the old name, so the course looked as if it had nothing built. Studio now follows the rename (`Services/CourseFolders.cs`, `WorkspaceViewModel.Rename.cs`):
+
+- **How it knows.** The game keeps the course file and its id (`_id`, e.g. `offlineSavebyvwcvzpqavk`, read as `CourseModel.Id`) through a rename; a copy saved as a new file, by Plot Starter or "Save as", has its own. Studio writes `Course.json` into the product folder (the file's path and id, and the name the products were built under) when the course opens and after each build. A folder another course file has already stamped (two files with one name) is shared as before and not taken.
+- **On open,** when the stamp's name differs from the course's, Studio renames the folder and every file or folder in it named "<old name> - …" (product files, the Hole Sheets and Sketches folders, readiness records). Notes, measurements, Place, Holes, Readiness and the logos move with the folder; files you put there yourself keep their names; nothing's contents change, and the course file is never touched. A course-card settings file kept in the folder moves with it.
+- **The notice** above the page says what was renamed, with **Rebuild all products** (built pages print the old name until rebuilt, and their dots are amber after the save anyway), **Show folder** and **Undo rename**. Undo puts the old names back and releases the folder, so the renamed course starts a folder of its own.
+- **When it can't** it changes nothing. If a folder of the new name already holds another course's products, the notice offers "<name> (2)". If a file is open in another app (or is still syncing), it lists them with **Try again**. Builds wait until the rename is done, so new files don't land under the old name. All files are checked before anything is renamed, and a failure part way puts back what was done.
+- **Renamed before 2.9:** the folder isn't stamped, so Studio can't tell. **Find earlier products…** on the Files card lists product folders no course in the library claims (unstamped and not named after a course, released by Undo, or stamped by a file that has gone), and **Use for this course** renames one to the course's name the same way. It's refused when the course already has products of its own.
+- A course file the game has moved (a new path) still finds its folder by its id, as long as nothing is left at the old path.
 
 ## What a Build makes
 

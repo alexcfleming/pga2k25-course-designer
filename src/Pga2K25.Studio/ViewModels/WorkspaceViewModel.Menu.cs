@@ -90,9 +90,9 @@ public partial class WorkspaceViewModel
         foreach (var nav in ProductNav.Items)
         {
             var p = Products.All.First(x => x.Name == nav.Label);
-            int pages = Products.PagesOf(p, Settings, Entry.Name).Count;
+            int pages = Products.PagesOf(p, _place).Count;
             nav.Detail = pages == 0 ? "" : $"{pages} page{(pages == 1 ? "" : "s")}";
-            nav.State = Products.StateOf(p, Settings, Entry.Name, saved);
+            nav.State = Products.StateOf(p, _place, saved);
         }
         int built = ProductNav.Items.Count(n => n.State != ProductState.NotBuilt);
         int stale = ProductNav.Items.Count(n => n.State == ProductState.OlderThanSave);

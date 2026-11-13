@@ -36,14 +36,14 @@ public partial class ProductViewerViewModel : ObservableObject
     public IReadOnlyList<StyleChoiceViewModel> Styles { get; }
     public bool HasStyles => Styles.Count > 0;
 
-    public ProductViewerViewModel(ProductDefinition product, StudioSettings settings, string courseName, Func<Task> build,
+    public ProductViewerViewModel(ProductDefinition product, ProductPlace place, Func<Task> build,
         IReadOnlyList<StyleChoiceViewModel>? styles = null)
     {
         Product = product;
         _build = build;
         Styles = styles ?? [];
-        var pages = Products.PagesOf(product, settings, courseName);
-        _pdfs = Products.PdfsOf(product, settings, courseName);
+        var pages = Products.PagesOf(product, place);
+        _pdfs = Products.PdfsOf(product, place);
         foreach (var p in pages) Pages.Add(new PageItemViewModel(p));
         Summary = pages.Count == 0 ? "Not built yet"
             : $"{pages.Count} page{(pages.Count == 1 ? "" : "s")} · built {File.GetLastWriteTime(pages[0].Path):d MMM HH:mm}" + (_pdfs.Count > 0 ? " · PDF" : "");

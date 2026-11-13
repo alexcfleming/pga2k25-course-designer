@@ -190,6 +190,12 @@ public static class Surfaces
 public sealed class CourseModel
 {
     public required string Name { get; init; }
+
+    /// <summary>
+    /// The id the game gives the course when it first saves it (<c>_id</c>, e.g. "offlineSavebyvwcvzpqavk"). Renaming the
+    /// course in the designer keeps it; a copy saved as a new file gets its own. Empty when the file has none.
+    /// </summary>
+    public string Id { get; init; } = "";
     public required GameVersion Version { get; init; }
     public required int SchemaVersion { get; init; }
     public required IReadOnlyList<Hole> Holes { get; init; }
@@ -264,6 +270,7 @@ public sealed class CourseModel
         return new CourseModel
         {
             Name = desc["name"]?.GetValue<string>() ?? "",
+            Id = desc["_id"] is JsonValue id && id.TryGetValue(out string? s) ? s : "",
             Version = version,
             SchemaVersion = (int)Num(desc["version"]),
             Holes = ReadHoles(desc["holes3"] as JsonArray),

@@ -75,7 +75,7 @@ public partial class WorkspaceViewModel
     }
 
     ProductViewerViewModel NewViewer(ProductDefinition product) =>
-        new(product, Settings, Entry.Name, () => BuildAsync([product]), product.Name == ScorecardProduct ? ScorecardStyles() : null);
+        new(product, _place, () => BuildAsync([product]), product.Name == ScorecardProduct ? ScorecardStyles() : null);
 
     const string ScorecardProduct = "Scorecard map";
 
@@ -127,7 +127,7 @@ public partial class WorkspaceViewModel
     public ObservableCollection<MeasurementRowViewModel> MeasurementRows { get; } = [];
     public ObservableCollection<int> HoleNumbers { get; } = [];
     public IReadOnlyList<string> LegChoices { get; } = ["Tee → aim", "Aim → green"];
-    public string MeasurementsFile => Measurements.PathFor(Settings, Entry.Name);
+    public string MeasurementsFile => Measurements.PathIn(OutputFolder);
 
     [ObservableProperty] private int? _newHole;
     [ObservableProperty] private string _newLeg = "Tee → aim";
@@ -208,7 +208,6 @@ public partial class WorkspaceViewModel
     // ───────────────────────── course settings ─────────────────────────
 
     [ObservableProperty] private string _cardConfigPath = "";
-    public string OutputFolder => Products.OutputDir(Settings, Entry.Name);
     public string CoursePath => Entry.Path;
 
     public void SetCardConfig(string? path)

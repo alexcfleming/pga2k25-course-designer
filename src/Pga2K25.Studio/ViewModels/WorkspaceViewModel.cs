@@ -84,6 +84,7 @@ public partial class WorkspaceViewModel : ObservableObject
     {
         _main = main;
         Entry = entry;
+        InitProductFolder();
         RefreshProducts();
         InitSections();
         LoadTerrainOptions();
@@ -109,7 +110,7 @@ public partial class WorkspaceViewModel : ObservableObject
             course.NotWater = NotWaterMarks.Points(OutputFolder);
             // Hilltops are always surveyed; the layer toggle only decides whether they are drawn.
             var survey = TerrainSurvey.Build(course, ViewerOptions() with { ShowSummits = true });
-            _measured = Measurements.Load(Measurements.PathFor(Settings, Entry.Name));
+            _measured = Measurements.Load(Measurements.PathIn(OutputFolder));
             var fileLegs = Measurements.FromCourse(course);
             var fileLines = Measurements.OtherLegs(course);
             Dispatcher.UIThread.Post(() =>
@@ -278,8 +279,8 @@ public partial class WorkspaceViewModel : ObservableObject
 
     void RefreshProducts()
     {
-        TerrainPdf = Products.PdfsOf(TerrainProduct, Settings, Entry.Name).FirstOrDefault();
-        string image = Products.FileFor(TerrainProduct, Settings, Entry.Name);
+        TerrainPdf = Products.PdfsOf(TerrainProduct, _place).FirstOrDefault();
+        string image = Products.FileFor(TerrainProduct, _place);
         TerrainImage = File.Exists(image) ? image : null;
     }
 
@@ -288,8 +289,14 @@ public partial class WorkspaceViewModel : ObservableObject
     async Task BuildAsync(IReadOnlyList<ProductDefinition> products)
     {
         if (Busy) return;
+        if (RenamePending)
+        {
+            Status = "Rename the products to the course's new name first (see the notice at the top)";
+            HasRenameNotice = true;
+            return;
+        }
         Busy = true;
-        string outDir = Products.OutputDir(Settings, Entry.Name);
+        string outDir = OutputFolder;
         var progress = new Progress<string>(line => { Log.Add(line); Status = line; });
         foreach (var p in products)
         {
@@ -299,6 +306,7 @@ public partial class WorkspaceViewModel : ObservableObject
             catch (Exception ex) { Log.Add($"{p.Name} failed: {ex.Message}"); Status = $"{p.Name} failed: {ex.Message}"; }
         }
         Busy = false;
+        try { CourseFolders.Stamp(Settings, Entry); } catch (Exception) { /* unstamped still works */ }
         RefreshProducts();
         RefreshProductSections();
         Status = "Done";
@@ -306,7 +314,7 @@ public partial class WorkspaceViewModel : ObservableObject
 
     [RelayCommand] private void OpenOutputFolder()
     {
-        string dir = Products.OutputDir(Settings, Entry.Name);
+        string dir = OutputFolder;
         Directory.CreateDirectory(dir);
         OpenPath(dir);
     }
