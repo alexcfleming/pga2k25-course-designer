@@ -245,6 +245,17 @@ NEW IN 2.9.0
 - Hole sheets: a small width marker at the top of each map, centred on
   the line of play, shows 45, 35 and 25 yds at the sheet's scale, to
   check a fairway you sketch against. Nothing else on the sheet changes.
+- Surfaces card (beside the terrain map): the course's theme and
+  backdrop, the material you chose for each surface (bunker, green,
+  fringe, fairway, roughs and paths), the four Terrain Painting layers
+  with how much of each is painted, and Surface Weathering (the texture
+  each grass weathers to, strokes painted and edge blending), all read
+  from the course file. Anything you never changed says "theme default",
+  since the file only names what you changed.
+  Click the pencil beside any line to keep a note on it. A note stays
+  with the material, so it shows on every course that uses it (or tick
+  "this course only"), and each group has a note for how its layers
+  work together on this course.
 
 NEW IN 2.8.0
 - A more accurate terrain model. Studio now uses the brush strengths and

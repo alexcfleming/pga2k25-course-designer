@@ -113,11 +113,13 @@ public partial class WorkspaceViewModel : ObservableObject
             _measured = Measurements.Load(Measurements.PathIn(OutputFolder));
             var fileLegs = Measurements.FromCourse(course);
             var fileLines = Measurements.OtherLegs(course);
+            var look = SurfacesSummary.Build(course);
             Dispatcher.UIThread.Post(() =>
             {
                 _survey = survey;
                 _fileLegs = fileLegs;
                 _fileLines = fileLines;
+                ApplySurfaces(look);
                 HasInlandWater = survey.InlandWater is not null || _notWater.Count > 0;
                 RebuildNotWaterRows();
                 RebuildRoutingRows();

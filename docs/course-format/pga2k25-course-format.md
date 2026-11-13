@@ -183,22 +183,28 @@ These are used when the designer auto-generates a course. They are usually inert
 - Layout generator: `holeCount`, `par3Count`, `par4Count`, `par5Count`, `holeSeparation`, `waypointHeight`, `courseIterations`, `minimumDoglegPositon` (sic, typo is in the game key), `maximumDoglegPosition`, `maximumDoglegAngle`, `allowFairwayCrowd`, `flattenFairways`, `flattenGreens`, `waterLevel`, `waterAmount`, `hillsAmount`, `hillsHeight`.
 - Bunker shaping: `bunkerSettings2` = `{highResStamping, regularBunkerDepressionSettings{baseDepth, lipStart, lipDepth, lipSteepness}, potBunkerDepressionSettings{…}, flatFloor, stampDepth}`, `bunkerBrushMaskFairwayGreen`, `bunkerSplineMaskFairwayGreen`.
 
-### 4.6 Surface material table (Inferred)
+### 4.6 Surface material table (Confirmed against the designer, 12 Nov 2026)
 
-`surfaces2[15]` and `secondarySurfaces[15]` are arrays of `{name?, blend, maskWater}`. A present `name` overrides the material for that slot; an absent `name` means the theme default. Slot meanings inferred from Jungle Plot 2, where all slots are named:
+`surfaces2[15]` and `secondarySurfaces[15]` are arrays of `{name?, blend, maskWater}`. A present `name` is the material the designer chose for that slot; an absent `name` means the theme's default, which the file doesn't name. The slots follow the designer's Create Surfaces list, then its Terrain Painting list (Halvoy's `Mulch08` sits in slot 3, the designer's ③ Mulch):
 
-| Slot | Example material | Likely role |
+| Slot | Designer | Example material |
 |---|---|---|
-| 0 | `Sand50_StAndrews`, `Sand46_Pinehurst` | Bunker sand |
-| 1 | `Concrete01` | Cart path |
-| 2 | `Cobbles06` | Path / hardscape |
-| 3–5 | — | (unnamed in samples) |
-| 6 | `Green13` | Green |
-| 7 | `Fringe13` | Fringe |
-| 8 | `Fairway27_EastLakeGC` | Fairway |
-| 9 | `LightRough27_EastLakeGC` | Light rough |
-| 10 | `HeavyRough18_AtlanticBeachCC` | Heavy rough |
-| 11–14 | `Splat0_…` to `Splat3_…` | Terrain splat textures 0–3 |
+| 0 | Bunker | `Sand50_StAndrews`, `Sand56_FriscoGC` |
+| 1, 2 | Cart path ①, ② | `Concrete01`, `Cobbles06`, `SandPebbles01` |
+| 3 | ③ (Mulch by default) | `Mulch08` |
+| 4, 5 | Cart path ④, ⑤ | `Gravel05`, `Asphalt01B` |
+| 6 | Green | `Green46_Pinehurst` |
+| 7 | Fringe | `Fringe46_Pinehurst` |
+| 8 | Fairway | `Fairway43_RenaissanceClub` |
+| 9 | Light rough | `LightRough48` |
+| 10 | Heavy rough | `HeavyRough48` |
+| 11–14 | Terrain Painting: Grass / Topsoil, Subsoil A, Subsoil B, Bedrock | `Splat0_Nordic` … `Splat3_Desert` |
+
+A name reads as material, version and source course: `Fairway43_RenaissanceClub` is Fairway 43 from Renaissance Club.
+
+`secondarySurfaces` is **Surface Weathering**: the texture each grass turns into where weathering is painted (the designer's Green, Fairway, Light Rough and Heavy Rough Texture; slot 7 holds a fringe beside a weathered green). Only slots 6–10 are ever named. Its **Edge Blending** is `grassWeatheringEdgeBlend` (0.85 shows as 85). Weathering strokes are paint surface 18, and the four Terrain Painting layers' strokes are paint surfaces 14–17 (§4.9).
+
+`theme` and `backdrop` are numbers only. The designer's themes are Desert, Boreal, Tropical, Countryside, Harvest, Winter, Delta, Rustic, Swiss, Steppe, Autumn, Highlands, Temperate and Fjordlands; so far 10 is Delta, 15 Highlands, 50 Tropical and 54 Fjordlands (2, 5, 8, 12 and 13 are used by sample courses but not yet named). `backdrop` is 0–5, one of the theme's six backdrop pictures (Studio shows it as Backdrop 1–6; the pictures differ from theme to theme, so the number names no particular backdrop). `CourseModel.Look` (`CourseSurfaces`) reads all of this.
 
 `surfaces[9]` is a legacy array (all `null`).
 
@@ -291,8 +297,8 @@ Brush (§3.2) plus `surfaceCategory`. `value` is the paint opacity (0–1).
 |---|---|---|
 | 0–4 | 8, 11, 14–22, 42, 48, 49, 59 | Same ids as spline surfaces (bunker, green, fairway, rough, heavy rough) |
 | 7 | 38 | Cart-path paint |
-| 14–17 | 9, 12, 13, 17, 18, 42, 48, 49, 53, 55 | Unknown (likely theme splat / waste layers) |
-| **18** | 13, 18, 49, 54, 55 (reference tool uses **10, 48, 49, 50**) | **Terrain weathering** paint (value 0.02–0.6) |
+| 14–17 | 9, 12, 13, 17, 18, 42, 48, 49, 53, 55 | **Terrain Painting** layers: 14 Grass / Topsoil, 15 Subsoil A, 16 Subsoil B, 17 Bedrock (materials in `surfaces2` slots 11–14) |
+| **18** | 13, 18, 49, 54, 55 (reference tool uses **10, 48, 49, 50**) | **Surface Weathering** paint (value 0.02–0.6; textures in `secondarySurfaces`) |
 
 `surfaceBrushes[]` (empty) is the legacy array.
 

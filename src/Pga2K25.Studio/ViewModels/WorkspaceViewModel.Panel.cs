@@ -75,7 +75,7 @@ public partial class PanelCardViewModel(string key, string title, string icon, A
 public partial class WorkspaceViewModel
 {
     public const string HoleCardKey = "hole", RoutingCardKey = "routing", PlantingCardKey = "planting", NoteCardKey = "note",
-        SketchesCardKey = "sketches", NotesCardKey = "notes", MapCardKey = "map";
+        SketchesCardKey = "sketches", NotesCardKey = "notes", SurfacesCardKey = "surfaces", MapCardKey = "map";
 
     PanelStack _panel = null!;
     public PanelCardViewModel HoleCard { get; private set; } = null!;
@@ -84,15 +84,16 @@ public partial class WorkspaceViewModel
     public PanelCardViewModel NoteCard { get; private set; } = null!;
     public PanelCardViewModel SketchesCard { get; private set; } = null!;
     public PanelCardViewModel NotesCard { get; private set; } = null!;
+    public PanelCardViewModel SurfacesCard { get; private set; } = null!;
     public PanelCardViewModel MapCard { get; private set; } = null!;
-    IEnumerable<PanelCardViewModel> Cards => [HoleCard, RoutingCard, PlantingCard, NoteCard, SketchesCard, NotesCard, MapCard];
+    IEnumerable<PanelCardViewModel> Cards => [HoleCard, RoutingCard, PlantingCard, NoteCard, SketchesCard, NotesCard, SurfacesCard, MapCard];
 
     /// <summary>Workspace properties that change a card's summary or whether it shows.</summary>
     static readonly HashSet<string> PanelInputs =
     [
         nameof(HasHole), nameof(HoleTitle), nameof(HoleParYards), nameof(TeeFeet), nameof(GreenFeet),
         nameof(RoutingCount), nameof(RoutingTotalPar), nameof(RoutingTotalYards), nameof(PlantingTrees), nameof(HasPlanting),
-        nameof(SelectedNote), nameof(SketchSummary), nameof(NotesSummary), nameof(OptSummary),
+        nameof(SelectedNote), nameof(SketchSummary), nameof(NotesSummary), nameof(SurfacesSummaryText), nameof(OptSummary),
     ];
 
     void InitPanel()
@@ -104,8 +105,9 @@ public partial class WorkspaceViewModel
         NoteCard = new(NoteCardKey, "Note", "", Toggle);
         SketchesCard = new(SketchesCardKey, "Hole sketches", "", Toggle);
         NotesCard = new(NotesCardKey, "Notes", "", Toggle);
+        SurfacesCard = new(SurfacesCardKey, "Surfaces", "", Toggle);
         MapCard = new(MapCardKey, "Map options", "", Toggle);
-        _panel = new PanelStack([HoleCardKey, SketchesCardKey, NotesCardKey, MapCardKey], CardShows);
+        _panel = new PanelStack([HoleCardKey, SketchesCardKey, NotesCardKey, SurfacesCardKey, MapCardKey], CardShows);
         if (RoutingTestOn) _panel.Work(RoutingCardKey);
         if (ShowPlanting) _panel.Work(PlantingCardKey);
         PropertyChanged += OnPanelInput;
@@ -160,6 +162,7 @@ public partial class WorkspaceViewModel
         NoteCard.Summary = SelectedNote is { } n ? (n.Text.Length > 60 ? n.Text[..57] + "…" : n.Text.Length > 0 ? n.Text : "New note") : "";
         SketchesCard.Summary = SketchSummary;
         NotesCard.Summary = NotesSummary;
+        SurfacesCard.Summary = SurfacesSummaryText;
         MapCard.Summary = OptSummary;
     }
 }
