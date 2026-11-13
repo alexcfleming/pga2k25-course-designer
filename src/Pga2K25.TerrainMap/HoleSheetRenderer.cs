@@ -52,6 +52,8 @@ public sealed class HoleSheetRenderer : TerrainInk
         var obstacles = new List<SKRect>();
         // Reserve the hole's own furniture so contour labels keep clear of it.
         foreach (var pt in route) obstacles.Add(new SKRect(pt.X - 14 * u, pt.Y - 14 * u, pt.X + 14 * u, pt.Y + 14 * u));
+        var widths = WidthMarker(sheet, p, map);
+        obstacles.Add(WidthMarkerBox(widths));
         var spots = _sheet.GridSpotHeights ? PlaceGridSpots(sheet, p, map, route, obstacles) : [];
         // Hilltop markers on the line itself would read as course furniture; leave those off.
         var summits = _o.ShowSummits ? PlaceSummits(s, p, map, obstacles).Where(t => DistanceToPolyline(t.At, route) > 12 * u).ToList() : [];
@@ -65,6 +67,7 @@ public sealed class HoleSheetRenderer : TerrainInk
         obstacles.RemoveRange(0, route.Length);
         DrawRouting(canvas, [sheet.Routing], p, [route], obstacles);
         DrawRouteHeights(canvas, sheet, route, obstacles);
+        DrawWidthMarker(canvas, widths);
         canvas.Restore();
 
         using (var frame = Stroke(Ink, 0.8f * u))
@@ -197,6 +200,53 @@ public sealed class HoleSheetRenderer : TerrainInk
             string text = yards == 0 ? "C" : $"{(pageLeft ? "L" : "R")}{yards}";
             Text(canvas, text, x, map.Top - 4 * u, size, _sansBold, GridLine, SKTextAlign.Center);
             Text(canvas, text, x, map.Bottom + 4 * u + size * 0.8f, size, _sansBold, GridLine, SKTextAlign.Center);
+        }
+    }
+
+    // ───────────────────────────── width marker ─────────────────────────────
+
+    /// <summary>The widths drawn to the sheet's scale at the top of the strip, widest first, to hold against a fairway.</summary>
+    public static readonly int[] MarkerYards = [45, 35, 25];
+
+    /// <summary>One bar of the width marker, in this renderer's pixels.</summary>
+    public readonly record struct WidthBar(int Yards, float X0, float X1, float Y);
+
+    /// <summary>
+    /// The width marker: a bar per <see cref="MarkerYards"/> width, centred on the line of play (the C line) just
+    /// inside the top of the strip, the widest on top, each as long as that many yards at the sheet's scale.
+    /// </summary>
+    public List<WidthBar> WidthMarker(HoleSheet sheet)
+    {
+        var p = sheet.Projection(Scaled(HoleSheet.MapRectPoints));
+        return WidthMarker(sheet, p, Scaled(sheet.StripPoints));
+    }
+
+    List<WidthBar> WidthMarker(HoleSheet h, MapProjection p, SKRect map)
+    {
+        float u = _u, pxPerYard = (float)(p.PointsPerMetre / TerrainSurvey.YardsPerMetre);
+        float cx = p.Map(h.At(0, 0)).X, top = map.Top + 6 * u, gap = 5 * u;
+        return MarkerYards.Select((yards, i) => new WidthBar(yards, cx - yards * pxPerYard / 2, cx + yards * pxPerYard / 2, top + i * gap)).ToList();
+    }
+
+    /// <summary>The marker's footprint, labels included: contour labels and spot heights keep clear of it.</summary>
+    SKRect WidthMarkerBox(List<WidthBar> bars) =>
+        new(bars.Min(b => b.X0) - 2 * _u, bars[0].Y - 3 * _u, bars.Max(b => b.X1) + 16 * _u, bars[^1].Y + 3 * _u);
+
+    void DrawWidthMarker(SKCanvas canvas, List<WidthBar> bars)
+    {
+        float u = _u, tick = 1.6f * u;
+        using var halo = Stroke(Paper.WithAlpha(230), 2.4f * u);
+        using var bar = Stroke(Ink, 0.9f * u);
+        halo.StrokeCap = bar.StrokeCap = SKStrokeCap.Butt;
+        foreach (var b in bars)
+        {
+            foreach (var paint in new[] { halo, bar })
+            {
+                canvas.DrawLine(b.X0, b.Y, b.X1, b.Y, paint);
+                canvas.DrawLine(b.X0, b.Y - tick, b.X0, b.Y + tick, paint);
+                canvas.DrawLine(b.X1, b.Y - tick, b.X1, b.Y + tick, paint);
+            }
+            Text(canvas, b.Yards == bars[0].Yards ? $"{b.Yards} yds" : $"{b.Yards}", b.X1 + 2 * u, b.Y + 1.9f * u, 5.4f * u, _sansBold, Ink, halo: Paper);
         }
     }
 
