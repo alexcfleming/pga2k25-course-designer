@@ -27,6 +27,9 @@ public sealed class BrushShape
 
     public const double ResponseWhite = 0.9529, ResponseGamma = 0.65;
 
+    /// <summary>The soft round's stamp type.</summary>
+    public const int SoftRound = 54;
+
     /// <summary>
     /// A brush whose real shape was measured in game, in place of its icon (plot-starter data/brush_profiles.json, from
     /// the PS0 Calibration plot's markers): weight at brush-local (u, v) in fractions of scale, or null if unmeasured.

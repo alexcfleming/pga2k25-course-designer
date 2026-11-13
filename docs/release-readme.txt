@@ -257,6 +257,17 @@ NEW IN 2.9.0
   "this course only"), and each group has a note for how its layers
   work together on this course.
 
+FIXED IN 2.9.0
+- Ponds under very large soft-round brushes came out too big. The
+  measured brush shapes from 2.8.0 were taken on soft rounds up to size
+  400; stretched over bigger ones (Sangoma has ten at 720), they sank
+  the ground several metres too far, and hole 14's pond ran to the edges
+  of its water plane: 4,300 square metres where the game shows a small
+  banked pond. Soft rounds over size 450 now use the brush picture's
+  shape, as before 2.8.0: hole 14's pond reads about 2,100, and the
+  modelled ground also fits Sangoma's in-game heights better. Rebuild
+  your products to pick it up.
+
 NEW IN 2.8.0
 - A more accurate terrain model. Studio now uses the brush strengths and
   shapes measured in game by its sister tool: soft brushes are stronger

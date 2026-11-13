@@ -57,7 +57,9 @@ public class WaterTests
         Assert.False(m.IsWet(ring.Position));                                    // the ring pond's island
         Assert.True(m.IsWet(ring.Position + new Vec2(-12, 0)));                  // ...inside its ring of water
         Assert.False(m.IsWet(ring.Position + new Vec2(0, ring.HalfZ - 5)));      // land inside the footprint stays land
-        Assert.InRange(m.Bodies.Sum(b => b.AreaM2), 30000, 36000);
+        // No in-game areas for Luke's ponds: a regression band. 34,600 m² icon model, 35,300 measured, 38,300 with the
+        // soft-round limit (its three 480 m soft rounds widen the ponds at (752, −333) and (797, −99)).
+        Assert.InRange(m.Bodies.Sum(b => b.AreaM2), 30000, 40000);
         Assert.All(m.Bodies, b => Assert.InRange(b.MaxDepthMetres, 2, 7.5));   // up to 6.7 m with the measured brushes
     }
 

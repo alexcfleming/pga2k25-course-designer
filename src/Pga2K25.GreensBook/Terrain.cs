@@ -28,6 +28,15 @@ public sealed record TerrainModelOptions
     /// </summary>
     public bool MeasuredBrushes { get; init; } = true;
 
+    /// <summary>
+    /// The measured model applies to soft-round stamps (type 54) up to this scale; bigger ones use the icon model (null = any
+    /// scale). The soft round was measured at scales 50 and 400 only (the hard round at 200, the big square at 100 and 1000), and stretched over Sangoma's ten 720 m lowers it sank the ground by
+    /// hole 14's pond about 6 m: 4,300 m² of water running to the plane's edges, against a small banked pond in game
+    /// (about 2,100 m² with the limit). It also fits Sangoma's in-game heights better (2026-11-13): 5.27 → 4.01 ft,
+    /// 1.53 → 1.41 ft and 0.76 → 0.66 ft over its three saved marker sets; Devil's Perch 12.41 → 12.50 ft.
+    /// </summary>
+    public double? SoftRoundMeasuredMaxScale { get; init; } = 450;
+
     /// <summary>Gaussian blur sigma (m) applied when the course sets blurHeight; 0 disables.</summary>
     public double BlurSigmaMetres { get; init; } = 1.0;   // calibrated with Hardness
 
@@ -280,7 +289,7 @@ public static class TerrainReplay
     /// </summary>
     static double ShapeWeight(HeightStamp s, BrushShape shape, double u, double v, TerrainModelOptions options)
     {
-        if (options.MeasuredBrushes)
+        if (options.MeasuredBrushes && !(s.Type == BrushShape.SoftRound && s.Scale > options.SoftRoundMeasuredMaxScale))
         {
             bool toValue = s.Tool == 0;
             if (BrushShape.MeasuredWeight(s.Type, u, v) is { } m)
