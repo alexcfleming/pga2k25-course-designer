@@ -29,7 +29,7 @@ Areas:
 
 ## What's slow and why
 
-The slow tests are the end-to-end ones: a whole-course water trace (Sangoma's takes most of a minute), building every card, map or book for a course, and the simulator's play-outs on Pilolcura. They're kept because they catch the regressions the fast tests can't: product output, water in play and real-course figures. They run in the full suite.
+The slow tests are the end-to-end ones: a whole-course water trace (Sangoma's takes about a minute and a half), building every card, map or book for a course, and the simulator's play-outs on Pilolcura. They're kept because they catch the regressions the fast tests can't: product output, water in play and real-course figures. They run in the full suite.
 
 ## Keeping it quick
 
@@ -48,5 +48,9 @@ The slow tests are the end-to-end ones: a whole-course water trace (Sangoma's ta
 | Fast tier | — | 280 tests, about 10 s |
 
 What's left in the full run is mostly Sangoma's whole-course water traces (each one is needed: different settings, or a course with its own not-water mark), which now run side by side with everything else.
+
+### 12 Nov 2026: back up after the measured brush model
+
+The full run had crept to 4 m 16 s (539 tests, PGA 2K25 closed; about 7 minutes with the game running, which takes most of the CPU). Two causes, both from the measured brush model (8dabe76): each Sangoma trace got about 20% slower (now about a minute and a half alone), and `NotWaterMark_DropsTheStripBesideHole11sPond` gained two icon-model traces of its own, run one after the other in the same class as the dry-ground mark. The two traces now run side by side and the dry-ground mark has its own class (`SangomaTests.NotWaterOnDryGround`): 3 m 35 s, nothing weakened. The longest classes are now all 1½–2½ minutes of CPU on a saturated machine, so the next gain has to come from a faster terrain replay, not from moving tests around.
 
 The biggest single win was in the product, not the tests: `ReadinessChecker` now skips fairway polygons a point can't be in (a bounding-box check before each containment test), which took a Cassimbo readiness run from 17 s to 0.7 s with byte-identical reports on three courses. Studio's Readiness page and the readiness record get the same speed-up. `ReadinessChecker.Prepare` also measures a course once for runs with different limits.

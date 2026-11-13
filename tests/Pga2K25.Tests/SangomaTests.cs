@@ -129,14 +129,15 @@ public class SangomaTests
             var strip = new Vec2(-697, 594);
             Assert.False(Water.Value.IsWet(strip));
 
+            // The two whole-course traces (about a minute and a half each) run side by side.
             var icon = new TerrainModelOptions { CellMetres = 0.5, MeasuredBrushes = false };
-            var plain = WaterTracer.Trace(Load(), icon);
+            var course = Load();
+            course.NotWater = [strip];
+            var traces = new[] { Load(), course }.AsParallel().AsOrdered().Select(c => WaterTracer.Trace(c, icon)).ToArray();
+            var (plain, marked) = (traces[0], traces[1]);
             var before = plain.Bodies[plain.BodyAt(plane.Position)];
             Assert.True(before.ChannelMetres > 0);
             Assert.True(plain.IsWet(strip));
-            var course = Load();
-            course.NotWater = [strip];
-            var marked = WaterTracer.Trace(course, icon);
             Assert.False(marked.IsWet(strip));
             var pond = marked.Bodies[marked.BodyAt(plane.Position)];
             Assert.Equal(0, pond.ChannelMetres);
@@ -144,7 +145,12 @@ public class SangomaTests
             Assert.Equal(plain.Bodies.Count, marked.Bodies.Count);                                // the other ponds stay
             Assert.Equal(plain.Bodies.Where(b => b != before).Sum(b => b.AreaM2), marked.Bodies.Where(b => b != pond).Sum(b => b.AreaM2), 0);
         }
+    }
 
+    /// <summary>A mark on dry ground, in a class of its own so its trace runs alongside the others.</summary>
+    [Trait("Area", "Water")]
+    public class NotWaterOnDryGround
+    {
         [Trait("Speed", "Slow")]
         [PrivateSampleFact(File)]
         public void NotWaterMark_OnDryGround_ChangesNothing()
