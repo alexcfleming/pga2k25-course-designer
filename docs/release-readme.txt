@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 3.0.0
+COURSE DESIGNER STUDIO - release 3.1.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
