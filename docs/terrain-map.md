@@ -170,6 +170,19 @@ The measured model against the icon model on every measured set (2026-11-10, `sa
 
 Water traced over the new ground: Luke's seven ponds and joined creek hold; Sangoma's dry strip west of hole 11's pond now traces dry, as in game; but hole 11's pond reads about 4,650 m² (9,300 before) with its front 50 yds from the tee, where the screenshot shows nearer 20–45, and hole 14's spreads to about 11,200 m² where the game shows a small pond (3,000–8,000 before). Pond banks hinge on sub-metre heights near the water line, so Sangoma's ponds are the place to watch. On Luke's plot, soft lowers near the east edge now dip about 3 m below the sea plane over 4,500 m² out past play, so the map takes the sea plane as its datum there; whether that ground is under water in game isn't known yet.
 
+**Big soft rounds (2.9.0).** The soft round was measured at scales 50 and 400 only (`TerrainModelOptions.SoftRoundMeasuredMaxScale`, default 450). Stretched over Sangoma's ten 720 m lowers, its wider, stronger profile sank the ground by hole 14's pond about 6 m, and the pond ran to its plane's edges (4,300 m²; the "hole 14" screenshot shows a banked pond of about 40 × 45 m with an outlet east). Soft rounds over 450 now use the icon model; the hard round and big square keep their measured shapes at any size (the big square's edge was checked at 1000). On the re-sculpted Sangoma (13 Nov 2026):
+
+| | Measured at any size | Soft rounds over 450 on the icon |
+|---|---|---|
+| Hole 14 pond | 4,240 m² | 2,120 m² |
+| Hole 11 pond | 4,570 m² | 4,470 m² |
+| Holes 1–2 pond | 17,210 m² | 18,110 m² |
+| Sangoma markers (2,290 / 3,622 / 184) | 5.27 / 1.53 / 0.76 ft | 4.26 / 1.52 / 0.76 ft |
+| Devil's Perch markers (64) | 12.41 ft | 12.47 ft |
+| Luke's ponds, total | 35,340 m² | 38,280 m² |
+
+None of the saved marker sets lies by hole 14's pond, so the screenshot is the evidence there; measure-tool lines on the ponds would check the banks.
+
 Earlier checks, on the icon model:
 
 

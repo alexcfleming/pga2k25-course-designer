@@ -221,3 +221,41 @@ public class SangomaWaterInPlayTests
         }
     }
 }
+
+/// <summary>
+/// Sangoma re-sculpted (13 Nov 2026, a private sample): hole 14's pond, a small banked pond in game ("hole 14" screenshot,
+/// about 40 × 45 m with an outlet east). The measured soft round, stretched over the course's ten 720 m lowers, sank the
+/// ground there and ran the water to the plane's edges; above <see cref="TerrainModelOptions.SoftRoundMeasuredMaxScale"/>
+/// those stamps use the icon model.
+/// </summary>
+[Trait("Area", "Water")]
+public class SangomaResculptedTests
+{
+    const string File = "sangoma-scrabby-2026-11-13.course";
+    static readonly Lazy<CourseModel> Course = new(() => Samples.Course(File, privateDir: true));
+
+    static double PondArea(int plane, TerrainModelOptions options)
+    {
+        var w = Course.Value.Water[plane];
+        var pad = new Vec2(w.Reach + 10, w.Reach + 10);
+        var m = WaterTracer.Trace(Course.Value, TerrainReplay.Build(Course.Value, w.Position - pad, w.Position + pad, options));
+        return m.Bodies.Where(b => w.Contains(b.LabelPoint)).Sum(b => b.AreaM2);
+    }
+
+    [Trait("Speed", "Slow")]
+    [PrivateSampleFact(File)]
+    public void Hole14Pond_IsSmallAndBanked()
+    {
+        Assert.Equal(173.91, Course.Value.Water[2].Level, 2);
+        Assert.InRange(PondArea(2, new TerrainModelOptions { CellMetres = 1 }), 1500, 3000);                                 // 2,100 m²
+        Assert.True(PondArea(2, new TerrainModelOptions { CellMetres = 1, SoftRoundMeasuredMaxScale = null }) > 3800);           // 4,300 m² without the limit
+    }
+
+    [Trait("Speed", "Slow")]
+    [PrivateSampleFact(File)]
+    public void Hole11Pond_KeepsItsSize()
+    {
+        // About 3,000–5,000 m² by the boat in the "hole 11" screenshot; 5,150 m² modelled (4,570 without the limit).
+        Assert.InRange(PondArea(1, new TerrainModelOptions { CellMetres = 1 }), 4000, 6000);
+    }
+}
