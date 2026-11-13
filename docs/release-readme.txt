@@ -242,6 +242,9 @@ NEW IN 2.9.0
   For a course renamed before 2.9, open it, then Course settings >
   Files > "Find earlier products...": pick the folder under the old name
   and press "Use for this course".
+- Hole sheets: a small width marker at the top of each map, centred on
+  the line of play, shows 45, 35 and 25 yds at the sheet's scale, to
+  check a fairway you sketch against. Nothing else on the sheet changes.
 
 NEW IN 2.8.0
 - A more accurate terrain model. Studio now uses the brush strengths and

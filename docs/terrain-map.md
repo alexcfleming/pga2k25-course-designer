@@ -81,6 +81,7 @@ dotnet run --project src/Pga2K25.Cli -- terrain samples/courses/sagan-khushun.co
 - **Sheets printed before 2.5** were as wide as the page's shape allowed (about 560 yd across a 550-yd par 5). Scans of them still import; see [Hole sketches](hole-sketches.md).
 - **Finer terrain:** a 0.5 m raster. The contour interval is the smallest of 1 / 2 / 5 … ft that keeps the ground **within 50 m of this hole's route** to 60 levels or fewer, so a hillside or the sea at the edge of the page doesn't coarsen it. On Sagan-Khushun every hole tried came out at 2 ft (index every 10 ft). Minor contours are thinned where they would run closer than 2 pt, and slivers left by the thinning are dropped.
 - **A grid on the hole:** lines every 50 yds from the back tee (labelled in yards down both sides of the strip), and every 50 yds left and right of the tee→green line (`L50 · C · R50`, as you walk to the green) along the top and bottom. A spot height sits at each crossing.
+- **Width marker (since 2.9):** three bars at the top of the strip, centred on the C line, 45, 35 and 25 yds long at the sheet's scale (widest on top, labelled at the right). Hold one against a fairway you've pencilled in to read its width. Contour labels and spot heights keep clear of it (`HoleSheetRenderer.WidthMarker`).
 - **The hole:**
   - route, aim point and ticks every 25 yds, with the ground height at every 50
   - the green site as an outline only, so the ground under it stays clear for sketching, with its fall arrow

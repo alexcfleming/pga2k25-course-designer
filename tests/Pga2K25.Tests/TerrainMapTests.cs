@@ -250,6 +250,48 @@ public class HoleSheetTests
             o ?? new HoleSheetOptions { CellMetres = 1 }, datumMetres: 0);
     }
 
+    /// <summary>
+    /// 2.9: 45, 35 and 25 yd bars at the top of the strip, to the sheet's own scale, centred on the C line (the line
+    /// of play through the back tee), widest on top, and drawn in ink on the printed sheet.
+    /// </summary>
+    [Trait("Speed", "Slow")]
+    [Fact]
+    public void WidthMarker_Shows45_35_25YardsToScale()
+    {
+        var o = new HoleSheetOptions { CellMetres = 1, Dpi = 150 };
+        var sheet = Sheet(7, o);
+        using var renderer = new HoleSheetRenderer(o);
+        float u = (float)(o.Dpi / 72);
+        var bars = renderer.WidthMarker(sheet);
+
+        Assert.Equal([45, 35, 25], bars.Select(b => b.Yards));
+        // The ruler's own scale: the C line and the line 50 yds to the side.
+        var p = sheet.Projection(new SKRect(HoleSheet.MapRectPoints.Left * u, HoleSheet.MapRectPoints.Top * u,
+            HoleSheet.MapRectPoints.Right * u, HoleSheet.MapRectPoints.Bottom * u));
+        float c = p.Map(sheet.At(0, 0)).X, fifty = Math.Abs(p.Map(sheet.At(0, 50 / TerrainSurvey.YardsPerMetre)).X - c);
+        foreach (var b in bars)
+        {
+            Assert.Equal(b.Yards / 50.0, (b.X1 - b.X0) / fifty, 3);
+            Assert.Equal(c, (b.X0 + b.X1) / 2, 1);
+        }
+        Assert.True(bars.Zip(bars.Skip(1)).All(pair => pair.First.Y < pair.Second.Y));
+        var strip = sheet.StripPoints;
+        Assert.InRange(bars[0].Y, strip.Top * u, strip.Top * u + 12 * u);
+        Assert.True(bars.All(b => b.X0 > strip.Left * u && b.X1 < strip.Right * u));
+
+        using var surface = SKSurface.Create(new SKImageInfo(renderer.PixelSize.Width, renderer.PixelSize.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
+        renderer.Draw(surface.Canvas, "Sagan-Khushun", sheet);
+        using var page = SKBitmap.FromImage(surface.Snapshot());
+        foreach (var b in bars)
+            foreach (float f in new[] { 0.2f, 0.4f, 0.6f, 0.8f })
+            {
+                // The stroke is about 2 px at 150 dpi, so it may straddle two rows: take the darkest of the three.
+                int x = (int)(b.X0 + (b.X1 - b.X0) * f), y = (int)Math.Round(b.Y);
+                int darkest = Enumerable.Range(y - 1, 3).Select(r => page.GetPixel(x, r)).Min(px => px.Red + px.Green + px.Blue);
+                Assert.True(darkest < 200, $"{b.Yards} yd bar at {f:P0}: {darkest}");
+            }
+    }
+
     [Trait("Speed", "Slow")]
     [Theory]
     [InlineData(2)]
