@@ -49,7 +49,7 @@ public static class HolePlay
         var shot = c.WithGolfer(c.Golfer with { MaxCarry = Math.Max(c.Golfer.MaxCarry, plan.Reach) });
         var sm = c.ShortMap(pin);
         foreach (var (k, v) in c.ShortMaps) shot.ShortMaps[k] = v;
-        var heat = ApproachMaps.Heat(c, pin, ApproachMaps.Spots(m, pin, c.Golfer.MaxCarry), cancel: cancel);
+        var heat = c.HeatMap(pin, cancel);
         var putts = c.PuttingMap(pin);
 
         // The tee shot's aim (par 3) and the par 5 second-shot plan, from where the drive typically finishes.

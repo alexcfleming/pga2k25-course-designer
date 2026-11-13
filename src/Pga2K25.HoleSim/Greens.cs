@@ -98,7 +98,18 @@ public sealed class GreenSurface
     }
 
     public double HeightFt(FramePoint p) => InRaster(p) ? Bilinear(_height, p) : _terrain.HeightFt(p) - _terrain.HeightFt(GreenPoint);
-    public FramePoint Slope(FramePoint p) => InRaster(p) ? new FramePoint(Bilinear(_slopeLat, p), Bilinear(_slopeAlong, p)) : _terrain.Slope(p);
+    /// <summary>The slope under a point: both components read from the same raster cell with the same weights (as <see cref="Bilinear"/> would, one at a time).</summary>
+    public FramePoint Slope(FramePoint p)
+    {
+        if (!InRaster(p)) return _terrain.Slope(p);
+        double fx = Math.Clamp((p.Lat - _lat0) / Cell, 0, _w - 1.0001), fy = Math.Clamp((p.Along - _al0) / Cell, 0, _h - 1.0001);
+        int x = (int)fx, y = (int)fy; double tx = fx - x, ty = fy - y;
+        int i = y * _w + x, j = i + _w;
+        double[] a = _slopeLat, b = _slopeAlong;
+        return new FramePoint(
+            (a[i] * (1 - tx) + a[i + 1] * tx) * (1 - ty) + (a[j] * (1 - tx) + a[j + 1] * tx) * ty,
+            (b[i] * (1 - tx) + b[i + 1] * tx) * (1 - ty) + (b[j] * (1 - tx) + b[j + 1] * tx) * ty);
+    }
 
     /// <summary>Slope (%) over the green cells: median, 90th percentile and the share too steep for a stopped ball to stay put.</summary>
     public (double P50, double P90, double TooSteep) SlopeStats(double friction, double staticFactor = 1.15)

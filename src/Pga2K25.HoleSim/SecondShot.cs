@@ -57,9 +57,10 @@ public static class SecondShot
         (double E, double OnGreen, double Fairway, double Hazard) Play(FramePoint aim, int n, int seed)
         {
             double sum = 0; int on = 0, fw = 0, hz = 0;
+            var draws = ShotDraws.For(seed, n);
             for (int i = 0; i < n; i++)
             {
-                var s = ShotEngine.Shoot(shot, from, aim, pin, new Random(unchecked(seed * 1_000_003 + i)), value: false);
+                var s = ShotEngine.Shoot(shot, from, aim, pin, draws[i].Distance, draws[i].Side, value: false);
                 sum += 1 + Value(c, heat, s.Finish, s.Lie, pin);
                 if (s.Lie == Ground.Green && c.Green.OnGreen(s.Finish)) on++;
                 if (s.Lie == Ground.Fairway) fw++;

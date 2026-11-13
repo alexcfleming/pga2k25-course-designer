@@ -97,8 +97,8 @@ public static class GeometryRun
     {
         var aimDir = hole.AimFrame.Length > 1e-6 ? hole.AimFrame * (1 / hole.AimFrame.Length) : new FramePoint(0, 1);
         var aimRight = new FramePoint(aimDir.Along, -aimDir.Lat);
-        double carry = player.Carry + Normal(rng) * player.CarrySd;
-        double side = aim + Normal(rng) * player.SideSd;
+        double carry = player.Carry + ShotDraws.Normal(rng) * player.CarrySd;
+        double side = aim + ShotDraws.Normal(rng) * player.SideSd;
         var landing = aimDir * carry + aimRight * side;
         if (terrain is not null)
         {
@@ -178,11 +178,12 @@ public static class GeometryRun
         var p = landing + heading * hop;
         var v = heading * (speed * p0.Kept);   // m/s, in frame directions
         const double dt = 0.05, gravity = 9.81;
+        var under = g; double mu = p0.Friction;   // the ground under the ball: its friction is looked up again only when it changes
         for (int k = 0; k < 500; k++)
         {
             g = grid.At(p);
             if (Grounds.Stops(g)) break;
-            double mu = table.For(g).Friction;
+            if (g != under) { under = g; mu = table.For(g).Friction; }
             var slope = terrain?.Slope(p) ?? new FramePoint(0, 0);
             double sp = v.Length;
             if (sp < 0.08 && slope.Length < mu) break;
@@ -194,6 +195,4 @@ public static class GeometryRun
         }
         return p;
     }
-
-    static double Normal(Random r) => Math.Sqrt(-2 * Math.Log(1 - r.NextDouble())) * Math.Cos(2 * Math.PI * r.NextDouble());
 }

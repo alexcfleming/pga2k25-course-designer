@@ -45,22 +45,14 @@ public static class Experiments
     {
         int w = grid.Width, h = grid.Height, n = Math.Abs(yards);
         bool widen = yards > 0;
-        // Distance (chessboard, in cells) from the fairway (widen) or from anything not fairway (narrow).
-        var dist = new int[w * h]; Array.Fill(dist, int.MaxValue); var q = new Queue<int>();
+        // Steps (in cells, diagonals counting one) from the fairway (widen) or from anything not fairway (narrow).
+        var from = new List<int>();
         for (int y = 0; y < h; y++) for (int x = 0; x < w; x++)
         {
             bool fw = grid[x, y] == Ground.Fairway;
-            if (widen ? fw : !fw && grid[x, y] != Ground.Green) { dist[y * w + x] = 0; q.Enqueue(y * w + x); }
+            if (widen ? fw : !fw && grid[x, y] != Ground.Green) from.Add(y * w + x);
         }
-        while (q.Count > 0)
-        {
-            int k = q.Dequeue(), x = k % w, y = k / w; if (dist[k] >= n) continue;
-            for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++)
-            {
-                int xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
-                int kk = yy * w + xx; if (dist[kk] <= dist[k] + 1) continue; dist[kk] = dist[k] + 1; q.Enqueue(kk);
-            }
-        }
+        var dist = grid.StepsFrom(from, n);
         return grid.With((x, y, g) =>
         {
             double along = grid.AlongMin + y + 0.5;

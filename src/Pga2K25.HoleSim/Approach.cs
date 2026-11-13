@@ -98,7 +98,19 @@ public sealed class ShotContext
     // Maps are read from many threads at once and built under a lock, once each (another step may be building too).
     public System.Collections.Concurrent.ConcurrentDictionary<int, PuttingMap> PuttingMaps { get; } = new();
     public System.Collections.Concurrent.ConcurrentDictionary<int, ShortGameMap> ShortMaps { get; } = new();
+    public System.Collections.Concurrent.ConcurrentDictionary<int, ApproachHeatMap> HeatMaps { get; } = new();
     readonly object _building = new();
+
+    /// <summary>
+    /// The approach heat map to a pin over the hole's standard spots (every 5 yds out to the golfer's longest shot):
+    /// what the whole-hole play-out aims by. Built once, however many players, sample counts or experiments use it.
+    /// </summary>
+    public ApproachHeatMap HeatMap(int pin, CancellationToken cancel = default)
+    {
+        if (HeatMaps.TryGetValue(pin, out var m)) return m;
+        ShortMap(pin);
+        lock (_building) return HeatMaps.TryGetValue(pin, out m) ? m : HeatMaps[pin] = ApproachMaps.Heat(this, pin, ApproachMaps.Spots(Hole, pin, Golfer.MaxCarry), cancel: cancel);
+    }
 
     public PuttingMap PuttingMap(int pin)
     {
@@ -156,7 +168,11 @@ public static class ShotEngine
 {
     const double HopOnGreen = 0.6;   // metres: the short-shot first bounce (40% of the green's 1.5 m hop)
 
-    public static ShotOutcome Shoot(ShotContext c, FramePoint from, FramePoint aim, int pin, Random r, bool fromTee = false, bool value = true, Ground? lieOverride = null)
+    public static ShotOutcome Shoot(ShotContext c, FramePoint from, FramePoint aim, int pin, Random r, bool fromTee = false, bool value = true, Ground? lieOverride = null) =>
+        Shoot(c, from, aim, pin, ShotDraws.Normal(r), ShotDraws.Normal(r), fromTee, value, lieOverride);
+
+    /// <summary>The shot with its two draws given (standard normals): how far off in distance, then how far off to the side.</summary>
+    public static ShotOutcome Shoot(ShotContext c, FramePoint from, FramePoint aim, int pin, double distanceDraw, double sideDraw, bool fromTee = false, bool value = true, Ground? lieOverride = null)
     {
         var lie = fromTee ? Ground.Fairway : lieOverride ?? c.Grid.At(from);
         var dv = aim - from; double d = Math.Max(dv.Length, 0.5);
@@ -166,7 +182,7 @@ public static class ShotEngine
         double reach = c.Golfer.MaxFrom(lie, fromTee);
         double carryGround = Math.Min(d - release, reach - release);   // can't carry further than the club allows
         var (sdD, sdS) = c.Golfer.Spread(plays, c.Golfer.Mult(lie, fromTee));
-        var land = from + dir * (carryGround + Normal(r) * sdD) + right * (Normal(r) * sdS);
+        var land = from + dir * (carryGround + distanceDraw * sdD) + right * (sideDraw * sdS);
         double mu = c.Ground.For(Ground.Green).Friction;
         double speed = Math.Sqrt(2 * mu * GreenPhysics.Gravity * Math.Max(0.05, release * HoleFrame.Yard - HopOnGreen));
         var fin = GeometryRun.Roll(c.Grid, c.Ground, land, dir, speed, c.Terrain);
@@ -192,8 +208,32 @@ public static class ShotEngine
         double yds = fin.DistanceTo(c.Hole.Pins[pin - 1].Frame);
         return penalty + c.Baseline.ExpectedStrokes(lie, yds).Value;
     }
+}
 
+/// <summary>
+/// The simulator's random draws. Runs that compare aims or spots give shot i of a run the same two draws everywhere
+/// (a generator seeded from the run's seed and i), so those are worked out once per seed and read from here, not
+/// from a new generator for every shot.
+/// </summary>
+public static class ShotDraws
+{
+    /// <summary>A standard normal draw (Box–Muller, two uniforms from the generator): every draw in the simulator is one of these.</summary>
     internal static double Normal(Random r) => Math.Sqrt(-2 * Math.Log(1 - r.NextDouble())) * Math.Cos(2 * Math.PI * r.NextDouble());
+
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<int, (double Distance, double Side)[]> BySeed = new();
+
+    /// <summary>The draws of shots 0 to <paramref name="n"/> − 1 of a run with this seed.</summary>
+    public static (double Distance, double Side)[] For(int seed, int n)
+    {
+        if (BySeed.TryGetValue(seed, out var known) && known.Length >= n) return known;
+        var draws = new (double, double)[n];
+        for (int i = 0; i < n; i++)
+        {
+            var r = new Random(unchecked(seed * 1_000_003 + i));
+            draws[i] = (Normal(r), Normal(r));
+        }
+        return BySeed.AddOrUpdate(seed, draws, (_, old) => old.Length >= draws.Length ? old : draws);
+    }
 }
 
 /// <summary>
@@ -222,22 +262,14 @@ public sealed class ShortGameMap
         var grid = c.Grid; var pinAt = c.Hole.Pins[pin - 1].Frame; var putting = c.PuttingMap(pin);
         // Off-green cells within reach of this green (chessboard distance on the grid), not scrub or water.
         int w = grid.Width, h = grid.Height;
-        var dist = new int[w * h]; Array.Fill(dist, int.MaxValue); var q = new Queue<int>();
+        var greenCells = new List<int>();
         foreach (var cell in c.Green.Cells)
         {
             int x = (int)Math.Floor(cell.Lat - grid.LatMin), y = (int)Math.Floor(cell.Along - grid.AlongMin);
             if (x < 0 || y < 0 || x >= w || y >= h) continue;
-            dist[y * w + x] = 0; q.Enqueue(y * w + x);
+            greenCells.Add(y * w + x);
         }
-        while (q.Count > 0)
-        {
-            int k = q.Dequeue(), x = k % w, y = k / w; if (dist[k] >= Reach) continue;
-            for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++)
-            {
-                int xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
-                int kk = yy * w + xx; if (dist[kk] <= dist[k] + 1) continue; dist[kk] = dist[k] + 1; q.Enqueue(kk);
-            }
-        }
+        var dist = grid.StepsFrom(greenCells, Reach);
         var spots = new List<FramePoint>();
         for (int y = 0; y < h; y++) for (int x = 0; x < w; x++)
         {
@@ -300,7 +332,8 @@ public static class ApproachSim
         var pinAt = c.Hole.Pins[pin - 1].Frame;
         var lie = fromTee ? Ground.Fairway : lieOverride ?? c.Grid.At(from);
         var shots = new ShotOutcome[n];
-        for (int i = 0; i < n; i++) shots[i] = ShotEngine.Shoot(c, from, aim, pin, new Random(unchecked(seed * 1_000_003 + i)), fromTee, lieOverride: lieOverride);
+        var draws = ShotDraws.For(seed, n);
+        for (int i = 0; i < n; i++) shots[i] = ShotEngine.Shoot(c, from, aim, pin, draws[i].Distance, draws[i].Side, fromTee, lieOverride: lieOverride);
         var values = shots.Select(s => 1 + s.After + s.Penalty).ToArray();
         double mean = values.Average(), sd = Math.Sqrt(values.Sum(v => (v - mean) * (v - mean)) / Math.Max(1, n - 1));
         var counts = new double[Grounds.All.Count];
@@ -337,13 +370,14 @@ public static class ApproachSim
         var offsets = new List<FramePoint>();
         for (int i = -half; i <= half; i++) for (int j = -half; j <= half; j++) offsets.Add(new FramePoint(i * spacing, j * spacing));
         var options = new AimOption[offsets.Count];
+        var draws = ShotDraws.For(seed, n);
         Parallel.For(0, offsets.Count, new ParallelOptions { MaxDegreeOfParallelism = parallel ? -1 : 1 }, k =>
         {
             var o = offsets[k]; var aim = pinAt + right * o.Lat + dir * o.Along;
             double sum = 0; int on = 0;
             for (int i = 0; i < n; i++)
             {
-                var s = ShotEngine.Shoot(c, from, aim, pin, new Random(unchecked(seed * 1_000_003 + i)), fromTee, lieOverride: lieOverride);
+                var s = ShotEngine.Shoot(c, from, aim, pin, draws[i].Distance, draws[i].Side, fromTee, lieOverride: lieOverride);
                 sum += 1 + s.After + s.Penalty; if (s.Lie == Ground.Green && c.Green.OnGreen(s.Finish)) on++;
             }
             options[k] = new AimOption(o, aim, sum / n, on / (double)n);

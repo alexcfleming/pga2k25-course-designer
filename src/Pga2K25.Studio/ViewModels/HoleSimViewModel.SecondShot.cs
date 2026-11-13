@@ -139,7 +139,7 @@ public partial class HoleSimViewModel
                 if (heat is null)
                 {
                     report.Report("Valuing every third-shot spot (the approach heat map)…");
-                    heat = ApproachMaps.Heat(run, pin, ApproachMaps.Spots(m, pin, run.Golfer.MaxCarry), cancel: cancel.Token);
+                    heat = run.HeatMap(pin, cancel.Token);
                 }
                 report.Report("Going for it against every lay-up in reach…");
                 var plan = SecondShot.Plan(run, heat, from.Value, pin, reach, cancel: cancel.Token);

@@ -253,9 +253,10 @@ public static class ApproachMaps
     static (double Expected, double GreenHit) Mean(ShotContext c, FramePoint from, FramePoint aim, int pin, int n, int seed, bool fromTee, Ground? lie)
     {
         double sum = 0; int on = 0;
+        var draws = ShotDraws.For(seed, n);
         for (int i = 0; i < n; i++)
         {
-            var s = ShotEngine.Shoot(c, from, aim, pin, new Random(unchecked(seed * 1_000_003 + i)), fromTee, lieOverride: lie);
+            var s = ShotEngine.Shoot(c, from, aim, pin, draws[i].Distance, draws[i].Side, fromTee, lieOverride: lie);
             sum += 1 + s.After + s.Penalty; if (s.Lie == Ground.Green && c.Green.OnGreen(s.Finish)) on++;
         }
         return (sum / n, on / (double)n);

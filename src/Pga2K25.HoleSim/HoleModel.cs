@@ -155,6 +155,13 @@ public static class HoleModelBuilder
         "heavyRoughSpeed", "heavyRoughFirmness", "bunkerSpeed", "bunkerFirmness", "terrainFirmness",
     ];
 
+    /// <summary>
+    /// A course's layers for callers that don't bring their own, kept for as long as the course is: the layers hold the
+    /// whole course's merged bunkers (over a second, and most of a gigabyte of working memory, on a full course), which
+    /// every hole and tee of that course can share.
+    /// </summary>
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<CourseModel, CourseLayers> DefaultLayers = new();
+
     public static HoleModel Build(string coursePath, int holeNumber, HoleModelOptions? options = null)
     {
         var stamp = FileStamp.Read(coursePath);
@@ -166,7 +173,7 @@ public static class HoleModelBuilder
         FileStamp? stamp = null, CourseLayers? layers = null)
     {
         options ??= new HoleModelOptions();
-        layers ??= CourseLayers.From(course);
+        layers ??= DefaultLayers.GetValue(course, CourseLayers.From);
         var hole = course.Holes.FirstOrDefault(h => h.Number == holeNumber)
             ?? throw new ArgumentException($"The course has no hole {holeNumber}.");
         var water = options.Water ?? TraceWater(course);
@@ -286,7 +293,7 @@ public static class HoleModelBuilder
         };
     }
 
-    /// <summary>The course's ponds and creeks (whole course, 1 m cells), or null without water. About 50 s on Sangoma's water planes (the tracer's own cost, not the area), so trace once per course and pass it in.</summary>
+    /// <summary>The course's ponds and creeks (whole course, 1 m cells), or null without water. A few seconds on Sangoma's 140,000 brushes (it was about 50 s before the terrain replay was reworked), so still trace once per course and pass it in.</summary>
     public static GreensBook.WaterMap? TraceWater(CourseModel course) =>
         course.HasWater ? GreensBook.WaterTracer.Trace(course, new GreensBook.TerrainModelOptions { CellMetres = 1.0 }) : null;
 
@@ -306,29 +313,16 @@ public static class HoleModelBuilder
 
         // Cells within reach of this hole's fairway and green, so a bunker on the far edge of a wide fairway counts
         // even when the aim line runs down the other side.
-        var nearPlay = new int[w * h];
-        Array.Fill(nearPlay, int.MaxValue);
-        var frontier = new Queue<int>();
+        var play = new List<int>();
         for (int y = 0; y < h; y++)
             for (int x = 0; x < w; x++)
             {
                 if (grid[x, y] is not (Ground.Fairway or Ground.Green)) continue;
                 var c = grid.CellCentre(x, y);
                 if (c.Along < 0 || c.Along > green.Along + 15 || Polyline.Nearest(route, c).Distance > 90) continue;
-                nearPlay[y * w + x] = 0; frontier.Enqueue(y * w + x);
+                play.Add(y * w + x);
             }
-        while (frontier.Count > 0)
-        {
-            int k = frontier.Dequeue(), x = k % w, y = k / w, d = nearPlay[k];
-            if (d >= o.HazardFairwayReachYards) continue;
-            for (int dy = -1; dy <= 1; dy++)
-                for (int dx = -1; dx <= 1; dx++)
-                {
-                    int xx = x + dx, yy = y + dy; if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
-                    int kk = yy * w + xx; if (nearPlay[kk] <= d + 1) continue;
-                    nearPlay[kk] = d + 1; frontier.Enqueue(kk);
-                }
-        }
+        var nearPlay = grid.StepsFrom(play, o.HazardFairwayReachYards);
 
         var inReach = new bool[w * h];
         var side = new sbyte[w * h];

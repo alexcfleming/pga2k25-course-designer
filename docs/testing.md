@@ -5,7 +5,7 @@ The suite is one xUnit project, `tests/Pga2K25.Tests`. Every test is labelled wi
 ## How to run it
 
 ```powershell
-tools\test.ps1                 # fast: 358 tests, about 13 s of testing (plus the build)
+tools\test.ps1                 # fast: 358 tests, about 10 s of testing (plus the build)
 tools\test.ps1 area HoleSim    # one area, slow tests included
 tools\test.ps1 slow            # only the slow end-to-end tests
 tools\test.ps1 full            # everything: before a commit, a push or a release
@@ -69,6 +69,36 @@ The full run had crept to 4 m 16 s (539 tests, PGA 2K25 closed; about 7 minutes 
 | `TerrainReplay.Smooth`, 8 m on a whole plot at 1 m | 0.65 s | 0.013 s |
 
 What changed: the flatten shifts look up the earlier stamps near each small flatten on a grid (they used to check every earlier stamp, which is what took Sangoma a minute); each stamp's brush is sorted out once, not at every cell; a stamp only visits the cells its brush can reach; the rows are replayed in parallel bands, not one parallel loop per stamp; and the blur runs its rows in parallel. A whole Sangoma water trace at 1 m is now about 2 s of shifts and 1.4 s of replay and tracing.
+
+### 13 Nov 2026: the hole simulator
+
+The same day, the same treatment for the hole simulator and the shape merger its hole read depends on. Again the results are identical: a benchmark wrote every output of the old and new code (the putter and golfer fits, every putting, short-game and heat-map cell, 600 play-out scores a pin, second-shot plans, hazards, widened fairways, the smoothed terrain round each green and the merged bunker and vegetation outlines, on Pilolcura holes 3, 8 and 10, Cassimbo's bunkers and the calibration hole) and the two files, 13.6 MB each, match byte for byte.
+
+| | Before | After |
+|---|---|---|
+| Full suite, test time (544 tests, PGA 2K25 closed) | 3 m 3 s | 2 m 24 s |
+| Full suite, wall clock with the build | 3 m 8 s | 2 m 29 s |
+| Sum of all test times | 2,304 s | 1,805 s |
+| Fast tier | 358 tests, 13 s | 358 tests, 10 s |
+| Reading a hole when the caller has no layers (Pilolcura 10 / 3) | 1.3 s / 1.2 s | 0.3 s / 0.05 s |
+| Merging every bunker (Pilolcura / Cassimbo) | 1.5 s / 1.2 s | 0.4 s / 0.35 s |
+| Fitting the putter, then each later setup | 1.2 s, 0.27 s | 0.4 s, nothing |
+| Fitting the golfer | 2.9 s (40 s of CPU) | 2.0 s (28 s of CPU) |
+| Approach heat map (Pilolcura 8, 420 spots) | 0.43 s | 0.17 s |
+| Putting map, one pin | 0.40-0.50 s | 0.24-0.29 s |
+| A whole-hole play-out again on the same pin | 0.6 s | under 0.01 s |
+
+What changed:
+
+- **Layers are kept per course** when `HoleModelBuilder.Build` isn't given any. They hold the whole course's merged bunkers, which every hole read used to merge again.
+- **`ShapeMerger`** runs the lines of its distance transform and the rows of its blur side by side.
+- **A shot context keeps each pin's heat map** (`ShotContext.HeatMap`), as it keeps putting and short-game maps, so play-outs, experiments and the second shot share one.
+- **The fitted putter keeps its flat-green table**, and its sweeps run in parallel.
+- **Numbered shots read their draws from a table** (`ShotDraws`) and the golfer fit makes its play-outs' draws once; each used to seed a new generator per shot or play-out, always to the same numbers.
+- **The rolling ball** looks its friction up only when the ground changes, and a putt works out its per-putt figures once and skips measuring to the hole when it is plainly out of reach.
+- **Tidying:** the four copies of the flood fill are `SurfaceGrid.StepsFrom`, and the three copies of the normal draw are `ShotDraws.Normal`.
+
+The longest tests are now a mixed bag (a Sangoma not-water trace, a par 5 second shot, the Murray sketch import, product builds), each 50-80 s on a saturated machine and none of them one function's fault.
 
 ### 6 Nov 2026: the readiness checker
 

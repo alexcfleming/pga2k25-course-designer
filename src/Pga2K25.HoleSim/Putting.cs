@@ -38,19 +38,27 @@ public readonly record struct PuttValue(double Expected, double AimOffsetM, doub
 /// </summary>
 public sealed class PuttingModel
 {
-    static readonly ConcurrentDictionary<string, PuttingSkill> FitCache = new();
+    // The fitted putter and its flat-green table, worked out once per green speed, baseline and settings.
+    static readonly ConcurrentDictionary<string, Lazy<(PuttingSkill Skill, double[] FlatMake)>> FitCache = new();
     static readonly double[] Paces = [0.45, 0.55, 0.65, 0.75, 0.85, 0.95, 1.05, 1.15, 1.3, 1.5, 1.75];
 
-    readonly double[] _flatMake = new double[121];   // make probability on a flat green by whole feet
+    readonly double[] _flatMake;   // make probability on a flat green by whole feet (0 to 120)
 
     public double Friction { get; }
     public PuttingSettings Settings { get; }
     public PuttingSkill Skill { get; }
 
-    PuttingModel(double friction, PuttingSettings settings, PuttingSkill skill)
+    PuttingModel(double friction, PuttingSettings settings, PuttingSkill skill, double[] flatMake)
     {
-        Friction = friction; Settings = settings; Skill = skill;
-        for (int f = 0; f <= 120; f++) _flatMake[f] = f == 0 ? 1 : FlatMake(f, skill.AimSdRadians, skill.PaceSd, f <= 15 ? 1500 : 400, f * 10);
+        Friction = friction; Settings = settings; Skill = skill; _flatMake = flatMake;
+    }
+
+    /// <summary>Make probability on a flat green from each whole foot, for a putter with these two errors (each distance has its own draws).</summary>
+    double[] FlatTable(double aimSd, double paceSd)
+    {
+        var table = new double[121];
+        Parallel.For(0, table.Length, f => table[f] = f == 0 ? 1 : FlatMake(f, aimSd, paceSd, f <= 15 ? 1500 : 400, f * 10));
+        return table;
     }
 
     /// <summary>A model for this green speed, its putter fitted to the baseline's green rows (cached per speed and baseline).</summary>
@@ -59,18 +67,18 @@ public sealed class PuttingModel
         settings ??= new PuttingSettings();
         double mu = GreenPhysics.RollingFriction(stimpFeet);
         string key = FormattableString.Invariant($"{baseline.Id}|{mu:F5}|{settings}");
-        var skill = FitCache.GetOrAdd(key, _ => FitSkill(mu, settings, baseline));
-        return new PuttingModel(mu, settings, skill);
+        var (skill, flatMake) = FitCache.GetOrAdd(key, _ => new(() => FitSkill(mu, settings, baseline))).Value;
+        return new PuttingModel(mu, settings, skill, flatMake);
     }
 
-    static PuttingSkill FitSkill(double mu, PuttingSettings settings, IBaseline baseline)
+    static (PuttingSkill Skill, double[] FlatMake) FitSkill(double mu, PuttingSettings settings, IBaseline baseline)
     {
         // The baseline's own green rows (published points only, never values interpolated between them).
         var targets = baseline is TableBaseline tb
             ? tb.Rows.Where(r => r.Lie == Lie.Green).Select(r => (Ft: r.Distance, E: r.Expected)).ToList()
             : new List<(double Ft, double E)>();
         if (targets.Count == 0) throw new InvalidOperationException($"Baseline {baseline.Id} has no green rows to fit the putter to.");
-        var probe = new PuttingModel(mu, settings, new PuttingSkill(0, 0, []), skipTable: true);
+        var probe = new PuttingModel(mu, settings, new PuttingSkill(0, 0, []), new double[121]);
         double best = double.MaxValue, bestAim = 0.025, bestPace = 0.08;
         double Err(double aimDeg, double pace, int n)
         {
@@ -85,33 +93,39 @@ public sealed class PuttingModel
             }
             return err;
         }
+        // Every pair of a sweep is tried at once (each has its own draws); the first best in the sweep's order wins.
+        void Sweep(List<(double AimDeg, double Pace)> pairs, int n)
+        {
+            var errs = new double[pairs.Count];
+            Parallel.For(0, pairs.Count, i => errs[i] = Err(pairs[i].AimDeg, pairs[i].Pace, n));
+            best = double.MaxValue;
+            for (int i = 0; i < pairs.Count; i++)
+                if (errs[i] < best) { best = errs[i]; (bestAim, bestPace) = pairs[i]; }
+        }
         // A coarse sweep, then a finer one round the best pair.
+        var coarse = new List<(double, double)>();
         foreach (var aimDeg in new[] { 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.3, 2.6, 3.0 })
             foreach (var pace in new[] { 0.04, 0.06, 0.08, 0.10, 0.12, 0.15 })
-            {
-                double err = Err(aimDeg, pace, 500);
-                if (err < best) { best = err; bestAim = aimDeg; bestPace = pace; }
-            }
-        double coarseAim = bestAim, coarsePace = bestPace; best = double.MaxValue;
+                coarse.Add((aimDeg, pace));
+        Sweep(coarse, 500);
+        double coarseAim = bestAim, coarsePace = bestPace;
+        var fine = new List<(double, double)>();
         for (double a = coarseAim - 0.2; a <= coarseAim + 0.2001; a += 0.05)
             for (double pc = Math.Max(0.02, coarsePace - 0.02); pc <= coarsePace + 0.0201; pc += 0.005)
-            {
-                double err = Err(a, pc, 1500);
-                if (err < best) { best = err; bestAim = a; bestPace = pc; }
-            }
+                fine.Add((a, pc));
+        Sweep(fine, 1500);
         bestAim *= Math.PI / 180;
-        var fitted = new PuttingModel(mu, settings, new PuttingSkill(bestAim, bestPace, []));
+        var flatMake = probe.FlatTable(bestAim, bestPace);
+        var fitted = new PuttingModel(mu, settings, new PuttingSkill(bestAim, bestPace, []), flatMake);
         var report = targets.Select(t => (t.Ft, fitted.ExpectedFlat(t.Ft), t.E)).ToList();
-        return new PuttingSkill(bestAim, bestPace, report);
+        return (new PuttingSkill(bestAim, bestPace, report), flatMake);
     }
-
-    PuttingModel(double friction, PuttingSettings settings, PuttingSkill skill, bool skipTable) { Friction = friction; Settings = settings; Skill = skill; }
 
     double FlatMake(double ft, double aimSd, double paceSd, int n, int seed)
     {
         var r = new Random(seed); int made = 0; var flat = FlatGreen.Instance;
         for (int i = 0; i < n; i++)
-            if (Putt(flat, new FramePoint(0, 0), new FramePoint(0, ft / 3), 0, 1, Normal(r) * aimSd, Normal(r) * paceSd).Holed) made++;
+            if (Putt(flat, new FramePoint(0, 0), new FramePoint(0, ft / 3), 0, 1, ShotDraws.Normal(r) * aimSd, ShotDraws.Normal(r) * paceSd).Holed) made++;
         return made / (double)n;
     }
 
@@ -148,6 +162,9 @@ public sealed class PuttingModel
     {
         const double Y = HoleFrame.Yard, G = GreenPhysics.Gravity;
         double dt = Settings.StepSeconds, mu = Friction;
+        // Worked out once per putt, not at every step (the same values each step used to work out for itself).
+        double holeRadius = Settings.HoleRadiusM, capture = Settings.CaptureSpeed, holds = mu * Settings.StaticFactor;
+        double drag = mu * G * dt, pull = G * dt, move = dt / Y, radiusYd2 = holeRadius / Y * (holeRadius / Y);
         var dv = hole - start; double len = Math.Max(dv.Length, 1e-6), dist = len * Y;
         var dir = dv * (1 / len); var right = new FramePoint(dir.Along, -dir.Lat);
         var aim = hole + right * (aimOffsetM / Y); var ad = aim - start; var u = ad * (1 / Math.Max(ad.Length, 1e-6));
@@ -158,15 +175,26 @@ public sealed class PuttingModel
         for (int k = 0; k < 3000; k++)
         {
             var slope = field.Slope(p); double sp = v.Length;
-            if (sp < 0.03 && slope.Length < mu * Settings.StaticFactor) break;
+            if (sp < 0.03 && slope.Length < holds) break;
             var fdir = sp > 1e-9 ? v * (1 / sp) : new FramePoint(0, 0);
-            var vn = v - fdir * Math.Min(mu * G * dt, sp) - slope * (G * dt);
-            var pn = p + vn * (dt / Y);
-            if (SegmentDistance(p, pn, hole) * Y < Settings.HoleRadiusM && sp < Settings.CaptureSpeed) return (true, hole);
+            var vn = v - fdir * Math.Min(drag, sp) - slope * pull;
+            var pn = p + vn * move;
+            if (sp < capture && CouldReach(p, pn, hole, radiusYd2) && SegmentDistance(p, pn, hole) * Y < holeRadius) return (true, hole);
             p = pn; v = vn;
             if (!field.Inside(p)) break;
         }
         return (false, p);
+    }
+
+    /// <summary>
+    /// False when this step plainly cannot pass over the hole, so its distance need not be measured: the hole is
+    /// further from the step's start than the step's length plus the hole's radius, with a tenth to spare
+    /// (d² above 2.2 × (r² + s²) means d is above r + s).
+    /// </summary>
+    static bool CouldReach(FramePoint a, FramePoint b, FramePoint hole, double radius2)
+    {
+        double hx = hole.Lat - a.Lat, hy = hole.Along - a.Along, sx = b.Lat - a.Lat, sy = b.Along - a.Along;
+        return hx * hx + hy * hy <= 2.2 * (radius2 + sx * sx + sy * sy);
     }
 
     static double SegmentDistance(FramePoint a, FramePoint b, FramePoint c)
@@ -211,13 +239,11 @@ public sealed class PuttingModel
         var r = new Random(seed); double sum = 0;
         for (int i = 0; i < n; i++)
         {
-            var res = Putt(field, start, hole, aim, pace, Normal(r) * Skill.AimSdRadians, Normal(r) * Skill.PaceSd);
+            var res = Putt(field, start, hole, aim, pace, ShotDraws.Normal(r) * Skill.AimSdRadians, ShotDraws.Normal(r) * Skill.PaceSd);
             sum += res.Holed ? 1 : 1 + ExpectedFlat(res.Stop.DistanceTo(hole) * 3);
         }
         return sum / n;
     }
-
-    static double Normal(Random r) => Math.Sqrt(-2 * Math.Log(1 - r.NextDouble())) * Math.Cos(2 * Math.PI * r.NextDouble());
 }
 
 /// <summary>Expected putts from every green cell to one pin.</summary>

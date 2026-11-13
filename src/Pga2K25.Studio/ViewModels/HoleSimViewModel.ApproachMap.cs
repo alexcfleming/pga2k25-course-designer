@@ -119,7 +119,7 @@ public partial class HoleSimViewModel
                 {
                     var spots = ApproachMaps.Spots(m, pin, ctx.Golfer.MaxCarry);
                     report.Report($"Playing approaches from {spots.Count} spots, each with its best aim…");
-                    heat = ApproachMaps.Heat(ctx, pin, spots, cancel: cancel.Token);
+                    heat = ctx.HeatMap(pin, cancel.Token);   // the same spots; whole-hole play-outs on this pin reuse it
                     heatPng = HoleMapRenderer.RenderHeatPng(m, heat, green);
                 }
                 cancel.Token.ThrowIfCancellationRequested();

@@ -129,27 +129,34 @@ public static class ShapeMerger
         const double Inf = 1e20;
         var d = new double[w * h];
         for (int i = 0; i < d.Length; i++) d[i] = target[i] ? 0 : Inf;
-        var line = new double[Math.Max(w, h)];
-        var outLine = new double[Math.Max(w, h)];
-        for (int x = 0; x < w; x++)
+        // Every column, then every row, is a transform of its own: they run side by side, each worker with its own buffers.
+        int longest = Math.Max(w, h);
+        Parallel.For(0, w, () => new Lines(longest), (x, _, s) =>
         {
-            for (int y = 0; y < h; y++) line[y] = d[y * w + x];
-            Dt1(line, h, outLine);
-            for (int y = 0; y < h; y++) d[y * w + x] = outLine[y];
-        }
-        for (int y = 0; y < h; y++)
+            for (int y = 0; y < h; y++) s.In[y] = d[y * w + x];
+            Dt1(s.In, h, s.Out, s.V, s.Z);
+            for (int y = 0; y < h; y++) d[y * w + x] = s.Out[y];
+            return s;
+        }, _ => { });
+        Parallel.For(0, h, () => new Lines(longest), (y, _, s) =>
         {
-            Array.Copy(d, y * w, line, 0, w);
-            Dt1(line, w, outLine);
-            Array.Copy(outLine, 0, d, y * w, w);
-        }
+            Array.Copy(d, y * w, s.In, 0, w);
+            Dt1(s.In, w, s.Out, s.V, s.Z);
+            Array.Copy(s.Out, 0, d, y * w, w);
+            return s;
+        }, _ => { });
         return d;
     }
 
-    static void Dt1(double[] f, int n, double[] result)
+    /// <summary>One worker's buffers for <see cref="Dt1"/>: a line in, a line out, and the parabolas' places and boundaries.</summary>
+    sealed class Lines(int n)
     {
-        var v = new int[n];
-        var z = new double[n + 1];
+        public readonly double[] In = new double[n], Out = new double[n], Z = new double[n + 1];
+        public readonly int[] V = new int[n];
+    }
+
+    static void Dt1(double[] f, int n, double[] result, int[] v, double[] z)
+    {
         int k = 0;
         v[0] = 0; z[0] = double.NegativeInfinity; z[1] = double.PositiveInfinity;
         for (int q = 1; q < n; q++)
@@ -180,20 +187,24 @@ public static class ShapeMerger
         for (int i = -r; i <= r; i++) sum += k[i + r] = (float)Math.Exp(-i * i / (2 * sigmaCells * sigmaCells));
         for (int i = 0; i < k.Length; i++) k[i] /= sum;
         var tmp = new float[f.Length];
-        for (int y = 0; y < h; y++)
+        Parallel.For(0, h, y =>
+        {
             for (int x = 0; x < w; x++)
             {
                 float a = 0;
                 for (int j = -r; j <= r; j++) { int xx = x + j; if (xx >= 0 && xx < w) a += f[y * w + xx] * k[j + r]; }
                 tmp[y * w + x] = a;
             }
-        for (int y = 0; y < h; y++)
+        });
+        Parallel.For(0, h, y =>
+        {
             for (int x = 0; x < w; x++)
             {
                 float a = 0;
                 for (int j = -r; j <= r; j++) { int yy = y + j; if (yy >= 0 && yy < h) a += tmp[yy * w + x] * k[j + r]; }
                 f[y * w + x] = a;
             }
+        });
     }
 
     /// <summary>Marching squares on a zero-bordered grid; returns closed loops in grid coordinates.</summary>
