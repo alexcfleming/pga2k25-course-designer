@@ -25,6 +25,20 @@ public class StudioTests
     [InlineData("3'14\"")]
     public void TryParseFeet_RejectsNonsense(string text) => Assert.False(Measurements.TryParseFeet(text, out _));
 
+    // Murray Estate hole 1, pin 3 picked in the bar: the approach played to pin 1 because opening the step on a new
+    // hole or tee reset its pin to 1.
+    [Theory]
+    [InlineData(3, 4, 4, true, 3, "drive")]
+    [InlineData(2, 4, 3, false, 2, "tee")]
+    [InlineData(4, 4, 5, false, 4, "yards")]
+    [InlineData(4, 2, 4, true, 1, "drive")]
+    public void HoleSim_ApproachStartsAtTheBarsPin(int barPin, int pins, int par, bool hasRun, int pin, string from)
+    {
+        var start = Pga2K25.Studio.ViewModels.HoleSimViewModel.ApproachStart(barPin, pins, par, hasRun);
+        Assert.Equal(pin, start.Pin);
+        Assert.Equal(from, start.From);
+    }
+
     [Fact]
     public void Measurements_SaveThenLoad_KeepsEveryReading()
     {
