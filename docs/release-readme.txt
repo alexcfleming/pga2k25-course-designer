@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 2.9.0
+COURSE DESIGNER STUDIO - release 3.0.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -226,6 +226,24 @@ USING IT
   Building the course cards takes about a minute longer for it.
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
+
+NEW IN 3.0.0
+- Much faster terrain. Everything that rebuilds the ground from your
+  brush strokes (the terrain map, hole sheets, greens and yardage books,
+  traced water and the simulator) does it about three times faster, and
+  a course with a great many strokes opens far sooner: on Sangoma
+  (140,000 strokes) one step that took about a minute now takes two
+  seconds. The heights are exactly the same as in 2.9.0, so nothing in
+  your products changes and nothing needs rebuilding.
+- A faster hole simulator, with exactly the same results. Reading a
+  hole, the putting maps, the approach map and fitting the golfer are
+  all quicker, and playing a pin again (the "before" side of an
+  experiment, for one) reuses the approach map it already has. On a
+  course with water planes, tracing the water when the course opens now
+  takes a few seconds, not a minute.
+- Bunker and planting outlines on the maps and books are traced about
+  three times faster.
+- A new app icon: contours with a CD badge.
 
 NEW IN 2.9.0
 - Renaming a course in the designer no longer loses its products.
