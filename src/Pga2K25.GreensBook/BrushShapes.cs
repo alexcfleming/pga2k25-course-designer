@@ -27,8 +27,8 @@ public sealed class BrushShape
 
     public const double ResponseWhite = 0.9529, ResponseGamma = 0.65;
 
-    /// <summary>The soft round's stamp type.</summary>
-    public const int SoftRound = 54;
+    /// <summary>The stamp types of the three brushes with a measured shape: soft round, hard round and big square.</summary>
+    public const int SoftRound = 54, HardRound = 8, BigSquare = 72;
 
     /// <summary>
     /// A brush whose real shape was measured in game, in place of its icon (plot-starter data/brush_profiles.json, from
@@ -38,11 +38,38 @@ public sealed class BrushShape
     /// </summary>
     public static double? MeasuredWeight(int type, double u, double v) => type switch
     {
-        54 => 0.6039 * Math.Pow(Smooth((1.3635 - Math.Sqrt(u * u + v * v)) / 1.3635), 3.1613),
-        8 => Math.Pow(Smooth((1.0519 - Math.Sqrt(u * u + v * v)) / (1.0519 - 0.5622)), 2.0772),
-        72 => Smooth((0.9761 + 0.0114 - Math.Max(Math.Abs(u), Math.Abs(v))) / (2 * 0.0114)),
+        SoftRound => SoftRoundWeight(Math.Sqrt(u * u + v * v)),
+        HardRound => HardRoundWeight(Math.Sqrt(u * u + v * v)),
+        BigSquare => BigSquareWeight(u, v),
         _ => null,
     };
+
+    // The measured shapes' figures, in fractions of scale: where each brush ends (reach, edge), how strong it is at its
+    // centre (peak), where the hard round's flat top ends (plateau) and half the width of the big square's cliff (blend).
+    internal const double SoftPeak = 0.6039, SoftReach = 1.3635, SoftPower = 3.1613;
+    internal const double HardPlateau = 0.5622, HardReach = 1.0519, HardPower = 2.0772;
+    internal const double SquareEdge = 0.9761, SquareBlend = 0.0114;
+
+    /// <summary>The measured soft round at <paramref name="r"/> × scale from its centre.</summary>
+    internal static double SoftRoundWeight(double r) => SoftPeak * Rise((SoftReach - r) / SoftReach, SoftPower);
+
+    /// <summary>The measured hard round at <paramref name="r"/> × scale from its centre.</summary>
+    internal static double HardRoundWeight(double r) => Rise((HardReach - r) / (HardReach - HardPlateau), HardPower);
+
+    /// <summary>The measured big square at brush-local (u, v).</summary>
+    internal static double BigSquareWeight(double u, double v) =>
+        Smooth((SquareEdge + SquareBlend - Math.Max(Math.Abs(u), Math.Abs(v))) / (2 * SquareBlend));
+
+    /// <summary>
+    /// Smooth(t) to a power. Beyond the brush (0) and on its flat top (1) the answer is exact without Math.Pow, which
+    /// is most of what a replayed cell costs.
+    /// </summary>
+    static double Rise(double t, double power)
+    {
+        if (!(t > 0)) return 0;
+        double s = Smooth(t);
+        return s == 1 ? 1 : Math.Pow(s, power);
+    }
 
     static double Smooth(double t)
     {

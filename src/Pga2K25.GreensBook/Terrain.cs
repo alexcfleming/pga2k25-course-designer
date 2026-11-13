@@ -1,3 +1,6 @@
+using System.Collections.Concurrent;
+using System.Numerics;
+using System.Runtime.CompilerServices;
 using Pga2K25.CourseFormat;
 
 namespace Pga2K25.GreensBook;
@@ -141,9 +144,11 @@ public static class TerrainReplay
     /// <summary>
     /// Rebuilds elevations over a window by replaying <c>height[]</c> in file order:
     /// tool 0 (flatten) blends toward the stamp's absolute value, tool 1 (raise) adds its value, both weighted
-    /// by the brush's shape at its size and rotation (<see cref="StampShape"/>). Unknown types use a circular
+    /// by the brush's shape at its size and rotation (<see cref="Weight"/>). Unknown types use a circular
     /// plateau + smoothstep falloff. With <see cref="TerrainModelOptions.FlattenSamples"/>, a small flatten first
     /// shifts the ground around it to its value (<see cref="FlattenShifts"/>).
+    /// A cell's height depends only on the stamps over that cell, so the rows are replayed in parallel bands, each
+    /// band taking every stamp in file order.
     /// </summary>
     public static Heightfield Build(CourseModel course, Vec2 min, Vec2 max, TerrainModelOptions options)
     {
@@ -154,44 +159,43 @@ public static class TerrainReplay
         int w = (int)Math.Ceiling((max.X - min.X + 2 * margin) / cell);
         int h = (int)Math.Ceiling((max.Z - min.Z + 2 * margin) / cell);
         var field = new Heightfield(origin, cell, w, h);
-        var values = field.Values;
-        double hard = Math.Clamp(options.Hardness, 0, 0.98);
-        double soft = Math.Clamp(options.LargeBrushHardness ?? options.Hardness, 0, 0.98);
+        var (hard, soft) = Hardness(options);
         var shifts = options.FlattenSamples ? FlattenShifts(course, options) : null;
 
-        for (int i = 0; i < course.HeightStamps.Count; i++)
+        // The brushes that reach this window, in file order, each with the cells it can touch.
+        var brushes = new List<Brush>();
+        var stamps = course.HeightStamps;
+        for (int i = 0; i < stamps.Count; i++)
         {
-            var s = course.HeightStamps[i];
+            var s = stamps[i];
             if (!Applies(s, options)) continue;
-            if (shifts is not null && shifts[i] != 0) Shift(field, s.Position, s.Scale * options.FlattenSampleReach, shifts[i]);
-            if (options.BrushShapes && BrushShape.ForType(s.Type) is { } shape)
+            if (shifts is not null && shifts[i] != 0)
             {
-                StampShape(field, s, shape, options);
-                continue;
+                double reach = s.Scale * options.FlattenSampleReach;
+                var shift = new Brush { Kind = BrushKind.Shift, X = s.Position.X, Z = s.Position.Z, Value = shifts[i], Radius = reach, Round = reach };
+                if (SetBox(shift, reach, field)) brushes.Add(shift);
             }
-            double r = s.Scale / 2;
-            double inner = s.Scale >= options.LargeBrushMetres ? soft : hard;
-            int x0 = Math.Max(0, (int)Math.Floor((s.Position.X - r - origin.X) / cell));
-            int x1 = Math.Min(w - 1, (int)Math.Ceiling((s.Position.X + r - origin.X) / cell));
-            int z0 = Math.Max(0, (int)Math.Floor((s.Position.Z - r - origin.Z) / cell));
-            int z1 = Math.Min(h - 1, (int)Math.Ceiling((s.Position.Z + r - origin.Z) / cell));
-            if (x0 > x1 || z0 > z1) continue;
-
-            for (int iz = z0; iz <= z1; iz++)
-            {
-                double dz = origin.Z + (iz + 0.5) * cell - s.Position.Z;
-                for (int ix = x0; ix <= x1; ix++)
-                {
-                    double dx = origin.X + (ix + 0.5) * cell - s.Position.X;
-                    double d = Math.Sqrt(dx * dx + dz * dz) / r;
-                    if (d >= 1) continue;
-                    double t = Math.Clamp((1 - d) / (1 - inner), 0, 1);
-                    double weight = t * t * (3 - 2 * t);
-                    int k = iz * w + ix;
-                    values[k] = s.Tool == 0 ? values[k] + (s.Value - values[k]) * weight : values[k] + s.Value * weight;
-                }
-            }
+            double widest = s.Scale * Math.Sqrt(2);   // a square brush turned 45°: no brush reaches further
+            if (Misses(field, s.Position, widest)) continue;
+            var b = Prepare(s, options, hard, soft);
+            // Two cells of slack on the brush's own extent, never past the widest box.
+            if (SetBox(b, b.Kind == BrushKind.Disc ? b.Extent : Math.Min(widest, b.Extent + 2 * cell), field)) brushes.Add(b);
         }
+
+        var cx = new double[w];
+        for (int ix = 0; ix < w; ix++) cx[ix] = origin.X + (ix + 0.5) * cell;
+        var values = field.Values;
+        int band = Math.Clamp(h / (Environment.ProcessorCount * 4), 1, 32);
+        Parallel.For(0, (h + band - 1) / band, n =>
+        {
+            int first = n * band, last = Math.Min(h, first + band) - 1;
+            foreach (var b in brushes)
+            {
+                if (b.Z1 < first || b.Z0 > last) continue;
+                for (int iz = Math.Max(b.Z0, first); iz <= Math.Min(b.Z1, last); iz++)
+                    StampRow(b, values.AsSpan(iz * w, w), cx, origin.Z + (iz + 0.5) * cell - b.Z, origin.X, cell);
+            }
+        });
 
         if (sigma > 0) GaussianBlur(field, sigma / cell);
         return field;
@@ -200,44 +204,110 @@ public static class TerrainReplay
     static bool Applies(HeightStamp s, TerrainModelOptions options) =>
         s.Scale > 0 && double.IsFinite(s.Value) && !(options.SkipEdgeStamps && s.Tool != 0 && IsOnPlotEdge(s, options.PlotHalfMetres));
 
-    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<CourseModel, Dictionary<TerrainModelOptions, double[]>> ShiftCache = new();
+    static (double Hard, double Soft) Hardness(TerrainModelOptions options) =>
+        (Math.Clamp(options.Hardness, 0, 0.98), Math.Clamp(options.LargeBrushHardness ?? options.Hardness, 0, 0.98));
+
+    enum BrushKind : byte { Shift, Disc, Icon, SoftRound, HardRound, BigSquare }
 
     /// <summary>
-    /// For each stamp (by its place in <c>height[]</c>), how far to shift the ground around it before it lands:
-    /// the gap between a small flatten's value and the replayed ground at its centre, or 0. Worked out once per
-    /// course along the whole replay at the stamp centres alone, so every window agrees, whatever it covers.
-    /// The gaps ignore the final blur, which only softens.
+    /// One stamp ready to replay: everything about its brush that doesn't change from cell to cell, worked out once.
+    /// A shaped brush is its image over ±scale around the stamp, top towards +Z, turned by rotation.y as a Unity Y
+    /// rotation (clockwise seen from above). A flatten-sample shift (<see cref="BrushKind.Shift"/>) is replayed as a
+    /// raise of the gap, fading out at its reach.
     /// </summary>
-    public static double[] FlattenShifts(CourseModel course, TerrainModelOptions options)
+    sealed class Brush
     {
-        var byOptions = ShiftCache.GetOrCreateValue(course);
-        // Only the settings that change the replay matter; the window and cell don't.
-        var key = options with { CellMetres = 0, BlurSigmaMetres = 0 };
-        lock (byOptions)
-            if (byOptions.TryGetValue(key, out var cached)) return cached;
+        public BrushKind Kind;
+        /// <summary>Flatten (tool 0) moves the ground towards <see cref="Value"/>; otherwise the value is added.</summary>
+        public bool Flatten;
+        /// <summary>A measured brush used to flatten: its weight is divided by <see cref="Peak"/>, so it reaches the value.</summary>
+        public bool ToPeak;
+        public double X, Z, Value, Scale;
+        /// <summary>Shaped brushes: the image's half-width (m), its rotation, the icon's gain and the measured shape's peak.</summary>
+        public double Half, Cos, Sin, Gain, Peak;
+        public BrushShape? Shape;
+        /// <summary>Disc and shift: the radius (m) and the disc's hard inner fraction.</summary>
+        public double Radius, Inner;
+        /// <summary>How far the brush reaches along X or Z (m), and the radius it stays inside when it is round.</summary>
+        public double Extent, Round = double.PositiveInfinity;
+        /// <summary>The cells it can touch in the window being built.</summary>
+        public int X0, X1, Z0, Z1;
+    }
 
-        var stamps = course.HeightStamps;
-        var shifts = new double[stamps.Count];
-        double hard = Math.Clamp(options.Hardness, 0, 0.98);
-        double soft = Math.Clamp(options.LargeBrushHardness ?? options.Hardness, 0, 0.98);
-        for (int i = 0; i < stamps.Count; i++)
+    /// <summary>
+    /// Sorts out which brush a stamp uses. Icon model: the icon's brightness, and a flatten is scaled by 1 ÷ the
+    /// icon's peak so it reaches its value at the brush's strongest point (a raise adds value × brightness, so dim,
+    /// soft brushes add less; that split fits both Cassimbo's flattened greens and Berwick Coast's measured heights).
+    /// Measured model: the measured shape where there is one, else the icon at its in-game strength; a flatten still
+    /// reaches its value. Types without an image are a disc of diameter scale.
+    /// </summary>
+    static Brush Prepare(HeightStamp s, TerrainModelOptions options, double hard, double soft)
+    {
+        var b = new Brush { X = s.Position.X, Z = s.Position.Z, Value = s.Value, Scale = s.Scale, Flatten = s.Tool == 0 };
+        if (!(options.BrushShapes && BrushShape.ForType(s.Type) is { } shape))
         {
-            var s = stamps[i];
-            if (s.Tool != 0 || s.Scale >= options.FlattenSampleMaxScale || !Applies(s, options)) continue;
-            double ground = 0;
-            for (int j = 0; j < i; j++)
-            {
-                var t = stamps[j];
-                if (!Applies(t, options)) continue;
-                if (shifts[j] != 0) ground += shifts[j] * ShiftWeight(Vec2.Distance(s.Position, t.Position) / (t.Scale * options.FlattenSampleReach));
-                double weight = Weight(t, s.Position, options, hard, soft);
-                if (weight > 0) ground = t.Tool == 0 ? ground + (t.Value - ground) * weight : ground + t.Value * weight;
-            }
-            double gap = s.Value - ground;
-            if (Math.Abs(gap) <= options.FlattenSampleMaxMetres) shifts[i] = gap;
+            b.Kind = BrushKind.Disc;
+            b.Radius = b.Extent = b.Round = s.Scale / 2;
+            b.Inner = s.Scale >= options.LargeBrushMetres ? soft : hard;
+            return b;
         }
-        lock (byOptions) byOptions[key] = shifts;
-        return shifts;
+        b.Shape = shape;
+        b.Half = s.Scale;
+        double th = s.RotationY * Math.PI / 180;
+        b.Cos = Math.Cos(th);
+        b.Sin = Math.Sin(th);
+        double square = b.Half * (Math.Abs(b.Cos) + Math.Abs(b.Sin));   // the turned image's reach along X or Z
+        bool measured = options.MeasuredBrushes && !(s.Type == BrushShape.SoftRound && s.Scale > options.SoftRoundMeasuredMaxScale);
+        if (measured && BrushShape.MeasuredWeight(s.Type, 0, 0) is { } peak)
+        {
+            b.Peak = peak;
+            b.ToPeak = b.Flatten && peak > 0;
+            switch (s.Type)
+            {
+                case BrushShape.SoftRound: b.Kind = BrushKind.SoftRound; b.Extent = b.Round = BrushShape.SoftReach * s.Scale; break;
+                case BrushShape.HardRound: b.Kind = BrushKind.HardRound; b.Extent = b.Round = BrushShape.HardReach * s.Scale; break;
+                case BrushShape.BigSquare: b.Kind = BrushKind.BigSquare; b.Extent = square * (BrushShape.SquareEdge + BrushShape.SquareBlend); break;
+                default: throw new NotSupportedException($"Brush type {s.Type} has a measured shape the replay doesn't know.");
+            }
+            return b;
+        }
+        b.Kind = BrushKind.Icon;
+        b.Extent = square;
+        b.Gain = b.Flatten && shape.Peak > 0 ? 1 / shape.Peak : measured ? shape.ResponseGain : 1;
+        return b;
+    }
+
+    /// <summary>
+    /// A brush's weight at an offset (m) from its centre: the one place the replay's weights come from, for the raster
+    /// (<see cref="StampRow"/>) and for single points (<see cref="FlattenShifts"/>) alike.
+    /// </summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static double Weight(Brush b, double dx, double dz)
+    {
+        if (b.Kind == BrushKind.Shift) return ShiftWeight(Math.Sqrt(dx * dx + dz * dz) / b.Radius);
+        if (b.Kind == BrushKind.Disc)
+        {
+            double d = Math.Sqrt(dx * dx + dz * dz) / b.Radius;
+            if (d >= 1) return 0;
+            double t = Math.Clamp((1 - d) / (1 - b.Inner), 0, 1);
+            return t * t * (3 - 2 * t);
+        }
+        // World offset into brush axes: local +X = (cos, −sin), local +Z = (sin, cos).
+        return ShapedWeight(b, (dx * b.Cos - dz * b.Sin) / b.Half, (dx * b.Sin + dz * b.Cos) / b.Half);
+    }
+
+    /// <summary>A shaped brush's weight at brush-local (u, v), in fractions of its scale.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static double ShapedWeight(Brush b, double u, double v)
+    {
+        if (b.Kind == BrushKind.Icon) return Math.Min(1, b.Shape!.Weight(u, v) * b.Gain);
+        double m = b.Kind switch
+        {
+            BrushKind.SoftRound => BrushShape.SoftRoundWeight(Math.Sqrt(u * u + v * v)),
+            BrushKind.HardRound => BrushShape.HardRoundWeight(Math.Sqrt(u * u + v * v)),
+            _ => BrushShape.BigSquareWeight(u, v),
+        };
+        return Math.Min(1, b.ToPeak ? m / b.Peak : m);
     }
 
     static double ShiftWeight(double d)
@@ -247,57 +317,131 @@ public static class TerrainReplay
         return t * t * (3 - 2 * t);
     }
 
-    /// <summary>Raises the ground by <paramref name="by"/> at <paramref name="centre"/>, fading to nothing at <paramref name="reach"/>.</summary>
-    static void Shift(Heightfield field, Vec2 centre, double reach, double by)
+    /// <summary>The ground after a brush of this weight: a flatten moves it towards the value, anything else adds to it.</summary>
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    static double Apply(Brush b, double ground, double weight) =>
+        b.Flatten ? ground + (b.Value - ground) * weight : ground + b.Value * weight;
+
+    /// <summary>One brush over one row of cells, <paramref name="dz"/> metres from its centre.</summary>
+    static void StampRow(Brush b, Span<double> row, double[] cx, double dz, double originX, double cell)
     {
-        var origin = field.Origin;
-        double cell = field.Cell;
-        int x0 = Math.Max(0, (int)Math.Floor((centre.X - reach - origin.X) / cell));
-        int x1 = Math.Min(field.Width - 1, (int)Math.Ceiling((centre.X + reach - origin.X) / cell));
-        int z0 = Math.Max(0, (int)Math.Floor((centre.Z - reach - origin.Z) / cell));
-        int z1 = Math.Min(field.Height - 1, (int)Math.Ceiling((centre.Z + reach - origin.Z) / cell));
-        for (int iz = z0; iz <= z1; iz++)
+        int x0 = b.X0, x1 = b.X1;
+        if (b.Round < double.PositiveInfinity)
+        {
+            // A round brush only crosses part of the row: its chord here, and a cell either side.
+            double rest = b.Round * b.Round - dz * dz;
+            if (rest < 0)
+            {
+                if (Math.Abs(dz) > b.Round + cell) return;
+                rest = 0;
+            }
+            double chord = Math.Sqrt(rest);
+            x0 = Math.Max(x0, (int)Math.Floor((b.X - chord - originX) / cell) - 1);
+            x1 = Math.Min(x1, (int)Math.Ceiling((b.X + chord - originX) / cell) + 1);
+        }
+        double x = b.X;
+        if (b.Kind is BrushKind.Shift or BrushKind.Disc)
+        {
             for (int ix = x0; ix <= x1; ix++)
             {
-                double w = ShiftWeight(Vec2.Distance(field.CellCentre(ix, iz), centre) / reach);
-                if (w > 0) field[ix, iz] += by * w;
+                double weight = Weight(b, cx[ix] - x, dz);
+                if (weight > 0) row[ix] = Apply(b, row[ix], weight);
             }
+            return;
+        }
+        // A shaped brush: the same (u, v) as Weight works out, with the row's share of the turn taken out of the loop.
+        double cos = b.Cos, sin = b.Sin, half = b.Half, dzSin = dz * sin, dzCos = dz * cos;
+        for (int ix = x0; ix <= x1; ix++)
+        {
+            double dx = cx[ix] - x;
+            double weight = ShapedWeight(b, (dx * cos - dzSin) / half, (dx * sin + dzCos) / half);
+            if (weight > 0) row[ix] = Apply(b, row[ix], weight);
+        }
     }
 
-    /// <summary>One stamp's weight at a world point: the same weights <see cref="Build"/> rasterises.</summary>
-    static double Weight(HeightStamp s, Vec2 p, TerrainModelOptions options, double hard, double soft)
+    /// <summary>Sets the cells within <paramref name="extent"/> (m) of the brush along X and Z; false when none are in the raster.</summary>
+    static bool SetBox(Brush b, double extent, Heightfield f)
     {
-        double dx = p.X - s.Position.X, dz = p.Z - s.Position.Z;
-        if (Math.Abs(dx) > s.Scale * 1.5 || Math.Abs(dz) > s.Scale * 1.5) return 0;   // beyond any brush's reach
-        if (options.BrushShapes && BrushShape.ForType(s.Type) is { } shape)
-        {
-            double half = s.Scale;
-            double th = s.RotationY * Math.PI / 180, cos = Math.Cos(th), sin = Math.Sin(th);
-            return ShapeWeight(s, shape, (dx * cos - dz * sin) / half, (dx * sin + dz * cos) / half, options);
-        }
-        double d = Math.Sqrt(dx * dx + dz * dz) / (s.Scale / 2);
-        if (d >= 1) return 0;
-        double inner = s.Scale >= options.LargeBrushMetres ? soft : hard;
-        double tt = Math.Clamp((1 - d) / (1 - inner), 0, 1);
-        return tt * tt * (3 - 2 * tt);
+        b.X0 = Math.Max(0, (int)Math.Floor((b.X - extent - f.Origin.X) / f.Cell));
+        b.X1 = Math.Min(f.Width - 1, (int)Math.Ceiling((b.X + extent - f.Origin.X) / f.Cell));
+        b.Z0 = Math.Max(0, (int)Math.Floor((b.Z - extent - f.Origin.Z) / f.Cell));
+        b.Z1 = Math.Min(f.Height - 1, (int)Math.Ceiling((b.Z + extent - f.Origin.Z) / f.Cell));
+        return b.X0 <= b.X1 && b.Z0 <= b.Z1;
     }
+
+    /// <summary>True when nothing within <paramref name="extent"/> (m) of a point can lie in the raster (a cell of slack).</summary>
+    static bool Misses(Heightfield f, Vec2 p, double extent)
+    {
+        double far = extent + f.Cell;
+        return p.X + far < f.Origin.X || p.X - far > f.Origin.X + f.Width * f.Cell
+            || p.Z + far < f.Origin.Z || p.Z - far > f.Origin.Z + f.Height * f.Cell;
+    }
+
+    static readonly ConditionalWeakTable<CourseModel, ConcurrentDictionary<TerrainModelOptions, Lazy<double[]>>> ShiftCache = new();
 
     /// <summary>
-    /// A shaped brush's weight at brush-local (u, v). Icon model: the icon's brightness. Measured model: the measured
-    /// shape where there is one, else the icon at its in-game strength. In both, a flatten is scaled to reach its value
-    /// at the brush's strongest point.
+    /// For each stamp (by its place in <c>height[]</c>), how far to shift the ground around it before it lands:
+    /// the gap between a small flatten's value and the replayed ground at its centre, or 0. Worked out once per
+    /// course along the whole replay at the stamp centres alone, so every window agrees, whatever it covers.
+    /// The gaps ignore the final blur, which only softens.
     /// </summary>
-    static double ShapeWeight(HeightStamp s, BrushShape shape, double u, double v, TerrainModelOptions options)
+    public static double[] FlattenShifts(CourseModel course, TerrainModelOptions options) =>
+        // Only the settings that change the replay matter; the window and cell don't.
+        ShiftCache.GetOrCreateValue(course)
+            .GetOrAdd(options with { CellMetres = 0, BlurSigmaMetres = 0 }, key => new Lazy<double[]>(() => ComputeShifts(course, key))).Value;
+
+    /// <summary>
+    /// The ground at each small flatten's centre is the replay of the earlier stamps that reach it. Those are looked
+    /// up, not searched for: stamps go on a 32 m grid as they are replayed (the few big ones on a list of their own),
+    /// so a flatten only meets its neighbours. Checking every earlier stamp took over a minute on Sangoma's 140,000.
+    /// </summary>
+    static double[] ComputeShifts(CourseModel course, TerrainModelOptions options)
     {
-        if (options.MeasuredBrushes && !(s.Type == BrushShape.SoftRound && s.Scale > options.SoftRoundMeasuredMaxScale))
+        const double gridMetres = 32, span = 1024, bigMetres = 96;
+        const int side = 64;
+        static int Square(double x) => Math.Clamp((int)Math.Floor((x + span) / gridMetres), 0, side - 1);
+
+        var stamps = course.HeightStamps;
+        var shifts = new double[stamps.Count];
+        var brushes = new Brush?[stamps.Count];
+        var grid = new List<int>?[side * side];
+        var big = new List<int>();
+        var (hard, soft) = Hardness(options);
+        // How far a stamp can matter: any brush stays within 1.5 × scale, a shift within its reach.
+        double reachPerScale = Math.Max(1.5, options.FlattenSampleReach);
+
+        for (int i = 0; i < stamps.Count; i++)
         {
-            bool toValue = s.Tool == 0;
-            if (BrushShape.MeasuredWeight(s.Type, u, v) is { } m)
-                return Math.Min(1, toValue && BrushShape.MeasuredWeight(s.Type, 0, 0) is > 0 and var top ? m / top : m);
-            return Math.Min(1, shape.Weight(u, v) * (toValue && shape.Peak > 0 ? 1 / shape.Peak : shape.ResponseGain));
+            var s = stamps[i];
+            if (!Applies(s, options)) continue;
+            if (s.Tool == 0 && s.Scale < options.FlattenSampleMaxScale)
+            {
+                // The earlier stamps near this one, in file order: its grid square's and the big ones, merged.
+                var near = grid[Square(s.Position.Z) * side + Square(s.Position.X)];
+                int a = 0, na = near?.Count ?? 0, c = 0, nc = big.Count;
+                double ground = 0;
+                while (a < na || c < nc)
+                {
+                    int j = c >= nc || (a < na && near![a] < big[c]) ? near![a++] : big[c++];
+                    var t = brushes[j]!;
+                    double dx = s.Position.X - t.X, dz = s.Position.Z - t.Z;
+                    if (shifts[j] != 0) ground += shifts[j] * ShiftWeight(Math.Sqrt(dx * dx + dz * dz) / (t.Scale * options.FlattenSampleReach));
+                    if (Math.Abs(dx) > t.Scale * 1.5 || Math.Abs(dz) > t.Scale * 1.5) continue;   // beyond any brush's reach
+                    double weight = Weight(t, dx, dz);
+                    if (weight > 0) ground = Apply(t, ground, weight);
+                }
+                double gap = s.Value - ground;
+                if (Math.Abs(gap) <= options.FlattenSampleMaxMetres) shifts[i] = gap;
+            }
+
+            var b = brushes[i] = Prepare(s, options, hard, soft);
+            double reach = s.Scale * reachPerScale + 0.001;
+            if (reach > bigMetres) { big.Add(i); continue; }
+            for (int gz = Square(b.Z - reach); gz <= Square(b.Z + reach); gz++)
+                for (int gx = Square(b.X - reach); gx <= Square(b.X + reach); gx++)
+                    (grid[gz * side + gx] ??= []).Add(i);
         }
-        double gain = s.Tool == 0 && shape.Peak > 0 ? 1 / shape.Peak : 1;
-        return Math.Min(1, shape.Weight(u, v) * gain);
+        return shifts;
     }
 
     /// <summary>The game's sea plane (world m): every plot has it, though it only shows where the ground dips below.</summary>
@@ -319,47 +463,16 @@ public static class TerrainReplay
     public static bool IsOnPlotEdge(HeightStamp s, double plotHalfMetres = 1000) =>
         Math.Max(Math.Abs(s.Position.X), Math.Abs(s.Position.Z)) >= plotHalfMetres - 0.1;
 
-    /// <summary>
-    /// One stamp with its brush image: weight = image brightness at the cell, the image spanning ±scale around
-    /// the stamp, top towards +Z, turned by rotation.y as a Unity Y rotation (clockwise seen from above).
-    /// Raise (tool 1) adds value × brightness, so dim (soft) brushes add less. Flatten (tool 0) moves the ground
-    /// towards the value by brightness ÷ the brush's peak, so every flatten reaches its value at its centre.
-    /// That split fits both Cassimbo's flattened greens and Berwick Coast's measured heights.
-    /// </summary>
-    static void StampShape(Heightfield field, HeightStamp s, BrushShape shape, TerrainModelOptions options)
-    {
-        double half = s.Scale, reach = half * Math.Sqrt(2), cell = field.Cell;
-        var origin = field.Origin;
-        int w = field.Width, h = field.Height;
-        int x0 = Math.Max(0, (int)Math.Floor((s.Position.X - reach - origin.X) / cell));
-        int x1 = Math.Min(w - 1, (int)Math.Ceiling((s.Position.X + reach - origin.X) / cell));
-        int z0 = Math.Max(0, (int)Math.Floor((s.Position.Z - reach - origin.Z) / cell));
-        int z1 = Math.Min(h - 1, (int)Math.Ceiling((s.Position.Z + reach - origin.Z) / cell));
-        if (x0 > x1 || z0 > z1) return;
-        double th = s.RotationY * Math.PI / 180, cos = Math.Cos(th), sin = Math.Sin(th);
-        var values = field.Values;
-        Parallel.For(z0, z1 + 1, iz =>
-        {
-            double dz = origin.Z + (iz + 0.5) * cell - s.Position.Z;
-            for (int ix = x0; ix <= x1; ix++)
-            {
-                double dx = origin.X + (ix + 0.5) * cell - s.Position.X;
-                // World offset into brush axes: local +X = (cos, −sin), local +Z = (sin, cos).
-                double u = (dx * cos - dz * sin) / half, v = (dx * sin + dz * cos) / half;
-                double weight = ShapeWeight(s, shape, u, v, options);
-                if (weight <= 0) continue;
-                int k = iz * w + ix;
-                values[k] = s.Tool == 0 ? values[k] + (s.Value - values[k]) * weight : values[k] + s.Value * weight;
-            }
-        });
-    }
-
     /// <summary>Separable Gaussian blur in place; <paramref name="sigmaMetres"/> ≤ 0 does nothing.</summary>
     public static void Smooth(Heightfield field, double sigmaMetres)
     {
         if (sigmaMetres > 0) GaussianBlur(field, sigmaMetres / field.Cell);
     }
 
+    /// <summary>
+    /// Across each row, then down each column, edges repeated. Rows run in parallel and each tap is added to a whole
+    /// row at once, in the same tap order as summing cell by cell, so the result is the same to the last bit.
+    /// </summary>
     static void GaussianBlur(Heightfield f, double sigmaCells)
     {
         int radius = (int)Math.Ceiling(sigmaCells * 3);
@@ -368,22 +481,38 @@ public static class TerrainReplay
         for (int i = -radius; i <= radius; i++) sum += kernel[i + radius] = Math.Exp(-i * i / (2 * sigmaCells * sigmaCells));
         for (int i = 0; i < kernel.Length; i++) kernel[i] /= sum;
 
-        var tmp = new double[f.Values.Length];
-        for (int z = 0; z < f.Height; z++)
-            for (int x = 0; x < f.Width; x++)
+        int w = f.Width, h = f.Height;
+        var values = f.Values;
+        var across = new double[values.Length];
+        Parallel.For(0, h, z =>
+        {
+            var row = values.AsSpan(z * w, w);
+            var acc = across.AsSpan(z * w, w);
+            int lo = Math.Min(radius, w), hi = Math.Max(lo, w - radius);   // cells lo..hi-1 have every tap inside the row
+            for (int k = -radius; k <= radius; k++)
             {
-                double acc = 0;
-                for (int k = -radius; k <= radius; k++)
-                    acc += f[Math.Clamp(x + k, 0, f.Width - 1), z] * kernel[k + radius];
-                tmp[z * f.Width + x] = acc;
+                double tap = kernel[k + radius];
+                for (int x = 0; x < lo; x++) acc[x] += row[Math.Clamp(x + k, 0, w - 1)] * tap;
+                if (hi > lo) AddScaled(row.Slice(lo + k, hi - lo), tap, acc[lo..hi]);
+                for (int x = hi; x < w; x++) acc[x] += row[Math.Clamp(x + k, 0, w - 1)] * tap;
             }
-        for (int z = 0; z < f.Height; z++)
-            for (int x = 0; x < f.Width; x++)
-            {
-                double acc = 0;
-                for (int k = -radius; k <= radius; k++)
-                    acc += tmp[Math.Clamp(z + k, 0, f.Height - 1) * f.Width + x] * kernel[k + radius];
-                f[x, z] = acc;
-            }
+        });
+        Parallel.For(0, h, z =>
+        {
+            var acc = values.AsSpan(z * w, w);
+            acc.Clear();
+            for (int k = -radius; k <= radius; k++)
+                AddScaled(across.AsSpan(Math.Clamp(z + k, 0, h - 1) * w, w), kernel[k + radius], acc);
+        });
+    }
+
+    /// <summary>acc += x × scale, cell by cell: a multiply then an add, never a fused one, so it matches the plain loop.</summary>
+    static void AddScaled(ReadOnlySpan<double> x, double scale, Span<double> acc)
+    {
+        int i = 0, lanes = Vector<double>.Count;
+        var by = new Vector<double>(scale);
+        for (; i <= x.Length - lanes; i += lanes)
+            (new Vector<double>(acc.Slice(i, lanes)) + new Vector<double>(x.Slice(i, lanes)) * by).CopyTo(acc.Slice(i, lanes));
+        for (; i < x.Length; i++) acc[i] += x[i] * scale;
     }
 }
