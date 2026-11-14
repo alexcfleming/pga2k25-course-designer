@@ -1,6 +1,6 @@
 # Course cards
 
-Four print pages that describe a course's orientation, lengths and green sizes, built from a `.course` file:
+Print pages that describe a course's orientation, lengths, green sizes, wind and shot variety, built from a `.course` file:
 
 | Page | File | Shows |
 |---|---|---|
@@ -9,6 +9,7 @@ Four print pages that describe a course's orientation, lengths and green sizes, 
 | Course data card | `<course> - Course Data Card` (17 × 11.6 in) | Rose + bar chart in hole order + bar chart sorted by length, with live header totals |
 | Green size card | `<course> - Green Size Card` (17 × 11.6 in) | Green area by hole against the mean, median and ±1 SD; difference from the mean; spread and average by par. Only when the course has drawn greens |
 | Wind card | `<course> - Wind Card` (17 × 11.6 in) | The wind rose (16 directions × mph bands, calm in the middle) and a table of how each hole plays in it: share of breezy hours (8 mph and up) into, across from the left or right, and down the line of play, back tee to green, with a summary (holes into the wind, downwind, par 3s into the wind, par 5s downwind). Hole names follow the number when the Holes card has any. Only when the Place card has a wind rose |
+| Shot variety card | `<course> - Shot Variety Card` (17 × 11.6 in) | The club each hole asks for into the green, for a Power Drive golfer from the back tees and a Normal golfer one tee forward: a grid of holes against clubs, the club families those shots fall in, the yards into each green on one line, and eight variety checks. Drawn for every course with holes (new in 3.3) |
 
 The layouts follow the reference matplotlib build from the Cassimbo card handoff, which was approved. The fonts, sizes and figure fractions carry over.
 
@@ -19,6 +20,33 @@ dotnet run --project src/Pga2K25.Cli -- cards "<file.course>" -o out --config sa
 [Course Designer Studio](studio.md) builds them from the course's card settings file, set on its Course settings page, and the Place and Holes cards on the same page.
 
 Options: `--formats png,pdf,svg`, `--dpi 300`, `--wind 225`, `--ocean WEST|none`, `--no-auto-notes` and `--force`. Tee names, hole names and hand-written hazards and green notes come from `Holes.json` in the output folder (`-o`), which the Studio's Holes card writes.
+
+## Shot variety card
+
+Checks that the course asks for different shots into its greens instead of the same club again and again (`ShotVariety`, `CourseCardRenderer.ShotVariety.cs`).
+
+- **Two golfers** (`VarietyGolfer`): Power Drive (320 yd carry, 265 yd longest club off the fairway) from the back tees, and Normal (270 / 240) from one tee forward of the back. The carries and reach are the hole simulator's. Each has a bag of total yards (carry and roll, flat ground) from driver to lob wedge. The bags are **placeholders** for a typical player of each kind: the game's golfers vary too much to model one.
+- **How a hole is played,** from the course file (route, aim points, tee sets, terrain at 2 m):
+  - **Par 3:** the tee shot at the hole's yards, played-like for height (1 yd per 3 ft up or down, the simulator's rule).
+  - **Par 4 and 5:** driver along the route. Where the route bends 20° or more at the aim point and driver would run more than 20 yds past it, the golfer takes the longest club that stops within 20 yds of it ("off the tee" row).
+  - **Into the green:** what's left along the route, played-like for height, with the shortest club that gets there (within 4 yds). Well under a full lob wedge it's a part wedge (½).
+  - **Par 5:** within the golfer's reach they go for the green; otherwise they lay up to leave a full sand wedge (or as near as the longest fairway club gets), and that wedge is the shot into the green. It counts in the checks like any other.
+- **The checks** (every hole's shot into the green; limits are constants in `ShotVariety`):
+
+| Check | Passes when |
+|---|---|
+| Clubs into greens | 8 or more different clubs |
+| Most-used club | no club on more than 3 holes |
+| Tightest cluster | at most 4 shots within any 15 yds |
+| Back to back | no club 3 holes running |
+| Club families | woods, long irons, mid irons, short irons and wedges each used |
+| Par 3s | a different club on each, 50+ yds between the shortest and longest |
+| Off the tee | driver isn't the play on at least 2 holes |
+| Par 5s in two | reported only |
+
+- **The page:** the club grid (holes across in par colours with the back-tee yards, clubs down in family bands; Power filled, Normal hollow, squares for par 3 tee shots, diamonds for the wedge after a lay-up), the clubs off the tee and the yards into each green under it; the family bars; the yards on one line with the tightest 15-yd cluster shaded; and the checks with a tick or flag per golfer. The header gives the checks passed for each.
+
+On Cassimbo the Power golfer passes 4 of 7 and the Normal golfer 3: ten different clubs each, but sand wedge on five holes and no mid irons into any green.
 
 ## Green size card
 
