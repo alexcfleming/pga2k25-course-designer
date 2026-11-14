@@ -67,9 +67,23 @@ public sealed record HoleSheetOptions
     /// <summary>Ticks along the route (numbered every second tick).</summary>
     public int TickYards { get; init; } = 25;
 
+    /// <summary>
+    /// Strip layout: the green inset at the top of the notes column, a square this many yards on a side round the
+    /// green (0 leaves it off), turned like the sheet, contoured every <see cref="GreenInsetIntervalFeet"/>.
+    /// </summary>
+    public double GreenInsetYards { get; init; } = 50;
+    public double GreenInsetIntervalFeet { get; init; } = 1;
+    public double GreenInsetCellMetres { get; init; } = 0.25;
+
     public bool Png { get; init; } = true;
     public bool Pdf { get; init; } = true;
 }
+
+/// <summary>
+/// The green inset: a close-up square round the green (<see cref="Centre"/>, <see cref="Window"/>), with its own
+/// finer survey, drawn in <see cref="Points"/> (page points) at the top of the notes column.
+/// </summary>
+public sealed record GreenInset(TerrainSurvey Survey, Vec2 Centre, double Yards, IReadOnlyList<Vec2> Window, SKRect Points);
 
 /// <summary>
 /// One hole's sheet geometry and terrain. The view is the yardage book's: back tee → green straight up the
@@ -114,9 +128,35 @@ public sealed class HoleSheet
     public required SKRect StripPoints { get; init; }
     public HoleSheetLayout Kind { get; init; }
 
-    /// <summary>The notes column in page points (empty in the full-width layout).</summary>
-    public SKRect NotesPoints => Kind == HoleSheetLayout.Strip
+    /// <summary>The whole column beside the strip in page points (empty in the full-width layout).</summary>
+    public SKRect ColumnPoints => Kind == HoleSheetLayout.Strip
         ? new SKRect(StripPoints.Right + NotesGutterPoints, MapRectPoints.Top, MapRectPoints.Right, MapRectPoints.Bottom) : SKRect.Empty;
+
+    /// <summary>The notes column in page points: the column under the green inset, or all of it without one.</summary>
+    public SKRect NotesPoints => Green is { } g && Kind == HoleSheetLayout.Strip
+        ? new SKRect(ColumnPoints.Left, g.Points.Bottom + InsetFootPoints, ColumnPoints.Right, ColumnPoints.Bottom) : ColumnPoints;
+
+    /// <summary>The green inset at the top of the notes column, or null (full-width layout, or turned off).</summary>
+    public GreenInset? Green { get; init; }
+
+    /// <summary>Room above the inset square for its title, and below it for its scale.</summary>
+    public const float InsetHeadPoints = 24, InsetFootPoints = 22;
+
+    /// <summary>
+    /// Clear space between the inset and the frame's right-hand line. Scans are found by the frame, whose sides are
+    /// looked for within about 21 pt of where they should be; an inset edge nearer than that is taken for the frame.
+    /// </summary>
+    public const float InsetFrameClearPoints = 26;
+
+    /// <summary>The inset square in page points for a column: as wide as the column allows, clear of the frame's
+    /// right-hand line, at most 230 pt, centred in that space.</summary>
+    public static SKRect InsetSquare(SKRect column)
+    {
+        float l = column.Left + 8, r = column.Right - InsetFrameClearPoints;
+        float side = Math.Min(r - l, 230);
+        float left = l + (r - l - side) / 2, top = column.Top + InsetHeadPoints;
+        return new SKRect(left, top, left + side, top + side);
+    }
 
     /// <summary>True when 0 ft is sea level (the course has a sea), even if none shows on this sheet.</summary>
     public bool DatumIsSeaLevel { get; init; }
@@ -249,12 +289,51 @@ public sealed class HoleSheet
         var min = new Vec2(window.Min(p => p.X), window.Min(p => p.Z)) - pad;
         var max = new Vec2(window.Max(p => p.X), window.Max(p => p.Z)) + pad;
         var survey = TerrainSurvey.Build(course, map, layers, min, max, NearPlay, datumMetres, sameGround?.Survey);
+        var routing = survey.Holes.Single(h => h.Hole.Number == hole.Number);
+        GreenInset? green = null;
+        if (kind == HoleSheetLayout.Strip && o.GreenInsetYards > 0)
+        {
+            var column = new SKRect(strip.Right + NotesGutterPoints, MapRectPoints.Top, MapRectPoints.Right, MapRectPoints.Bottom);
+            green = BuildInset(course, layers, o, routing.GreenSiteCentre, fwd, side, rotation, InsetSquare(column), survey.DatumMetres,
+                sameGround?.Green);
+        }
         return new HoleSheet
         {
-            Routing = survey.Holes.Single(h => h.Hole.Number == hole.Number), Survey = survey,
+            Routing = routing, Survey = survey,
             BackTee = back, Forward = fwd, Side = side, RotationDegrees = rotation, Along = (a0, a1), Across = across, Window = window,
-            StripPoints = strip, Kind = kind,
+            StripPoints = strip, Kind = kind, Green = green,
             DatumIsSeaLevel = datumIsSeaLevel || survey.SeaLevelMetres is not null,
         };
+    }
+
+    /// <summary>
+    /// The green inset's square round <paramref name="centre"/>, turned like the sheet, and its survey: a finer raster
+    /// and a fixed contour interval, on the sheet's datum so heights read the same as on the strip.
+    /// </summary>
+    static GreenInset BuildInset(CourseModel course, CourseLayers layers, HoleSheetOptions o, Vec2 centre, Vec2 fwd, Vec2 side,
+        double rotation, SKRect square, double datumMetres, GreenInset? sameGround)
+    {
+        double half = o.GreenInsetYards / TerrainSurvey.YardsPerMetre / 2;
+        var window = new List<Vec2>
+        {
+            centre - fwd * half - side * half, centre - fwd * half + side * half,
+            centre + fwd * half + side * half, centre + fwd * half - side * half,
+        };
+        double u = o.Dpi / 72;
+        var projection = MapProjection.Fit(window, square, rotation, padding: 1.0);
+        var map = o.Map with
+        {
+            Terrain = o.Map.Terrain with { CellMetres = o.GreenInsetCellMetres },
+            PixelsPerMetre = projection.PointsPerMetre * u,
+            ContourIntervalFeet = o.GreenInsetIntervalFeet,
+            IndexEvery = 5,
+            MinContourSpacingPixels = 1.2 * u,
+            ShowSummits = false,
+        };
+        var pad = new Vec2(3, 3);
+        var min = new Vec2(window.Min(p => p.X), window.Min(p => p.Z)) - pad;
+        var max = new Vec2(window.Max(p => p.X), window.Max(p => p.Z)) + pad;
+        var survey = TerrainSurvey.Build(course, map, layers, min, max, _ => true, datumMetres, sameGround?.Survey);
+        return new GreenInset(survey, centre, o.GreenInsetYards, window, square);
     }
 }

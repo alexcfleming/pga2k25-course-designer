@@ -68,6 +68,7 @@ public sealed class HoleSheetRenderer : TerrainInk
         DrawRouting(canvas, [sheet.Routing], p, [route], obstacles);
         DrawRouteHeights(canvas, sheet, route, obstacles);
         DrawWidthMarker(canvas, widths);
+        if (sheet.Green is { } inset) DrawInsetOutline(canvas, inset, p);
         canvas.Restore();
 
         using (var frame = Stroke(Ink, 0.8f * u))
@@ -76,9 +77,114 @@ public sealed class HoleSheetRenderer : TerrainInk
             if (map != frameRect) canvas.DrawRect(frameRect, frame);
         }
         DrawGridLabels(canvas, sheet, p, map);
+        if (sheet.Green is { } green) DrawGreenInset(canvas, sheet, green);
         if (sheet.Kind == HoleSheetLayout.Strip) DrawNotes(canvas, sheet, Scaled(sheet.NotesPoints));
         DrawHeader(canvas, courseName, sheet);
         DrawFooter(canvas, sheet, p, frameRect);
+    }
+
+    // ───────────────────────────── green inset ─────────────────────────────
+
+    /// <summary>Where the green inset is on the strip: its square, dashed.</summary>
+    void DrawInsetOutline(SKCanvas canvas, GreenInset g, MapProjection p)
+    {
+        float u = _u;
+        using var halo = Stroke(Paper.WithAlpha(200), 1.8f * u);
+        using var line = Stroke(GreenEdge, 0.7f * u);
+        using var dash = SKPathEffect.CreateDash([2.5f * u, 1.8f * u], 0);
+        line.PathEffect = dash;
+        using var path = p.Path(g.Window, true);
+        canvas.DrawPath(path, halo);
+        canvas.DrawPath(path, line);
+    }
+
+    /// <summary>
+    /// The green inset: the square round the green at its own scale, turned like the sheet, with relief, drawn
+    /// surfaces, fine contours, a 10-yd grid, the pins and a spot height at each, its title above and scale below.
+    /// </summary>
+    void DrawGreenInset(SKCanvas canvas, HoleSheet sheet, GreenInset g)
+    {
+        float u = _u;
+        var r = Scaled(g.Points);
+        var s = g.Survey;
+        var p = MapProjection.Fit(g.Window, r, sheet.RotationDegrees, padding: 1.0);
+        double yd = 1 / TerrainSurvey.YardsPerMetre;
+        Vec2 At(double up, double right) => g.Centre + sheet.Forward * (up * yd) + sheet.Side * (right * yd);
+        double half = g.Yards / 2;
+
+        Text(canvas, "GREEN DETAIL", r.Left, r.Top - 10 * u, 7.2f * u, _sansBold, Ink, tracking: 0.8f * u);
+        Text(canvas, $"{g.Yards:0} × {g.Yards:0} yds  ·  {s.IntervalFeet:0.##} ft contours", r.Right, r.Top - 10 * u, 6.2f * u, _sansItalic, Grey, SKTextAlign.Right);
+        using (var under = Stroke(Ink, 0.6f * u)) canvas.DrawLine(r.Left, r.Top - 6 * u, r.Right, r.Top - 6 * u, under);
+
+        canvas.Save();
+        canvas.ClipRect(r);
+        DrawShading(canvas, s, p);
+        if (_o.ShowFeatures) DrawFeatures(canvas, s, p);
+        DrawShoreline(canvas, s, p);
+        // A 10-yd grid on the green's centre, as the strip's grid sits on the line of play.
+        using (var grid = Stroke(GridLine.WithAlpha(70), 0.3f * u))
+            for (double k = -(half - half % 10); k < half - 0.01; k += 10)
+            {
+                if (Math.Abs(k) > half - 0.01) continue;
+                canvas.DrawLine(p.Map(At(-half, k)), p.Map(At(half, k)), grid);
+                canvas.DrawLine(p.Map(At(k, -half)), p.Map(At(k, half)), grid);
+            }
+        var obstacles = new List<SKRect>();
+        var pins = sheet.Routing.Hole.Pins.Select(p.Map).ToList();
+        foreach (var pin in pins) obstacles.Add(new SKRect(pin.X - 9 * u, pin.Y - 9 * u, pin.X + 9 * u, pin.Y + 9 * u));
+        DrawContours(canvas, s, p, r, [], obstacles, labelSpacing: 70);
+        DrawPaintedWater(canvas, s, p);
+        // The green's centre (the drawn green's, or the anchor before one is drawn): a small cross with its height.
+        {
+            var c = p.Map(g.Centre);
+            float arm = 3.2f * u;
+            using var halo = Stroke(Paper, 2.2f * u);
+            using var cross = Stroke(GreenEdge, 0.9f * u);
+            foreach (var paint in new[] { halo, cross })
+            {
+                canvas.DrawLine(c.X - arm, c.Y, c.X + arm, c.Y, paint);
+                canvas.DrawLine(c.X, c.Y - arm, c.X, c.Y + arm, paint);
+            }
+            // A pin on the centre already gives its height.
+            if (!sheet.Routing.Hole.Pins.Any(pin => Vec2.Distance(pin, g.Centre) < 2))
+                Text(canvas, $"{Feet(s.Feet(g.Centre))}′", c.X - 3.6f * u, c.Y + 7.4f * u, 5f * u, _sansItalic, GreenEdge, SKTextAlign.Right, halo: Paper);
+        }
+
+        // Pins: a numbered cup each, with its height, on the sheet's datum.
+        using var cup = Fill(Ink);
+        using var ring = Stroke(Paper, 0.8f * u);
+        for (int i = 0; i < pins.Count; i++)
+        {
+            var at = pins[i];
+            canvas.DrawCircle(at, 2.1f * u, cup);
+            canvas.DrawCircle(at, 2.1f * u, ring);
+            var w = sheet.Routing.Hole.Pins[i];
+            // Labels go right and above, flipping inward near the square's edges so they aren't cut off.
+            bool flipX = at.X + 22 * u > r.Right, flipY = at.Y - 9 * u < r.Top;
+            float lx = flipX ? at.X - 3.2f * u : at.X + 3.2f * u, dy = flipY ? 9 * u : 0;
+            var align = flipX ? SKTextAlign.Right : SKTextAlign.Left;
+            Text(canvas, $"{i + 1}", lx, at.Y - 1.8f * u + dy, 6.4f * u, _sansBold, Ink, align, halo: Paper);
+            Text(canvas, $"{Feet(s.Feet(w))}′", lx, at.Y + 5.6f * u + dy, 5f * u, _sansItalic, IndexContour, align, halo: Paper);
+        }
+        if (pins.Count == 0) DrawGreen(canvas, sheet.Routing, p.Map(sheet.Routing.Hole.GreenAnchor), p);
+        canvas.Restore();
+        using (var frame = Stroke(Ink, 0.8f * u)) canvas.DrawRect(r, frame);
+
+        // Scale: 0–10–20 yds under the square, and the grid's spacing.
+        float pxPerYard = (float)(p.PointsPerMetre / TerrainSurvey.YardsPerMetre);
+        float bx = r.Left, by = r.Bottom + 6 * u, bh = 3 * u, seg = 10 * pxPerYard;
+        using (var ink = Fill(Ink))
+        using (var edge = Stroke(Ink, 0.5f * u))
+            for (int i = 0; i < 2; i++)
+            {
+                var rect = SKRect.Create(bx + i * seg, by, seg, bh);
+                if (i == 0) canvas.DrawRect(rect, ink);
+                canvas.DrawRect(rect, edge);
+            }
+        for (int i = 0; i <= 2; i++)
+            Text(canvas, $"{i * 10}", bx + i * seg, by + bh + 7 * u, 5.4f * u, _sans, Ink, SKTextAlign.Center);
+        Text(canvas, "yds", bx + 2 * seg + 6 * u, by + bh, 5.4f * u, _sansItalic, Grey);
+        Text(canvas, $"grid 10 yds  ·  index {s.IntervalFeet * s.IndexEvery:0.##} ft", r.Right, by + bh, 5.4f * u, _sansItalic, Grey, SKTextAlign.Right);
     }
 
     // ───────────────────────────── design notes ─────────────────────────────

@@ -126,27 +126,33 @@ public static class HoleSketches
         // 2. Each hole's sheet as it would print now, normalised the same way as the scans; and, when the Hole sheets
         //    build's PNGs are given, the sheet as last built, which is usually what was printed. Where the ground has
         //    changed since, only the built sheet still explains the printed contours.
-        //    Sheets printed before 2.5 used the full-width layout, so each hole is rendered both ways.
+        //    Sheets printed before 2.5 used the full-width layout, and strip sheets printed before 3.2 have no green
+        //    inset, so each hole is rendered each of those ways.
         var (datum, sea) = HoleSheetBuilder.PlotDatum(course, options);
-        HoleSheetLayout[] kinds = [HoleSheetLayout.Strip, HoleSheetLayout.FullWidth];
+        (HoleSheetLayout Kind, double Inset)[] kinds = new[]
+        {
+            (HoleSheetLayout.Strip, options.GreenInsetYards), (HoleSheetLayout.Strip, 0.0), (HoleSheetLayout.FullWidth, 0.0),
+        }.Distinct().ToArray();
+        HoleSheetOptions As((HoleSheetLayout Kind, double Inset) k) => options with { Layout = k.Kind, GreenInsetYards = k.Inset };
         int n = course.Holes.Count;
         var parallel = new ParallelOptions { MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount / 2, 1, 4) };
         var references = new Reference[n * kinds.Length];
         Parallel.For(0, references.Length, parallel, j =>
         {
             int i = j % n;
-            references[j] = Render(course, layers, course.Holes[i], options with { Layout = kinds[j / n] }, datum, sea, size);
+            references[j] = Render(course, layers, course.Holes[i], As(kinds[j / n]), datum, sea, size);
             if (j < n) log?.Report($"Rendered hole {course.Holes[i].Number}'s sheet.");
         });
         // Per hole, the sheets to compare a page against. A built sheet is in whichever layout its fresh render looks more like.
         var candidates = new List<Candidate>[n];
         for (int i = 0; i < n; i++)
         {
-            candidates[i] = kinds.Select((kind, t) => new Candidate(references[t * n + i].Norm, references[t * n + i].Thumb, false, kind, 0)).ToList();
+            candidates[i] = kinds.Select((k, t) => new Candidate(references[t * n + i].Norm, references[t * n + i].Thumb, false, k.Kind, 0, k.Inset)).ToList();
             if (printedSheets is not null && BuiltSheet(Path.Combine(printedSheets, $"Hole_{course.Holes[i].Number:00}.png"), size) is { } b)
-                candidates[i].Add(new Candidate(b.Norm, b.Thumb, true,
-                    SheetScan.Correlation(b.Thumb, references[i].Thumb) >= SheetScan.Correlation(b.Thumb, references[n + i].Thumb)
-                        ? HoleSheetLayout.Strip : HoleSheetLayout.FullWidth, 0));
+            {
+                int like = Enumerable.Range(0, kinds.Length).MaxBy(t => SheetScan.Correlation(b.Thumb, references[t * n + i].Thumb));
+                candidates[i].Add(new Candidate(b.Norm, b.Thumb, true, kinds[like].Kind, 0, kinds[like].Inset));
+            }
         }
         var pageNorms = new byte[pages.Count][];
         var pageThumbs = new float[pages.Count][];
@@ -180,18 +186,18 @@ public static class HoleSketches
                 var (lead, leadBest) = filePages.Select(pi => (pi, Closest(pi).Best)).MaxBy(x => x.Best.Score);
                 using var upright = leadBest.Flip ? Rotate180(pages[lead].Rect) : null;
                 var leadScan = upright ?? pages[lead].Rect;
-                var fit = FitDatum(course, layers, course.Holes[leadBest.Hole], options with { Layout = leadBest.Sheet.Kind }, datum, size,
+                var fit = FitDatum(course, layers, course.Holes[leadBest.Hole], As((leadBest.Sheet.Kind, leadBest.Sheet.InsetYards)), datum, size,
                     leadScan, upright is null ? pageNorms[lead] : SheetScan.PaperNormalised(upright), parallel);
                 if (Math.Abs(fit.Shift) < 0.05 || fit.Score < fit.AtZero + 0.02) continue;
                 if (candidates.Any(cs => cs.Any(c => Math.Abs(c.ShiftFeet - fit.Shift) < 0.05))) continue;   // another file's print
                 log?.Report($"{Path.GetFileName(file)}: the printed heights read {Math.Abs(fit.Shift):0.0} ft {(fit.Shift > 0 ? "lower" : "higher")} than " +
                             $"today's (the plot's lowest point has moved since it was printed); matching the contours as printed.");
-                var used = filePages.Select(pi => Closest(pi).Best.Sheet.Kind).Distinct().ToArray();
+                var used = filePages.Select(pi => (Closest(pi).Best.Sheet.Kind, Closest(pi).Best.Sheet.InsetYards)).Distinct().ToArray();
                 var shifted = new Reference[n * used.Length];
                 Parallel.For(0, shifted.Length, parallel, j =>
-                    shifted[j] = Render(course, layers, course.Holes[j % n], options with { Layout = used[j / n] }, datum + fit.Shift / TerrainSurvey.FeetPerMetre, sea, size));
+                    shifted[j] = Render(course, layers, course.Holes[j % n], As(used[j / n]), datum + fit.Shift / TerrainSurvey.FeetPerMetre, sea, size));
                 for (int j = 0; j < shifted.Length; j++)
-                    candidates[j % n].Add(new Candidate(shifted[j].Norm, shifted[j].Thumb, false, used[j / n], fit.Shift));
+                    candidates[j % n].Add(new Candidate(shifted[j].Norm, shifted[j].Thumb, false, used[j / n].Item1, fit.Shift, used[j / n].Item2));
             }
 
         // 4. Match each page to a hole (either way up), keeping the best page when two match the same hole.
@@ -276,9 +282,10 @@ public static class HoleSketches
 
     /// <summary>
     /// A sheet a page may be: rendered now or the build's PNG (<paramref name="Built"/>), in a layout, with its heights
-    /// <paramref name="ShiftFeet"/> lower than today's (the datum raised that much).
+    /// <paramref name="ShiftFeet"/> lower than today's (the datum raised that much), with a green inset of
+    /// <paramref name="InsetYards"/> (0: none, as strip sheets printed before 3.2).
     /// </summary>
-    sealed record Candidate(byte[] Norm, float[] Thumb, bool Built, HoleSheetLayout Kind, double ShiftFeet);
+    sealed record Candidate(byte[] Norm, float[] Thumb, bool Built, HoleSheetLayout Kind, double ShiftFeet, double InsetYards);
 
     static Reference Render(CourseModel course, Maps.CourseLayers layers, Hole hole, HoleSheetOptions options, double datum, bool sea, SKSizeI size) =>
         Render(course, layers, hole, options, datum, sea, size, null).Reference;
