@@ -119,7 +119,9 @@ public partial class WorkspaceViewModel : ObservableObject
                 _survey = survey;
                 _fileLegs = fileLegs;
                 _fileLines = fileLines;
-                ApplySurfaces(look);
+                // The Surfaces card is a side panel: a fault there is logged and must not stop the map drawing.
+                try { ApplySurfaces(look); }
+                catch (Exception ex) { Program.LogCrash(ex); }
                 HasInlandWater = survey.InlandWater is not null || _notWater.Count > 0;
                 RebuildNotWaterRows();
                 RebuildRoutingRows();
