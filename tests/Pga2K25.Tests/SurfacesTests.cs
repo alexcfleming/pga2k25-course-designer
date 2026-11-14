@@ -101,6 +101,26 @@ public class SurfacesTests
         Assert.Equal("", groups[2].Rows[^1].Key);   // "Painted" takes the group's note instead
     }
 
+    // Cary Model and Halvoy (blank plots, nothing weathered) hung on "Rendering the terrain map…": "Painted · none" is
+    // a theme default with no note key, and building its "on every course" label sliced the empty key and threw on the
+    // UI thread, before the map was drawn.
+    [Theory]
+    [InlineData("cassimbo.course")]
+    [InlineData("murray-estate.course")]
+    [InlineData("ps0-calibration.course")]
+    public void EveryLine_BuildsItsCardRow_EvenWithNothingWeathered(string file)
+    {
+        var groups = SurfacesSummary.Build(Samples.Course(file)).Groups;
+        foreach (var row in groups.SelectMany(g => g.Rows))
+        {
+            var vm = new Pga2K25.Studio.ViewModels.SurfaceRowViewModel(row, "Course", null!);
+            Assert.Equal(row.Key.Length > 0, vm.EveryCourseLabel.EndsWith(", on every course"));
+        }
+        var painted = groups[2].Rows[^1];
+        if (painted.Value == "none")
+            Assert.Equal(("", true, ""), (painted.Key, painted.IsDefault, Pga2K25.Studio.ViewModels.SurfaceRowViewModel.EveryCourseLabelFor(painted)));
+    }
+
     [Fact]
     public void MaterialNotes_FollowTheMaterialAndListTheCourses()
     {

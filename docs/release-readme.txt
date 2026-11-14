@@ -227,6 +227,13 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
+FIXED IN 3.1.1
+- Terrain map: a course with no Surface Weathering strokes (a blank
+  plot, for one) stuck on "Rendering the terrain map..." and never drew.
+  The Surfaces card failed on its "Painted: none" line and stopped the
+  map loading. It now opens, and a fault in the Surfaces card can no
+  longer hold up the map.
+
 FIXED IN 3.1.0
 - Hole design simulator: the approach played to pin 1 whatever pin you
   had picked in the bar. The first time the Approach step opened on a

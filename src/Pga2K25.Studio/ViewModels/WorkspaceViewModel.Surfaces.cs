@@ -160,10 +160,18 @@ public partial class SurfaceRowViewModel : ObservableObject
         Row = row;
         _course = course;
         _ws = ws;
+        EveryCourseLabel = EveryCourseLabelFor(row);
+    }
+
+    /// <summary>The "on every course" choice for a line's note; blank for a line that takes no note of its own (no key),
+    /// such as Surface Weathering's "Painted · none" on a course with no weathering strokes.</summary>
+    public static string EveryCourseLabelFor(SurfaceRow row)
+    {
+        if (row.Key.Length == 0) return "";
         string what = row.IsDefault
             ? $"T{row.Key.Split(" · ")[0][1..]}'s {row.Label}"
             : row.Source.Length > 0 ? $"{row.Value} · {row.Source}" : row.Value;
-        EveryCourseLabel = $"{what}, on every course";
+        return $"{what}, on every course";
     }
 
     public void Refresh()
