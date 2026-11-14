@@ -227,6 +227,18 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
+NEW IN 3.3.0
+- Course cards: a Shot Variety Card. Every hole is played by two
+  golfers, a Power Drive player from the back tees and a Normal player
+  from one tee forward, and the card shows the club each hole asks for
+  into the green. A grid of holes against clubs, the club families
+  used, the yards into each green on one line and eight checks show
+  whether the course spreads its shots out: how many different clubs,
+  the most-used club, the tightest cluster of yards, the same club on
+  holes in a row, every club family used, par 3s on different clubs,
+  and holes where driver isn't the play. The club distances stand for a
+  typical player of each kind. Rebuild Course cards to get it.
+
 NEW IN 3.2.0
 - Hole sheets: a green detail at the top of the notes column. It is a
   close-up of the ground round the green, 50 x 50 yds, turned the same

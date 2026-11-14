@@ -13,8 +13,8 @@ public sealed record CourseCardResult(CourseCardData Data, IReadOnlyList<CardIss
 public static class CourseCardBuilder
 {
     /// <summary>
-    /// Validates, then writes the compass rose, hole data card, course data card and (when the course has drawn greens)
-    /// the green size card in each configured format,
+    /// Validates, then writes the compass rose, hole data card, course data card, (when the course has drawn greens)
+    /// the green size card, (with a wind rose) the wind card and the shot variety card in each configured format,
     /// plus "&lt;course&gt; - Card Validation.txt". ERRORs abort before anything is drawn; nothing is ever corrected.
     /// </summary>
     /// <param name="force">Draw even with ERRORs, as drafts: every card carries a DRAFT line naming the first error, and the errors are still reported and written to the validation file. Studio always builds this way, so an in-progress course still gets its cards.</param>
@@ -75,6 +75,12 @@ public static class CourseCardBuilder
                                           $"{WindRose.SectorNames[WindRose.SectorOf(wind.PrevailingFrom)]}; the rose is used, as on the Wind Card."));
         if (wind is null)
             issues.Add(new(Severity.Info, "No wind rose on the Place card; the Wind Card is not drawn."));
+        log?.Report("Playing every hole for the Shot Variety Card…");
+        var variety = ShotVariety.For(course, data.TeeNames);
+        issues.Add(new(Severity.Info, variety.Count == 0
+            ? "No hole has a tee and a green; the Shot Variety Card is not drawn."
+            : $"Shot Variety Card: {variety[0].Golfer.Name} from the {variety[0].TeeName} tees, {variety[1].Golfer.Name} from the {variety[1].TeeName} tees; " +
+              "club distances are placeholders for a typical player."));
 
         foreach (var i in issues) log?.Report(i.ToString());
         Directory.CreateDirectory(outputDir);
@@ -95,6 +101,7 @@ public static class CourseCardBuilder
         {
             Wind = wind,
             HoleWinds = wind is null ? [] : WindExposure.For(course, wind),
+            Variety = variety,
         };
         var pages = new List<(string Name, SKSize Size, Action<SKCanvas> Draw)>
         {
@@ -104,6 +111,7 @@ public static class CourseCardBuilder
         };
         if (greenCard) pages.Add(("Green Size Card", CourseCardRenderer.CardPage, renderer.DrawGreenSizePage));
         if (wind is not null) pages.Add(("Wind Card", CourseCardRenderer.CardPage, renderer.DrawWindPage));
+        if (variety.Count > 0) pages.Add(("Shot Variety Card", CourseCardRenderer.CardPage, renderer.DrawShotVarietyPage));
         pages = pages.Select(p => (p.Name, p.Size, (Action<SKCanvas>)(c => { p.Draw(c); renderer.DrawAttribution(c, p.Size); renderer.DrawDraftNote(c, p.Size, errors); }))).ToList();
         var formats = config.Formats.Select(f => f.ToLowerInvariant()).ToHashSet();
         foreach (var (name, size, draw) in pages)
