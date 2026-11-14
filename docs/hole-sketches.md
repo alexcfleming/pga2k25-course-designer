@@ -43,7 +43,7 @@ For each page:
    - **Two weights:** the strokes' darkness splits cleanly, with the light group the smaller. Blackwolf Lenz Upper's sheets are pen outlines over pencil shot lines.
    - **One weight:** the sheet only loses its straight strokes.
 6. **Reference sheet.** Each page is compared with a fresh render of the hole's sheet and, when present, with the **Hole sheets** build's PNG (`<course> - Hole Sheets/Hole_NN.png`, usually what was printed). Whichever matches better is used.
-   - **Both layouts:** every hole is rendered both as the 2.5 strip sheet and as the full-width sheet printed before 2.5. The page is tied to the ground through whichever it matches, and the log says when it was a pre-2.5 sheet.
+   - **Every layout:** every hole is rendered as today's strip sheet (with the green detail, since 3.2), as the strip sheet printed before 3.2 (no green detail) and as the full-width sheet printed before 2.5. The page is tied to the ground through whichever it matches, and the log says when it was a pre-2.5 sheet. Only pencil on the strip goes on the ground, so writing over the green detail or the notes stays on the paper.
    - **Notes column:** on a strip sheet, only pencil on the map strip is kept. Writing in the notes column stays on the paper and isn't laid on the ground.
    - Where the ground has changed since printing, only the built PNG still explains the printed contours. A change that only moved the plot's lowest point is handled by the height fit in step 2.
    - If the sheets were rebuilt after printing *and* the ground the sheet shows was reshaped, the old contours there will come through as pencil.

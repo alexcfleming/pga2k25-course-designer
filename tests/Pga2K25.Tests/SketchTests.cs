@@ -107,13 +107,16 @@ public class SketchTests
     /// Wakinyan Dunes (2.6): a sheet printed before the plot's lowest point moved has every contour off today's
     /// render; on paper that wasn't flat, the print sits a few pixels off in the middle. Neither comes through as
     /// pencil (Murray Estate, whose heights are from its lowest point; Sagan-Khushun's are from the sea).
+    /// Strip sheets printed before 3.2 have no green inset at the top of the notes column, and still import.
     /// </summary>
     [Trait("Speed", "Slow")]
     [Theory]
-    [InlineData("sagan-khushun", HoleSheetLayout.Strip, 0.0, false)]
-    [InlineData("sagan-khushun", HoleSheetLayout.FullWidth, 0.0, false)]
-    [InlineData("murray-estate", HoleSheetLayout.Strip, 0.8, true)]
-    public void Import_MatchesTheHoleAndPutsThePencilOnTheGround(string courseName, HoleSheetLayout kind, double printedLowerFeet, bool bowed)
+    [InlineData("sagan-khushun", HoleSheetLayout.Strip, 0.0, false, 50.0)]
+    [InlineData("sagan-khushun", HoleSheetLayout.Strip, 0.0, false, 0.0)]
+    [InlineData("sagan-khushun", HoleSheetLayout.FullWidth, 0.0, false, 50.0)]
+    [InlineData("murray-estate", HoleSheetLayout.Strip, 0.8, true, 50.0)]
+    public void Import_MatchesTheHoleAndPutsThePencilOnTheGround(string courseName, HoleSheetLayout kind, double printedLowerFeet, bool bowed,
+        double printedInsetYards)
     {
         string dir = Path.Combine(Path.GetTempPath(), "pga2k25-sketch-" + Guid.NewGuid().ToString("N"));
         try
@@ -123,7 +126,7 @@ public class SketchTests
             var course = CourseFile.Load(coursePath).ReadModel();
             var options = new HoleSheetOptions { Dpi = 150, CellMetres = 1 };
             // The sheet as printed: today's, or with every height read lower (the datum raised).
-            var printOptions = options with { Pdf = false, Layout = kind };
+            var printOptions = options with { Pdf = false, Layout = kind, GreenInsetYards = printedInsetYards };
             var (datum, sea) = HoleSheetBuilder.PlotDatum(course, printOptions);
             Assert.Equal(printedLowerFeet == 0, sea);
             var sheet = HoleSheet.Build(course, Pga2K25.Maps.CourseLayers.From(course), course.Holes.Single(h => h.Number == 7), printOptions,

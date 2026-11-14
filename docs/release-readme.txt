@@ -227,6 +227,15 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
+NEW IN 3.2.0
+- Hole sheets: a green detail at the top of the notes column. It is a
+  close-up of the ground round the green, 50 x 50 yds, turned the same
+  way as the sheet, with contours every foot (index every 5 ft). It
+  shows the green and bunkers, a 10-yd grid, the pins numbered with
+  their heights, and a cross at the green's centre. A dashed square on
+  the map shows where it is. Rebuild Hole sheets to get it. Scans of
+  sheets printed before 3.2 still import.
+
 FIXED IN 3.1.1
 - Terrain map: a course with no Surface Weathering strokes (a blank
   plot, for one) stuck on "Rendering the terrain map..." and never drew.

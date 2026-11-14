@@ -354,6 +354,60 @@ public class HoleSheetTests
         Assert.True(sheet.Survey.IntervalFeet <= 2);    // finer than the plot map's 5 ft
     }
 
+    /// <summary>
+    /// 3.2: the green detail at the top of the notes column: a 50-yd square centred on the green, turned like the
+    /// sheet (green up the page), on a 0.25 m raster contoured every foot, on the sheet's datum. The notes start
+    /// under it; with the inset off they take the whole column, as before.
+    /// </summary>
+    [Trait("Speed", "Slow")]
+    [Fact]
+    public void GreenInset_IsA50YardSquareOnTheGreenContouredEveryFoot()
+    {
+        var o = new HoleSheetOptions { CellMetres = 1, Dpi = 150 };
+        var sheet = Sheet(7, o);
+        var g = Assert.IsType<GreenInset>(sheet.Green);
+
+        // On the page: a square at the top of the column, inside it, with the notes below.
+        var column = sheet.ColumnPoints;
+        Assert.Equal(g.Points.Width, g.Points.Height, 3);
+        Assert.Equal(column.Top + HoleSheet.InsetHeadPoints, g.Points.Top, 3);
+        Assert.True(g.Points.Left >= column.Left && g.Points.Right <= column.Right);
+        Assert.True(column.Right - g.Points.Right >= HoleSheet.InsetFrameClearPoints - 0.01);   // clear of the frame line scans are found by
+        Assert.Equal(g.Points.Bottom + HoleSheet.InsetFootPoints, sheet.NotesPoints.Top, 3);
+        Assert.Equal(column.Bottom, sheet.NotesPoints.Bottom, 3);
+
+        // On the ground: 50 yds a side round the green's centre, its sides along and across the hole.
+        double side = 50 / TerrainSurvey.YardsPerMetre;
+        var w = g.Window;
+        for (int i = 0; i < 4; i++) Assert.Equal(side, Vec2.Distance(w[i], w[(i + 1) % 4]), 6);
+        Assert.True(Vec2.Distance(sheet.Routing.GreenSiteCentre, g.Centre) < 1e-9);
+        Assert.True(Vec2.Distance((w[0] + w[2]) * 0.5, g.Centre) < 1e-6);
+        var up = (w[3] - w[0]).Normalized();
+        Assert.Equal(1, up.X * sheet.Forward.X + up.Z * sheet.Forward.Z, 6);
+
+        // Contoured every foot (index every 5) on a finer raster, with heights that read as the strip's.
+        Assert.Equal(1, g.Survey.IntervalFeet);
+        Assert.Equal(5, g.Survey.IndexEvery);
+        Assert.Equal(0.25, g.Survey.Field.Cell, 6);
+        Assert.NotEmpty(g.Survey.Contours);
+        Assert.Equal(sheet.Survey.DatumMetres, g.Survey.DatumMetres, 6);
+        Assert.InRange(g.Survey.Feet(g.Centre) - sheet.Survey.Feet(g.Centre), -1, 1);
+
+        // Drawn: the square's frame is inked.
+        using var renderer = new HoleSheetRenderer(o);
+        using var surface = SKSurface.Create(new SKImageInfo(renderer.PixelSize.Width, renderer.PixelSize.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
+        renderer.Draw(surface.Canvas, "Sagan-Khushun", sheet);
+        using var page = SKBitmap.FromImage(surface.Snapshot());
+        float u = (float)(o.Dpi / 72);
+        int x = (int)(g.Points.MidX * u), y = (int)Math.Round(g.Points.Top * u);
+        Assert.True(Enumerable.Range(y - 1, 3).Select(r => page.GetPixel(x, r)).Min(px => px.Red + px.Green + px.Blue) < 200, "inset frame not drawn");
+
+        // Off: no inset, and the notes take the whole column.
+        var plain = Sheet(7, o with { GreenInsetYards = 0 });
+        Assert.Null(plain.Green);
+        Assert.Equal(plain.ColumnPoints, plain.NotesPoints);
+    }
+
     [Fact]
     public void Window_FullWidthLayoutIsThePre25Sheet()
     {
@@ -362,6 +416,7 @@ public class HoleSheetTests
         foreach (var pt in sheet.Routing.Route) Assert.True(sheet.Contains(pt));
         Assert.Equal(HoleSheet.MapRectPoints, sheet.StripPoints);
         Assert.Equal(SKRect.Empty, sheet.NotesPoints);
+        Assert.Null(sheet.Green);   // the inset belongs to the strip layout
         Assert.Equal(HoleSheet.MapRectPoints.Width / HoleSheet.MapRectPoints.Height,
             (sheet.Across.To - sheet.Across.From) / (sheet.Along.To - sheet.Along.From), 6);
     }
