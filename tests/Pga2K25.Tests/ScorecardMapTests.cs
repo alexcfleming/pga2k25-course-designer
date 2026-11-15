@@ -446,6 +446,94 @@ public class ScorecardMapTests
         }
     }
 
+    [Theory]
+    [InlineData(MapThemeKind.TravisSketch, "Travis Sketch", "WALTER J. TRAVIS")]
+    [InlineData(MapThemeKind.MacKenzieSketch, "MacKenzie Sketch", "Alister MacKenzie")]
+    [InlineData(MapThemeKind.HanseDesign, "Hanse Design", "Hanse Golf Course Design")]
+    public void ArchitectPlans_AreThemesOfTheirOwnWithAStyleCredit(MapThemeKind kind, string name, string credit)
+    {
+        Assert.Equal(name, MapTheme.For(kind).Name);
+        Assert.Equal(kind, MapTheme.For(kind).Kind);
+        Assert.Contains(kind, Enum.GetValues<MapThemeKind>());   // so the Studio offers it with the others
+        string styleCredit = kind switch
+        {
+            MapThemeKind.TravisSketch => ScorecardMapRenderer.TravisStyleCredit,
+            MapThemeKind.MacKenzieSketch => ScorecardMapRenderer.MacKenzieStyleCredit,
+            _ => ScorecardMapRenderer.HanseStyleCredit,
+        };
+        Assert.Contains(credit, styleCredit);
+        Assert.StartsWith("in the style of", styleCredit, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ArchitectPlans_TheirFontsAreBundledBesideTheApp()
+    {
+        string dir = Path.Combine(AppContext.BaseDirectory, "fonts", "sketches");
+        foreach (var file in new[] { "ArchitectsDaughter-Regular.ttf", "Caveat[wght].ttf", "OldStandard-Bold.ttf", "OldStandard-Regular.ttf", "OldStandard-Italic.ttf", "Macondo-Regular.ttf" })
+        {
+            Assert.True(File.Exists(Path.Combine(dir, file)), file);
+            using var face = SKTypeface.FromFile(Path.Combine(dir, file));
+            Assert.NotNull(face);
+        }
+        foreach (var licence in new[] { "architectsdaughter", "caveat", "oldstandardtt", "macondo" })
+            Assert.True(File.Exists(Path.Combine(dir, $"OFL-{licence}.txt")), licence);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(4)]
+    [InlineData(5)]
+    [InlineData(6)]
+    public void HanseDesign_EveryTeeSetGetsACardThatFitsTheColumn(int sets)
+    {
+        var (slot, rowH, cardH) = ScorecardMapRenderer.HanseCards(sets);
+        Assert.True(cardH + 26 <= slot + 0.5f, $"{sets} cards of {cardH:0} fit slots of {slot:0}");
+        Assert.True(rowH >= 4.5f && rowH <= 10.2f);
+        Assert.True(slot * sets <= ScorecardMapRenderer.ShortSide - 196 + 0.5f, "the stack stays above the scale");
+    }
+
+    [Trait("Speed", "Slow")]
+    [Theory]
+    [InlineData(MapThemeKind.TravisSketch)]
+    [InlineData(MapThemeKind.MacKenzieSketch)]
+    [InlineData(MapThemeKind.HanseDesign)]
+    public void Build_ArchitectPlans_AreLandscapePngAndPdf(MapThemeKind kind)
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "pga2k25-maps-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            string path = Path.Combine(TestPaths.SamplesDir, "cassimbo.course");
+            var options = new ScorecardMapOptions { Orientation = PageOrientation.Portrait, Credit = "Test Designer" };
+            var result = ScorecardMapBuilder.Build(path, dir, options, [kind], pdf: true, scale: 1);
+            string name = MapTheme.For(kind).Name;
+            Assert.True(result.Landscape);
+            string pdf = result.Files.Single(f => f.EndsWith($"Scorecard Map ({name}).pdf"));
+            Assert.True(new FileInfo(pdf).Length < 20_000_000, "the PDF stays a shareable size");
+            using var bmp = SKBitmap.Decode(result.Files.Single(f => f.EndsWith($"Scorecard Map ({name}).png")));
+            Assert.Equal((1100, 850), (bmp.Width, bmp.Height));
+            int ink = bmp.Pixels.Count(p => p.Red < 80 && p.Green < 80 && p.Blue < 80);
+            int lime = bmp.Pixels.Count(p => p.Green > 190 && p.Green - p.Blue > 70 && p.Red > 160);
+            int salmon = bmp.Pixels.Count(p => p.Red > 215 && p.Red - p.Blue > 45 && p.Green is > 160 and < 215);
+            if (kind == MapThemeKind.HanseDesign)
+            {
+                Assert.True(lime > 40_000, $"painted fairways ({lime})");
+                Assert.True(salmon > 800, $"salmon bunkers ({salmon})");
+            }
+            else
+            {
+                // Pen and ink: black lines on paper, and no colour.
+                Assert.True(ink > 2_500, $"ink drawn ({ink})");
+                Assert.Equal(0, lime);
+                Assert.True(bmp.Pixels.Count(p => Math.Max(p.Red, Math.Max(p.Green, p.Blue)) - Math.Min(p.Red, Math.Min(p.Green, p.Blue)) > 30) < 2_000, "monochrome");
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+
     static SKBitmap Render(MapThemeKind theme, ScorecardMapOptions options)
     {
         var course = Cassimbo();

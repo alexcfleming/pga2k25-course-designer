@@ -71,7 +71,7 @@ const string Usage = """
       fringe and lighting. Yardages from the back tees. --limits overrides any ReadinessLimits
       value; --holes adds the per-hole table; --json writes the whole report
     pga2k25 calibrate <file.course> <captures.json> [--hardness 0.85] [--blur 1.0]
-    pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|illustrated|plansheet|modernillustrated|routingplan|portrait|both|all, or a comma list] [--title TEXT] [--year N] [--no-coast] [--landscape|--portrait]
+    pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|illustrated|plansheet|modernillustrated|routingplan|portrait|travis|mackenzie|hanse|both|all, or a comma list] [--title TEXT] [--year N] [--no-coast] [--landscape|--portrait]
                       [--north-up] [--waste] [--raw-bunkers] [--no-paths]
                       [--pdf] [--credit "NAME"] [--subtitle "TEXT"]
 
@@ -955,6 +955,9 @@ static int Scorecard(string path, string[] rest)
                     "modernillustrated" or "modern-illustrated" => [MapThemeKind.ModernIllustrated],
                     "routingplan" or "routing-plan" or "routing" => [MapThemeKind.RoutingPlan],
                     "portrait" or "courseportrait" or "course-portrait" => [MapThemeKind.CoursePortrait],
+                    "travis" or "travissketch" or "travis-sketch" => [MapThemeKind.TravisSketch],
+                    "mackenzie" or "mackenziesketch" or "mackenzie-sketch" => [MapThemeKind.MacKenzieSketch],
+                    "hanse" or "hansedesign" or "hanse-design" => [MapThemeKind.HanseDesign],
                     "both" => [MapThemeKind.Vintage, MapThemeKind.Modern],
                     "all" => Enum.GetValues<MapThemeKind>(),
                     var t => throw new ArgumentException($"unknown theme {t}"),

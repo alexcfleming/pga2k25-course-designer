@@ -79,17 +79,16 @@ public partial class WorkspaceViewModel
 
     const string ScorecardProduct = "Scorecard map";
 
-    /// <summary>A tick per scorecard map style, saved for this course; Build and Build all make only the ticked ones.</summary>
+    /// <summary>
+    /// A tick per scorecard map style, saved for this course, none ticked to start with; Build and Build all make only
+    /// the ticked ones, and skip scorecard maps while none is ticked.
+    /// </summary>
     List<StyleChoiceViewModel> ScorecardStyles()
     {
         var picked = Settings.ExtrasFor(Entry.Path).ScorecardThemeKinds();
         return Enum.GetValues<MapThemeKind>().Select(kind => new StyleChoiceViewModel(MapTheme.For(kind).Name, picked.Contains(kind), on =>
         {
-            if (!Settings.ExtrasFor(Entry.Path).SetScorecardTheme(kind, on))
-            {
-                Status = "At least one scorecard map style stays ticked.";
-                return false;
-            }
+            Settings.ExtrasFor(Entry.Path).SetScorecardTheme(kind, on);
             Settings.Save();
             return true;
         })).ToList();

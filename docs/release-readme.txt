@@ -8,7 +8,7 @@ Reads your .course files and makes printable products from them:
     (PNG and PDF)
   - Hole sheets: a terrain sketch sheet per hole (PNG and PDF)
   - Greens book: slope and fall of every green
-  - Yardage book, scorecard maps (seven styles) and course cards
+  - Yardage book, scorecard maps (ten styles) and course cards
     (including a Wind Card when the course has a wind rose)
   - Hole illustrations: a watercolour plate per hole, after the hole
     plates of Jim Ryan, illustrated by Tyler J. Rae (PNG and PDF)
@@ -23,8 +23,8 @@ INSTALL
 1. Unzip this folder anywhere (for example Documents\Course Designer Studio).
 2. Run CourseDesignerStudio.exe. Nothing else needs installing.
    Keep the "fonts" and "estimate" folders next to the exe; the course
-   cards, the yardage book, the hole illustrations, the Plan Sheet map and
-   the construction estimate use them.
+   cards, the yardage book, the hole illustrations, the Plan Sheet, Travis,
+   MacKenzie and Hanse maps and the construction estimate use them.
 3. Windows may show "Windows protected your PC" because the app is not
    signed. Click "More info", then "Run anyway".
 Needs 64-bit Windows 10 or 11.
@@ -229,6 +229,30 @@ USING IT
   Building the course cards takes about a minute longer for it.
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
+
+NEW IN 3.6.0
+- Three new scorecard map styles, drawn like course architects' own
+  plans. Each prints "In the style of ..." before your designer credit.
+  - Travis Sketch, after Walter J. Travis's ink plans: black pen on
+    white, rough as short ticks, bunkers as mounds with sand pits,
+    hole numbers circled at the tees, and a hand-lettered title,
+    legend, scale and scorecard across the top.
+  - MacKenzie Sketch, after Alister MacKenzie's pen plans: greens in a
+    heavy black outline with a flag, woods as clumps of small crowns,
+    pen shading on the slopes, a boxed "PLAN OF" title, a scorecard in
+    a hatched frame and your signature with the month and year.
+  - Hanse Design, after Hanse Golf Course Design's coloured plans: the
+    property painted on cream (lime fairways, grey native ground, dark
+    trees, salmon bunkers, blue water with depth lines), a framed
+    scorecard for every tee set and a gold ornamental title.
+  Their fonts are in the "fonts\sketches" folder next to the exe, so
+  keep it there.
+- Scorecard maps are built only for the styles you tick. Each course
+  starts with none ticked under "Styles to build" on the Scorecard map
+  page, so Build all no longer makes ten maps you didn't ask for. Tick
+  the styles you want for a course (they're saved for it) and build.
+  With none ticked, the build log says so. This applies to courses you
+  built before too: tick their styles again.
 
 NEW IN 3.5.0
 - 3D view: on the Terrain map page, "3D view" swaps the map for a 3D

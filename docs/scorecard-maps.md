@@ -8,7 +8,7 @@ dotnet run --project src/Pga2K25.Cli -- scorecard "path/to/course.course" -o out
 
 Options:
 
-- `--theme vintage|modern|illustrated|plansheet|modernillustrated|routingplan|portrait|both|all`, or a comma list such as `vintage,routing-plan` (default `all`; `both` is Vintage and Modern)
+- `--theme vintage|modern|illustrated|plansheet|modernillustrated|routingplan|portrait|travis|mackenzie|hanse|both|all`, or a comma list such as `vintage,routing-plan` (default `all`; `both` is Vintage and Modern)
 - `--landscape` / `--portrait` (default: landscape, unless portrait draws the course at least 15% larger)
 - `--north-up`: disable auto-rotation
 - `--waste`: draw stippled waste areas (off by default; on desert courses everything off the fairway is waste)
@@ -21,7 +21,7 @@ Options:
 
 Tee set names and hole names come from `Holes.json` in the output folder (`-o`), which the Studio's Holes card writes. The course seal comes from `Logos.json` there (see [Course logo](course-logo.md)): in colour on Modern and Modern Illustrated, in ink on Vintage and Illustrated, before the course name in the strip; on the Plan Sheet, on a parchment disc in the emptiest top corner of the map; on the Routing Plan, in colour in its title box. The wind rose comes from `Place.json` there (the Studio Place card's Wind rose), when it has one. Pars and yardages always come from the course file. (Earlier releases took tee names from a `--data holes.xlsx|.csv` workbook; it is retired.)
 
-[Course Designer Studio](studio.md) builds the themes ticked under **Styles to build** on the Scorecard map page (all seven to start with, saved per course; one always stays ticked) as PNG and PDF, for Build and Build all alike, with the names from the course's Holes card and the bunker merge from its Course settings (**Bunker merge**: 10, 6, 4 or 2 m, saved per course). A style unticked after an earlier build keeps its old files, which still show in the viewer until they are deleted. The other options are on the command line.
+[Course Designer Studio](studio.md) builds the themes ticked under **Styles to build** on the Scorecard map page as PNG and PDF, for Build and Build all alike. None is ticked to start with (since 3.6.0), and the ticks are saved per course; with none ticked, a build skips scorecard maps and says so in the log. It uses the names from the course's Holes card and the bunker merge from its Course settings (**Bunker merge**: 10, 6, 4 or 2 m, saved per course). A style unticked after an earlier build keeps its old files, which still show in the viewer until they are deleted. The other options are on the command line.
 
 ## Themes
 
@@ -96,6 +96,23 @@ A wall print rather than a scorecard: the whole course as a watercolour aerial c
 - **Output:** PNG, and a PDF with the art embedded as a JPEG (about 1 MB for Cassimbo) and the type drawn as vectors. The noise is seeded from the course name, so a course renders the same twice. Cassimbo builds in about 15 seconds.
 
 Not done yet: the `links` and `desert` palettes and the framed presentation preview from the hand-off. Bushes are discs; at print scale they read as tree masses.
+
+## Travis Sketch, MacKenzie Sketch and Hanse Design
+
+Three hand-drawn plan styles after course architects' own drawings, added in 3.6.0 (`ScorecardMapRenderer.Sketches.cs`). Each prints a style credit before the designer credit, as Plan Sheet and Routing Plan do: "In the style of a Walter J. Travis plan", "… an Alister MacKenzie plan" and "… a Hanse Golf Course Design plan". All three are always landscape (11 × 8.5 in) and turn the course to fill the map like the other styles. They share:
+
+- **The property line** from the Course Portrait's parcel (`PortraitParcel`).
+- **Planting** from the placed trees, bushes, scatter groups and planted areas (`Scenery`), and **slopes and sea** from the engraved landscape (`Landscape`).
+- **A pen line**: outlines jittered slightly along their length and rounded again (a discrete path effect under a corner effect), so they look drawn rather than plotted.
+- **A scale in feet to the inch**, worked out from the print and rounded to 10 ft.
+- **Fonts** bundled in `fonts/sketches` (SIL Open Font License): Architects Daughter (hand lettering), Caveat (signatures), Old Standard TT (MacKenzie's serif) and Macondo (the Hanse title). Without them Studio falls back to installed lookalikes.
+- **Textures as tiles**: sand stipple, native flecks and fairway mottling are small repeating image tiles, and the many ticks, rings and plants are batched into one path per tone, so the PDFs stay 3–10 MB.
+
+**Travis Sketch** (after Walter J. Travis's ink plans): black pen on white. Fairways and the mown corridor are one wobbly outline with no fill. Rough is a field of short ticks over the property, kept off the corridor, water and sea. Bunkers are "mounds with sand pits": a heavy shadowed lip over stippled sand. Trees are small rings and bushes dots. Greens are outlined with the hole number and a flag inside; each hole's number is also circled behind its back tee. Water is outlined with short ripple dashes, paths are drawn as two fine lines, and the sea is ruled. A band across the top holds a north arrow turned to game north, "SCALE 1" = N'", a hand-lettered legend, the title in spaced capitals, a ruled two-nines card of the longest tees and "NAME / GOLF COURSE ARCHITECT".
+
+**MacKenzie Sketch** (after Alister MacKenzie's pen plans): greens have a heavy black outline round white and a flag on the pin. Woods are clumps of small scalloped crowns (three per tree, one per bush, drawn over paper so they pile up). Slopes are shaded with the landscape's strokes, fainter and finer, and kept off the corridor, which has only a fine edge. Bunkers are outlined and hatched on their shaded face; water and creeks have heavy banks; paths are dashed; the property is a long-dash boundary. Plain bold numerals sit beside each shot line. "PLAN OF / NAME / GOLF COURSE" (and the place lines) is in a ruled title box in the quieter top corner; the card is in a hatched double frame in the quieter bottom corner; opposite it are "Scale – 1 inch to N feet", the designer's signature with "Golf Course Architect · Month Year", and the style credit.
+
+**Hanse Design** (after Hanse Golf Course Design's coloured plans): the property is painted as a cut-out on cream inside a ruled double border with four corner boxes (the colour seal, or a flag without a logo). Inside the property: pale grey native ground with flecks; mottled lime rough and brighter mottled fairways; water deep blue in the middle and paler towards a dark bank, with a fine depth line at each band; grey cart paths; tree and bush masses in dark green with lit tops; salmon bunkers with a brown lip and a lit face; round tee pads and mid-green greens. Thin shot lines, small hand numerals and red pin flags go on top. The left column has a framed two-nines card for **every tee set**, longest first, each headed by its name from the Holes card; the cards shrink to fit (`HanseCards`). The title, "The NAME Golf Course" (the words "Golf Course" are left off a name that already has Golf, Links or Club), is set in gold with a dark edge in the quietest corner of the map, with the place lines, the signed credit and the style credit under it. The month and year, the scale and a hand-drawn north arrow are at the foot of the column.
 
 ## Illustrated landscape
 

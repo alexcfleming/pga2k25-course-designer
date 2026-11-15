@@ -117,7 +117,7 @@ Products are listed (and built by **Build all**) in this order: terrain map, hol
 | Greens book | The sheet, a study PNG per green, and the PDF |
 | Yardage book | The PDF and a PNG per hole; tee and hole names from the Holes card; fairway widths at 250 yds and across the design tee shot from Publish readiness |
 | Hole illustrations | The PDF and a PNG per hole (2550 × 3300 px); tee and hole names from the Holes card, the designer credit from Settings. See [Hole illustrations](hole-illustrations.md) |
-| Scorecard map | Vintage, Modern, Illustrated, Plan Sheet, Modern Illustrated, Routing Plan and Course Portrait, each as PNG and PDF; only the styles ticked under **Styles to build** on its page (all seven by default, saved per course in `CourseExtras.ScorecardThemes`; one always stays ticked); tee and hole names from the Holes card, the wind rose from the Place card; bunkers merged at the course's Bunker merge |
+| Scorecard map | Vintage, Modern, Illustrated, Plan Sheet, Modern Illustrated, Routing Plan, Course Portrait, Travis Sketch, MacKenzie Sketch and Hanse Design, each as PNG and PDF; only the styles ticked under **Styles to build** on its page (none to start with, saved per course in `CourseExtras.ScorecardThemes`; with none ticked a build skips it and says so in the log); tee and hole names from the Holes card, the wind rose from the Place card; bunkers merged at the course's Bunker merge |
 
 Everything else is on the command line (`src/Pga2K25.Cli`): hole subsets, scorecard orientation and waste, and so on. See each product's page in `docs/`.
 
