@@ -119,8 +119,11 @@ public sealed class CourseCardData
         return (int)Math.Round((deg % 360 + 360) % 360) % 360;
     }
 
+    /// <summary>A dogleg bending more than this between the tee and approach bearings is reported, and marked on the hole data card.</summary>
+    public const int MaxBendDegrees = 45;
+
     /// <summary>The handoff's validation rules: report, never correct.</summary>
-    public IEnumerable<CardIssue> Validate(int maxBend = 45)
+    public IEnumerable<CardIssue> Validate(int maxBend = MaxBendDegrees)
     {
         if (Holes.Count != 18) yield return new(Severity.Error, $"Expected 18 holes, found {Holes.Count}.");
         foreach (var h in Holes)

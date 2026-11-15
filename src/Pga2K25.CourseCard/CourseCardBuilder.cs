@@ -8,6 +8,12 @@ public sealed record CourseCardResult(CourseCardData Data, IReadOnlyList<CardIss
 {
     /// <summary>The prevailing wind the course data card drew (see <see cref="CourseCardBuilder.WindFrom"/>), or null for none.</summary>
     public int? WindFromDegrees { get; init; }
+
+    /// <summary>The cards this build left out, each with why (no wind rose, no drawn greens, no playable holes).</summary>
+    public IReadOnlyList<(string Card, string Reason)> NotDrawn { get; init; } = [];
+
+    /// <summary>Every card in one PDF, when PDFs were built; null otherwise.</summary>
+    public string? CombinedPdf { get; init; }
 }
 
 public static class CourseCardBuilder
@@ -82,6 +88,14 @@ public static class CourseCardBuilder
             : $"Shot Variety Card: {variety[0].Golfer.Name} from the {variety[0].TeeName} tees, {variety[1].Golfer.Name} from the {variety[1].TeeName} tees; " +
               "club distances are placeholders for a typical player."));
 
+        // One line naming every card left out and why, so a missing card isn't a puzzle.
+        var notDrawn = new List<(string Card, string Reason)>();
+        if (!greenCard) notDrawn.Add(("Green Size Card", "no drawn green splines on the course"));
+        if (wind is null) notDrawn.Add(("Wind Card", "no wind rose on the Place card"));
+        if (variety.Count == 0) notDrawn.Add(("Shot Variety Card", "no hole has a tee and a green"));
+        if (notDrawn.Count > 0)
+            issues.Add(new(Severity.Info, "Cards not drawn: " + string.Join("; ", notDrawn.Select(n => $"{n.Card} ({n.Reason})")) + "."));
+
         foreach (var i in issues) log?.Report(i.ToString());
         Directory.CreateDirectory(outputDir);
         string baseName = string.Concat(data.CourseName.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)).Trim();
@@ -97,11 +111,15 @@ public static class CourseCardBuilder
         }
 
         var files = new List<string>();
+        var widthLimits = Readiness.ReadinessStore.Load(Readiness.ReadinessStore.PathFor(outputDir)).Limits;
         using var renderer = new CourseCardRenderer(data, config, ocean)
         {
             Wind = wind,
             HoleWinds = wind is null ? [] : WindExposure.For(course, wind),
             Variety = variety,
+            // The widths the readiness check judges, against the course's own limits (Readiness.json beside the products).
+            WidthLimits = widthLimits,
+            FairwayWidths = Readiness.ReadinessChecker.FairwayWidths(course, widthLimits).ToDictionary(w => w.Number),
         };
         var pages = new List<(string Name, SKSize Size, Action<SKCanvas> Draw)>
         {
@@ -149,9 +167,31 @@ public static class CourseCardBuilder
                 files.Add(stem + ".svg");
             }
         }
+        // Every card in one PDF as well, in the order Studio shows them: one file to send.
+        string? combined = null;
+        if (formats.Contains("pdf"))
+        {
+            string[] order = ["Course Data Card", "Green Size Card", "Wind Card", "Shot Variety Card", "Hole Data Card", "Compass Rose"];
+            combined = Path.Combine(outputDir, $"{baseName} - {CombinedName}.pdf");
+            using var stream = File.Create(combined);
+            using var doc = SKDocument.CreatePdf(stream, new SKDocumentPdfMetadata
+            {
+                Title = $"{data.CourseName} — {CombinedName}", Creator = "PGA 2K25 Course Designer", RasterDpi = (float)config.Dpi,
+            });
+            foreach (var (name, size, draw) in pages.OrderBy(p => Array.IndexOf(order, p.Name)))
+            {
+                draw(doc.BeginPage(size.Width, size.Height));
+                doc.EndPage();
+            }
+            doc.Close();
+            files.Add(combined);
+        }
         log?.Report($"Course cards ({files.Count} files, {renderer.FontFamily}): {outputDir}");
-        return new CourseCardResult(data, issues, ocean, files) { WindFromDegrees = config.WindFromDegrees };
+        return new CourseCardResult(data, issues, ocean, files) { WindFromDegrees = config.WindFromDegrees, NotDrawn = notDrawn, CombinedPdf = combined };
     }
+
+    /// <summary>The file name of the PDF that holds every card.</summary>
+    public const string CombinedName = "Course Cards";
 
     /// <summary>
     /// The prevailing wind the course data card draws. With a wind rose on the Place card it is the rose's most
