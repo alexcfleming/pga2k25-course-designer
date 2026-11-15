@@ -25,7 +25,11 @@ public partial class App : Application
             var main = new MainViewModel();
             // A course path on the command line opens straight into that course.
             if (desktop.Args?.FirstOrDefault(a => a.EndsWith(".course", StringComparison.OrdinalIgnoreCase) && File.Exists(a)) is { } path)
+            {
                 main.OpenCourse(Services.CourseLibrary.Read(Path.GetFullPath(path)));
+                // With --3d as well, its terrain map opens as the 3D view.
+                if (desktop.Args.Contains("--3d") && main.Current is WorkspaceViewModel workspace) workspace.View3D = true;
+            }
             desktop.MainWindow = new MainWindow { DataContext = main };
         }
         base.OnFrameworkInitializationCompleted();

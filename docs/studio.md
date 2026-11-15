@@ -31,6 +31,7 @@ The left-hand menu has the course's sections, its products with a built dot each
   - Zoom with the mouse wheel or the buttons, drag to pan, and turn it with right-drag, Shift + drag or the turn buttons. Fit (or **Whole map**) shows the whole map north up.
   - **Hole view** turns and zooms to the selected hole's sheet, tee at the bottom.
   - **Game view** turns the map the way the game first shows a plot: south at the top (+Z away, +X to the right), the north-up map turned round. **Whole map** then fits it that way round; the compass still points north. It is saved with the course's map choices, and printed maps stay north up.
+  - **3D view** (new in 3.5.0) swaps the map for a 3D model of the same ground, with the surfaces, trees, water and holes on it. Pick a hole to stand on its tee; **Whole map** backs out. **Open in browser** opens the same page in your web browser. See [3D view](3d-view.md).
   - A plot whose pre-made hills setting is on gets an amber chip beside the title ("Pre-made hills 33 ft: not on this map"): that ground comes before any brush and the model can't see it.
   - **Hole sketches:** scanned hole sheets with pencil on them, laid on the ground, one hole or all at once, coloured per hole. See [Hole sketches and notes](hole-sketches.md).
   - **Notes:** pinned to the ground (Build, Planting, Concept, Note), saved in `Notes.json` beside the products.
@@ -137,5 +138,6 @@ The exe isn't signed, so Windows SmartScreen asks testers to confirm the first r
 ## Notes for development
 
 - **XAML loading:** Avalonia 12's XAML source generator needs a newer C# compiler than the .NET 8 SDK has. The views load their XAML with `AvaloniaXamlLoader` and look up named controls with `FindControl`, not `InitializeComponent`.
+- **Web view:** the 3D view is shown in Avalonia's `NativeWebView` (WebView2). It needs `app.manifest`; see [3D view](3d-view.md).
 - **SkiaSharp:** Avalonia 12.1.3 runs on the libraries' SkiaSharp 4.152.
 - **Earlier app:** the WPF app (`src/Pga2K25.App`) was retired on 2026-10-03. Its last version is tagged `wpf-app-final`.

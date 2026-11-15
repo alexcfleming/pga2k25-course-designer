@@ -119,6 +119,7 @@ public partial class WorkspaceViewModel : ObservableObject
                 _survey = survey;
                 _fileLegs = fileLegs;
                 _fileLines = fileLines;
+                RefreshView3D();
                 // The Surfaces card is a side panel: a fault there is logged and must not stop the map drawing.
                 try { ApplySurfaces(look); }
                 catch (Exception ex) { Program.LogCrash(ex); }
@@ -203,6 +204,7 @@ public partial class WorkspaceViewModel : ObservableObject
     {
         if (_survey?.Holes.FirstOrDefault(h => h.Hole.Number == number) is not { } h) return;
         _selectedHole = number;
+        if (centre && View3D) View3DHoleRequested?.Invoke(number);
         foreach (var b in Holes) b.IsSelected = b.Number == number;
         HasHole = true;
         HoleTitle = $"Hole {number}";

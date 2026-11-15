@@ -11,6 +11,7 @@
     <ProjectReference Include="..\Pga2K25.Readiness\Pga2K25.Readiness.csproj" />
     <ProjectReference Include="..\Pga2K25.HoleSim\Pga2K25.HoleSim.csproj" />
     <ProjectReference Include="..\Pga2K25.HoleIllustrations\Pga2K25.HoleIllustrations.csproj" />
+    <ProjectReference Include="..\Pga2K25.View3D\Pga2K25.View3D.csproj" />
   </ItemGroup>
 
   <PropertyGroup>
