@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 3.4.0
+COURSE DESIGNER STUDIO - release 3.5.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -59,6 +59,9 @@ USING IT
 - Hole view: turns and zooms the map to the selected hole's sheet, tee
   at the bottom. "Whole map" backs out. Mouse wheel zooms, right-drag
   turns the map.
+- 3D view (new in 3.5.0): "3D view" above the terrain map shows the
+  same ground as a 3D model. Drag to orbit, right-drag to move, scroll
+  to zoom. Pick a hole to stand behind its tee. See NEW IN 3.5.0.
 - Notes: "+ Add note", then click the map to pin a build, planting or
   concept note. Notes are saved in Notes.json beside the products.
 - Construction estimate: build it from its page under Products. The
@@ -226,6 +229,39 @@ USING IT
   Building the course cards takes about a minute longer for it.
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
+
+NEW IN 3.5.0
+- 3D view: on the Terrain map page, "3D view" swaps the map for a 3D
+  model of the same ground, with the fairways, greens, bunkers and
+  paths laid over it, the sea and ponds, and the trees and bushes you
+  planted. The first time takes a few seconds.
+  - Drag to orbit, right-drag (or Shift + drag) to move, scroll to
+    zoom, double-click the ground to centre on it.
+  - Pick a hole in the Holes strip to stand behind its back tee. The
+    box at the top left then offers "From the tee", "At the green"
+    and "Fly the hole". "Hole view" goes back to the tee; "Whole
+    map" backs out to the whole course.
+  - The panel at the top right turns trees, contour lines, routing
+    lines, hole numbers and shadows on and off, and moves the sun
+    through the day. The bottom left gives the height and slope under
+    the pointer.
+  - "Open in browser" opens the same model as a page in your web
+    browser.
+  It covers the same area as the map (Map options) and is rebuilt when
+  the map is, for instance after a "not water" mark.
+- 3D view, what it is not: it is not the game's picture. The game's
+  tree models, grasses and lighting aren't in a course file, so trees
+  are simple stand-in shapes (broadleaf, conifer, bush) sized from each
+  plant's scale. Trees placed one by one stand where you put them;
+  scatter groups and planted areas have the right number in made-up
+  spots. Grass, flowers, rocks, buildings and anything the game plants
+  by itself are left out, and so are the map's own layers (notes,
+  sketches, grid, routing test). The ground is the terrain map's, so
+  check critical grades in the game as before.
+- 3D view needs Microsoft Edge WebView2, which Windows 10 and 11
+  already have. If it can't start, Studio says so and "Open in
+  browser" still works. Nothing is sent anywhere: the model is a page
+  on your own computer.
 
 NEW IN 3.4.0
 - Library: an Archive button on each course card hides a course you're
