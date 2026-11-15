@@ -103,7 +103,7 @@ public static class ReadinessRecord
         b.Append("<h2>From the course file</h2>");
         b.Append($"<p class=\"muted\">Back tees. Design tee shot {L.DesignDriveMinYards:0}–{L.DesignDriveMaxYards:0} yds; test drive {(L.TestDriveYards is double d ? $"{d:0} yds" : "not entered")}; " +
                  $"median par 4 {L.MedianPar4MinYards:0}+, at most {L.MaxShortPar4s} par 4s under {L.ShortPar4Yards:0}, shortest par 5 {L.ShortestPar5MinYards:0}+; " +
-                 $"landing width {L.WidthLowYards:0}–{L.WidthHighYards:0} (target {L.LandingTargetMinYards:0}–{L.LandingTargetMaxYards:0}, reason over {L.WidthReasonYards:0}); " +
+                 $"fairway width {L.DriverWidthMinYards:0}–{L.DriverWidthMaxYards:0} at driver distance, {L.ThreeWoodWidthMinYards:0}–{L.ThreeWoodWidthMaxYards:0} at 3-wood distance ({L.ThreeWoodMinYards:0}–{L.ThreeWoodMaxYards:0} yds), reason over {L.WidthReasonYards:0}; " +
                  $"corridor {L.CorridorYards:0} yds; elevation {L.MaxDropFeet:0} ft down, {L.MaxClimbFeet:0} up; plot range {L.PlotRangeMinFeet:0}–{L.PlotRangeMaxFeet:0} ft; green relief {L.GreenReliefMinFeet:0.0}–{L.GreenReliefMaxFeet:0.#} ft.</p>");
         b.Append("<table><tr><th>Result</th><th>Check</th><th>Detail</th><th>Deliberate</th></tr>");
         foreach (var c in r.Checks.OrderByDescending(c => c.Severity))
@@ -114,17 +114,20 @@ public static class ReadinessRecord
         }
         b.Append("</table>");
 
-        b.Append("<h2>Hole by hole</h2><div class=\"wrap\"><table><tr><th>Hole</th><th>Par</th><th>Yds</th><th>Straight</th><th>Green sq ft</th><th>Widths at the tee shot</th><th>Hazards in the landing zone</th><th>Fairway start</th><th>Tee → green</th><th>Relief</th><th>Nearest other green</th><th>Pins (difficulty)</th></tr>");
+        b.Append("<h2>Hole by hole</h2><div class=\"wrap\"><table><tr><th>Hole</th><th>Par</th><th>Yds</th><th>Straight</th><th>Green sq ft</th><th>Widths at 3-wood distance</th><th>Widths at driver distance</th><th>Hazards in the landing zone</th><th>Fairway start</th><th>Tee → green</th><th>Relief</th><th>Nearest other green</th><th>Pins (difficulty)</th></tr>");
         foreach (var h in r.Holes)
         {
             string green = h.GreenEstimated ? "not drawn" : $"{h.GreenSquareFeet:N0} ({h.GreenRatio:0.00}×)";
-            string width = string.Join(" · ", h.Stations.Select(x => $"{x.FromTeeYards}: {(x.WidthYards is double w ? $"{w:0}" : "none")}"));
+            bool unbuilt = h.Stations.Count + h.ThreeWoodStations.Count > 0 && !h.FairwayBuilt;
+            string Widths(IReadOnlyList<StationWidth> at) => unbuilt && at.Count > 0 ? "no fairway built"
+                : string.Join(" · ", at.Select(x => $"{x.FromTeeYards}: {(x.WidthYards is double w ? $"{w:0}" : "none")}"));
+            string wood = Widths(h.ThreeWoodStations), width = Widths(h.Stations);
             string hazards = string.Join("; ", h.LandingHazards.Select(ReadinessChecker.Describe));
             string near = h.NearGreenYards is double ny ? $"{ny:0} yds, {(h.NearGreenOf == 0 ? "practice green" : $"hole {h.NearGreenOf}")}" : "";
             string start = h.FairwayStartYards is double fs ? $"{fs:0}{(h.FairwayStartOverrideYards is not null ? " (yours)" : "")}{(h.SharedFairway ? ", shared" : "")}" : h.SharedFairway ? "shared" : "";
             string pins = string.Join(" ", h.Pins.Select(p => $"{p.Depth}{p.Side}" +
                 (st.Pins.TryGetValue($"{h.Number}.{p.Number}", out var ps) && ps.Difficulty is { Length: > 0 } diff ? $"({diff})" : "")));
-            b.Append($"<tr><td>{h.Number}</td><td>{h.Par}</td><td>{h.Yards}</td><td>{h.StraightYards}</td><td>{green}</td><td>{E(width)}</td><td>{E(hazards)}</td><td>{E(start)}</td><td>{h.ChangeFeet:+0;-0;0} ft</td><td>{(h.GreenReliefFeet is double rf ? $"{rf:0.0} ft" : "")}</td><td>{E(near)}</td><td>{E(pins)}</td></tr>");
+            b.Append($"<tr><td>{h.Number}</td><td>{h.Par}</td><td>{h.Yards}</td><td>{h.StraightYards}</td><td>{green}</td><td>{E(wood)}</td><td>{E(width)}</td><td>{E(hazards)}</td><td>{E(start)}</td><td>{h.ChangeFeet:+0;-0;0} ft</td><td>{(h.GreenReliefFeet is double rf ? $"{rf:0.0} ft" : "")}</td><td>{E(near)}</td><td>{E(pins)}</td></tr>");
         }
         b.Append("</table></div>");
 

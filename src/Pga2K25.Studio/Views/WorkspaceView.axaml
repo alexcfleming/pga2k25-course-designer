@@ -1917,7 +1917,7 @@
                   <TextBlock Text="Landing zone" FontWeight="SemiBold"/>
                   <TextBlock Classes="muted small" TextWrapping="Wrap" Text="{Binding WidthLimits}"/>
                   <ItemsControl ItemsSource="{Binding Stations}">
-                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="3" ColumnSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="3" ColumnSpacing="6" RowSpacing="6"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                       <DataTemplate x:DataType="vm:MeasureBoxViewModel">
                         <Panel>

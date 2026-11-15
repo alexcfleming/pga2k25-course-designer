@@ -70,6 +70,16 @@ public sealed record HoleMeasures
     public IReadOnlyList<StationWidth> Stations { get; init; } = [];
     public double? WidestStationYards => Stations.Max(s => s.WidthYards);
 
+    /// <summary>The same at 3-wood distance (its short, middle and long distances from the back tee).</summary>
+    public IReadOnlyList<StationWidth> ThreeWoodStations { get; init; } = [];
+
+    /// <summary>
+    /// Par 4s and 5s: true when a built fairway (a fairway spline in the file) lies under or near the line of play
+    /// somewhere along the hole. False means there is nothing to measure yet, so the widths aren't judged: a sketched
+    /// fairway isn't in the file.
+    /// </summary>
+    public bool FairwayBuilt { get; init; }
+
     /// <summary>
     /// Par 4s and 5s: how far from the back tee the main fairway starts, from the file (null when no fairway holds the
     /// width along the line). 60 means 60 yds or less.
@@ -80,7 +90,7 @@ public sealed record HoleMeasures
     public double? FairwayStartYards => FairwayStartOverrideYards ?? FairwayStartFileYards;
     /// <summary>Shares its fairway with other holes: left out of the fairway-start median (its widths still count).</summary>
     public bool SharedFairway { get; init; }
-    /// <summary>Roomy short of the landing zone, tight in it: median width 250–290 yds and over the design tee shot.</summary>
+    /// <summary>Roomy short of the landing zone, tight in it: median width over 3-wood distance and over the design tee shot.</summary>
     public double? LayupWidthYards { get; init; }
     public double? LandingWidthYards { get; init; }
     /// <summary>Bunkers and water near the line through the landing zone, nearest first along the hole.</summary>
@@ -107,6 +117,12 @@ public sealed record HoleMeasures
 
 /// <summary>Fairway width across the line <paramref name="FromTeeYards"/> from the back tee.</summary>
 public sealed record StationWidth(int FromTeeYards, double? WidthYards);
+
+/// <summary>
+/// One par 4 or 5's fairway widths at 3-wood and driver distance, across the built fairway. <paramref name="Built"/>
+/// is false when no fairway spline lies by the hole's line, so nothing was measured.
+/// </summary>
+public sealed record HoleFairwayWidths(int Number, IReadOnlyList<StationWidth> ThreeWood, IReadOnlyList<StationWidth> Driver, bool Built);
 
 /// <summary>A bunker or water near the line: how far from the back tee, how far off the line (0: on it) and which side.</summary>
 public sealed record LandingHazard(string Kind, int FromTeeYards, double OffLineYards, string Side);

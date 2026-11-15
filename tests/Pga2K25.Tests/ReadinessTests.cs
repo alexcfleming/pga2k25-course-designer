@@ -118,7 +118,7 @@ public class ReadinessTests
     [Fact]
     public void Limits_AreTheCoursesToSet()
     {
-        var loose = Samples.CassimboReadiness(new ReadinessLimits { ShortestPar5MinYards = 530, MedianPar4MinYards = 380, WidthHighYards = 250 });
+        var loose = Samples.CassimboReadiness(new ReadinessLimits { ShortestPar5MinYards = 530, MedianPar4MinYards = 380, DriverWidthMaxYards = 250, ThreeWoodWidthMaxYards = 250 });
         Assert.Equal(Severity.Pass, loose.Check("shortest-par5")!.Severity);
         Assert.Equal(Severity.Pass, loose.Check("median-par4")!.Severity);
         Assert.DoesNotContain(12, loose.Check("landing-widths")!.Holes);
@@ -131,6 +131,28 @@ public class ReadinessTests
         var r = ReadinessChecker.Run(Load("murray-estate.course"), new ReadinessLimits { DesignDriveMinYards = 280, DesignDriveMaxYards = 320 });
         Assert.All(r.Holes.Where(h => h.Stations.Count > 0), h => Assert.Equal(280, h.Stations[0].FromTeeYards));
         Assert.All(r.Holes.Where(h => h.Par == 3), h => Assert.Empty(h.Stations));
+    }
+
+    [Trait("Speed", "Slow")]
+    [Fact]
+    public void UnbuiltFairways_AreListedApart_NotJudgedAsNarrow()
+    {
+        // Murray Estate in progress: only hole 1 has a fairway spline by its line. The other 13 par 4s and 5s are
+        // sketched, which the file can't show, so they are named as not measured and never called narrow.
+        var r = ReadinessChecker.Run(Load("murray-estate.course"));
+        var long_ = r.Holes.Where(h => h.Par >= 4).ToList();
+        Assert.Equal([1], long_.Where(h => h.FairwayBuilt).Select(h => h.Number));
+        Assert.All(r.Holes.Where(h => h.Par == 3), h => { Assert.False(h.FairwayBuilt); Assert.Empty(h.ThreeWoodStations); });
+        var c = r.Check("landing-widths")!;
+        Assert.Equal(Severity.Warning, c.Severity);                           // still worth a look, and still never a fail
+        Assert.True(c.Passed);
+        Assert.Contains("Not measured, no fairway built by the line yet: 3, 4, 6, 7, 8, 9, 10, 12, 13, 15, 16, 17, 18 (13 of 14)", c.Detail);
+        Assert.Contains("Measured across the built fairway", c.Detail);      // what the widths were measured from
+        Assert.DoesNotContain("under 25", c.Detail);
+        Assert.DoesNotContain("under 30", c.Detail);
+        Assert.Contains("over 35 on 1 (", c.Detail);                          // the one built fairway is judged at both distances
+        Assert.Contains("over 50 on 1 (", c.Detail);
+        Assert.Equal(long_.Select(h => h.Number), c.Holes);                   // every hole named, measured or not
     }
 
     static HoleMeasures Hole(int n, int par, int yards) => new() { Number = n, Par = par, Yards = yards };
@@ -206,19 +228,33 @@ public class ReadinessTests
     }
 
     [Fact]
-    public void Cassimbo_LandingWidths_At300To350()
+    public void Cassimbo_FairwayWidths_AtDriverAndThreeWoodDistance()
     {
-        // §12.2: over 70 on 1, 7, 11 and 12; under 25 or no fairway by the line on 16 and 18. Shared fairways count.
+        // §12.2 with the tester's ranges: 25–35 yds at driver distance (the 300–350 design tee shot) and 30–50 at
+        // 3-wood distance (260–290), warned both ways. Shared fairways count.
         var c = Check("landing-widths");
         Assert.Equal(Severity.Warning, c.Severity);
-        Assert.Equal([1, 7, 11, 12, 16, 18], c.Holes);
+        Assert.Contains("25–35 yds at driver distance (300–350), 30–50 at 3-wood distance (260–290)", c.Title);
+        // Driver: narrow or no fairway by the line on 16 and 18, wide on 1, 3, 4, 6, 7, 9, 11–14.
+        // 3-wood: narrow on 8 and 18, wide on 1, 3, 4, 6, 7, 9, 11–14 and 17.
+        Assert.Equal([1, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 16, 17, 18], c.Holes);
+        Assert.Contains("Driver (300/325/350), 25–35 yds: under 25 (or no fairway by the line) on 16 (30/30/none), 18 (", c.Detail);
+        Assert.Contains("3-wood (260/275/290), 30–50 yds: under 30 (or no fairway by the line) on 8 (27/25/27), 18 (", c.Detail);
+        Assert.Contains("over 50 on 1 (", c.Detail);
+        Assert.Contains("Measured across the built fairway", c.Detail);
+        Assert.DoesNotContain("Not measured", c.Detail);                     // every Cassimbo fairway is built
+        Assert.All(Report.Value.Holes.Where(h => h.Par >= 4), h => Assert.True(h.FairwayBuilt));
         var h11 = Report.Value.Holes[10];
         Assert.Equal([300, 325, 350], h11.Stations.Select(s => s.FromTeeYards));
+        Assert.Equal([260, 275, 290], h11.ThreeWoodStations.Select(s => s.FromTeeYards));
         Assert.All(h11.Stations, s => Assert.InRange(s.WidthYards!.Value, 100, 130));
+        Assert.Equal(2, Report.Value.Holes[16].ThreeWoodStations.Count);     // 17: 290 is within 40 yds of the green
+        // Hole 8 sits inside the driver range (28/26) and under the 3-wood one: each distance has its own range.
+        Assert.All(Report.Value.Holes[7].Stations, s => Assert.InRange(s.WidthYards!.Value, 25, 35));
         Assert.Null(Report.Value.Holes[17].Stations[0].WidthYards);          // no fairway by the line at 300 on 18
         Assert.Empty(Report.Value.Holes[16].Stations);                       // 17 is too short to land 40 yds short of the green
         Assert.Contains("1, 7, 11, 12, 13", c.Detail);                       // reasons to write: over 60
-        Assert.Equal([1, 11, 12, 13, 14], Check("width-pattern").Holes);
+        Assert.Equal([1, 8, 11, 12, 13], Check("width-pattern").Holes);     // 3-wood distance against driver distance
         Assert.True(Check("width-steadiness").Passed);
     }
 

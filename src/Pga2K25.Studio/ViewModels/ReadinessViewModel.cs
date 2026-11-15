@@ -241,11 +241,13 @@ public partial class ReadinessViewModel : ObservableObject
         Add("shortFive", "Shortest par 5 at least (yds)", L.ShortestPar5MinYards);
         Add("backMin", "Back tee range from (yds, shown only)", L.BackTeeMinYards);
         Add("backMax", "Back tee range to (yds, shown only)", L.BackTeeMaxYards);
-        Add("targetMin", "Landing width target from (yds)", L.LandingTargetMinYards);
-        Add("targetMax", "Landing width target to (yds)", L.LandingTargetMaxYards);
+        Add("driverMin", "Width at driver distance from (yds)", L.DriverWidthMinYards);
+        Add("driverMax", "Width at driver distance to (yds)", L.DriverWidthMaxYards);
+        Add("woodFrom", "3-wood distance from (yds)", L.ThreeWoodMinYards);
+        Add("woodTo", "3-wood distance to (yds)", L.ThreeWoodMaxYards);
+        Add("woodMin", "Width at 3-wood distance from (yds)", L.ThreeWoodWidthMinYards);
+        Add("woodMax", "Width at 3-wood distance to (yds)", L.ThreeWoodWidthMaxYards);
         Add("reason", "Reason needed over (yds)", L.WidthReasonYards);
-        Add("widthHigh", "Width warning over (yds)", L.WidthHighYards);
-        Add("widthLow", "Width warning under (yds)", L.WidthLowYards);
         Add("steady", "Width swing past 200 (×)", L.WidthSteadinessMax);
         Add("hazReach", "Landing hazards within (yds of the line)", L.LandingHazardReachYards);
         Add("hazFrom", "Landing hazards from (yds)", L.LandingHazardFromYards);
@@ -303,11 +305,13 @@ public partial class ReadinessViewModel : ObservableObject
             ShortestPar5MinYards = Get("shortFive") ?? L.ShortestPar5MinYards,
             BackTeeMinYards = Get("backMin") ?? L.BackTeeMinYards,
             BackTeeMaxYards = Get("backMax") ?? L.BackTeeMaxYards,
-            LandingTargetMinYards = Get("targetMin") ?? L.LandingTargetMinYards,
-            LandingTargetMaxYards = Get("targetMax") ?? L.LandingTargetMaxYards,
+            DriverWidthMinYards = Get("driverMin") ?? L.DriverWidthMinYards,
+            DriverWidthMaxYards = Get("driverMax") ?? L.DriverWidthMaxYards,
+            ThreeWoodMinYards = Get("woodFrom") ?? L.ThreeWoodMinYards,
+            ThreeWoodMaxYards = Get("woodTo") ?? L.ThreeWoodMaxYards,
+            ThreeWoodWidthMinYards = Get("woodMin") ?? L.ThreeWoodWidthMinYards,
+            ThreeWoodWidthMaxYards = Get("woodMax") ?? L.ThreeWoodWidthMaxYards,
             WidthReasonYards = Get("reason") ?? L.WidthReasonYards,
-            WidthHighYards = Get("widthHigh") ?? L.WidthHighYards,
-            WidthLowYards = Get("widthLow") ?? L.WidthLowYards,
             WidthSteadinessMax = Get("steady") ?? L.WidthSteadinessMax,
             LandingHazardReachYards = Get("hazReach") ?? L.LandingHazardReachYards,
             LandingHazardFromYards = Get("hazFrom") ?? L.LandingHazardFromYards,
