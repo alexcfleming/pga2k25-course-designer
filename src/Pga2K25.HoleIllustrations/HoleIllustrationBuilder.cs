@@ -73,10 +73,11 @@ public static class HoleIllustrationBuilder
         Directory.CreateDirectory(outputDir);
         string baseName = string.Concat((string.IsNullOrWhiteSpace(course.Name) ? Path.GetFileNameWithoutExtension(coursePath) : course.Name)
             .Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)).Trim();
-        using var renderer = new HoleIllustrationRenderer(options, log);
+        using IPlateRenderer renderer = options.Look == IllustrationLook.CooreCrenshaw
+            ? new SketchPlateRenderer(options, log) : new HoleIllustrationRenderer(options, log);
 
-        string? pdfPath = outputs.Pdf ? Path.Combine(outputDir, $"{baseName} - Hole Illustrations.pdf") : null;
-        string pngDir = Path.Combine(outputDir, $"{baseName} - Hole Illustrations");
+        string? pdfPath = outputs.Pdf ? Path.Combine(outputDir, $"{baseName} - {options.ProductName}.pdf") : null;
+        string pngDir = Path.Combine(outputDir, $"{baseName} - {options.ProductName}");
         if (outputs.Pngs) Directory.CreateDirectory(pngDir);
         var pngs = new List<string>();
         var analyses = new List<HoleAnalysis>();
@@ -85,7 +86,7 @@ public static class HoleIllustrationBuilder
         Stream? stream = pdfPath is null ? null : File.Create(pdfPath);
         SKDocument? doc = stream is null ? null : SKDocument.CreatePdf(stream, new SKDocumentPdfMetadata
         {
-            Title = $"{course.Name} — Hole Illustrations",
+            Title = $"{course.Name} — {options.ProductName}",
             Author = options.Credit,
             Subject = $"{holes.Count} hole plate(s), par {holes.Sum(h => h.Par)}",
             Creator = "PGA 2K25 Course Designer",
@@ -126,7 +127,7 @@ public static class HoleIllustrationBuilder
                     renderer.DrawPage(surface.Canvas, course.Name, plate);
                     using var image = surface.Snapshot();
                     using var data = image.Encode(SKEncodedImageFormat.Png, 100);
-                    string path = Path.Combine(pngDir, $"Hole_{h.Number:00}.png");
+                    string path = Path.Combine(pngDir, options.PngName(h.Number) + ".png");
                     using (var f = File.Create(path)) data.SaveTo(f);
                     pngs.Add(path);
                 }

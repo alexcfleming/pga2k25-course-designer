@@ -101,6 +101,26 @@ public sealed class CourseExtras
     /// </summary>
     public double BunkerMergeMetres { get; set; } = DefaultBunkerMerge;
 
+    /// <summary>
+    /// The hole illustration styles to build, by name (<see cref="Pga2K25.HoleIllustrations.IllustrationLook"/>), ticked
+    /// like the scorecard maps' styles: null or empty builds none. Names the app no longer knows are ignored.
+    /// </summary>
+    public List<string>? IllustrationLooks { get; set; }
+
+    /// <summary>The hole illustration styles "Build" makes for this course, in menu order; empty until one is ticked.</summary>
+    public IReadOnlyList<Pga2K25.HoleIllustrations.IllustrationLook> IllustrationLookKinds() =>
+        IllustrationLooks is null ? []
+        : Enum.GetValues<Pga2K25.HoleIllustrations.IllustrationLook>().Where(k => IllustrationLooks.Contains(k.ToString(), StringComparer.OrdinalIgnoreCase)).ToList();
+
+    /// <summary>Ticks or unticks one hole illustration style; unticking the last leaves none.</summary>
+    public void SetIllustrationLook(Pga2K25.HoleIllustrations.IllustrationLook kind, bool on)
+    {
+        var picked = IllustrationLookKinds().ToList();
+        if (on == picked.Contains(kind)) return;
+        if (on) picked.Add(kind); else picked.Remove(kind);
+        IllustrationLooks = picked.Count == 0 ? null : Enum.GetValues<Pga2K25.HoleIllustrations.IllustrationLook>().Where(picked.Contains).Select(k => k.ToString()).ToList();
+    }
+
     public const double DefaultBunkerMerge = 10;
     public static readonly IReadOnlyList<double> BunkerMergeChoices = [10, 6, 4, 2];
 

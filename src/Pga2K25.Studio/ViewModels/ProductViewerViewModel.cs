@@ -32,7 +32,7 @@ public partial class ProductViewerViewModel : ObservableObject
     /// <summary>Why an open didn't happen, shown in the toolbar; empty when all is well.</summary>
     [ObservableProperty] private string _message = "";
 
-    /// <summary>Which styles Build makes (the scorecard map's); empty for a product with one look.</summary>
+    /// <summary>Which styles Build makes (the scorecard maps' and hole illustrations' ticks); empty for a product with one look.</summary>
     public IReadOnlyList<StyleChoiceViewModel> Styles { get; }
     public bool HasStyles => Styles.Count > 0;
 

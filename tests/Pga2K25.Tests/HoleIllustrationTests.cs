@@ -35,8 +35,8 @@ public class HoleIllustrationTests
         var names = Products.All.Select(p => p.Name).ToList();
         Assert.Equal(names.IndexOf("Yardage book") + 1, names.IndexOf("Hole illustrations"));
         var p = Products.All.Single(x => x.Name == "Hole illustrations");
-        Assert.Equal(["{0} - Hole Illustrations/*.png"], p.Pages);
-        Assert.Equal(["{0} - Hole Illustrations.pdf"], p.Pdfs);
+        Assert.Equal(["{0} - Hole Illustrations/*.png", "{0} - Hole Illustrations (Coore & Crenshaw)/*.png"], p.Pages);
+        Assert.Equal(["{0} - Hole Illustrations.pdf", "{0} - Hole Illustrations (Coore & Crenshaw).pdf"], p.Pdfs);
     }
 
     [Trait("Speed", "Slow")]
@@ -129,6 +129,82 @@ public class HoleIllustrationTests
         Assert.Equal(0, Inked(none));
         Assert.Equal(0, Inked(empty));
         Assert.True(Inked(named) > 20);
+    }
+
+    [Fact]
+    public void IllustrationStyles_AreTickedPerCourse_NoneToStart()
+    {
+        var extras = new CourseExtras();
+        Assert.Empty(extras.IllustrationLookKinds());
+        extras.SetIllustrationLook(IllustrationLook.CooreCrenshaw, true);
+        extras.SetIllustrationLook(IllustrationLook.Watercolour, true);
+        Assert.Equal([IllustrationLook.Watercolour, IllustrationLook.CooreCrenshaw], extras.IllustrationLookKinds());   // menu order
+        var back = System.Text.Json.JsonSerializer.Deserialize<CourseExtras>(System.Text.Json.JsonSerializer.Serialize(extras))!;
+        Assert.Equal([IllustrationLook.Watercolour, IllustrationLook.CooreCrenshaw], back.IllustrationLookKinds());
+        back.SetIllustrationLook(IllustrationLook.Watercolour, false);
+        back.SetIllustrationLook(IllustrationLook.CooreCrenshaw, false);
+        Assert.Empty(back.IllustrationLookKinds());
+        Assert.Null(back.IllustrationLooks);
+        Assert.Empty(new CourseExtras { IllustrationLooks = ["Retired"] }.IllustrationLookKinds());
+        Assert.StartsWith("IN THE STYLE OF COORE & CRENSHAW", SketchPlateRenderer.StyleCredit);
+        // The two looks write their own files, so a course can have both.
+        var cc = new IllustrationOptions { Look = IllustrationLook.CooreCrenshaw };
+        Assert.Equal("Hole Illustrations (Coore & Crenshaw)", cc.ProductName);
+        Assert.Equal("Hole_05 (Coore & Crenshaw)", cc.PngName(5));
+        Assert.Equal(("Hole Illustrations", "Hole_05"), (new IllustrationOptions().ProductName, new IllustrationOptions().PngName(5)));
+    }
+
+    sealed class LogLines : IProgress<string>
+    {
+        public List<string> Lines { get; } = [];
+        public void Report(string value) => Lines.Add(value);
+    }
+
+    [Fact]
+    public void HoleIllustrations_WithNoStyleTicked_BuildsNothingAndSaysWhy()
+    {
+        var product = Products.All.Single(p => p.Name == "Hole illustrations");
+        var log = new LogLines();
+        string dir = Path.Combine(Path.GetTempPath(), $"illustrations-noticks-{Guid.NewGuid():N}");
+        Assert.Null(product.Build(new BuildContext(Path.Combine(dir, "missing.course"), dir, new StudioSettings(), new CourseExtras(), log)));
+        Assert.Equal([Products.NoIllustrationStyles], log.Lines);
+        Assert.False(Directory.Exists(dir));
+    }
+
+    [Trait("Speed", "Slow")]
+    [Fact]
+    public void CooreCrenshaw_PencilPlate_IsGraphiteOnCreamAndTheSameTwice()
+    {
+        var o = Options with { Look = IllustrationLook.CooreCrenshaw };
+        using var r = new SketchPlateRenderer(o);
+        using var plate = r.Render(Analyses[5].Value);
+        using var again = r.Render(Analyses[5].Value);
+        using (var a = plate.Art.Encode(SKEncodedImageFormat.Png, 100))
+        using (var b = again.Art.Encode(SKEncodedImageFormat.Png, 100))
+            Assert.True(a.ToArray().AsSpan().SequenceEqual(b.ToArray()), "two pencil renders of hole 5 differ");
+        // No colour anywhere: pencil and cream paper only; and the hole is drawn (dark outline pixels).
+        using var bmp = SKBitmap.FromImage(plate.Art);
+        var px = bmp.Pixels;
+        Assert.True(px.All(p => Math.Abs(p.Red - p.Blue) < 24 && Math.Abs(p.Green - p.Blue) < 20), "pencil on cream only");
+        Assert.True(px.Count(p => p.Red < 90) > 5_000, "pencil lines drawn");
+        Assert.Equal(px[0], new SKColor(0xf2, 0xed, 0xe1));   // paper in the corner
+    }
+
+    [Trait("Speed", "Slow")]
+    [Fact]
+    public void Build_CooreCrenshaw_WritesItsOwnFilesInPencil()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), $"illustrations-{Guid.NewGuid():N}");
+        try
+        {
+            var result = HoleIllustrationBuilder.Build(CassimboPath, dir, Options with { Look = IllustrationLook.CooreCrenshaw }, new IllustrationOutputs { Pngs = true }, [5]);
+            var png = Assert.Single(result.PngPaths);
+            Assert.EndsWith(Path.Combine("Cassimbo - Hole Illustrations (Coore & Crenshaw)", "Hole_05 (Coore & Crenshaw).png"), png);
+            Assert.EndsWith("Cassimbo - Hole Illustrations (Coore & Crenshaw).pdf", result.PdfPath);
+            using (var img = SKBitmap.Decode(png)) Assert.Equal((2550, 3300), (img.Width, img.Height));
+            Assert.InRange(new FileInfo(result.PdfPath!).Length, 100_000, 8_000_000);
+        }
+        finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
     }
 
     [Trait("Speed", "Slow")]

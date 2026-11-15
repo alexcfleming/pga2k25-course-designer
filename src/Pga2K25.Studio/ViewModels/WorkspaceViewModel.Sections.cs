@@ -74,10 +74,27 @@ public partial class WorkspaceViewModel
             : null;
     }
 
-    ProductViewerViewModel NewViewer(ProductDefinition product) =>
-        new(product, _place, () => BuildAsync([product]), product.Name == ScorecardProduct ? ScorecardStyles() : null);
+    ProductViewerViewModel NewViewer(ProductDefinition product) => product.Name switch
+    {
+        ScorecardProduct => new(product, _place, () => BuildAsync([product]), ScorecardStyles()),
+        IllustrationsProduct => new(product, _place, () => BuildAsync([product]), IllustrationStyles()),
+        _ => new(product, _place, () => BuildAsync([product])),
+    };
 
-    const string ScorecardProduct = "Scorecard map";
+    const string ScorecardProduct = "Scorecard map", IllustrationsProduct = "Hole illustrations";
+
+    /// <summary>A tick per hole illustration style, saved for this course, none ticked to start with, like the scorecard maps'.</summary>
+    List<StyleChoiceViewModel> IllustrationStyles()
+    {
+        var picked = Settings.ExtrasFor(Entry.Path).IllustrationLookKinds();
+        var looks = new[] { (Pga2K25.HoleIllustrations.IllustrationLook.Watercolour, "Watercolour"), (Pga2K25.HoleIllustrations.IllustrationLook.CooreCrenshaw, "Coore & Crenshaw") };
+        return looks.Select(l => new StyleChoiceViewModel(l.Item2, picked.Contains(l.Item1), on =>
+        {
+            Settings.ExtrasFor(Entry.Path).SetIllustrationLook(l.Item1, on);
+            Settings.Save();
+            return true;
+        })).ToList();
+    }
 
     /// <summary>
     /// A tick per scorecard map style, saved for this course, none ticked to start with; Build and Build all make only

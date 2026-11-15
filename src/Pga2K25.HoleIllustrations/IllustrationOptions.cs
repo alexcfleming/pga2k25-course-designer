@@ -40,4 +40,13 @@ public sealed record IllustrationOptions
     public bool Waste { get; init; }
 
     public IllustrationStyle Style { get; init; } = IllustrationStyle.Default;
+
+    /// <summary>Watercolour plates (the default) or Coore &amp; Crenshaw pencil sketches.</summary>
+    public IllustrationLook Look { get; init; } = IllustrationLook.Watercolour;
+
+    /// <summary>The files' name for this look: "Hole Illustrations", or "Hole Illustrations (Coore &amp; Crenshaw)", so both can be built.</summary>
+    public string ProductName => Look == IllustrationLook.CooreCrenshaw ? "Hole Illustrations (Coore & Crenshaw)" : "Hole Illustrations";
+
+    /// <summary>A plate's PNG name: "Hole_05", or "Hole_05 (Coore &amp; Crenshaw)" so the viewer tells the looks apart.</summary>
+    public string PngName(int hole) => Look == IllustrationLook.CooreCrenshaw ? $"Hole_{hole:00} (Coore & Crenshaw)" : $"Hole_{hole:00}";
 }
