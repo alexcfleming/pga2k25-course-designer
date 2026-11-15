@@ -25,6 +25,47 @@ public class StudioTests
     [InlineData("3'14\"")]
     public void TryParseFeet_RejectsNonsense(string text) => Assert.False(Measurements.TryParseFeet(text, out _));
 
+    // 3.4: Archive hides a course from the library in Studio only. It follows the course's id through a rename or a
+    // move; a copy saved as a new file (its own id) shows as usual; a file without an id is kept by its path.
+    [Fact]
+    public void Archive_FollowsTheCourseIdNotTheFile()
+    {
+        static CourseEntry E(string path, string name, string id) => new(path, name, CourseKind.Routed, 18, 72, 7000, new DateTime(2026, 11, 14), null, Id: id);
+        var settings = new StudioSettings();
+        var halvoy = E(@"C:\Courses\byvwcvzpqavk.course", "Halvoy", "offlineSavebyvwcvzpqavk");
+        settings.Archive(halvoy, new DateTime(2026, 11, 14, 9, 0, 0));
+        Assert.True(settings.IsArchived(halvoy));
+        Assert.True(settings.IsArchived(E(@"D:\Moved\byvwcvzpqavk.course", "Halvoy Links", "offlineSavebyvwcvzpqavk")));   // renamed and moved
+        Assert.False(settings.IsArchived(E(@"C:\Courses\Halvoy_plotstarter_copy.course", "Halvoy", "offlineSaveHalvoy_plotstarter_copy")));
+        Assert.Equal("Halvoy", settings.ArchiveOf(halvoy)!.Name);
+        settings.Archive(halvoy);   // archiving again keeps one entry
+        Assert.Single(settings.Archived);
+        settings.Restore(halvoy);
+        Assert.False(settings.IsArchived(halvoy));
+
+        var noId = E(@"C:\Courses\old.course", "Old", "");
+        settings.Archive(noId);
+        Assert.True(settings.IsArchived(noId));
+        Assert.False(settings.IsArchived(E(@"C:\Courses\other.course", "Other", "")));
+
+        // The list survives a save: settings.json round trip.
+        var json = System.Text.Json.JsonSerializer.Serialize(settings);
+        var back = System.Text.Json.JsonSerializer.Deserialize<StudioSettings>(json)!;
+        Assert.True(back.IsArchived(noId));
+        Assert.Equal(settings.Archived[0].Archived, back.Archived[0].Archived);
+    }
+
+    [Theory]
+    [InlineData("All", "", "Routed", "Halvoy", false, true)]
+    [InlineData("All", "", "Routed", "Halvoy", true, false)]            // archived: out of every view but Archived
+    [InlineData("Routed", "", "Blank", "Halvoy", false, false)]
+    [InlineData("Archived", "", "Routed", "Halvoy", true, true)]
+    [InlineData("Archived", "", "Routed", "Halvoy", false, false)]
+    [InlineData("Archived", "cary", "Blank", "Halvoy", true, false)]    // the search still applies
+    [InlineData("All", "halv", "Blank", "Halvoy", false, true)]
+    public void Library_ArchivedCoursesShowOnlyInTheArchivedView(string filter, string search, string kind, string name, bool archived, bool shows) =>
+        Assert.Equal(shows, Pga2K25.Studio.ViewModels.LibraryViewModel.Shows(filter, search, kind, name, archived));
+
     // Murray Estate hole 1, pin 3 picked in the bar: the approach played to pin 1 because opening the step on a new
     // hole or tee reset its pin to 1.
     [Theory]

@@ -45,13 +45,23 @@
           </ItemsControl>
         </DockPanel>
 
+        <Border IsVisible="{Binding HasNotice}" Background="{StaticResource AccentTint}" BorderBrush="#C6DCCB" BorderThickness="1" CornerRadius="8" Padding="14,8">
+          <DockPanel>
+            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <Button Content="Undo" Command="{Binding UndoCommand}"/>
+              <Button Content="Close" Command="{Binding CloseNoticeCommand}"/>
+            </StackPanel>
+            <TextBlock Text="{Binding Notice}" Foreground="{StaticResource AccentInk}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+          </DockPanel>
+        </Border>
+
         <ItemsControl ItemsSource="{Binding Courses}">
           <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate><WrapPanel Orientation="Horizontal" ItemSpacing="16" LineSpacing="16"/></ItemsPanelTemplate>
           </ItemsControl.ItemsPanel>
           <ItemsControl.ItemTemplate>
             <DataTemplate x:DataType="vm:CourseCardViewModel">
-              <Button Classes="coursecard" Width="300" VerticalAlignment="Top" Command="{Binding OpenCommand}">
+              <Button Classes="coursecard" Width="300" VerticalAlignment="Top" Command="{Binding OpenCommand}" Opacity="{Binding CardOpacity}">
                 <StackPanel>
                   <Panel Height="188" Background="#E6E9E3">
                     <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" IsVisible="{Binding HasThumbnail}"/>
@@ -59,6 +69,15 @@
                     <Border Classes="chip" Background="{Binding ChipBackground}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10">
                       <TextBlock Text="{Binding KindLabel}" FontSize="12" FontWeight="Medium" Foreground="{Binding ChipForeground}"/>
                     </Border>
+                    <!-- Archive hides the course from the library only; the file and its products stay put. -->
+                    <Button Classes="archive" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="10" Padding="8,3"
+                            Command="{Binding ToggleArchiveCommand}" ToolTip.Tip="{Binding ArchiveTip}"
+                            Background="#E6FFFFFF" BorderBrush="#2418211C" BorderThickness="1" CornerRadius="6">
+                      <StackPanel Orientation="Horizontal" Spacing="6">
+                        <TextBlock Text="{Binding ArchiveGlyph}" FontFamily="{StaticResource IconFont}" FontSize="12" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding ArchiveLabel}" FontSize="12" FontWeight="Medium" VerticalAlignment="Center"/>
+                      </StackPanel>
+                    </Button>
                   </Panel>
                   <StackPanel Margin="16,14,16,16" Spacing="6">
                     <DockPanel>
@@ -80,6 +99,7 @@
                     </ItemsControl>
                     <TextBlock Text="{Binding RenamedFrom}" IsVisible="{Binding IsRenamed}" FontSize="12" Foreground="{StaticResource AccentInk}" TextWrapping="Wrap"/>
                     <TextBlock Text="{Binding Note}" IsVisible="{Binding HasNote}" FontSize="12" Foreground="#8A5300" TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding ArchivedNote}" IsVisible="{Binding IsArchived}" FontSize="12" Classes="muted" TextWrapping="Wrap"/>
                   </StackPanel>
                 </StackPanel>
               </Button>

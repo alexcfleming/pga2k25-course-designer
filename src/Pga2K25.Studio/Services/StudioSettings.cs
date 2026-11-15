@@ -37,6 +37,32 @@ public sealed class StudioSettings
     /// <summary>Course files added by hand from outside the courses folder (e.g. a published course's saved copy).</summary>
     public List<string> ExtraCourses { get; set; } = [];
 
+    /// <summary>
+    /// Courses hidden from the library by Archive. Nothing on disk changes: the course file stays in its folder and
+    /// its products stay where they are. Kept by the course's id (from the file), so a course renamed or moved in the
+    /// designer stays archived; a copy saved as a new file has its own id and shows as usual.
+    /// </summary>
+    public List<ArchivedCourse> Archived { get; set; } = [];
+
+    /// <summary>The archive entry for a course, or null when it isn't archived: by id, or by path for a file with no id.</summary>
+    public ArchivedCourse? ArchiveOf(CourseEntry entry) =>
+        Archived.FirstOrDefault(a => entry.Id.Length > 0 ? a.Id == entry.Id : string.Equals(a.Path, entry.Path, StringComparison.OrdinalIgnoreCase));
+
+    public bool IsArchived(CourseEntry entry) => ArchiveOf(entry) is not null;
+
+    /// <summary>Hides <paramref name="entry"/> from the library (and the Recent list); returns the entry made.</summary>
+    public ArchivedCourse Archive(CourseEntry entry, DateTime? when = null)
+    {
+        Restore(entry);
+        var a = new ArchivedCourse { Id = entry.Id, Path = entry.Path, Name = entry.Name, Archived = when ?? DateTime.Now };
+        Archived.Add(a);
+        return a;
+    }
+
+    /// <summary>Puts <paramref name="entry"/> back in the library.</summary>
+    public void Restore(CourseEntry entry) =>
+        Archived.RemoveAll(a => entry.Id.Length > 0 ? a.Id == entry.Id : string.Equals(a.Path, entry.Path, StringComparison.OrdinalIgnoreCase));
+
     /// <summary>Per course file: course-card settings and terrain map options.</summary>
     public Dictionary<string, CourseExtras> Courses { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
@@ -108,4 +134,13 @@ public sealed class CourseExtras
         ScorecardThemes = picked.Count == all.Length ? null : all.Where(picked.Contains).Select(k => k.ToString()).ToList();
         return true;
     }
+}
+
+/// <summary>A course hidden from the library: its id and the file and name it had when archived, and when.</summary>
+public sealed class ArchivedCourse
+{
+    public string Id { get; set; } = "";
+    public string Path { get; set; } = "";
+    public string Name { get; set; } = "";
+    public DateTime Archived { get; set; }
 }
