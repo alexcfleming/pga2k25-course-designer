@@ -62,6 +62,16 @@ public static class HoleSketches
     public const int SavedPixelsPerPoint = 2;
     /// <summary>Below this a page is not taken for any hole's sheet.</summary>
     public const double MinMatch = 0.3;
+    /// <summary>Below this match, the print is taken to show ground reshaped since, and pencil is told from print by its ink.</summary>
+    public const double InkBelowMatch = 0.55;
+    /// <summary>A page may take its next-best hole when its best is taken, if that one matched within this.</summary>
+    public const double NearTie = 0.05;
+    /// <summary>When more than this share of the "pencil" a page leaves is contour brown, its print isn't today's.</summary>
+    public const double PrintLeftAsPencil = 0.2;
+    /// <summary>Matched on route and grid alone, a page must beat its next hole by this.</summary>
+    public const double ClearBy = 0.04;
+    /// <summary>A page placed by its position in the scan must have matched that hole within this of its best.</summary>
+    public const double OrderWithin = 0.12;
     static readonly SKColor Graphite = new(0x26, 0x26, 0x26);
     static readonly JsonSerializerOptions Json = new() { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
 
@@ -147,19 +157,21 @@ public static class HoleSketches
         var candidates = new List<Candidate>[n];
         for (int i = 0; i < n; i++)
         {
-            candidates[i] = kinds.Select((k, t) => new Candidate(references[t * n + i].Norm, references[t * n + i].Thumb, false, k.Kind, 0, k.Inset)).ToList();
+            candidates[i] = kinds.Select((k, t) => new Candidate(references[t * n + i].Norm, references[t * n + i].Thumb, false, k.Kind, 0, k.Inset, references[t * n + i].Bare, references[t * n + i].InkThumb)).ToList();
             if (printedSheets is not null && BuiltSheet(Path.Combine(printedSheets, $"Hole_{course.Holes[i].Number:00}.png"), size) is { } b)
             {
                 int like = Enumerable.Range(0, kinds.Length).MaxBy(t => SheetScan.Correlation(b.Thumb, references[t * n + i].Thumb));
-                candidates[i].Add(new Candidate(b.Norm, b.Thumb, true, kinds[like].Kind, 0, kinds[like].Inset));
+                candidates[i].Add(new Candidate(b.Norm, b.Thumb, true, kinds[like].Kind, 0, kinds[like].Inset, b.Bare, b.InkThumb));
             }
         }
         var pageNorms = new byte[pages.Count][];
         var pageThumbs = new float[pages.Count][];
+        var pageInk = new float[pages.Count][];
         for (int pi = 0; pi < pages.Count; pi++)
         {
             pageNorms[pi] = SheetScan.PaperNormalised(pages[pi].Rect);
             pageThumbs[pi] = SheetScan.Thumbnail(pageNorms[pi], size.Width, size.Height);
+            pageInk[pi] = InkThumb(pages[pi].Rect, pageNorms[pi]);
         }
         // A page's closest sheet (either way up), and the closest of any other hole's.
         ((int Hole, double Score, bool Flip, Candidate Sheet) Best, double RunnerUp) Closest(int pi)
@@ -173,6 +185,18 @@ public static class HoleSketches
                 .OrderByDescending(x => x.Score).ToList();
             var best = scores[0];
             return (best, scores.FirstOrDefault(x => x.Hole != best.Hole).Score);
+        }
+
+        // A page's best sheet per hole, best hole first.
+        List<(int Hole, double Score, bool Flip, Candidate Sheet)> Ranked(int pi, bool byInk)
+        {
+            var mine = byInk ? pageInk[pi] : pageThumbs[pi];
+            return Enumerable.Range(0, n).Select(i => candidates[i].SelectMany(c => new[]
+                {
+                    (Hole: i, Score: SheetScan.Correlation(mine, byInk ? c.InkThumb : c.Thumb), Flip: false, Sheet: c),
+                    (Hole: i, Score: SheetScan.Correlation(mine, byInk ? c.InkThumb : c.Thumb, flip: true), Flip: true, Sheet: c),
+                }).MaxBy(x => x.Score))
+                .OrderByDescending(x => x.Score).ToList();
         }
 
         // 3. The heights on a sheet are measured from the plot's lowest point, which moves when the ground there is
@@ -197,27 +221,82 @@ public static class HoleSketches
                 Parallel.For(0, shifted.Length, parallel, j =>
                     shifted[j] = Render(course, layers, course.Holes[j % n], As(used[j / n]), datum + fit.Shift / TerrainSurvey.FeetPerMetre, sea, size));
                 for (int j = 0; j < shifted.Length; j++)
-                    candidates[j % n].Add(new Candidate(shifted[j].Norm, shifted[j].Thumb, false, used[j / n].Item1, fit.Shift, used[j / n].Item2));
+                    candidates[j % n].Add(new Candidate(shifted[j].Norm, shifted[j].Thumb, false, used[j / n].Item1, fit.Shift, used[j / n].Item2, shifted[j].Bare, shifted[j].InkThumb));
             }
 
-        // 4. Match each page to a hole (either way up), keeping the best page when two match the same hole.
-        var matched = new List<(int Page, int HoleIndex, double Score, bool Flip, byte[] Norm, byte[] Reference, bool Built, HoleSheetLayout Kind)>();
+        // 4. Match each page to a hole (either way up). A page that matches nothing well was printed from ground that
+        //    has been reshaped since, so it is matched again on what a sheet shows whatever its ground: the route, its
+        //    ticks and numbers and the grid's labels. Each hole takes its best page; a page that loses its hole to a
+        //    better one takes its next choice only when that was nearly as good (two holes that look alike).
+        var matched = new List<(int Page, int HoleIndex, double Score, bool Flip, byte[] Norm, byte[] Reference, bool Built, HoleSheetLayout Kind, byte[] Bare, bool ByInk)>();
+        var byInkPage = new bool[pages.Count];
+        var ranked = new List<(int Hole, double Score, bool Flip, Candidate Sheet)>[pages.Count];
+        for (int pi = 0; pi < pages.Count; pi++)
+        {
+            byInkPage[pi] = Closest(pi).Best.Score < InkBelowMatch;
+            ranked[pi] = Ranked(pi, byInkPage[pi]);
+        }
+        var holeOf = Enumerable.Repeat(-1, pages.Count).ToArray();
+        var byOrder = new bool[pages.Count];
+        var taken = new HashSet<int>();
+        // Matched on route and grid alone, two straight holes of a length look alike: such a page must beat its
+        // next hole clearly.
+        bool Clear(int pi, int r) => !byInkPage[pi] || ranked[pi].Where((_, o) => o != r).All(o => o.Score <= ranked[pi][r].Score - ClearBy);
+        foreach (var (pi, r) in Enumerable.Range(0, pages.Count)
+                     .SelectMany(pi => ranked[pi].Select((x, r) => (pi, r, x.Score)))
+                     .Where(x => x.Score >= MinMatch && x.Score >= ranked[x.pi][0].Score - NearTie && Clear(x.pi, x.r))
+                     .OrderByDescending(x => x.Score).Select(x => (x.pi, x.r)))
+            if (holeOf[pi] < 0 && taken.Add(ranked[pi][r].Hole)) holeOf[pi] = r;
+        // Sheets are usually scanned as a stack. Where a file's matched pages run in hole order, a page still without
+        // a hole takes the one its place gives, when that hole is free and matched it nearly as well as any.
+        foreach (var file in pages.Select(p => p.Page.File).Distinct())
+        {
+            var mine = Enumerable.Range(0, pages.Count).Where(pi => pages[pi].Page.File == file).ToList();
+            var steps = mine.Where(pi => holeOf[pi] >= 0).GroupBy(pi => course.Holes[ranked[pi][holeOf[pi]].Hole].Number - pages[pi].Page.Page)
+                .OrderByDescending(g => g.Count()).FirstOrDefault();
+            int known = mine.Count(pi => holeOf[pi] >= 0);
+            if (steps is null || steps.Count() < 3 || steps.Count() < 0.8 * known) continue;
+            foreach (int pi in mine.Where(pi => holeOf[pi] < 0))
+            {
+                int r = ranked[pi].FindIndex(x => course.Holes[x.Hole].Number == pages[pi].Page.Page + steps.Key);
+                if (r < 0 || ranked[pi][r].Score < MinMatch || ranked[pi][r].Score < ranked[pi][0].Score - OrderWithin) continue;
+                if (taken.Add(ranked[pi][r].Hole)) { holeOf[pi] = r; byOrder[pi] = true; }
+            }
+        }
         for (int pi = 0; pi < pages.Count; pi++)
         {
             var (p, _, _) = pages[pi];
-            var (best, runnerUp) = Closest(pi);
-            int number = course.Holes[best.Hole].Number;
-            if (best.Score < MinMatch)
+            var first = ranked[pi][0];
+            int number = course.Holes[first.Hole].Number;
+            if (first.Score < MinMatch)
             {
-                results.Add(new ScanResult(p.File, p.Page, null, best.Score, $"doesn't match any hole's sheet (closest hole {number}, {best.Score:0.00})"));
-                log?.Report($"{Path.GetFileName(p.File)} p{p.Page}: doesn't match any hole's sheet (closest hole {number}, {best.Score:0.00}), skipped.");
+                results.Add(new ScanResult(p.File, p.Page, null, first.Score, $"doesn't match any hole's sheet (closest hole {number}, {first.Score:0.00})"));
+                log?.Report($"{Path.GetFileName(p.File)} p{p.Page}: doesn't match any hole's sheet (closest hole {number}, {first.Score:0.00}), skipped.");
                 continue;
             }
+            if (holeOf[pi] < 0)
+            {
+                // Matched on route and grid, a page that lost its hole to a better page is more likely a hole whose
+                // routing has changed since it was printed than a second copy.
+                string why = !taken.Contains(first.Hole)
+                    ? $"could be hole {number} or hole {course.Holes[ranked[pi][1].Hole].Number} ({first.Score:0.00} and {ranked[pi][1].Score:0.00}); scan it with its neighbours in hole order to place it"
+                    : byInkPage[pi]
+                        ? $"can't be placed: it looks most like hole {number}, which another page matched better. Its own hole's routing has probably changed since it was printed"
+                        : $"another page matched hole {number} better";
+                results.Add(new ScanResult(p.File, p.Page, number, first.Score, why + "; skipped"));
+                log?.Report($"{Path.GetFileName(p.File)} p{p.Page}: {why}, skipped.");
+                continue;
+            }
+            var best = ranked[pi][holeOf[pi]];
+            number = course.Holes[best.Hole].Number;
+            double runnerUp = ranked[pi].Where((_, r) => r != holeOf[pi]).Select(x => x.Score).DefaultIfEmpty(0).Max();
             log?.Report($"{Path.GetFileName(p.File)} p{p.Page}: hole {number} ({best.Score:0.00}, next best {runnerUp:0.00}" +
                         $"{(best.Flip ? ", upside down" : "")}{(best.Sheet.Built ? ", against the built sheet" : "")}" +
                         $"{(best.Sheet.Kind == HoleSheetLayout.FullWidth ? ", a pre-2.5 full-width sheet" : "")}" +
-                        $"{(best.Sheet.ShiftFeet != 0 ? $", contours as printed {Math.Abs(best.Sheet.ShiftFeet):0.0} ft {(best.Sheet.ShiftFeet > 0 ? "lower" : "higher")}" : "")}).");
-            matched.Add((pi, best.Hole, best.Score, best.Flip, pageNorms[pi], best.Sheet.Norm, best.Sheet.Built, best.Sheet.Kind));
+                        $"{(best.Sheet.ShiftFeet != 0 ? $", contours as printed {Math.Abs(best.Sheet.ShiftFeet):0.0} ft {(best.Sheet.ShiftFeet > 0 ? "lower" : "higher")}" : "")}" +
+                        $"{(byInkPage[pi] ? ", matched on its route and grid: the ground has been reshaped since it was printed" : "")}" +
+                        $"{(byOrder[pi] ? "; placed by its position in the scan, so check its fit: the hole's routing may have changed since it was printed" : "")}).");
+            matched.Add((pi, best.Hole, best.Score, best.Flip, pageNorms[pi], best.Sheet.Norm, best.Sheet.Built, best.Sheet.Kind, best.Sheet.Bare, byInkPage[pi]));
         }
 
         // 5. Separate the pencil and save.
@@ -241,8 +320,26 @@ public static class HoleSketches
                 norm = SheetScan.PaperNormalised(scanRect);
             }
             // The print moved onto the scan's, tile by tile, where the paper wasn't flat.
-            var reference = SheetScan.AlignTo(norm, m.Reference, size.Width, size.Height);
+            // A page that matches its sheet poorly was printed from ground that has been reshaped since: today's
+            // contours can't explain the printed ones (and would cut the pencil where they cross it), so the sheet is
+            // compared without its contours and strokes are told from print by their ink instead.
+            bool byInk = m.ByInk;
+            var rgbaPixels = scanRect.GetPixelSpan().ToArray();
+            // Without its contours a sheet is lined up with the scan's black ink alone (its brown taken out too).
+            byte[] AlignedBare() => SheetScan.AlignTo(WithoutBrown(scanRect, 20), m.Bare, size.Width, size.Height);
+            var reference = byInk ? AlignedBare() : SheetScan.AlignTo(norm, m.Reference, size.Width, size.Height);
             var score = SheetScan.PencilScore(scanRect, norm, reference);
+            if (!byInk)
+            {
+                double left = SketchTracer.BrownShare(score, norm, rgbaPixels, size.Width, size.Height);
+                if (left > PrintLeftAsPencil)
+                {
+                    byInk = true;
+                    log?.Report($"Hole {course.Holes[m.HoleIndex].Number}: its printed contours aren't today's (the ground has been reshaped since it was printed), so pencil is told from print by its ink.");
+                    reference = AlignedBare();
+                    score = SheetScan.PencilScore(scanRect, norm, reference);
+                }
+            }
             var layout = HoleSheet.LayoutFor(layers, hole, options with { Layout = m.Kind });
             // Only pencil on the map strip is on the ground; writing in the notes column stays on the paper. The
             // frame line itself is kept out: the alignment can move it.
@@ -250,8 +347,17 @@ public static class HoleSketches
                 : new SKRect(0, 0, size.Width, size.Height);
             strip.Inflate(-SheetScan.AlignReach, -SheetScan.AlignReach);
             MaskOutside(score, size, strip);
+            var traced = SketchTracer.Trace(score, norm, size.Width, size.Height, out double? faintBelow, byInk ? rgbaPixels : null,
+                ((int)strip.Left, (int)strip.Top, (int)strip.Right - 1, (int)strip.Bottom - 1));
+            if (byInk)
+            {
+                // What is left of the printed route (black, so its ink doesn't give it away) runs along the route.
+                var onPage = layout.Projection(new SKRect(0, 0, size.Width, size.Height));
+                var route = layers.Holes.Single(h => h.Hole.Number == hole.Number).Route.Prepend(layout.BackTee).Select(q => onPage.Map(q)).ToList();
+                traced.RemoveAll(t => ShareNear(route, t.Points, 2 * SheetScan.PixelsPerPoint) >= 0.7);
+                KeepNear(score, size, traced);
+            }
             var alpha = SheetScan.PencilAlpha(score, size.Width, size.Height);
-            var traced = SketchTracer.Trace(score, norm, size.Width, size.Height, out double? faintBelow);
             string stem = $"Hole_{hole.Number:00}";
             SavePencil(Path.Combine(folder, stem + " pencil.png"), alpha, size, k);
             SaveScan(Path.Combine(folder, stem + " scan.jpg"), scanRect, k);
@@ -278,14 +384,14 @@ public static class HoleSketches
     }
 
     /// <summary>A sheet rendered to compare pages with: its map frame normalised, and a thumbnail of that.</summary>
-    sealed record Reference(byte[] Norm, float[] Thumb);
+    sealed record Reference(byte[] Norm, float[] Thumb, byte[] Bare, float[] InkThumb);
 
     /// <summary>
     /// A sheet a page may be: rendered now or the build's PNG (<paramref name="Built"/>), in a layout, with its heights
     /// <paramref name="ShiftFeet"/> lower than today's (the datum raised that much), with a green inset of
     /// <paramref name="InsetYards"/> (0: none, as strip sheets printed before 3.2).
     /// </summary>
-    sealed record Candidate(byte[] Norm, float[] Thumb, bool Built, HoleSheetLayout Kind, double ShiftFeet, double InsetYards);
+    sealed record Candidate(byte[] Norm, float[] Thumb, bool Built, HoleSheetLayout Kind, double ShiftFeet, double InsetYards, byte[] Bare, float[] InkThumb);
 
     static Reference Render(CourseModel course, Maps.CourseLayers layers, Hole hole, HoleSheetOptions options, double datum, bool sea, SKSizeI size) =>
         Render(course, layers, hole, options, datum, sea, size, null).Reference;
@@ -307,7 +413,7 @@ public static class HoleSketches
         using var bmp = SKBitmap.FromImage(image);
         using var rgba = SheetScan.ToRgba(bmp);
         var norm = SheetScan.PaperNormalised(rgba);
-        return (new Reference(norm, SheetScan.Thumbnail(norm, size.Width, size.Height)), sheet);
+        return (new Reference(norm, SheetScan.Thumbnail(norm, size.Width, size.Height), WithoutBrown(rgba), InkThumb(rgba, norm)), sheet);
     }
 
     /// <summary>
@@ -348,7 +454,30 @@ public static class HoleSketches
     }
 
     /// <summary>A built hole sheet PNG's frame at the straightened size, normalised; null when there isn't one.</summary>
-    static (byte[] Norm, float[] Thumb)? BuiltSheet(string path, SKSizeI size)
+    /// <summary>The sheet normalised with its brown ink (contours and their labels) taken out.</summary>
+    static byte[] WithoutBrown(SKBitmap rgba, int warmerThan = 40)
+    {
+        using var bare = rgba.Copy();
+        var px = bare.GetPixelSpan();
+        for (int i = 0; i < px.Length; i += 4)
+            if (px[i] - px[i + 2] > warmerThan) px[i] = px[i + 1] = px[i + 2] = 255;
+        return SheetScan.PaperNormalised(bare);
+    }
+
+    /// <summary>
+    /// A thumbnail of only the dark, neutral ink (the route, its ticks and numbers, the grid's labels; on a scan, the
+    /// pencil too): what a sheet shows whatever shape its ground was in when it was printed.
+    /// </summary>
+    static float[] InkThumb(SKBitmap rgba, byte[] norm)
+    {
+        var px = rgba.GetPixelSpan();
+        var ink = new byte[norm.Length];
+        for (int i = 0; i < ink.Length; i++)
+            ink[i] = 255 - norm[i] > 110 && px[4 * i] - px[4 * i + 2] <= 13 ? (byte)0 : (byte)255;
+        return SheetScan.Thumbnail(ink, rgba.Width, rgba.Height, 12);
+    }
+
+    static (byte[] Norm, float[] Thumb, byte[] Bare, float[] InkThumb)? BuiltSheet(string path, SKSizeI size)
     {
         if (!File.Exists(path)) return null;
         using var png = SKBitmap.Decode(path);
@@ -362,7 +491,7 @@ public static class HoleSketches
             c.DrawImage(image, new SKRect(r.Left * u, r.Top * u, r.Right * u, r.Bottom * u), new SKRect(0, 0, size.Width, size.Height),
                 new SKSamplingOptions(SKFilterMode.Linear, SKMipmapMode.Linear), null);
         var norm = SheetScan.PaperNormalised(frame);
-        return (norm, SheetScan.Thumbnail(norm, size.Width, size.Height));
+        return (norm, SheetScan.Thumbnail(norm, size.Width, size.Height), WithoutBrown(frame), InkThumb(frame, norm));
     }
 
     public static SketchLines? LoadLines(string path)
@@ -393,6 +522,56 @@ public static class HoleSketches
         for (int y = 0; y < size.Height; y++)
         for (int x = 0; x < size.Width; x++)
             if (x < x0 || x > x1 || y < y0 || y > y1) score[y * size.Width + x] = 0;
+    }
+
+    /// <summary>How much of a line's length (0–1) runs within <paramref name="within"/> of <paramref name="along"/>.</summary>
+    static double ShareNear(List<SKPoint> along, IReadOnlyList<(float X, float Y)> line, float within)
+    {
+        double total = 0, near = 0;
+        for (int i = 0; i + 1 < line.Count; i++)
+        {
+            float dx = line[i + 1].X - line[i].X, dy = line[i + 1].Y - line[i].Y, len = MathF.Sqrt(dx * dx + dy * dy);
+            int steps = Math.Max(1, (int)(len / 2));
+            for (int k = 0; k < steps; k++)
+            {
+                float t = (k + 0.5f) / steps;
+                total += len / steps;
+                if (NearPolyline(along, line[i].X + t * dx, line[i].Y + t * dy, within)) near += len / steps;
+            }
+        }
+        return total > 0 ? near / total : 0;
+    }
+
+    static bool NearPolyline(List<SKPoint> line, float x, float y, float within)
+    {
+        for (int i = 0; i + 1 < line.Count; i++)
+        {
+            float ax = line[i].X, ay = line[i].Y, dx = line[i + 1].X - ax, dy = line[i + 1].Y - ay;
+            float len2 = dx * dx + dy * dy, t = len2 < 1e-6f ? 0 : Math.Clamp(((x - ax) * dx + (y - ay) * dy) / len2, 0, 1);
+            float ex = x - ax - t * dx, ey = y - ay - t * dy;
+            if (ex * ex + ey * ey <= within * within) return true;
+        }
+        return false;
+    }
+
+    /// <summary>Clears the pencil score further than 2 pt from any traced line.</summary>
+    static void KeepNear(float[] score, SKSizeI size, List<TracedLine> lines)
+    {
+        using var mask = new SKBitmap(new SKImageInfo(size.Width, size.Height, SKColorType.Alpha8, SKAlphaType.Premul));
+        using (var c = new SKCanvas(mask))
+        {
+            c.Clear(SKColors.Transparent);
+            using var pen = new SKPaint { Color = SKColors.Black, StrokeWidth = 4 * SheetScan.PixelsPerPoint, Style = SKPaintStyle.Stroke, StrokeCap = SKStrokeCap.Round, StrokeJoin = SKStrokeJoin.Round };
+            foreach (var l in lines)
+            {
+                using var path = new SKPath();
+                path.MoveTo(l.Points[0].X, l.Points[0].Y);
+                foreach (var q in l.Points.Skip(1)) path.LineTo(q.X, q.Y);
+                c.DrawPath(path, pen);
+            }
+        }
+        var a = mask.GetPixelSpan();
+        for (int i = 0; i < score.Length; i++) if (a[i] == 0) score[i] = 0;
     }
 
     static SKBitmap Rotate180(SKBitmap b)
