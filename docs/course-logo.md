@@ -31,6 +31,8 @@ PNG with a transparent background works best (JPG and WebP also load). A large f
 | Scorecard map: Plan Sheet | Seal, ink | On a parchment disc in the emptiest top corner of the map (the title column is full) |
 | Scorecard map: Routing Plan | Seal, colour | In the title box, before the course name |
 | Scorecard map: Course Portrait | None | A wall print: title, credit and style credit only |
+| Scorecard map: Hanse Design | Seal, colour | In each of the four corner boxes of the border (a flag without a logo) |
+| Scorecard maps: Travis Sketch, MacKenzie Sketch | None | Pen plans: the title, card and signed credit only |
 | Yardage book pages | Mark, colour | The page header becomes one line: the mark, the course name in spaced capitals, a gold divider, then the hole line (shrinking together if the name is long). The north arrow keeps the right end. |
 | Greens book sheet | Seal, colour | Before the title |
 | Green study pages | Mark, colour | Before the hole title |

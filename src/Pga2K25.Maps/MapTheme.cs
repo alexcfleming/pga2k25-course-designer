@@ -2,7 +2,7 @@ using SkiaSharp;
 
 namespace Pga2K25.Maps;
 
-public enum MapThemeKind { Vintage, Modern, Illustrated, PlanSheet, ModernIllustrated, RoutingPlan, CoursePortrait }
+public enum MapThemeKind { Vintage, Modern, Illustrated, PlanSheet, ModernIllustrated, RoutingPlan, CoursePortrait, TravisSketch, MacKenzieSketch, HanseDesign }
 
 /// <summary>Colours, strokes and type for a scorecard map style.</summary>
 public sealed record MapTheme
@@ -167,8 +167,35 @@ public sealed record MapTheme
         Background = SKColors.White, Ink = SKColor.Parse("#1f1d1a"), MutedInk = SKColor.Parse("#6b665e"),
     };
 
+    /// <summary>Walter J. Travis's ink plans: black pen on white, drawn by the Sketches partial.</summary>
+    public static MapTheme TravisSketch { get; } = Vintage with
+    {
+        Kind = MapThemeKind.TravisSketch, Name = "Travis Sketch",
+        Background = SKColor.Parse("#fbfaf6"), Ink = SKColor.Parse("#1b1a18"), MutedInk = SKColor.Parse("#6a665e"),
+        TeeFill = SKColor.Parse("#fbfaf6"), TeeOutline = SKColor.Parse("#1b1a18"), Frame = false,
+    };
+
+    /// <summary>Alister MacKenzie's pen plans: drawn by the Sketches partial.</summary>
+    public static MapTheme MacKenzieSketch { get; } = TravisSketch with
+    {
+        Kind = MapThemeKind.MacKenzieSketch, Name = "MacKenzie Sketch",
+        Background = SKColor.Parse("#f8f7f2"), Ink = SKColor.Parse("#141414"),
+        TeeFill = SKColor.Parse("#f8f7f2"), TeeOutline = SKColor.Parse("#141414"),
+        BodyFonts = ["Century Schoolbook", "Georgia", "Times New Roman"],
+    };
+
+    /// <summary>Hanse Golf Course Design's coloured plans: drawn by the Sketches partial.</summary>
+    public static MapTheme HanseDesign { get; } = TravisSketch with
+    {
+        Kind = MapThemeKind.HanseDesign, Name = "Hanse Design",
+        Background = SKColor.Parse("#f6f1e2"), Ink = SKColor.Parse("#2e2a22"), MutedInk = SKColor.Parse("#6f6757"),
+    };
+
     public static MapTheme For(MapThemeKind kind) => kind switch
     {
+        MapThemeKind.TravisSketch => TravisSketch,
+        MapThemeKind.MacKenzieSketch => MacKenzieSketch,
+        MapThemeKind.HanseDesign => HanseDesign,
         MapThemeKind.CoursePortrait => CoursePortrait,
         MapThemeKind.RoutingPlan => RoutingPlan,
         MapThemeKind.Modern => Modern,

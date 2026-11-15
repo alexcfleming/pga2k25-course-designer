@@ -85,7 +85,7 @@ public sealed partial class ScorecardMapRenderer : IDisposable
         _italic = SKTypeface.FromFamilyName(bodyFamily, SKFontStyle.Italic);
         (_display, _label) = PlanSheetFaces();
         // The seal before the course name: in colour on Modern's flat colour and the Routing Plan, in ink on the engraved styles.
-        _logo = options.Logos?.Get(LogoKind.Seal, _t.Kind is MapThemeKind.Modern or MapThemeKind.ModernIllustrated or MapThemeKind.RoutingPlan ? LogoTone.Colour : LogoTone.Ink)?.Image;
+        _logo = options.Logos?.Get(LogoKind.Seal, _t.Kind is MapThemeKind.Modern or MapThemeKind.ModernIllustrated or MapThemeKind.RoutingPlan or MapThemeKind.HanseDesign ? LogoTone.Colour : LogoTone.Ink)?.Image;
     }
 
     /// <summary>The course seal, or null without a logo set (the set owns the image).</summary>
@@ -95,13 +95,19 @@ public sealed partial class ScorecardMapRenderer : IDisposable
         families.FirstOrDefault(f => string.Equals(SKTypeface.FromFamilyName(f)?.FamilyName, f, StringComparison.OrdinalIgnoreCase))
         ?? SKTypeface.Default.FamilyName;
 
-    public void Dispose() { _title.Dispose(); _body.Dispose(); _bodyBold.Dispose(); _italic.Dispose(); _display.Dispose(); _label.Dispose(); _landscape?.Dispose(); _scenery?.Dispose(); _aerial?.Dispose(); if (_contours is not null) foreach (var (minor, major) in _contours) { minor.Dispose(); major.Dispose(); } }
+    public void Dispose() { _title.Dispose(); _body.Dispose(); _bodyBold.Dispose(); _italic.Dispose(); _display.Dispose(); _label.Dispose(); _landscape?.Dispose(); _scenery?.Dispose(); _hand?.Dispose(); _script?.Dispose(); _serifBold?.Dispose(); _serif?.Dispose(); _serifItalic?.Dispose(); _ornament?.Dispose(); _aerial?.Dispose(); if (_contours is not null) foreach (var (minor, major) in _contours) { minor.Dispose(); major.Dispose(); } }
 
     /// <summary>Chooses page orientation and rotation, returning the page size in logical units.</summary>
     public (SKSize Page, bool Landscape, double Rotation) Plan(CourseLayers layers)
     {
         _teeSets = layers.Holes.Count == 0 ? 1 : layers.Holes.Max(h => Math.Max(1, h.Hole.Tees.Count));
         var pts = layers.ExtentPoints().ToList();
+        if (IsSketchStyle)
+        {
+            var page = new SKSize(LongSide, ShortSide);
+            var rect = SketchMapRect(page);
+            return (page, true, _o.AutoRotate ? MapProjection.BestRotation(pts, rect) : MapProjection.NorthUpRotation);
+        }
         if (IsRoutingPlan)
         {
             var (rect, rotation) = RoutingFit(layers, pts, new SKSize(LongSide, ShortSide));
@@ -132,7 +138,7 @@ public sealed partial class ScorecardMapRenderer : IDisposable
     int _teeSets = 1;
 
     SKRect MapRectFor(SKSize page, bool landscape) =>
-        IsPlanSheet ? PlanSheetMapRect(page) : IsRoutingPlan ? _routingRect : landscape ? StripMapRect(page)
+        IsSketchStyle ? SketchMapRect(page) : IsPlanSheet ? PlanSheetMapRect(page) : IsRoutingPlan ? _routingRect : landscape ? StripMapRect(page)
         : new SKRect(40, 118, page.Width - 40, page.Height - 40 - PortraitBand(_teeSets));
 
     public void Draw(SKCanvas canvas, string courseName, CourseModel course, CourseLayers layers)
@@ -144,6 +150,11 @@ public sealed partial class ScorecardMapRenderer : IDisposable
         if (IsModernIllustrated)
         {
             DrawModernIllustrated(canvas, courseName, course, layers, proj, page, mapRect);
+            return;
+        }
+        if (IsSketchStyle)
+        {
+            DrawSketchStyle(canvas, courseName, course, layers, proj, page, mapRect);
             return;
         }
         if (IsRoutingPlan)

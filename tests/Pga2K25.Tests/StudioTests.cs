@@ -143,32 +143,52 @@ public class StudioTests
     }
 
     [Fact]
-    public void ScorecardStyles_BuildOnlyTheTickedOnes_AndOneAlwaysStays()
+    public void ScorecardStyles_NoneTickedToStart_BuildOnlyTheTickedOnes()
     {
         var extras = new CourseExtras();
-        Assert.Equal(Enum.GetValues<MapThemeKind>(), extras.ScorecardThemeKinds());   // default: every style
+        Assert.Empty(extras.ScorecardThemeKinds());   // default: none, so nothing builds until a style is ticked
 
-        Assert.True(extras.SetScorecardTheme(MapThemeKind.Modern, false));
-        Assert.True(extras.SetScorecardTheme(MapThemeKind.Illustrated, false));
-        Assert.DoesNotContain(MapThemeKind.Modern, extras.ScorecardThemeKinds());
-        Assert.Equal(Enum.GetValues<MapThemeKind>().Length - 2, extras.ScorecardThemeKinds().Count);
-
-        // Down to one: it can't be unticked.
-        foreach (var k in new[] { MapThemeKind.Vintage, MapThemeKind.PlanSheet, MapThemeKind.ModernIllustrated, MapThemeKind.CoursePortrait })
-            Assert.True(extras.SetScorecardTheme(k, false));
-        Assert.False(extras.SetScorecardTheme(MapThemeKind.RoutingPlan, false));
-        Assert.Equal([MapThemeKind.RoutingPlan], extras.ScorecardThemeKinds());
+        extras.SetScorecardTheme(MapThemeKind.RoutingPlan, true);
+        extras.SetScorecardTheme(MapThemeKind.Vintage, true);
+        extras.SetScorecardTheme(MapThemeKind.Vintage, true);   // ticking twice changes nothing
+        Assert.Equal([MapThemeKind.Vintage, MapThemeKind.RoutingPlan], extras.ScorecardThemeKinds());   // menu order
 
         // Saved by name, and survives a settings round trip.
-        Assert.True(extras.SetScorecardTheme(MapThemeKind.Vintage, true));
         var json = System.Text.Json.JsonSerializer.Serialize(extras);
         var back = System.Text.Json.JsonSerializer.Deserialize<CourseExtras>(json)!;
         Assert.Equal([MapThemeKind.Vintage, MapThemeKind.RoutingPlan], back.ScorecardThemeKinds());
 
-        // Ticking them all goes back to the default, so a style added later is built too; unknown names are ignored.
-        foreach (var k in Enum.GetValues<MapThemeKind>()) back.SetScorecardTheme(k, true);
+        // The last one can be unticked too: back to none.
+        back.SetScorecardTheme(MapThemeKind.Vintage, false);
+        back.SetScorecardTheme(MapThemeKind.RoutingPlan, false);
+        Assert.Empty(back.ScorecardThemeKinds());
         Assert.Null(back.ScorecardThemes);
-        Assert.Equal(Enum.GetValues<MapThemeKind>(), new CourseExtras { ScorecardThemes = ["Retired"] }.ScorecardThemeKinds());
+
+        // A style added in a later release isn't ticked for a course that ticked the others; unknown names are ignored.
+        var all = new CourseExtras();
+        foreach (var k in Enum.GetValues<MapThemeKind>()) all.SetScorecardTheme(k, true);
+        Assert.Equal(Enum.GetValues<MapThemeKind>(), all.ScorecardThemeKinds());
+        Assert.NotNull(all.ScorecardThemes);
+        Assert.Empty(new CourseExtras { ScorecardThemes = ["Retired"] }.ScorecardThemeKinds());
+    }
+
+    sealed class LogLines : IProgress<string>
+    {
+        public List<string> Lines { get; } = [];
+        public void Report(string value) => Lines.Add(value);
+    }
+
+    [Fact]
+    public void ScorecardMap_WithNoStyleTicked_BuildsNothingAndSaysWhy()
+    {
+        var product = Products.All.Single(p => p.Name == "Scorecard map");
+        var log = new LogLines();
+        string dir = Path.Combine(Path.GetTempPath(), $"studio-noticks-{Guid.NewGuid():N}");
+        // The course file isn't even read: with nothing ticked the build stops first.
+        var result = product.Build(new BuildContext(Path.Combine(dir, "missing.course"), dir, new StudioSettings(), new CourseExtras(), log));
+        Assert.Null(result);
+        Assert.Equal([Products.NoScorecardStyles], log.Lines);
+        Assert.False(Directory.Exists(dir));
     }
 
     [Fact]

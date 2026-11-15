@@ -28,6 +28,9 @@ public sealed record ProductPage(string Title, string Path);
 
 public static class Products
 {
+    /// <summary>The build log's line when a course has no scorecard map style ticked.</summary>
+    public const string NoScorecardStyles = "No scorecard map styles are ticked, so none were built. Tick the styles you want on the Scorecard map page.";
+
     /// <summary>Every product, in menu and "Build all" order (Alex's order, 4 Nov 2026).</summary>
     public static readonly IReadOnlyList<ProductDefinition> All =
     [
@@ -90,13 +93,19 @@ public static class Products
         new("Scorecard map", " - Scorecard Map (Vintage).png", c =>
         {
             var options = new ScorecardMapOptions { Credit = c.Settings.Credit, BunkerMergeMetres = c.Extras.BunkerMergeMetres };
-            // Only the styles ticked for this course (every style unless the user picked some on the Scorecard map page).
-            return ScorecardMapBuilder.Build(c.CoursePath, c.OutputDir, options, c.Extras.ScorecardThemeKinds(), pdf: true, log: c.Log)
+            // Only the styles ticked for this course on the Scorecard map page; none are ticked to start with.
+            var styles = c.Extras.ScorecardThemeKinds();
+            if (styles.Count == 0)
+            {
+                c.Log.Report(NoScorecardStyles);
+                return null;
+            }
+            return ScorecardMapBuilder.Build(c.CoursePath, c.OutputDir, options, styles, pdf: true, log: c.Log)
                 .Files.FirstOrDefault();
         })
         {
-            Pages = ["{0} - Scorecard Map (Vintage).png", "{0} - Scorecard Map (Modern).png", "{0} - Scorecard Map (Illustrated).png", "{0} - Scorecard Map (Plan Sheet).png", "{0} - Scorecard Map (Modern Illustrated).png", "{0} - Scorecard Map (Routing Plan).png", "{0} - Scorecard Map (Course Portrait).png"],
-            Pdfs = ["{0} - Scorecard Map (Vintage).pdf", "{0} - Scorecard Map (Modern).pdf", "{0} - Scorecard Map (Illustrated).pdf", "{0} - Scorecard Map (Plan Sheet).pdf", "{0} - Scorecard Map (Modern Illustrated).pdf", "{0} - Scorecard Map (Routing Plan).pdf", "{0} - Scorecard Map (Course Portrait).pdf"],
+            Pages = ["{0} - Scorecard Map (Vintage).png", "{0} - Scorecard Map (Modern).png", "{0} - Scorecard Map (Illustrated).png", "{0} - Scorecard Map (Plan Sheet).png", "{0} - Scorecard Map (Modern Illustrated).png", "{0} - Scorecard Map (Routing Plan).png", "{0} - Scorecard Map (Course Portrait).png", "{0} - Scorecard Map (Travis Sketch).png", "{0} - Scorecard Map (MacKenzie Sketch).png", "{0} - Scorecard Map (Hanse Design).png"],
+            Pdfs = ["{0} - Scorecard Map (Vintage).pdf", "{0} - Scorecard Map (Modern).pdf", "{0} - Scorecard Map (Illustrated).pdf", "{0} - Scorecard Map (Plan Sheet).pdf", "{0} - Scorecard Map (Modern Illustrated).pdf", "{0} - Scorecard Map (Routing Plan).pdf", "{0} - Scorecard Map (Course Portrait).pdf", "{0} - Scorecard Map (Travis Sketch).pdf", "{0} - Scorecard Map (MacKenzie Sketch).pdf", "{0} - Scorecard Map (Hanse Design).pdf"],
         },
     ];
 

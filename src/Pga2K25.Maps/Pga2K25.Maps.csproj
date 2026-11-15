@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <None Include="..\..\assets\fonts\plansheet\*" Link="fonts\plansheet\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\assets\fonts\sketches\*" Link="fonts\sketches\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <PropertyGroup>
