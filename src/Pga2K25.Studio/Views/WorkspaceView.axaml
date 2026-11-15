@@ -311,6 +311,11 @@
                       ToolTip.Tip="Back out to the whole map, north up (south up in Game view)"/>
               <ToggleButton Classes="pill" Content="Game view" IsChecked="{Binding GameView}" VerticalAlignment="Center"
                             ToolTip.Tip="Turn the map to the way the game first shows a plot: south at the top, the north-up map turned round. The compass still points north."/>
+              <ToggleButton Classes="pill" Content="3D view" IsChecked="{Binding View3D}" VerticalAlignment="Center"
+                            ToolTip.Tip="See this ground as a 3D model: drag to orbit, right-drag to move, scroll to zoom. Pick a hole below to stand on its tee; Whole map backs out to the whole course. Trees are stand-in shapes, not the game's."/>
+              <Button Content="Open in browser" Command="{Binding OpenView3DInBrowserCommand}" MinHeight="30" Padding="10,0" VerticalAlignment="Center"
+                      IsVisible="{Binding View3D}" IsEnabled="{Binding View3DPage, Converter={x:Static ObjectConverters.IsNotNull}}"
+                      ToolTip.Tip="Open the 3D model as a page in your web browser"/>
             </WrapPanel>
           </Border>
 
@@ -445,6 +450,13 @@
                 <TextBlock Text="Rendering the terrain map…" Classes="muted" HorizontalAlignment="Center"/>
               </StackPanel>
             </Border>
+            <!-- The 3D view covers the map; its web view is added in code the first time it is wanted. -->
+            <Panel x:Name="View3DHost" Background="#DFE9EA" IsVisible="{Binding View3D}">
+              <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10" MaxWidth="460">
+                <ProgressBar IsIndeterminate="True" Width="220" IsVisible="{Binding View3DBuilding}"/>
+                <TextBlock Text="{Binding View3DStatus}" Classes="muted" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Panel>
           </Panel>
         </DockPanel>
       </Border>

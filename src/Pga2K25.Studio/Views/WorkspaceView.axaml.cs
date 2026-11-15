@@ -5,6 +5,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
+using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Pga2K25.Studio.ViewModels;
@@ -21,6 +22,10 @@ public partial class WorkspaceView : UserControl
     readonly MapSurface _map;
     readonly TextBlock _zoomText;
     readonly Panel _northArrow;
+    readonly Panel _view3DHost;
+    NativeWebView? _web;
+    Uri? _webPage;
+    bool _webStarted;
     WorkspaceViewModel? _vm;
 
     public WorkspaceView()
@@ -30,6 +35,7 @@ public partial class WorkspaceView : UserControl
         _zoomText = this.FindControl<TextBlock>("ZoomText")!;
         _northArrow = this.FindControl<Panel>("NorthArrow")!;
         _northArrow.RenderTransform = new RotateTransform();
+        _view3DHost = this.FindControl<Panel>("View3DHost")!;
         _map.MapPointerMoved += p => _vm?.Hover(p);
         _map.MapClicked += p => _vm?.MapClicked(p);
         _map.PinClicked += id => _vm?.PinClicked(id);
@@ -53,9 +59,12 @@ public partial class WorkspaceView : UserControl
             _vm.FitRequested -= Fit;
             _vm.NoteEditorFocusRequested -= FocusNoteEditor;
             _vm.PropertyChanged -= OnVmPropertyChanged;
+            _vm.View3DHoleRequested -= ShowHoleIn3D;
         }
         _vm = DataContext as WorkspaceViewModel;
+        UpdateView3D();
         if (_vm is null) return;
+        _vm.View3DHoleRequested += ShowHoleIn3D;
         _vm.CentreOn += CentreOn;
         _vm.LayersChanged += PullLayers;
         _vm.ShowFrameRequested += ShowFrame;
@@ -72,6 +81,7 @@ public partial class WorkspaceView : UserControl
         if (_vm is null) return;
         if (e.PropertyName == nameof(WorkspaceViewModel.MapImage)) _map.Source = _vm.MapImage;
         else if (e.PropertyName == nameof(WorkspaceViewModel.PlacingNote)) _map.Placing = _vm.PlacingNote;
+        else if (e.PropertyName is nameof(WorkspaceViewModel.View3D) or nameof(WorkspaceViewModel.View3DPage)) UpdateView3D();
         else if (e.PropertyName == nameof(WorkspaceViewModel.Section))
             // A page picked from one of the icon rail's pop-out lists closes the list.
             foreach (var name in new[] { "ProductsRail", "SetupRail", "RecentRail" })
@@ -93,6 +103,59 @@ public partial class WorkspaceView : UserControl
         _map.ShowCorridors = _vm.ShowCorridors;
         _map.Conflicts = _vm.CurrentConflicts();
         _map.ArrowTemplate = _vm.CurrentArrowTemplate();
+    }
+
+    /// <summary>
+    /// Shows the built 3D page in a web view over the map, or hides it. The web view is a native window made the
+    /// first time it is wanted (so a session that never opens the 3D view never starts one), and it is shown only
+    /// while there is a page: nothing of Studio's can draw on top of it, so the "building" note sits beneath.
+    /// </summary>
+    void UpdateView3D()
+    {
+        bool show = _vm is { View3D: true, View3DPage: not null };
+        if (show && _web is null)
+        {
+            try
+            {
+                _web = new NativeWebView();
+                _web.EnvironmentRequested += (_, e) =>
+                {
+                    // Its browser profile goes with Studio's other files, not beside the program.
+                    if (e is WindowsWebView2EnvironmentRequestedEventArgs windows)
+                        windows.UserDataFolder = Path.Combine(
+                            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CourseDesignerStudio", "WebView2");
+                };
+                _web.AdapterCreated += (_, _) => _webStarted = true;
+                _view3DHost.Children.Add(_web);
+                // A web view that can't start (no WebView2 runtime, say) fails later and off this call, so it is
+                // checked after a wait: if its browser never came up, say so in its place.
+                DispatcherTimer.RunOnce(() =>
+                {
+                    if (_webStarted || _web is null) return;
+                    _view3DHost.Children.Remove(_web);
+                    _web = null;
+                    _webPage = null;
+                    _vm?.View3DFailed("its built-in browser (Microsoft Edge WebView2) did not start.");
+                }, TimeSpan.FromSeconds(12));
+            }
+            catch (Exception ex)
+            {
+                Program.LogCrash(ex);
+                _web = null;
+                _vm!.View3DFailed(ex.Message);
+                return;
+            }
+        }
+        if (_web is null) return;
+        _web.IsVisible = show;
+        if (show && _vm!.View3DPage != _webPage) _web.Source = _webPage = _vm.View3DPage!;
+    }
+
+    async void ShowHoleIn3D(int number)
+    {
+        if (_web is not { IsVisible: true } web) return;
+        try { await web.InvokeScript($"window.view3d && view3d.showHole({number})"); }
+        catch (Exception ex) { Program.LogCrash(ex); }
     }
 
     void CentreOn(Point px) => _map.CentreOn(px);

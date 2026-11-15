@@ -7,6 +7,7 @@ using Pga2K25.HoleIllustrations;
 using Pga2K25.Maps;
 using Pga2K25.Readiness;
 using Pga2K25.TerrainMap;
+using Pga2K25.View3D;
 using Pga2K25.YardageBook;
 
 const string Usage = """
@@ -108,6 +109,10 @@ const string Usage = """
       fairway spot in reach, each valued by the third shot it leaves
       --whole plays every pin tee to cup for --player (strokes gained by phase); --experiments plays design
       changes (landing zone 5 yds wider or narrower, hazards near play taken out) against the hole as it is
+    pga2k25 view3d <file.course> [-o <dir>] [--margin 200] [--full-plot] [--grid 1024] [--texture 4096]
+                   [--plants 60000] [--cell 1.0]
+      3D view (first look): one self-contained page, "<course> - 3D View.html", with the replayed ground,
+      the drawn surfaces draped over it, water, planted trees and bushes, and a view down every hole
     pga2k25 holesim-terrain <file.course> --holes 11,3,4 [--smooth 8] [--readings 10] [--fit-length 25]
       terrain study for the hole design simulator, on a course whose distance markers carry the
       game's ground height (Sangoma): the brush replay and the replay smoothed outside greens,
@@ -136,6 +141,7 @@ try
         case "calibrate" when args.Length >= 3: return Calibrate(args[1], args[2], args[3..]);
         case "holesim": return HoleSimCommand(args[1], args[2..]);
         case "holesim-terrain": return HoleSimTerrainCommand(args[1], args[2..]);
+        case "view3d": return View3DCommand(args[1], args[2..]);
         default: Console.Error.WriteLine(Usage); return 2;
     }
 }
@@ -143,6 +149,30 @@ catch (Exception ex)
 {
     Console.Error.WriteLine(Environment.GetEnvironmentVariable("PGA2K25_DEBUG") is null ? $"error: {ex.Message}" : ex.ToString());
     return 1;
+}
+
+static int View3DCommand(string path, string[] rest)
+{
+    var options = new View3DOptions();
+    string outDir = Path.GetDirectoryName(Path.GetFullPath(path))!;
+    var inv = CultureInfo.InvariantCulture;
+    for (int i = 0; i < rest.Length; i++)
+    {
+        string Next() => i + 1 < rest.Length ? rest[++i] : throw new ArgumentException($"{rest[i]} needs a value");
+        switch (rest[i])
+        {
+            case "-o": case "--out": outDir = Next(); break;
+            case "--margin": options = options with { Map = options.Map with { MarginMetres = double.Parse(Next(), inv) } }; break;
+            case "--full-plot": options = options with { Map = options.Map with { Extent = MapExtent.FullPlot } }; break;
+            case "--cell": options = options with { Map = options.Map with { Terrain = options.Map.Terrain with { CellMetres = double.Parse(Next(), inv) } } }; break;
+            case "--grid": options = options with { MaxGrid = int.Parse(Next(), inv) }; break;
+            case "--texture": options = options with { MaxTexture = int.Parse(Next(), inv) }; break;
+            case "--plants": options = options with { MaxPlants = int.Parse(Next(), inv) }; break;
+            default: throw new ArgumentException($"unknown option {rest[i]}");
+        }
+    }
+    View3DBuilder.Build(path, outDir, options, new SyncProgress(Console.WriteLine));
+    return 0;
 }
 
 static int HoleSimTerrainCommand(string path, string[] rest)

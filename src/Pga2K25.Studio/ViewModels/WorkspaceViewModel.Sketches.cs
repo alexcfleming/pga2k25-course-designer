@@ -374,12 +374,14 @@ public partial class WorkspaceViewModel
     [RelayCommand] private void ShowHoleView()
     {
         if (_selectedHole == 0) return;
+        if (View3D) View3DHoleRequested?.Invoke(_selectedHole);
         HoleView = true;
         RequestFrame(_selectedHole);
     }
 
     [RelayCommand] private void ShowWholeMap()
     {
+        if (View3D) View3DHoleRequested?.Invoke(0);   // 0: the whole course
         HoleView = false;
         ViewText = "";
         FitRequested?.Invoke();

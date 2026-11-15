@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}} — 3D view</title>
+<style>
+  :root { --ink: #eef2ee; --dim: #b9c4bd; --glass: rgba(18, 26, 23, .74); --line: rgba(255, 255, 255, .14); --gold: #e8c468; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #cfe0ea; font: 13px/1.35 "Segoe UI", system-ui, sans-serif; color: var(--ink); }
+  canvas#view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  canvas#view.dragging { cursor: grabbing; }
+  .glass { position: fixed; background: var(--glass); border: 1px solid var(--line); border-radius: 10px; backdrop-filter: blur(8px); }
+  #title { left: 14px; top: 14px; padding: 10px 14px; max-width: min(420px, calc(100vw - 28px)); }
+  #title h1 { margin: 0; font-size: 17px; font-weight: 600; letter-spacing: .01em; }
+  #title p { margin: 3px 0 0; color: var(--dim); font-size: 12px; }
+  .hosted #title h1, .hosted #holes { display: none; }
+  #hole { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); display: none; }
+  #hole b { font-size: 14px; }
+  #hole .row { margin-top: 6px; display: flex; gap: 6px; }
+  #panel { right: 14px; top: 14px; padding: 10px 12px; width: 190px; }
+  #panel label { display: flex; align-items: center; gap: 8px; padding: 3px 0; cursor: pointer; user-select: none; }
+  #panel input[type=checkbox] { accent-color: var(--gold); width: 15px; height: 15px; margin: 0; }
+  #panel .sun { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+  #panel .sun div { display: flex; justify-content: space-between; color: var(--dim); font-size: 12px; }
+  #panel input[type=range] { width: 100%; accent-color: var(--gold); margin: 4px 0 0; }
+  #holes { left: 50%; bottom: 14px; transform: translateX(-50%); padding: 6px; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; max-width: calc(100vw - 28px); }
+  button { font: inherit; color: var(--ink); background: rgba(255, 255, 255, .08); border: 1px solid var(--line); border-radius: 7px; padding: 5px 9px; min-width: 32px; cursor: pointer; }
+  button:hover { background: rgba(255, 255, 255, .18); }
+  button.on { background: var(--gold); border-color: var(--gold); color: #1d2420; font-weight: 600; }
+  #read { left: 14px; bottom: 14px; padding: 6px 10px; color: var(--dim); font-size: 12px; font-variant-numeric: tabular-nums; min-width: 150px; }
+  #wait { position: fixed; inset: 0; display: grid; place-items: center; background: #dfe9ea; color: #24302b; font-size: 15px; z-index: 5; }
+  @media (max-width: 760px) { #read { display: none; } #panel { width: 160px; } #title p { display: none; } }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="title" class="glass">
+  <h1>{{TITLE}}</h1>
+  <p>Drag to orbit · right-drag to move · scroll to zoom · double-click to centre</p>
+  <div id="hole">
+    <b id="holeName"></b><div id="holeFacts" style="color:var(--dim)"></div>
+    <div class="row"><button data-view="tee">From the tee</button><button data-view="green">At the green</button><button data-view="fly">Fly the hole</button></div>
+  </div>
+</div>
+<div id="panel" class="glass">
+  <label><input type="checkbox" id="tTrees" checked> Trees and bushes</label>
+  <label><input type="checkbox" id="tContours"> Contour lines</label>
+  <label><input type="checkbox" id="tRoutes" checked> Routing lines</label>
+  <label><input type="checkbox" id="tLabels" checked> Hole numbers</label>
+  <label><input type="checkbox" id="tShadows" checked> Shadows</label>
+  <div class="sun"><div><span>Sun</span><span id="clock"></span></div><input type="range" id="sun" min="5.5" max="20.5" step="0.25"></div>
+</div>
+<div id="holes" class="glass"></div>
+<div id="read" class="glass">&nbsp;</div>
+<div id="wait">Building the model…</div>
+
+<script id="scene" type="application/json">{{SCENE}}</script>
+<script id="heights" type="text/plain">{{HEIGHTS}}</script>
+<script id="picture" type="text/plain">{{PICTURE}}</script>
+<script>/*{{THREE}}*/</script>
+<script>
+(async function () {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const S = JSON.parse($('scene').textContent), G = S.grid;
+  const FT = 3.2808399, NX = G.nx, NZ = G.nz, CELL = G.cell;
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const fail = m => { $('wait').textContent = m; };
+  if (typeof THREE === 'undefined') return fail('The 3D library inside this page did not load, so the view cannot be drawn.');
+
+  // ---- ground heights: 16-bit steps, gzipped ----
+  let H;
+  try {
+    const text = atob($('heights').textContent.trim()), packed = new Uint8Array(text.length);
+    for (let i = 0; i < text.length; i++) packed[i] = text.charCodeAt(i);
+    const raw = await new Response(new Blob([packed]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer();
+    const q = new Uint16Array(raw, 0, NX * NZ), range = G.hi - G.lo;
+    H = new Float32Array(NX * NZ);
+    for (let i = 0; i < H.length; i++) H[i] = G.lo + q[i] / 65535 * range;
+  } catch (e) { return fail('This browser could not unpack the ground (' + e.message + ').'); }
+
+  // World is the game's X/Z ground plane (metres) with height up. three.js is right-handed, so Z is negated on the
+  // way in: seen from above the model is then the right way round, not mirrored.
+  function ground(x, zw) {
+    const fx = clamp((x - G.minX) / CELL, 0, NX - 1.001), fz = clamp((zw - G.minZ) / CELL, 0, NZ - 1.001);
+    const x0 = fx | 0, z0 = fz | 0, tx = fx - x0, tz = fz - z0, i = z0 * NX + x0;
+    return (H[i] * (1 - tx) + H[i + 1] * tx) * (1 - tz) + (H[i + NX] * (1 - tx) + H[i + NX + 1] * tx) * tz;
+  }
+  const inside = (x, zw) => x >= G.minX && zw >= G.minZ && x <= G.minX + (NX - 1) * CELL && zw <= G.minZ + (NZ - 1) * CELL;
+  const at = (x, zw, lift) => new THREE.Vector3(x, ground(x, zw) + (lift || 0), -zw);
+  const maxX = G.minX + (NX - 1) * CELL, maxZ = G.minZ + (NZ - 1) * CELL;
+  const centre = { x: (G.minX + maxX) / 2, z: (G.minZ + maxZ) / 2 }, span = Math.max(maxX - G.minX, maxZ - G.minZ);
+
+  // ---- renderer ----
+  const canvas = $('view');
+  // A web view that has only just opened can refuse a WebGL context for a moment, so this tries for a few seconds.
+  let renderer, refused;
+  for (let attempt = 0; attempt < 12 && !renderer; attempt++) {
+    try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' }); }
+    catch (e) { refused = e; await new Promise(next => setTimeout(next, 500)); }
+  }
+  if (!renderer) return fail('This browser would not start WebGL, so the 3D view cannot be drawn (' + (refused && refused.message) + ').');
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.autoUpdate = false;
+  const scene = new THREE.Scene();
+  const HAZE = new THREE.Color(0xcfe0ea);
+  scene.fog = new THREE.Fog(HAZE, span * 0.9, span * 7);
+  const camera = new THREE.PerspectiveCamera(48, 1, 1.5, 40000);
+
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(30000, 24, 12), new THREE.ShaderMaterial({
+    side: THREE.BackSide, depthWrite: false, fog: false,
+    uniforms: { top: { value: new THREE.Color(0x4f86c9) }, haze: { value: HAZE }, low: { value: new THREE.Color(0xb7c6c4) } },
+    vertexShader: 'varying vec3 d; void main(){ d = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform vec3 top, haze, low; varying vec3 d; void main(){ float y = normalize(d).y; vec3 c = y > 0.0 ? mix(haze, top, pow(y, 0.55)) : mix(haze, low, min(1.0, -y * 6.0)); gl_FragColor = vec4(c, 1.0); }',
+  }));
+  sky.renderOrder = -10; sky.frustumCulled = false;
+  scene.add(sky);
+
+  const hemi = new THREE.HemisphereLight(0xdfeeff, 0x7d8466, 1.25);
+  const sun = new THREE.DirectionalLight(0xffffff, 2.6);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(4096, 4096);
+  scene.add(hemi, sun, sun.target);
+
+  // ---- ground ----
+  const pos = new Float32Array(NX * NZ * 3), nor = new Float32Array(NX * NZ * 3), uv = new Float32Array(NX * NZ * 2);
+  for (let iz = 0, k = 0; iz < NZ; iz++)
+    for (let ix = 0; ix < NX; ix++, k++) {
+      const h = H[k];
+      pos[k * 3] = G.minX + ix * CELL; pos[k * 3 + 1] = h; pos[k * 3 + 2] = -(G.minZ + iz * CELL);
+      const hx = (H[iz * NX + Math.min(NX - 1, ix + 1)] - H[iz * NX + Math.max(0, ix - 1)]) / (2 * CELL);
+      const hz = (H[Math.min(NZ - 1, iz + 1) * NX + ix] - H[Math.max(0, iz - 1) * NX + ix]) / (2 * CELL);
+      const l = 1 / Math.sqrt(hx * hx + hz * hz + 1);
+      nor[k * 3] = -hx * l; nor[k * 3 + 1] = l; nor[k * 3 + 2] = hz * l;
+      uv[k * 2] = ix / (NX - 1); uv[k * 2 + 1] = 1 - iz / (NZ - 1);
+    }
+  const index = new Uint32Array((NX - 1) * (NZ - 1) * 6);
+  for (let iz = 0, k = 0; iz < NZ - 1; iz++)
+    for (let ix = 0; ix < NX - 1; ix++) {
+      const a = iz * NX + ix, b = a + 1, c = a + NX, d = c + 1;
+      index[k++] = a; index[k++] = b; index[k++] = c; index[k++] = b; index[k++] = d; index[k++] = c;
+    }
+  const groundGeo = new THREE.BufferGeometry();
+  groundGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  groundGeo.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  groundGeo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  groundGeo.setIndex(new THREE.BufferAttribute(index, 1));
+  groundGeo.computeBoundingSphere();
+
+  const picture = new Image();
+  await new Promise((ok, no) => { picture.onload = ok; picture.onerror = () => no(new Error('picture')); picture.src = 'data:image/jpeg;base64,' + $('picture').textContent.trim(); })
+    .catch(() => {});
+  const drape = new THREE.Texture(picture);
+  drape.colorSpace = THREE.SRGBColorSpace;
+  drape.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  drape.needsUpdate = true;
+
+  // Contour lines are drawn by the ground's own shader from each pixel's height, so they stay sharp at any zoom.
+  const contour = { on: { value: 0 }, step: { value: S.contourFeet / FT }, datum: { value: S.datum }, every: { value: S.indexEvery || 5 }, floor: { value: S.sea == null ? -1e9 : S.sea + 0.05 } };
+  const groundMat = new THREE.MeshLambertMaterial({ map: drape });
+  groundMat.onBeforeCompile = shader => {
+    Object.assign(shader.uniforms, { cOn: contour.on, cStep: contour.step, cDatum: contour.datum, cEvery: contour.every, cFloor: contour.floor });
+    shader.vertexShader = 'varying float vElev;\n' + shader.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vElev = position.y;');
+    shader.fragmentShader = 'varying float vElev; uniform float cOn, cStep, cDatum, cEvery, cFloor;\n' + shader.fragmentShader.replace('#include <map_fragment>',
+      `#include <map_fragment>
+       if (cOn > 0.5 && vElev > cFloor) {
+         float e = (vElev - cDatum) / cStep, w = fwidth(e);
+         float minor = (1.0 - smoothstep(0.5 * w, 1.3 * w, abs(fract(e + 0.5) - 0.5))) * (1.0 - smoothstep(0.2, 0.5, w));
+         float ei = e / cEvery, wi = fwidth(ei);
+         float major = (1.0 - smoothstep(1.0 * wi, 2.0 * wi, abs(fract(ei + 0.5) - 0.5))) * (1.0 - smoothstep(0.2, 0.5, wi));
+         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.15, 0.12, 0.07), max(minor * 0.42, major * 0.68));
+       }`);
+  };
+  const groundMesh = new THREE.Mesh(groundGeo, groundMat);
+  groundMesh.receiveShadow = true; groundMesh.castShadow = true;
+  scene.add(groundMesh);
+
+  // The model is a block cut out of the plot: earth sides down to a base.
+  const base = Math.min(G.lo, S.sea == null ? G.lo : S.sea) - 14;
+  {
+    const v = [];
+    const wall = (ax, az, bx, bz) => {
+      const ha = ground(ax, az), hb = ground(bx, bz);
+      v.push(ax, ha, -az, bx, hb, -bz, ax, base, -az, bx, hb, -bz, bx, base, -bz, ax, base, -az);
+    };
+    for (let ix = 0; ix < NX - 1; ix++) {
+      const x0 = G.minX + ix * CELL, x1 = x0 + CELL;
+      wall(x0, G.minZ, x1, G.minZ); wall(x0, maxZ, x1, maxZ);
+    }
+    for (let iz = 0; iz < NZ - 1; iz++) {
+      const z0 = G.minZ + iz * CELL, z1 = z0 + CELL;
+      wall(G.minX, z0, G.minX, z1); wall(maxX, z0, maxX, z1);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(v), 3));
+    geo.computeVertexNormals();
+    scene.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0x75634b, side: THREE.DoubleSide })));
+  }
+
+  // ---- water ----
+  if (S.sea != null) {
+    const bed = new THREE.Mesh(new THREE.CircleGeometry(26000, 48).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x2c5560 }));
+    bed.position.set(centre.x, S.sea - 7, -centre.z);
+    const sea = new THREE.Mesh(new THREE.CircleGeometry(26000, 48).rotateX(-Math.PI / 2),
+      new THREE.MeshPhongMaterial({ color: 0x3a7f92, transparent: true, opacity: 0.74, shininess: 70, specular: 0x6f8791 }));
+    sea.position.set(centre.x, S.sea, -centre.z);
+    sea.receiveShadow = true;
+    scene.add(bed, sea);
+  }
+  const pondMat = new THREE.MeshPhongMaterial({ color: 0x3f7f8c, transparent: true, opacity: 0.8, shininess: 80, specular: 0x7f959c, side: THREE.DoubleSide });
+  for (const w of S.water) {
+    const outline = w.shores[0];
+    if (!outline || outline.length < 3) continue;
+    const shape = new THREE.Shape(outline.map(p => new THREE.Vector2(p[0], p[1])));
+    for (const hole of w.shores.slice(1)) if (hole.length >= 3) shape.holes.push(new THREE.Path(hole.map(p => new THREE.Vector2(p[0], p[1]))));
+    const pond = new THREE.Mesh(new THREE.ShapeGeometry(shape).rotateX(-Math.PI / 2), pondMat);
+    pond.position.y = w.level + 0.02;
+    pond.receiveShadow = true;
+    scene.add(pond);
+  }
+
+  // ---- trees and bushes ----
+  const hash = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+  function part(geo, rgb, lumpy) {
+    geo = geo.index ? geo.toNonIndexed() : geo;
+    const p = geo.attributes.position;
+    if (lumpy) for (let i = 0; i < p.count; i++) {
+      const k = 1 + lumpy * (hash(Math.round(p.getX(i) * 31) + Math.round(p.getY(i) * 57) * 3 + Math.round(p.getZ(i) * 91) * 7) - 0.5);
+      p.setXYZ(i, p.getX(i) * k, p.getY(i) * k, p.getZ(i) * k);
+    }
+    const c = new Float32Array(p.count * 3);
+    for (let i = 0; i < p.count; i++) c.set(rgb, i * 3);
+    geo.setAttribute('color', new THREE.BufferAttribute(c, 3));
+    return geo;
+  }
+  function join(parts) {
+    const n = parts.reduce((s, g) => s + g.attributes.position.count, 0), p = new Float32Array(n * 3), c = new Float32Array(n * 3);
+    let o = 0;
+    for (const g of parts) { p.set(g.attributes.position.array, o); c.set(g.attributes.color.array, o); o += g.attributes.position.count * 3; }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(p, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(c, 3));
+    geo.computeVertexNormals();
+    return geo;
+  }
+  const BARK = [0.62, 0.5, 0.4], LEAF = [1, 1, 1];
+  const shapes = [
+    // Broadleaf: a 4 m canopy at scale 1, as the illustrated maps draw it.
+    join([part(new THREE.CylinderGeometry(0.28, 0.4, 4.4, 6).translate(0, 2.2, 0), BARK),
+          part(new THREE.IcosahedronGeometry(4, 1), LEAF, 0.3).scale(1, 0.86, 1).translate(0, 7.2, 0)]),
+    // Conifer: two stacked cones.
+    join([part(new THREE.CylinderGeometry(0.22, 0.34, 3, 6).translate(0, 1.5, 0), BARK),
+          part(new THREE.ConeGeometry(3.1, 7.5, 8).translate(0, 6, 0), LEAF), part(new THREE.ConeGeometry(2.2, 6, 8).translate(0, 10.4, 0), LEAF)]),
+    // Bush.
+    join([part(new THREE.IcosahedronGeometry(1.3, 1), LEAF, 0.2).scale(1, 0.72, 1).translate(0, 0.75, 0)]),
+  ];
+  const trees = new THREE.Group();
+  {
+    const counts = [0, 0, 0], P = S.plants;
+    for (let i = 0; i < P.length; i += 4) counts[S.species[P[i + 3]].shape]++;
+    const leafMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    // A tee or a green among trees would put the camera inside a crown: trees are cut away right next to the eye
+    // (they still cast their shadows).
+    leafMat.onBeforeCompile = shader => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <clipping_planes_fragment>',
+        '#include <clipping_planes_fragment>' + String.fromCharCode(10) + ' if (length(vViewPosition) < 20.0) discard;');
+    };
+    const meshes = shapes.map((g, s) => { const m = new THREE.InstancedMesh(g, leafMat, Math.max(1, counts[s])); m.count = 0; m.castShadow = true; m.frustumCulled = false; return m; });
+    const tints = S.species.map((sp, i) => {
+      const a = hash(i * 7.3 + sp.name.length), b = hash(i * 3.1 + 11);
+      return sp.shape === 1 ? new THREE.Color().setHSL(0.36 + 0.05 * a, 0.3 + 0.12 * b, 0.19 + 0.05 * a)
+           : sp.shape === 2 ? new THREE.Color().setHSL(0.25 + 0.07 * a, 0.44 + 0.14 * b, 0.25 + 0.06 * b)
+           : new THREE.Color().setHSL(0.24 + 0.09 * a, 0.36 + 0.16 * b, 0.27 + 0.08 * a);
+    });
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), sc = new THREE.Vector3(), col = new THREE.Color();
+    for (let i = 0, n = 0; i < P.length; i += 4, n++) {
+      const sp = P[i + 3], mesh = meshes[S.species[sp].shape], k = P[i + 2] * (0.85 + 0.3 * hash(n * 1.7));
+      q.setFromAxisAngle(up, hash(n * 2.3 + 5) * Math.PI * 2);
+      m4.compose(at(P[i], P[i + 1], -0.15), q, sc.set(k, k * (0.9 + 0.25 * hash(n * 4.1)), k));
+      mesh.setMatrixAt(mesh.count, m4);
+      mesh.setColorAt(mesh.count++, col.copy(tints[sp]).offsetHSL(0, 0, 0.05 * (hash(n * 9.7) - 0.5)));
+    }
+    for (const m of meshes) if (m.count) trees.add(m);
+  }
+  scene.add(trees);
+
+  // ---- holes: routing lines, tee markers, flags, numbers ----
+  const routes = new THREE.Group(), labels = new THREE.Group(), furniture = new THREE.Group();
+  function badge(text, fill, ink, ring) {
+    const c = document.createElement('canvas'); c.width = c.height = 128;
+    const g = c.getContext('2d');
+    g.beginPath(); g.arc(64, 64, 54, 0, Math.PI * 2); g.fillStyle = fill; g.fill();
+    g.lineWidth = 8; g.strokeStyle = ring; g.stroke();
+    g.fillStyle = ink; g.font = '600 ' + (text.length > 1 ? 58 : 70) + 'px "Segoe UI", system-ui, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText(text, 64, 69);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, sizeAttenuation: false, transparent: true }));
+    s.scale.set(0.042, 0.042, 1); s.renderOrder = 20;
+    return s;
+  }
+  const lineMat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 });
+  const poleMat = new THREE.MeshLambertMaterial({ color: 0xf4f1e6 }), flagMat = new THREE.MeshLambertMaterial({ color: 0xd9412f, side: THREE.DoubleSide });
+  const TEES = [0x1d1d1d, 0x2f62b5, 0xf2f2f2, 0xe2b93b, 0xc63d32, 0x3f8f52];
+  const flagGeo = new THREE.BufferGeometry();
+  flagGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, 2.5, 0, 0, 1.9, 0, 0.95, 2.2, 0]), 3));
+  flagGeo.computeVertexNormals();
+  const along = (pts, step) => {   // a polyline resampled every `step` metres, in world X/Z
+    const out = [];
+    for (let i = 0; i + 1 < pts.length; i++) {
+      const a = pts[i], b = pts[i + 1], d = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.ceil(d / step));
+      for (let k = 0; k < n; k++) out.push([a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n]);
+    }
+    out.push(pts[pts.length - 1]);
+    return out;
+  };
+  for (const h of S.holes) {
+    const tee = h.tees.length ? h.tees[h.tees.length - 1] : h.route[0];
+    h.line = [tee].concat(h.route.slice(1));
+    h.path = along(h.line, 4);
+    routes.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(h.path.map(p => at(p[0], p[1], 0.7))), lineMat));
+    h.tees.forEach((t, i) => {
+      const box = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.35, 0.7), new THREE.MeshLambertMaterial({ color: TEES[(h.tees.length - 1 - i) % TEES.length] }));
+      box.position.copy(at(t[0], t[1], 0.17)); box.castShadow = true;
+      furniture.add(box);
+    });
+    const pin = h.pins.length ? h.pins[0] : h.green;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 2.5, 6).translate(0, 1.25, 0), poleMat);
+    pole.position.copy(at(pin[0], pin[1])); pole.castShadow = true;
+    const flag = new THREE.Mesh(flagGeo, flagMat); flag.position.copy(pole.position); flag.castShadow = true;
+    furniture.add(pole, flag);
+    const a = badge(String(h.n), '#f6f4ea', '#1d2420', '#1d2420'); a.position.copy(at(tee[0], tee[1], 7));
+    const b = badge(String(h.n), '#d9412f', '#ffffff', '#ffffff'); b.position.copy(at(pin[0], pin[1], 6));
+    labels.add(a, b);
+  }
+  scene.add(routes, labels, furniture);
+
+  // ---- camera: a position and the point it looks at; every control moves those two ----
+  const P = new THREE.Vector3(), L = new THREE.Vector3();
+  let dirty = true, raf = 0, anim = null, shadowKey = '';
+  const invalidate = () => { dirty = true; if (!raf) raf = requestAnimationFrame(frame); };
+  const overview = () => {
+    const look = at(centre.x, centre.z), d = span * 0.95;
+    return { p: new THREE.Vector3(look.x + d * 0.35, look.y + d * 0.62, look.z + d * 0.75), l: look };
+  };
+  function glide(to, seconds) {
+    const p0 = P.clone(), l0 = L.clone(), t0 = performance.now(), ms = (seconds || 1.1) * 1000;
+    anim = now => {
+      const t = clamp((now - t0) / ms, 0, 1), e = t * t * (3 - 2 * t);
+      P.lerpVectors(p0, to.p, e); L.lerpVectors(l0, to.l, e);
+      return t >= 1;
+    };
+    invalidate();
+  }
+  const v3 = p => new THREE.Vector3(p[0], 0, -p[1]);
+  function teeView(h) {
+    const t = h.line[0], a = h.line[1], dir = v3(a).sub(v3(t)).normalize(), reach = Math.min(240, Math.hypot(a[0] - t[0], a[1] - t[1]));
+    const p = at(t[0], t[1], 9).addScaledVector(dir, -24), lx = t[0] + dir.x * reach, lz = t[1] - dir.z * reach;
+    return { p, l: at(lx, lz) };
+  }
+  function greenView(h) {
+    const g = h.green, b = h.line[h.line.length - 2], dir = v3(g).sub(v3(b)).normalize();
+    return { p: at(g[0], g[1], 0).addScaledVector(dir, -70).setY(ground(g[0], g[1]) + 16), l: at(g[0], g[1]) };
+  }
+  function fly(h) {
+    const path = h.path, total = (path.length - 1) * 4, speed = 38, t0 = performance.now();
+    const pt = s => { const f = clamp(s / 4, 0, path.length - 1.001), i = f | 0, k = f - i; return [path[i][0] + (path[i + 1][0] - path[i][0]) * k, path[i][1] + (path[i + 1][1] - path[i][1]) * k]; };
+    const from = { p: P.clone(), l: L.clone() }, lead = 1200;
+    anim = now => {
+      const ms = now - t0, s = Math.max(0, (ms - lead) / 1000 * speed);
+      const here = pt(s - 30), ahead = pt(Math.min(total, s + 70)), dir = v3(ahead).sub(v3(here));
+      if (dir.lengthSq() < 1) dir.copy(v3(path[path.length - 1]).sub(v3(path[path.length - 2])));
+      dir.normalize();
+      const p = at(here[0], here[1], 0).addScaledVector(dir, -18);
+      p.y = Math.max(ground(p.x, -p.z) + 7, ground(here[0], here[1]) + 13);
+      const l = at(ahead[0], ahead[1], 1);
+      const e = clamp(ms / lead, 0, 1), k = e * e * (3 - 2 * e);
+      P.lerpVectors(from.p, p, k); L.lerpVectors(from.l, l, k);
+      if (s >= total + 20) { glide(greenView(h), 1.6); return false; }
+      return false;
+    };
+    invalidate();
+  }
+
+  function frame(now) {
+    raf = 0;
+    if (anim) { const a = anim; if (a(now) && anim === a) anim = null; dirty = true; }
+    if (dirty) {
+      dirty = false;
+      const floor = (inside(P.x, -P.z) ? ground(P.x, -P.z) : base) + 1.7;
+      if (P.y < floor) P.y = floor;
+      camera.position.copy(P); camera.lookAt(L);
+      sky.position.copy(P);
+      shade();
+      renderer.render(scene, camera);
+    }
+    if (anim || dirty) raf = requestAnimationFrame(frame);
+  }
+
+  // ---- sun and shadows ----
+  const sunDir = new THREE.Vector3();
+  function setSun(hour) {
+    const s = clamp((hour - 5.5) / 15, 0, 1), el = Math.max(4, Math.sin(Math.PI * s) * 62) * Math.PI / 180, low = 1 - clamp(el / 0.6, 0, 1);
+    // East is −X and south is +Z in the game; the sun goes east, south, west (a northern course).
+    sunDir.set(-Math.cos(Math.PI * s) * Math.cos(el), Math.sin(el), -Math.sin(Math.PI * s) * Math.cos(el));
+    sun.color.setRGB(1, 1 - 0.2 * low, 1 - 0.42 * low);
+    sun.intensity = 2.7 - 0.7 * low;
+    hemi.intensity = 1.25 - 0.3 * low;
+    const hh = Math.floor(hour), mm = Math.round((hour - hh) * 60);
+    $('clock').textContent = hh + ':' + String(mm).padStart(2, '0');
+    shadowKey = '';
+    invalidate();
+  }
+  // The shadow map covers a box round what the camera looks at, and is redrawn only when that moves enough.
+  function shade() {
+    if (!$('tShadows').checked) return;
+    const dist = P.distanceTo(L), half = clamp(dist * 0.85, 160, 1100), snap = half / 6;
+    const key = [Math.round(L.x / snap), Math.round(L.z / snap), Math.round(Math.log2(half) * 3), $('tTrees').checked].join(',');
+    if (key === shadowKey) return;
+    shadowKey = key;
+    const c = sun.shadow.camera;
+    c.left = c.bottom = -half; c.right = c.top = half; c.near = 10; c.far = 6000; c.updateProjectionMatrix();
+    sun.target.position.copy(L); sun.position.copy(L).addScaledVector(sunDir, 3000);
+    sun.target.updateMatrixWorld(); sun.updateMatrixWorld();
+    sun.shadow.normalBias = half * 2 / 4096 * 2.5; sun.shadow.bias = -0.0004;
+    renderer.shadowMap.needsUpdate = true;
+  }
+
+  // ---- picking: march the view ray over the height grid ----
+  const ray = new THREE.Raycaster();
+  function pick(clientX, clientY) {
+    const r = canvas.getBoundingClientRect();
+    ray.setFromCamera(new THREE.Vector2((clientX - r.left) / r.width * 2 - 1, -(clientY - r.top) / r.height * 2 + 1), camera);
+    const o = ray.ray.origin, d = ray.ray.direction;
+    let t0 = 0, hit = false;
+    for (let t = 1; t < 12000; t += Math.max(1, t * 0.012)) {
+      const x = o.x + d.x * t, y = o.y + d.y * t, zw = -(o.z + d.z * t);
+      if (inside(x, zw) && y < ground(x, zw)) { hit = true; let a = t0, b = t; for (let i = 0; i < 12; i++) { const m = (a + b) / 2; (o.y + d.y * m < ground(o.x + d.x * m, -(o.z + d.z * m))) ? b = m : a = m; } t0 = b; break; }
+      t0 = t;
+    }
+    return hit ? { x: o.x + d.x * t0, z: -(o.z + d.z * t0) } : null;
+  }
+
+  // ---- controls ----
+  let drag = null, hover = null;
+  const stop = () => { anim = null; };
+  canvas.addEventListener('contextmenu', e => e.preventDefault());
+  canvas.addEventListener('pointerdown', e => {
+    stop(); canvas.setPointerCapture(e.pointerId); canvas.classList.add('dragging');
+    drag = { x: e.clientX, y: e.clientY, pan: e.button !== 0 || e.shiftKey };
+  });
+  canvas.addEventListener('pointerup', e => { drag = null; canvas.classList.remove('dragging'); });
+  canvas.addEventListener('pointermove', e => {
+    if (!drag) { hover = [e.clientX, e.clientY]; if (!raf) requestAnimationFrame(readout); return; }
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    drag.x = e.clientX; drag.y = e.clientY;
+    const off = P.clone().sub(L), dist = off.length();
+    if (drag.pan) {
+      const k = dist * Math.tan(camera.fov * Math.PI / 360) * 2 / canvas.clientHeight;
+      const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0), fwd = new THREE.Vector3().crossVectors(camera.up, right);
+      const move = right.multiplyScalar(-dx * k).addScaledVector(fwd, dy * k);
+      const y0 = L.y;
+      L.add(move); L.x = clamp(L.x, G.minX, maxX); L.z = clamp(L.z, -maxZ, -G.minZ);
+      L.y = ground(L.x, -L.z);
+      P.copy(L).add(off);
+    } else {
+      const sph = new THREE.Spherical().setFromVector3(off);
+      sph.theta -= dx * 0.005; sph.phi = clamp(sph.phi - dy * 0.005, 0.06, 1.54);
+      P.copy(L).add(off.setFromSpherical(sph));
+    }
+    invalidate();
+  });
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault(); stop();
+    const off = P.clone().sub(L), d = clamp(off.length() * Math.exp(e.deltaY * 0.0012), 12, span * 3);
+    P.copy(L).add(off.setLength(d));
+    invalidate();
+  }, { passive: false });
+  canvas.addEventListener('dblclick', e => {
+    const hit = pick(e.clientX, e.clientY);
+    if (!hit) return;
+    const l = at(hit.x, hit.z);
+    glide({ p: P.clone().sub(L).add(l), l }, 0.6);
+  });
+  function readout() {
+    if (!hover || drag) return;
+    const hit = pick(hover[0], hover[1]);
+    if (!hit) { $('read').innerHTML = '&nbsp;'; return; }
+    const h = ground(hit.x, hit.z), e = 2;
+    const gx = (ground(hit.x + e, hit.z) - ground(hit.x - e, hit.z)) / (2 * e), gz = (ground(hit.x, hit.z + e) - ground(hit.x, hit.z - e)) / (2 * e);
+    $('read').textContent = Math.round((h - S.datum) * FT) + ' ft ' + (S.datumIsSea ? 'above sea level' : 'above the low point') + ' · ' + Math.round(Math.hypot(gx, gz) * 100) + '% slope';
+  }
+
+  // ---- hole strip and panel ----
+  let current = null;
+  const strip = $('holes');
+  function choose(h, view) {
+    current = h;
+    for (const b of strip.children) b.classList.toggle('on', b.dataset.n === (h ? String(h.n) : 'all'));
+    $('hole').style.display = h ? 'block' : 'none';
+    if (!h) return glide(overview(), 1.3);
+    const change = Math.round(h.greenFeet - h.teeFeet);
+    $('holeName').textContent = 'Hole ' + h.n + ' · par ' + h.par + ' · ' + h.yards + ' yds';
+    $('holeFacts').textContent = 'Tee ' + Math.round(h.teeFeet) + ' ft, green ' + Math.round(h.greenFeet) + ' ft (' + (change > 0 ? '+' : '') + change + ' ft)';
+    view === 'fly' ? fly(h) : glide(view === 'green' ? greenView(h) : teeView(h), 1.3);
+  }
+  const add = (text, n, fn) => { const b = document.createElement('button'); b.textContent = text; b.dataset.n = n; b.onclick = fn; strip.appendChild(b); };
+  add('Whole course', 'all', () => choose(null));
+  for (const h of S.holes) add(String(h.n), String(h.n), () => choose(h, 'tee'));
+  if (!S.holes.length) strip.style.display = 'none';
+  for (const b of document.querySelectorAll('#hole button')) b.onclick = () => current && choose(current, b.dataset.view);
+  window.addEventListener('keydown', e => {
+    if (!S.holes.length || (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft')) return;
+    const i = current ? S.holes.indexOf(current) : -1, n = S.holes.length;
+    choose(S.holes[e.key === 'ArrowRight' ? (i + 1) % n : (i + n - 1 + (i < 0 ? 1 : 0)) % n], 'tee');
+  });
+  const toggle = (id, fn) => { $(id).onchange = () => { fn($(id).checked); shadowKey = ''; invalidate(); }; fn($(id).checked); };
+  toggle('tTrees', on => { trees.visible = on; });
+  toggle('tContours', on => { contour.on.value = on ? 1 : 0; });
+  toggle('tRoutes', on => { routes.visible = on; });
+  toggle('tLabels', on => { labels.visible = on; });
+  toggle('tShadows', on => { sun.castShadow = on; groundMat.needsUpdate = true; });
+  const hour0 = S.timeOfDay != null && S.timeOfDay * 24 >= 6.5 && S.timeOfDay * 24 <= 19.5 ? S.timeOfDay * 24 : 10.5;
+  $('sun').value = hour0;
+  $('sun').oninput = () => setSun(parseFloat($('sun').value));
+
+  function resize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+    invalidate();
+  }
+  window.addEventListener('resize', resize);
+
+  const start = overview();
+  P.copy(start.p); L.copy(start.l);
+  setSun(hour0);
+  resize();
+  $('wait').remove();
+  // A host (Studio's web view) hides the page's own course heading and picks holes from outside.
+  if (new URLSearchParams(location.search).get('host')) document.body.classList.add('hosted');
+  const showHole = (n, view) => { const h = S.holes.find(x => x.n === n); if (h) choose(h, view || 'tee'); else choose(null); };
+  window.view3d = { scene, camera, renderer, choose, showHole, holes: S.holes, state: () => ({ p: P.toArray(), l: L.toArray(), plants: S.plants.length / 4, tris: renderer.info.render.triangles }) };
+})();
+</script>
+</body>
+</html>

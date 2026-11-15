@@ -32,6 +32,7 @@
     <ProjectReference Include="..\..\src\Pga2K25.HoleSim\Pga2K25.HoleSim.csproj" />
     <ProjectReference Include="..\..\src\Pga2K25.Studio\Pga2K25.Studio.csproj" />
     <ProjectReference Include="..\..\src\Pga2K25.HoleIllustrations\Pga2K25.HoleIllustrations.csproj" />
+    <ProjectReference Include="..\..\src\Pga2K25.View3D\Pga2K25.View3D.csproj" />
   </ItemGroup>
 
 </Project>
