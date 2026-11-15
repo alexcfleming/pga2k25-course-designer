@@ -235,6 +235,24 @@ NEW IN 3.4.0
   bring one back, and Undo is offered straight after archiving. A
   course you rename in the designer stays archived; a copy saved as a
   new file shows as usual.
+- Publish readiness: the fairway width check now uses a tester's
+  ranges, at two distances from the back tee: 25 to 35 yds wide at
+  driver distance (your design tee shot, 300 to 350) and 30 to 50 yds
+  at 3-wood distance (260 to 290). A fairway narrower or wider than its
+  range gets a provisional warning, which never holds the publish gate.
+  These replace the 25 to 70 warning and 35 to 50 target; "reason
+  needed over 60" stays. Hole QA shows six width boxes on a hole, three
+  at each distance.
+- Publish readiness: the width check says what it measured. Widths come
+  from built fairway (the fairway splines in the course file) only. A
+  hole with no fairway built by its line is listed as "not measured, no
+  fairway built", and is no longer called too narrow. A fairway you
+  sketched on a hole sheet isn't in the course file, so build it to
+  have it checked.
+- Publish readiness, Limits: "Width at driver distance", "3-wood
+  distance" and "Width at 3-wood distance" replace the landing width
+  target and the width warning limits. If you had changed those for a
+  course, set the new ones.
 
 NEW IN 3.3.0
 - Course cards: a Shot Variety Card. Every hole is played by two

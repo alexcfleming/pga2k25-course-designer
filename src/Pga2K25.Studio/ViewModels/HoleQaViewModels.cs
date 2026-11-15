@@ -59,10 +59,20 @@ public sealed class FlagChipViewModel
         var chips = new List<FlagChipViewModel>();
         void Add(string text, Kind kind, string check) => chips.Add(new FlagChipViewModel(text, kind, Delib(check)));
 
-        var widths = h.Stations.Select(x => x.WidthYards).ToList();
-        if (widths.Where(w => w > L.WidthHighYards).Max() is double hi) Add($"Width {hi:0}", Kind.Provisional, "landing-widths");
-        if (h.Stations.FirstOrDefault(x => x.WidthYards is null) is { } none) Add($"No fairway at {none.FromTeeYards}", Kind.Provisional, "landing-widths");
-        else if (widths.Where(w => w < L.WidthLowYards).Min() is double lo) Add($"Width {lo:0}", Kind.Provisional, "landing-widths");
+        // Width at driver and 3-wood distance, across the built fairway; a hole with none built says so and isn't judged.
+        void Width(string at, IReadOnlyList<StationWidth> stations, double min, double max)
+        {
+            var widths = stations.Select(x => x.WidthYards).ToList();
+            if (widths.Where(w => w > max).Max() is double hi) Add($"{at} width {hi:0}", Kind.Provisional, "landing-widths");
+            if (stations.FirstOrDefault(x => x.WidthYards is null) is { } none) Add($"No fairway at {none.FromTeeYards}", Kind.Provisional, "landing-widths");
+            else if (widths.Where(w => w < min).Min() is double lo) Add($"{at} width {lo:0}", Kind.Provisional, "landing-widths");
+        }
+        if (h.Stations.Count + h.ThreeWoodStations.Count > 0 && !h.FairwayBuilt) Add("No fairway built", Kind.Provisional, "landing-widths");
+        else
+        {
+            Width("Driver", h.Stations, L.DriverWidthMinYards, L.DriverWidthMaxYards);
+            Width("3-wood", h.ThreeWoodStations, L.ThreeWoodWidthMinYards, L.ThreeWoodWidthMaxYards);
+        }
         if (h.Par == 5 && h.Yards < L.ShortestPar5MinYards) Add($"Par 5 {h.Yards}", Kind.Provisional, "shortest-par5");
         if (h.Par == 4 && h.Yards < L.ShortPar4Yards && r.Check("par4-under400")?.Severity == Severity.Warning)
             Add($"Under {L.ShortPar4Yards:0}", Kind.Provisional, "par4-under400");
@@ -392,18 +402,27 @@ public partial class HoleCardViewModel : ObservableObject
                 h.NearGreenYards is double n2 && Math.Round(n2) < L.CorridorYards),
         ];
 
-        Stations = new[] { L.DesignDriveMinYards, L.DesignDriveMidYards, L.DesignDriveMaxYards }.Select(y =>
+        // Three boxes at 3-wood distance, then three at driver distance: the grid is three across.
+        List<MeasureBoxViewModel> Boxes(string club, IReadOnlyList<StationWidth> stations, double min, double max, bool reasons, params double[] yds) => yds.Select(y =>
         {
-            var st = h.Stations.FirstOrDefault(x => x.FromTeeYards == (int)Math.Round(y));
-            if (st is null) return new MeasureBoxViewModel($"At {y:0}", "short of it", false);
-            if (st.WidthYards is not double w) return new MeasureBoxViewModel($"At {y:0}", "no fairway", true, provisional: true);
-            bool warn = w > L.WidthHighYards || w < L.WidthLowYards;
-            string label = !warn && w > L.WidthReasonYards ? $"At {y:0} · needs a reason" : $"At {y:0}";
-            return new MeasureBoxViewModel(label, $"{w:0} yds", warn, provisional: true, onTarget: w >= L.LandingTargetMinYards && w <= L.LandingTargetMaxYards);
+            string at = $"{club} · {y:0}";
+            var st = stations.FirstOrDefault(x => x.FromTeeYards == (int)Math.Round(y));
+            if (st is null) return new MeasureBoxViewModel(at, "short of it", false);
+            if (!h.FairwayBuilt) return new MeasureBoxViewModel(at, "not built", false);
+            if (st.WidthYards is not double w) return new MeasureBoxViewModel(at, "no fairway", true, provisional: true);
+            bool warn = w > max || w < min;
+            string label = reasons && w > L.WidthReasonYards ? $"{at} · needs a reason" : at;
+            return new MeasureBoxViewModel(label, $"{w:0} yds", warn, provisional: true, onTarget: !warn);
         }).ToList();
-        WidthLimits = $"Target {L.LandingTargetMinYards:0}–{L.LandingTargetMaxYards:0} yds · reason over {L.WidthReasonYards:0} · warn over {L.WidthHighYards:0} or under {L.WidthLowYards:0}";
-        Pattern = h.LayupWidthYards is double lay && h.LandingWidthYards is double land
-            ? $"Lay-up (250–290) {lay:0} yds, landing ({L.DesignDriveMinYards:0}–{L.DesignDriveMaxYards:0}) {land:0} yds: " +
+        Stations =
+        [
+            .. Boxes("3-wood", h.ThreeWoodStations, L.ThreeWoodWidthMinYards, L.ThreeWoodWidthMaxYards, false, L.ThreeWoodMinYards, L.ThreeWoodMidYards, L.ThreeWoodMaxYards),
+            .. Boxes("Driver", h.Stations, L.DriverWidthMinYards, L.DriverWidthMaxYards, true, L.DesignDriveMinYards, L.DesignDriveMidYards, L.DesignDriveMaxYards),
+        ];
+        WidthLimits = $"Across the built fairway, from the back tee · 3-wood distance {L.ThreeWoodWidthMinYards:0}–{L.ThreeWoodWidthMaxYards:0} yds · driver distance {L.DriverWidthMinYards:0}–{L.DriverWidthMaxYards:0} yds · reason over {L.WidthReasonYards:0}"
+            + (h.FairwayBuilt ? "" : " · no fairway is built by this hole's line yet, so nothing is measured");
+        Pattern = h.LayupWidthYards is double lay && h.LandingWidthYards is double land && h.FairwayBuilt
+            ? $"3-wood distance ({L.ThreeWoodMinYards:0}–{L.ThreeWoodMaxYards:0}) {lay:0} yds, driver distance ({L.DesignDriveMinYards:0}–{L.DesignDriveMaxYards:0}) {land:0} yds: " +
               (land > lay * 1.1 ? "wider where it should be tighter (provisional warning)." : "roomy then tighter, as it should be.")
             : "";
         string start = h.FairwayStartFileYards is double fs ? (fs <= 60 ? "60 yds or less" : $"{fs:0} yds") : "";

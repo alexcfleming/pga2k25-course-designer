@@ -76,7 +76,7 @@ public static class Checklist
 
     public static readonly ChecklistStage TourCourse = new("tourc", "Course review", "Course-level checks from Section 11. The per-hole checks are in Hole QA.", "tcl",
     [
-        new("tcl.scale", "Width audit: landing widths at the design tee shot inside 25 to 70 yds, every fairway over 60 has its reason, every green suits its approach", F, "landing-widths", "width-steadiness"),
+        new("tcl.scale", "Width audit: fairways 25 to 35 yds wide at driver distance and 30 to 50 at 3-wood distance, every fairway over 60 has its reason, every green suits its approach", F, "landing-widths", "width-steadiness"),
         new("tcl.variety", "Length audit: median par 4, par 4s under 400 and the shortest par 5 reviewed; every par 5 leaves a real second-shot decision after a 350 drive", F, "median-par4", "par4-under400", "shortest-par5"),
         new("tcl.drift", "Concept-to-build drift check: every built hazard and feature compared with its concept entry; anything bigger than the concept is justified or scaled back", F),
         new("tcl.corr", "Corridor check: no overlapping landing zones, and no hole plays over another hole's green", F, "corridor", "aim-spacing"),

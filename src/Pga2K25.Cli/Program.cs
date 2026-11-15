@@ -541,20 +541,23 @@ static int Readiness(string path, string[] rest)
     if (table)
     {
         Console.WriteLine();
-        Console.WriteLine($"Hole Par  Yds Strt  Green sq ft      Widths at {limits.DesignDriveMinYards:0}/{limits.DesignDriveMidYards:0}/{limits.DesignDriveMaxYards:0}  Start Steady  Tee>green  Relief  Nearest other green  Landing-zone hazards");
+        Console.WriteLine($"Hole Par  Yds Strt  Green sq ft      3-wood {limits.ThreeWoodMinYards:0}/{limits.ThreeWoodMidYards:0}/{limits.ThreeWoodMaxYards:0}  Driver {limits.DesignDriveMinYards:0}/{limits.DesignDriveMidYards:0}/{limits.DesignDriveMaxYards:0}  Start Steady  Tee>green  Relief  Nearest other green  Landing-zone hazards");
         foreach (var h in report.Holes)
         {
             string green = h.GreenEstimated ? "not drawn" : string.Format(inv, "{0,6:N0} {1,5:0.00}x", h.GreenSquareFeet, h.GreenRatio ?? 0);
-            string widths = string.Join("/", h.Stations.Select(s => s.WidthYards is double w ? w.ToString("0", inv) : "-"));
+            bool unbuilt = h.Stations.Count + h.ThreeWoodStations.Count > 0 && !h.FairwayBuilt;
+            string Widths(IReadOnlyList<Pga2K25.Readiness.StationWidth> at) => unbuilt && at.Count > 0 ? "not built"
+                : string.Join("/", at.Select(s => s.WidthYards is double w ? w.ToString("0", inv) : "-"));
+            string wood = Widths(h.ThreeWoodStations), widths = Widths(h.Stations);
             string near = h.NearGreenYards is double ny ? string.Format(inv, "{0,4:0} yds ({1})", ny, h.NearGreenOf == 0 ? "practice" : $"hole {h.NearGreenOf}") : "";
             string relief = h.GreenReliefFeet is double r ? string.Format(inv, "{0:0.0} ft", r) : "";
             string start = h.FairwayStartYards is double fs ? fs.ToString("0", inv) + (h.FairwayStartOverrideYards is not null ? "!" : "") : "";
             string steady = h.WidthSteadiness is double sd ? sd.ToString("0.0", inv) + "x" : "";
             string hz = string.Join("; ", h.LandingHazards.Select(ReadinessChecker.Describe));
-            Console.WriteLine(string.Format(inv, "{0,4} {1,3} {2,4} {3,4}  {4,-16} {5,-22} {6,5} {7,6} {8,7:+0;-0;0} ft {9,7}  {10,-20} {11}",
-                h.Number, h.Par, h.Yards, h.StraightYards, green, widths, start, steady, h.ChangeFeet, relief, near, hz));
+            Console.WriteLine(string.Format(inv, "{0,4} {1,3} {2,4} {3,4}  {4,-16} {12,-19} {5,-19} {6,5} {7,6} {8,7:+0;-0;0} ft {9,7}  {10,-20} {11}",
+                h.Number, h.Par, h.Yards, h.StraightYards, green, widths, start, steady, h.ChangeFeet, relief, near, hz, wood));
         }
-        Console.WriteLine("  Strt: straight-line yards from the back tee. Start: where the main fairway starts (60 = 60 or less). Steady: wide over narrow past 200 yds.");
+        Console.WriteLine("  Strt: straight-line yards from the back tee. Widths: across the built fairway (not built = no fairway spline by the line). Start: where the main fairway starts (60 = 60 or less). Steady: wide over narrow past 200 yds.");
     }
 
     if (json is not null)

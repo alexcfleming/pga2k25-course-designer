@@ -105,18 +105,25 @@ public sealed record ReadinessLimits
     /// <summary>Card and straight-line yards this far apart (yds) are both shown.</summary>
     public double StraightDiffYards { get; init; } = 15;
 
-    // §12 width, across the fairway at the design tee shot. Provisional.
+    // §12 width, across the built fairway at driver and 3-wood distance. Provisional. The ranges are a tester's
+    // (Nov 2026, on the Nodens Estate sketches): 25–35 yds at driver distance, 30–50 at 3-wood distance (260–290).
+    // Driver distance is the design tee shot above.
 
-    /// <summary>The default landing width (yds): shown as the target.</summary>
-    public double LandingTargetMinYards { get; init; } = 35;
-    public double LandingTargetMaxYards { get; init; } = 50;
+    /// <summary>Fairway width at driver distance (yds): narrower or wider at any station warns; shared fairways count.</summary>
+    public double DriverWidthMinYards { get; init; } = 25;
+    public double DriverWidthMaxYards { get; init; } = 35;
 
-    /// <summary>Wider than this at any station (yds) needs a written reason on the hole.</summary>
+    /// <summary>3-wood distance from the back tee (yds): the lay-up short of the design tee shot.</summary>
+    public double ThreeWoodMinYards { get; init; } = 260;
+    public double ThreeWoodMaxYards { get; init; } = 290;
+    public double ThreeWoodMidYards => (ThreeWoodMinYards + ThreeWoodMaxYards) / 2;
+
+    /// <summary>Fairway width at 3-wood distance (yds): narrower or wider at any station warns.</summary>
+    public double ThreeWoodWidthMinYards { get; init; } = 30;
+    public double ThreeWoodWidthMaxYards { get; init; } = 50;
+
+    /// <summary>Wider than this at any driver station (yds) needs a written reason on the hole.</summary>
     public double WidthReasonYards { get; init; } = 60;
-
-    /// <summary>Wider or narrower than these at any station (yds) warns; shared fairways count.</summary>
-    public double WidthHighYards { get; init; } = 70;
-    public double WidthLowYards { get; init; } = 25;
 
     /// <summary>Past 200 yds, wide stretches more than this many times the narrow ones warn.</summary>
     public double WidthSteadinessMax { get; init; } = 3;

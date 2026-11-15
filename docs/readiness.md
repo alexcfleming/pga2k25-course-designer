@@ -2,7 +2,7 @@
 
 Checks for getting a course ready to publish and submit for TGC Tours review, from Alex's course QA checklist, his design principles (Nov 2026 revision) and TGC Tours' published minimum approval requirements (March 2021). The principles are a personal collection, not rules, so every limit can be changed per course.
 
-The design assumption is a **300–350 yd tee shot** from the back tee (Principles §12), one editable course setting. Every landing-zone figure is measured from it: yards left, fairway widths, the yardage book's width stations.
+The design assumption is a **300–350 yd tee shot** from the back tee (Principles §12), one editable course setting. Every landing-zone figure is measured from it: yards left, fairway widths, the yardage book's width stations. It is also what the width check calls **driver distance**; **3-wood distance** is 260–290 yds, a second editable setting.
 
 Some checks are **provisional**: the §12 length and width limits were chosen after seeing a handful of reviewed courses, measured by different methods, and reviewer comments outrank them. They show as a **Warning**: never a pass or a fail, and they don't hold the publish gate. **Prompts** and **notes** (shown as Info) are things to look at, with no limit.
 
@@ -32,7 +32,7 @@ The record's HTML embeds the course's colour mark before its title when the cour
 
 ## Hole QA
 
-Up to 50 checks a hole, in eight groups. 14 are TGC Tours' published minimums (marked with a dot in Studio and `*` in the record). A check a hole isn't asked shows no square: hole design is for par 4s and 5s, the second-shot note for par 5s, and the width reason for holes over 60 yds wide somewhere at 300–350.
+Up to 50 checks a hole, in eight groups. 14 are TGC Tours' published minimums (marked with a dot in Studio and `*` in the record). A check a hole isn't asked shows no square: hole design is for par 4s and 5s, the second-shot note for par 5s, and the width reason for holes over 60 yds wide somewhere at driver distance (300–350).
 
 | Group | Checks (TGC minimums in bold) |
 |---|---|
@@ -62,7 +62,7 @@ pga2k25 readiness <file.course> --tee-shot 300-350 --holes
 | `--tee-shot` | 300-350 | The design tee shot from the back tee (yds) |
 | `--drive` | none | The test drive measured with the power profile (yds), recorded only |
 | `--limits` | defaults | A JSON file overriding any `ReadinessLimits` value, e.g. `{"MedianPar4MinYards": 420, "CorridorYards": 30}` |
-| `--holes` | off | Adds the per-hole table: card and straight-line yards, green size against the median, widths at the tee shot, fairway start, width swing, tee-to-green change, green relief, nearest other green, hazards in the landing zone |
+| `--holes` | off | Adds the per-hole table: card and straight-line yards, green size against the median, widths at 3-wood and driver distance ("not built" where no fairway spline lies by the line), fairway start, width swing, tee-to-green change, green relief, nearest other green, hazards in the landing zone |
 | `--json` | off | Writes the whole report |
 
 The exit code is 1 when any check is High (a line of play crossing another green), otherwise 0.
@@ -83,9 +83,9 @@ Yardages are from the back tees. Lengths use card yards; yards left use the stra
 | `par4-under400` | Par 4s under the length (Warning) | 400 yds, at most 3 | §12.4 |
 | `shortest-par5` | Shortest par 5 (Warning); lists what each par 5 leaves after a 350 drive | 560+ | §12.4 |
 | `card-straight` | Card and straight-line yards 15+ apart (Info) | | §12 |
-| `landing-widths` | Fairway width across the line at 300, 325 and 350 yds (Warning). Shared fairways count. Over 60 needs a written reason on the hole | 25–70 (target 35–50) | §12.2 |
+| `landing-widths` | Width of the built fairway across the line at driver distance (300, 325 and 350 yds) and at 3-wood distance (260, 275 and 290), each against its own range, warned both ways (Warning). Shared fairways count. Over 60 at driver distance needs a written reason on the hole. Holes with no fairway built by the line are listed as not measured | driver 25–35, 3-wood 30–50 | §12.2, tester's ranges (Nov 2026) |
 | `width-steadiness` | Past 200 yds, the line's fairway width at its 90th over its 10th percentile (Warning), so one neck or one gap between fairways doesn't decide it | under 3× | §12.2 |
-| `width-pattern` | Roomier at 250–290 yds than at the tee shot: warns when the landing zone is over 10% wider than the lay-up (median widths) | | §12.2 |
+| `width-pattern` | Roomier at 3-wood distance (260–290 yds) than at driver distance: warns when the landing zone is over 10% wider than the lay-up (median widths) | | §12.2 |
 | `elevation` | Back tee to green site | 50 ft down, 30 up | §3 |
 | `plot-range` | Ground across tees, aim points and greens | 50–70 ft | §3 |
 | `green-relief` | Highest minus lowest point on each drawn green (greens book analysis) | 1.5–3 ft | §3 |
@@ -113,7 +113,13 @@ Retired in the November revision (Principles §11.4): drivable and near-drivable
 
 **Routing checks.** `walks`, `walk-climb`, `shot-rise`, `steep-sites`, `gorges`, `edge-setback` and `doglegs` come from Plot Starter's route engine (`RoutingChecks`). Its limits were taken from Alex's ten 18-hole courses (walks: medians 52–84 yds, longest 90–241) and from its ground rules after Peahi, where holes ran off 200 ft cliffs and walks crossed a 200 ft gorge. They are warnings or information and never hold the gate, and every limit is editable. Heights and slopes come from the replayed terrain, so check a flagged spot in game. Two of Plot Starter's rules are left out on purpose: holes 45 yds apart (your courses come as close as 23 yds; `corridor` and `aim-spacing` cover crowding) and the clubhouse tie for returning nines.
 
-**Widths.** The line of play (tee, aim points, green) is measured across at each station; the fairway strip under the line, or the nearest within 15 yds of it, counts. No strip that close is "no fairway" and warns as under 25. A station within 40 yds of the green isn't measured, so a short par 4 may have fewer than three.
+**Widths.** The ranges are a tester's, given on the Nodens Estate fairway sketches in November 2026: 25–35 yds wide at driver distance and 30–50 at 3-wood distance (260–290 yds). The tester gave no figure for driver distance, so it is the design tee shot, 300–350: the Shot Variety Card's Power Drive bag has 3-wood at 290 and driver at 320 carry, 345 with roll. They replace the earlier 25–70 warning and 35–50 target, and a width outside its range warns either way.
+
+- **What is measured:** the built fairway only, meaning the fairway splines in the course file. The line of play (back tee, aim points, green) is measured across at three stations for each distance (the short, middle and long of its range); the fairway strip under the line, or the nearest within 15 yds of it, counts.
+- **What can't be:** a hole with no fairway strip that close anywhere along its line has nothing built to measure. It is listed as "not measured, no fairway built by the line yet" and isn't called narrow. A fairway sketched on a hole sheet isn't in the course file, and measure-tool lines aren't read as widths.
+- **No fairway at a station:** on a hole that does have built fairway, a station with no strip that close is "no fairway" and warns as under the range.
+- **Short holes:** a station within 40 yds of the green isn't measured, so a short par 4 may have fewer than three at a distance.
+- **Limits:** `DriverWidthMinYards` / `DriverWidthMaxYards` (25, 35), `ThreeWoodMinYards` / `ThreeWoodMaxYards` (260, 290), `ThreeWoodWidthMinYards` / `ThreeWoodWidthMaxYards` (30, 50) and `WidthReasonYards` (60). The earlier `LandingTargetMin/MaxYards`, `WidthHighYards` and `WidthLowYards` are gone; a `Readiness.json` that still holds them opens with the new defaults.
 
 **Landing hazards.** Bunkers (painted dabs merged as the scorecard maps merge them), painted water, stream ribbons and the ponds the terrain survey traces. Each is listed once, at the station it comes nearest, with how far off the line and which side.
 
@@ -132,7 +138,7 @@ Elevation, plot range and green relief come from the replayed terrain, so they s
 Cassimbo wasn't approved for TGC Tours. With the 300–350 design tee shot, the file alone shows:
 
 - **Length:** the median par 4 is 387 yds and six par 4s are under 400. Hole 3 is a 537-yd par 5 that leaves 178 after a 350 drive; hole 18 is 548.
-- **Width:** over 70 yds at 300–350 on 1, 7, 11 and 12; no fairway by the line, or under 25, on 16 and 18. Five holes are wider in the landing zone than the lay-up.
+- **Width:** at driver distance (300–350), over 35 yds on ten holes (1, 3, 4, 6, 7, 9 and 11–14; over 100 on 11 and 12) and under 25, or no fairway by the line, on 16 and 18. At 3-wood distance, over 50 on eleven holes and under 30 on 8 and 18. Five holes are wider in the landing zone than the lay-up.
 - **Green sizes:** green 2 is 0.30× the median and green 7 is 2.35×. The review said greens were "wildly different", 2 against 7. (A prompt now; see above.)
 - **Fairway start:** the median is about 98 yds and only hole 9 starts inside 150–225.
 - **Hole 12:** its line passes 22 yds from hole 10's green. The review said hole 12 is played over another green, so the corridor check measures distance to a green rather than only crossing one.
