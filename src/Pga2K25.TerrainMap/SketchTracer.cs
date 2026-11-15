@@ -20,11 +20,31 @@ public static class SketchTracer
 {
     const float Strong = 0.45f, Weak = 0.2f;
     const int MinStroke = 25, BridgePixels = 18, TinyPiece = 12, StraightPixels = 60, CurvingPixels = 30, CurvingCluster = 120,
-        MinFirmPixels = 15;
+        MinFirmPixels = 15, StubPixels = 8;
 
-    public static List<TracedLine> Trace(float[] score, byte[] scanNormalised, int w, int h, out double? faintBelow)
+    /// <summary>A stroke this much warmer (red over blue) than neutral is printed contour brown, not graphite or pen.</summary>
+    public const double BrownWarmth = 15;
+    /// <summary>… and this much warmer than the paper.</summary>
+    public const double WarmerThanPaper = 4;
+    /// <summary>The hairline / hand split is taken when it explains this much of the spread of ink darkness (two peaks).</summary>
+    public const double TwoPeaks = 0.65;
+    /// <summary>… and the lighter ink is in this share of the sheet's 40 pt tiles.</summary>
+    public const double HairlineSpread = 0.5;
+    /// <summary>Darkness from which ink is black pen whatever its tint (index contours scan at 150–230).</summary>
+    public const int BlackInk = 235;
+    /// <summary>Ink this much greener than it is red or blue is the printed green site ring.</summary>
+    public const double GreenInk = 6;
+
+    /// <summary>
+    /// With <paramref name="scanRgba"/> (the straightened scan's pixels), strokes are also judged by their ink, for a
+    /// sheet whose print today's render can't explain (the ground was reshaped after printing): brown strokes and
+    /// strokes no darker than the sheet's mass of hairline contours are print, and are dropped.
+    /// </summary>
+    public static List<TracedLine> Trace(float[] score, byte[] scanNormalised, int w, int h, out double? faintBelow, byte[]? scanRgba = null,
+        (int X0, int Y0, int X1, int Y1)? strip = null)
     {
         var mask = Hysteresis(score, w, h);
+        if (scanRgba is not null) KeepHandInk(mask, scanNormalised, scanRgba, w, h, strip ?? (0, 0, w - 1, h - 1));
         Close(mask, w, h);
         Thin(mask, w, h);
         var edges = TracePaths(mask, w, h);
@@ -82,6 +102,8 @@ public static class SketchTracer
         foreach (var c in strokes)
             if (Curving(c)) curving[cluster[c.Pixels[0]]] = curving.GetValueOrDefault(cluster[c.Pixels[0]]) + c.Pixels.Count;
 
+        // Where printed lines crossed a pencil line, stubs of them are left on it.
+        strokes.RemoveAll(c => c.Pixels.Count < StubPixels);
         var firm = new List<PathPixels>();
         var faint = new List<PathPixels>();
         foreach (var c in strokes)
@@ -105,6 +127,139 @@ public static class SketchTracer
         foreach (var c in faint)
             result.Add(new TracedLine(Smooth(c.Pixels, w), true));
         return result;
+    }
+
+    /// <summary>
+    /// How much of what a pencil score holds is contour brown (0–1): near nothing when the sheet it was scored
+    /// against explains the print, a good part when the ground has been reshaped since the sheet was printed.
+    /// </summary>
+    public static double BrownShare(float[] score, byte[] scanNormalised, byte[] scanRgba, int w, int h)
+    {
+        var mask = Hysteresis(score, w, h);
+        int before = mask.Count(m => m);
+        if (before == 0) return 0;
+        var kept = (bool[])mask.Clone();
+        KeepHandInk(kept, scanNormalised, scanRgba, w, h, (0, 0, w - 1, h - 1), brownOnly: true);
+        return 1 - (double)kept.Count(m => m) / before;
+    }
+
+    /// <summary>
+    /// Takes printed ink out of the mask by what it is made of. Each pixel's ink is read at its core, the darkest
+    /// pixel within 2 px (what is left of a printed line can be only its edge, and a pen line's edge takes colour
+    /// from what it crosses), with its warmth (red over blue) averaged over the 3 × 3 there. Brown ink is index
+    /// contour and green ink the green site's ring. Ink no darker than the sheet's mass of hairlines (1 ft contours scan pale and nearly grey) is
+    /// contour too, when hairlines are a good part of what is there. What is left smaller than a stroke goes.
+    /// </summary>
+    static void KeepHandInk(bool[] mask, byte[] norm, byte[] rgba, int w, int h, (int X0, int Y0, int X1, int Y1) strip, bool brownOnly = false)
+    {
+        // Darkness is taken over the ground around it (13 × 13), so hairlines bunched on a steep slope or lying on
+        // the relief shading don't add up to a pencil line's.
+        var around = new float[mask.Length];
+        for (int i = 0; i < around.Length; i++) around[i] = 255 - norm[i];
+        around = SheetScan.BoxBlur(around, w, h, 6);
+        var coreDark = new byte[mask.Length];
+        var brown = new bool[mask.Length];
+        // The paper's own warmth (a sheet printed with its tinted ground scans cream; a scanner may whiten it).
+        var tint = new long[511];
+        for (int i = 0; i < norm.Length; i += 5) if (norm[i] > 240) tint[rgba[4 * i] - rgba[4 * i + 2] + 255]++;
+        long paperCount = tint.Sum(), run = 0;
+        int paperWarm = 0;
+        for (int v = 0; v < tint.Length && paperCount > 0; v++) { run += tint[v]; if (2 * run >= paperCount) { paperWarm = v - 255; break; } }
+        double brownFrom = Math.Max(BrownWarmth, paperWarm + WarmerThanPaper);
+        var hist = new long[256];
+        for (int i = 0; i < mask.Length; i++)
+        {
+            if (!mask[i]) continue;
+            int x = i % w, y = i / w, core = i;
+            for (int dy = -2; dy <= 2; dy++)
+            for (int dx = -2; dx <= 2; dx++)
+            {
+                int xx = x + dx, yy = y + dy;
+                if (xx >= 0 && yy >= 0 && xx < w && yy < h && norm[yy * w + xx] < norm[core]) core = yy * w + xx;
+            }
+            int cx = core % w, cy = core / w, sum = 0, n = 0, green = 0;
+            for (int dy = -1; dy <= 1; dy++)
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                int xx = cx + dx, yy = cy + dy;
+                if (xx < 0 || yy < 0 || xx >= w || yy >= h) continue;
+                int j = 4 * (yy * w + xx);
+                sum += rgba[j] - rgba[j + 2]; n++;
+                green += rgba[j + 1] - Math.Max(rgba[j], rgba[j + 2]);
+            }
+            // Darkness from 1 px only, so a hairline doesn't borrow a pen line's where they cross.
+            int near = norm[i];
+            for (int dy = -1; dy <= 1; dy++)
+            for (int dx = -1; dx <= 1; dx++)
+            {
+                int xx = x + dx, yy = y + dy;
+                if (xx >= 0 && yy >= 0 && xx < w && yy < h) near = Math.Min(near, norm[yy * w + xx]);
+            }
+            coreDark[i] = (byte)Math.Clamp(255 - near - around[i], 0, 255);
+            // Ink as dark as black pen is never contour brown, even drawn along a contour.
+            brown[i] = ((double)sum / n > brownFrom && 255 - norm[core] < BlackInk) || (double)green / n > GreenInk;
+            if (!brown[i]) hist[coreDark[i]]++;
+        }
+        // Hairlines and hand ink are two peaks; Otsu's split between them, taken only when both are really there
+        // (means 45 apart, each at least a tenth of the ink, the split explaining most of the spread).
+        double total = 0, sumAll = 0;
+        for (int v = 0; v < 256; v++) { total += hist[v]; sumAll += (double)v * hist[v]; }
+        double mean = total > 0 ? sumAll / total : 0, variance = 0;
+        for (int v = 0; v < 256; v++) variance += hist[v] * (v - mean) * (v - mean);
+        double best = 0, lightCut = 0, wa = 0, sa = 0;
+        for (int v = 0; v < 255 && total > 0; v++)
+        {
+            wa += hist[v]; sa += (double)v * hist[v];
+            double wb = total - wa;
+            if (wa < 0.1 * total || wb < 0.1 * total) continue;
+            double ma = sa / wa, mb = (sumAll - sa) / wb, between = wa * wb * (ma - mb) * (ma - mb);
+            if (between > best && mb - ma >= 45) { best = between; lightCut = v + 1; }
+        }
+        double split = variance > 0 ? best / total / variance : 0;
+        if (split < TwoPeaks) lightCut = 0;
+        if (lightCut > 0)
+        {
+            // Hairlines cover the sheet; a light pencil drawing under darker marks doesn't. The lighter ink must be
+            // in most 40 pt tiles of the map strip.
+            const int tile = 120;
+            int tw = (w + tile - 1) / tile, th = (h + tile - 1) / tile;
+            var light = new int[tw * th];
+            for (int i = 0; i < mask.Length; i++)
+                if (mask[i] && !brown[i] && coreDark[i] < lightCut) light[i / w / tile * tw + i % w / tile]++;
+            int tiles = (strip.X1 / tile - strip.X0 / tile + 1) * (strip.Y1 / tile - strip.Y0 / tile + 1);
+            if (light.Count(n => n >= 20) < HairlineSpread * tiles) lightCut = 0;
+        }
+        if (brownOnly)
+        {
+            for (int i = 0; i < mask.Length; i++) if (mask[i] && brown[i]) mask[i] = false;
+            return;
+        }
+        for (int i = 0; i < mask.Length; i++) if (mask[i] && (brown[i] || coreDark[i] < lightCut)) mask[i] = false;
+
+        var seen = new bool[mask.Length];
+        var stack = new Stack<int>();
+        var group = new List<int>();
+        for (int start = 0; start < mask.Length; start++)
+        {
+            if (!mask[start] || seen[start]) continue;
+            group.Clear();
+            stack.Push(start);
+            seen[start] = true;
+            while (stack.Count > 0)
+            {
+                int i = stack.Pop();
+                group.Add(i);
+                int x = i % w, y = i / w;
+                foreach (var (dx, dy) in Around)
+                {
+                    int nx = x + dx, ny = y + dy;
+                    if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+                    int q = ny * w + nx;
+                    if (mask[q] && !seen[q]) { seen[q] = true; stack.Push(q); }
+                }
+            }
+            if (group.Count < MinStroke) foreach (int i in group) mask[i] = false;
+        }
     }
 
     /// <summary>Connected groups of the thinned lines (8-neighbour), as a label per pixel.</summary>

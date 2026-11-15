@@ -108,15 +108,19 @@ public class SketchTests
     /// render; on paper that wasn't flat, the print sits a few pixels off in the middle. Neither comes through as
     /// pencil (Murray Estate, whose heights are from its lowest point; Sagan-Khushun's are from the sea).
     /// Strip sheets printed before 3.2 have no green inset at the top of the notes column, and still import.
+    /// Nodens Estate (3.4): a sheet printed before the ground was reshaped (here, a quarter of the height stamps
+    /// gone) has contours no render of today's ground explains. It is matched on its route and grid, and its
+    /// contours are told from the pencil by their ink.
     /// </summary>
     [Trait("Speed", "Slow")]
     [Theory]
-    [InlineData("sagan-khushun", HoleSheetLayout.Strip, 0.0, false, 50.0)]
-    [InlineData("sagan-khushun", HoleSheetLayout.Strip, 0.0, false, 0.0)]
-    [InlineData("sagan-khushun", HoleSheetLayout.FullWidth, 0.0, false, 50.0)]
-    [InlineData("murray-estate", HoleSheetLayout.Strip, 0.8, true, 50.0)]
+    [InlineData("sagan-khushun", HoleSheetLayout.Strip, 0.0, false, 50.0, false)]
+    [InlineData("sagan-khushun", HoleSheetLayout.Strip, 0.0, false, 0.0, false)]
+    [InlineData("sagan-khushun", HoleSheetLayout.FullWidth, 0.0, false, 50.0, false)]
+    [InlineData("murray-estate", HoleSheetLayout.Strip, 0.8, true, 50.0, false)]
+    [InlineData("sagan-khushun", HoleSheetLayout.Strip, 0.0, false, 50.0, true)]
     public void Import_MatchesTheHoleAndPutsThePencilOnTheGround(string courseName, HoleSheetLayout kind, double printedLowerFeet, bool bowed,
-        double printedInsetYards)
+        double printedInsetYards, bool reshapedSince)
     {
         string dir = Path.Combine(Path.GetTempPath(), "pga2k25-sketch-" + Guid.NewGuid().ToString("N"));
         try
@@ -129,7 +133,9 @@ public class SketchTests
             var printOptions = options with { Pdf = false, Layout = kind, GreenInsetYards = printedInsetYards };
             var (datum, sea) = HoleSheetBuilder.PlotDatum(course, printOptions);
             Assert.Equal(printedLowerFeet == 0, sea);
-            var sheet = HoleSheet.Build(course, Pga2K25.Maps.CourseLayers.From(course), course.Holes.Single(h => h.Number == 7), printOptions,
+            // The ground as it was when the sheet was printed.
+            var printedFrom = reshapedSince ? WithStamps(course, course.HeightStamps.Where(st => st.Index % 4 != 0).ToList()) : course;
+            var sheet = HoleSheet.Build(printedFrom, Pga2K25.Maps.CourseLayers.From(printedFrom), printedFrom.Holes.Single(h => h.Number == 7), printOptions,
                 datum + printedLowerFeet / TerrainSurvey.FeetPerMetre, sea);
             using var renderer = new HoleSheetRenderer(printOptions);
             using var surface = SKSurface.Create(new SKImageInfo(renderer.PixelSize.Width, renderer.PixelSize.Height, SKColorType.Rgba8888, SKAlphaType.Premul));
@@ -196,7 +202,8 @@ public class SketchTests
             var r = Assert.Single(results);
             Assert.True(r.Saved, r.Message);
             Assert.Equal(7, r.Hole);
-            Assert.True(r.Match > 0.6, $"{r.Match}");
+            Assert.True(r.Match > (reshapedSince ? 0.45 : 0.6), $"{r.Match}");
+            Assert.Equal(reshapedSince, log.Any(l => l.Contains("reshaped since it was printed")));
             if (printedLowerFeet != 0)
             {
                 // Found to the nearest sixteenth of a contour interval.
@@ -256,6 +263,14 @@ public class SketchTests
         {
             if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
         }
+    }
+
+    /// <summary>The course with other height stamps. <see cref="CourseModel"/> has no copy of its own, so a shallow one is made here.</summary>
+    static CourseModel WithStamps(CourseModel course, IReadOnlyList<HeightStamp> stamps)
+    {
+        var copy = (CourseModel)typeof(object).GetMethod("MemberwiseClone", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!.Invoke(course, null)!;
+        typeof(CourseModel).GetProperty(nameof(CourseModel.HeightStamps))!.SetValue(copy, stamps);
+        return copy;
     }
 
     /// <summary>Synchronous progress, so every line is in before the import returns.</summary>

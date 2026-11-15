@@ -282,6 +282,19 @@ NEW IN 3.4.0
   rose, for one), the build log and Card Validation.txt say which and
   why in one line.
 
+FIXED IN 3.4.0
+- Hole sketches: scans of sheets printed before you reshaped the ground
+  came in covered in contour lines, with your own lines cut into
+  hundreds of short pieces, and some pages landed on the wrong hole or
+  were skipped. The old contours on the paper no longer match the
+  course, so Studio now tells your pencil or pen from the print by its
+  ink (contours are brown or pale; your lines are dark and grey or
+  black), and matches such a page to its hole by its route line, ticks
+  and grid. This needs a colour scan. A page whose hole has been
+  re-routed since it was printed can't be placed and is skipped, with a
+  message saying so. Import the scans again to replace sketches brought
+  in before.
+
 NEW IN 3.3.0
 - Course cards: a Shot Variety Card. Every hole is played by two
   golfers, a Power Drive player from the back tees and a Normal player

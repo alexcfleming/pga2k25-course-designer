@@ -517,7 +517,7 @@ public static class SheetScan
     }
 
     /// <summary>Box blur of radius <paramref name="r"/> (two 1-D running-sum passes, edges clamped).</summary>
-    static float[] BoxBlur(float[] v, int w, int h, int r)
+    internal static float[] BoxBlur(float[] v, int w, int h, int r)
     {
         var tmp = new float[v.Length];
         var outp = new float[v.Length];
