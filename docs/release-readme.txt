@@ -253,6 +253,34 @@ NEW IN 3.4.0
   distance" and "Width at 3-wood distance" replace the landing width
   target and the width warning limits. If you had changed those for a
   course, set the new ones.
+- Hole Data Card: two new columns, Width 3W and Width Dr, show each
+  par 4 and 5's fairway width at 3-wood and driver distance, the
+  narrowest to the widest of three stations. A width outside its range
+  is red; "not built" marks a hole with no fairway built by its line.
+  They are the same figures Publish readiness checks.
+- Course cards, all rebuilt to match each other. Nothing printed before
+  has been taken off.
+  - The Hole Data Card is now 17 in wide like the other cards, with the
+    same header. If you print it, check your page size.
+  - A hole is the same par-coloured numbered disc on every card,
+    now on the Hole Data Card and the Wind Card tables too.
+  - Compass Rose: each hole's tee and approach bearing is printed
+    beside its marker.
+  - Course Data Card: the "sorted by length" chart shows each par's
+    shortest and longest hole and marks the largest gap in length.
+  - Shot Variety Card: the "Off the tee" row prints "Dr" for driver.
+  - Green Size Card: a green with no outline drawn yet is a short
+    hatched stub marked "est.", no longer a full bar.
+  - Hole Data Card: a dogleg of over 45 degrees has its bearings in
+    red, and is named under the table.
+  - OUT/IN and the rose's distance labels no longer sit under a bar's
+    yardage or a hole marker.
+- Course cards: one "Course Cards" PDF holds every card, a page each,
+  so there is a single file to send. The separate files are still
+  written, and Open PDF opens the combined one.
+- Course cards: when a card isn't drawn (no Wind Card without a wind
+  rose, for one), the build log and Card Validation.txt say which and
+  why in one line.
 
 NEW IN 3.3.0
 - Course cards: a Shot Variety Card. Every hole is played by two

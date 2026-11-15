@@ -11,8 +11,9 @@ namespace Pga2K25.CourseCard;
 public sealed partial class CourseCardRenderer : IDisposable
 {
     public static readonly SKSize RosePage = new(13 * 72, 14 * 72);
-    public static readonly SKSize TablePage = new(16 * 72, 11.6f * 72);
     public static readonly SKSize CardPage = new(17 * 72, 11.6f * 72);
+    /// <summary>The hole data card's page: the other cards' size since 3.4 (it was 16 in wide).</summary>
+    public static readonly SKSize TablePage = CardPage;
 
     static readonly SKColor Muted = SKColor.Parse("#5A5F61"), Faint = SKColor.Parse("#7C8488"),
         Note = SKColor.Parse("#6E7A80"), RingLabel = SKColor.Parse("#8A9296");
@@ -68,6 +69,14 @@ public sealed partial class CourseCardRenderer : IDisposable
     public void Dispose()
     {
         _serif.Dispose(); _bold.Dispose(); _italic.Dispose(); _logo?.Dispose();
+    }
+
+    /// <summary>A hole as its numbered disc in the par's colour: the same marker on the rose, the grids and the tables.</summary>
+    void HoleDisc(SKCanvas canvas, float x, float y, float radius, int number, int par)
+    {
+        using (var f = Fill(ParColour(par))) canvas.DrawCircle(x, y, radius, f);
+        float size = radius * 1.06f;
+        Text(canvas, number.ToString(), x, y + size * 0.36f, size, _bold, OnPar(par), SKTextAlign.Center);
     }
 
     SKColor ParColour(int par) => _par.TryGetValue(par, out var c) ? c : _ink;
@@ -128,12 +137,13 @@ public sealed partial class CourseCardRenderer : IDisposable
         canvas.Clear(_salt);
         Text(canvas, Title, 0.04f * w, (1 - 0.965f) * h, 29, _bold, _ink, tracking: 0.32f * 29);
         Text(canvas, $"Compass rose  ·  hole orientation by bearing, scaled to the {RoseTeeName} tees", 0.04f * w, (1 - 0.938f) * h, 12, _italic, Muted);
-        Text(canvas, "Bearings in whole degrees, 0–359, clockwise from true North  ·  paths drawn from a common origin as cornered " +
-                     "doglegs (tee bearing, then approach bearing)  ·  not a routing plan", 0.04f * w, (1 - 0.915f) * h, 8.8f, _serif, Faint);
+        Text(canvas, "Bearings in whole degrees, 0–359, clockwise from true North  ·  paths from a common origin as cornered doglegs  ·  " +
+                     "beside each hole: tee bearing › approach bearing  ·  not a routing plan",
+            0.04f * w, (1 - 0.915f) * h, 8.8f, _serif, Faint);
         using (var rule = Stroke(_fog, 1.2f)) canvas.DrawLine(0.04f * w, (1 - 0.905f) * h, 0.96f * w, (1 - 0.905f) * h, rule);
 
         var axes = FigRect(0.04f, 0.035f, 0.92f, 0.855f, RosePage);
-        DrawRose(canvas, axes, 1.0f);
+        DrawRose(canvas, axes, 1.0f, bearings: true);
         // Legend, upper left of the rose axes.
         float ly = axes.Top + 18;
         foreach (int par in new[] { 3, 4, 5 })
@@ -175,7 +185,7 @@ public sealed partial class CourseCardRenderer : IDisposable
         DrawBars(canvas, seq, order, "Sequential  ·  holes 1–" + _d.Holes.Count, divideAfter: _d.Holes.Count == 18 ? 9 : null);
         // Stable sort: ties keep hole order.
         var sorted = order.OrderByDescending(i => _d.Holes[i].Yards[_d.RoseTee]).ToList();
-        DrawBars(canvas, FigRect(0.515f, 0.085f, 0.455f, 0.305f, CardPage), sorted, "Sorted by length  ·  longest to shortest", divideAfter: null);
+        DrawBars(canvas, FigRect(0.515f, 0.085f, 0.455f, 0.305f, CardPage), sorted, "Sorted by length  ·  longest to shortest", divideAfter: null, spreads: true);
 
         // Par legend above the right column.
         float lx = 0.515f * w + 10, lyy = (1 - 0.872f) * h + 16;
@@ -250,7 +260,7 @@ public sealed partial class CourseCardRenderer : IDisposable
     {
         var g = _d.Greens;
         int n = g.Greens.Count;
-        double top = Math.Ceiling(g.Greens.Max(x => x.SquareFeet) / 2000) * 2000, yMax = top * 1.06;
+        double top = Math.Ceiling(g.Built.Max(x => x.SquareFeet) / 2000) * 2000, yMax = top * 1.06;
         float slot = r.Width / (n + 0.6f), bw = slot * 0.68f;
         float X(int i) => r.Left + (i + 0.8f) * slot;
         float Yv(double v) => r.Bottom - (float)(v / yMax) * r.Height;
@@ -270,8 +280,10 @@ public sealed partial class CourseCardRenderer : IDisposable
             var bar = new SKRect(X(i) - bw / 2, Yv(green.SquareFeet), X(i) + bw / 2, r.Bottom);
             if (green.Estimated)
             {
-                Hatch(canvas, bar);
-                Text(canvas, "est.", X(i), bar.Top - 4, 7.2f, _italic, Muted, SKTextAlign.Center);
+                // No spline, so no size: a short stub at the axis, never a bar that reads as a measured green.
+                var stub = new SKRect(bar.Left, r.Bottom - 12, bar.Right, r.Bottom);
+                Hatch(canvas, stub);
+                Text(canvas, "est.", X(i), stub.Top - 4, 7.2f, _italic, Muted, SKTextAlign.Center);
             }
             else
             {
@@ -293,8 +305,8 @@ public sealed partial class CourseCardRenderer : IDisposable
             using var line = Stroke(_ink, .9f);
             line.PathEffect = SKPathEffect.CreateDash([3.6f, 2.7f], 0);
             canvas.DrawLine(x, r.Top, x, r.Bottom, line);
-            Text(canvas, "OUT", x - 4, r.Top + 11, 8.2f, _italic, _ink, SKTextAlign.Right);
-            Text(canvas, "IN", x + 4, r.Top + 11, 8.2f, _italic, _ink);
+            Text(canvas, "OUT", x - 4, r.Top - 4, 8.2f, _italic, _ink, SKTextAlign.Right);
+            Text(canvas, "IN", x + 4, r.Top - 4, 8.2f, _italic, _ink);
         }
     }
 
@@ -425,21 +437,33 @@ public sealed partial class CourseCardRenderer : IDisposable
 
     public void DrawTablePage(SKCanvas canvas)
     {
-        float W = TablePage.Width, H = TablePage.Height;
+        // The page and header are the other cards': 17 × 11.6 in, title, what the card is, how it was measured, and
+        // the totals on the right. With the two fairway-width columns the tee and bearing columns are a little
+        // narrower, so the two text columns keep their room.
+        bool widths = FairwayWidths.Count > 0;
+        var (pw, H) = (CardPage.Width, CardPage.Height);
+        double right = 0.970 * pw / 72.0;
         float In(double inches) => (float)(inches * 72);
         float Y(double inchesFromBottom) => H - In(inchesFromBottom);   // the reference lays this page out in inches, y up
         double h = 11.6;
         canvas.Clear(_salt);
 
-        double xTitle = _logo is null ? 0.5 : 1.95;
-        if (_logo is not null) DrawLogo(canvas, new SKRect(In(1.03 - 0.46), Y(h - 0.86 + 0.46), In(1.03 + 0.46), Y(h - 0.86 - 0.46)));
-        Text(canvas, Title, In(xTitle), Y(h - 0.62), 30, _bold, _ink, tracking: 0.32f * 30);
+        float hx = (_logo is null ? 0.030f : 0.082f) * pw;
+        Text(canvas, Title, hx, (1 - 0.955f) * H, 30, _bold, _ink, tracking: 0.32f * 30);
         string sub = string.Join("  ·  ", new[] { "Hole data card", _c.Description, ParLine }.Where(s => !string.IsNullOrWhiteSpace(s)));
-        Text(canvas, sub, In(xTitle), Y(h - 1.02), 12.5f, _italic, Muted);
+        Text(canvas, sub, hx, (1 - 0.925f) * H, 12.5f, _italic, Muted);
+        Text(canvas, string.Join("  ·  ", new[] { "tee columns in in-game order, shortest to longest", "yardages are the game's scorecard lengths",
+                OceanPhrase, WindPhrase }.Where(s => s is not null)), hx, (1 - 0.902f) * H, 9, _serif, Faint);
         var (main, others, halves) = HeaderTotals();
-        Text(canvas, main, In(15.5), Y(h - 0.62), 13.5f, _bold, _ink, SKTextAlign.Right);
-        Text(canvas, others ?? halves, In(15.5), Y(h - 1.02), 10.5f, _serif, Muted, SKTextAlign.Right);
-        using (var rule = Stroke(_fog, 1.3f)) canvas.DrawLine(In(0.5), Y(h - 1.25), In(15.5), Y(h - 1.25), rule);
+        Text(canvas, main, 0.970f * pw, (1 - 0.955f) * H, 14, _bold, _ink, SKTextAlign.Right);
+        if (others is not null)
+        {
+            Text(canvas, others, 0.970f * pw, (1 - 0.925f) * H, 10.5f, _serif, Muted, SKTextAlign.Right);
+            Text(canvas, halves, 0.970f * pw, (1 - 0.902f) * H, 10.5f, _serif, Muted, SKTextAlign.Right);
+        }
+        else Text(canvas, halves, 0.970f * pw, (1 - 0.925f) * H, 10.5f, _serif, Muted, SKTextAlign.Right);
+        using (var rule = Stroke(_fog, 1.3f)) canvas.DrawLine(0.024f * pw, (1 - 0.884f) * H, 0.970f * pw, (1 - 0.884f) * H, rule);
+        if (_logo is not null) DrawLogo(canvas, FigRect(0.024f, 0.898f, 0.046f, 0.0674f, CardPage));
 
         // Columns: tee columns follow the course's tee sets; the two text columns absorb the spare width. Hole names
         // get a column only when the Holes card names at least one hole.
@@ -447,17 +471,21 @@ public sealed partial class CourseCardRenderer : IDisposable
         var cols = new List<(string Name, double W, bool Centre)> { ("Hole", .9, true) };
         if (named) cols.Add(("Name", 1.9, false));
         cols.Add(("Par", .9, true));
-        cols.AddRange(_d.TeeNames.Select(n => (n, 1.15, true)));
-        cols.Add(("Tee °", 1.0, true)); cols.Add(("Appr °", 1.0, true));
-        double fixedW = cols.Sum(c => c.W), spare = 15 - fixedW - 6.6;
+        cols.AddRange(_d.TeeNames.Select(n => (n, widths ? 1.05 : 1.15, true)));
+        double bearing = widths ? 0.9 : 1.0;
+        cols.Add(("Tee °", bearing, true)); cols.Add(("Appr °", bearing, true));
+        // Fairway width at 3-wood and driver distance, when the course has par 4s or 5s to measure.
+        if (widths) { cols.Add(("Width 3W", .85, true)); cols.Add(("Width Dr", .85, true)); }
+        double fixedW = cols.Sum(c => c.W), spare = right - 0.030 * pw / 72.0 - fixedW - 6.6;
         cols.Add(("Hazards", 3.0 + spare * 3.0 / 6.6, false));
         cols.Add(("Green Contours & Hole Positions", 3.6 + spare * 3.6 / 6.6, false));
-        double x0 = 0.5, rh = 0.375, totalW = cols.Sum(c => c.W);
+        double x0 = 0.030 * pw / 72.0, rh = 0.375, totalW = cols.Sum(c => c.W);
         var xs = new List<double>();
         double acc = x0;
         foreach (var c in cols) { xs.Add(acc); acc += c.W; }
         int nameCol = named ? 1 : -1, parCol = named ? 2 : 1;
-        int teeCols = _d.TeeNames.Count, firstTee = parCol + 1, teeB = firstTee + teeCols, apprB = teeB + 1, hazards = apprB + 1, contours = hazards + 1;
+        int teeCols = _d.TeeNames.Count, firstTee = parCol + 1, teeB = firstTee + teeCols, apprB = teeB + 1,
+            woodW = widths ? apprB + 1 : -1, driverW = widths ? apprB + 2 : -1, hazards = apprB + (widths ? 3 : 1), contours = hazards + 1;
 
         var rows = new List<(string Kind, CardHole? Hole, string Label, CardTotals? Totals)>();
         foreach (var hole in _d.Holes)
@@ -488,6 +516,7 @@ public sealed partial class CourseCardRenderer : IDisposable
             var (kind, hole, label, totals) = rows[r];
             var band = new SKRect(In(x0), Y(y + rh), In(x0 + totalW), Y(y));
             string?[] vals = new string?[cols.Count];
+            var tones = new WidthTone?[cols.Count];
             bool sum = kind == "sum";
             if (sum)
             {
@@ -502,6 +531,14 @@ public sealed partial class CourseCardRenderer : IDisposable
                 if (named) vals[nameCol] = hole.Name;
                 for (int t = 0; t < teeCols; t++) vals[firstTee + t] = hole.Yards[t].ToString("N0");
                 vals[teeB] = hole.TeeBearing.ToString(); vals[apprB] = hole.ApproachBearing.ToString();
+                // A bend the validation warns about is marked on the card, and named under the table.
+                if (Math.Abs(hole.Bend) > CourseCardData.MaxBendDegrees) { vals[apprB] += " †"; tones[teeB] = tones[apprB] = WidthTone.Flag; }
+                if (widths && FairwayWidths.TryGetValue(hole.Number, out var fw))
+                {
+                    var L = WidthLimits;
+                    (vals[woodW], tones[woodW]) = WidthCell(fw, fw.ThreeWood, L.ThreeWoodWidthMinYards, L.ThreeWoodWidthMaxYards);
+                    (vals[driverW], tones[driverW]) = WidthCell(fw, fw.Driver, L.DriverWidthMinYards, L.DriverWidthMaxYards);
+                }
                 vals[hazards] = string.Join(" · ", hole.Hazards);
                 vals[contours] = hole.GreenNotes;
             }
@@ -509,12 +546,10 @@ public sealed partial class CourseCardRenderer : IDisposable
             {
                 if (string.IsNullOrEmpty(vals[i])) continue;
                 var (_, cw, centre) = cols[i];
-                if (i == parCol && !sum)
+                if (i == 0 && !sum)
                 {
-                    float cx = In(xs[i] + cw / 2), cy = Y(y + rh / 2);
-                    using var pill = Fill(ParColour(hole!.Par));
-                    canvas.DrawRoundRect(new SKRect(cx - In(.26), cy - In(.125), cx + In(.26), cy + In(.125)), In(.05), In(.05), pill);
-                    Text(canvas, vals[i]!, cx, cy + 3.8f, 10, _bold, OnPar(hole.Par), SKTextAlign.Center);
+                    // The hole as its par-coloured disc, the marker every card uses; the par stays printed beside it.
+                    HoleDisc(canvas, In(xs[i] + cw / 2), Y(y + rh / 2), 9, hole!.Number, hole.Par);
                     continue;
                 }
                 float tx = In(centre ? xs[i] + cw / 2 : xs[i] + .14);
@@ -523,6 +558,14 @@ public sealed partial class CourseCardRenderer : IDisposable
                 {
                     var (fit, fitSize) = FitLine(vals[i]!, 10.2f, 7.5f, room, _italic);
                     Text(canvas, fit, tx, Y(y + rh * .32), fitSize, _italic, _ink);
+                    continue;
+                }
+                if (tones[i] is { } tone)
+                {
+                    // Inside its range plain, outside it in the flag colour, nothing to measure quiet and italic.
+                    bool quiet = tone == WidthTone.Quiet;
+                    Text(canvas, vals[i]!, tx, Y(y + rh * .32), quiet ? 9.2f : size, quiet ? _italic : tone == WidthTone.Flag ? _bold : _serif,
+                        quiet ? Faint : tone == WidthTone.Flag ? Draft : _ink, SKTextAlign.Center);
                     continue;
                 }
                 if (i >= hazards && Measure(vals[i]!, size, _serif) > room)
@@ -541,11 +584,16 @@ public sealed partial class CourseCardRenderer : IDisposable
         }
         using (var end = Stroke(_ink, 1.1f)) canvas.DrawLine(In(x0), Y(y), In(x0 + totalW), Y(y), end);
 
-        Text(canvas, "Bearings in whole degrees, 0–359, clockwise from true North, measured from the course file's routing: tee to " +
-                     "first aim point, last aim point to green; par 3s tee to green.", In(.5), Y(y - .36), 9, _serif, Note);
-        string second = string.Join("  ·  ", new[] { OceanPhrase is null ? null : $"{OceanPhrase}", WindPhrase,
-            "tee columns in in-game order, shortest to longest", "yardages are the game's scorecard lengths" }.Where(s => s is not null));
-        Text(canvas, second, In(.5), Y(y - .64), 9, _serif, Note);
+        var bent = _d.Holes.Where(x => Math.Abs(x.Bend) > CourseCardData.MaxBendDegrees).ToList();
+        var foot = new List<string>
+        {
+            "Bearings in whole degrees, 0–359, clockwise from true North, measured from the course file's routing: tee to " +
+            "first aim point, last aim point to green; par 3s tee to green." +
+            (bent.Count == 0 ? "" : $"  ·  † a dogleg of over {CourseCardData.MaxBendDegrees}° between the two: " +
+                string.Join(", ", bent.Select(x => $"hole {x.Number} ({x.Bend:+0;−0}°)"))),
+        };
+        if (widths) { var (w1, w2) = WidthNote(); foot.Add(w1); foot.Add(w2); }
+        for (int i = 0; i < foot.Count; i++) Text(canvas, foot[i], In(x0), Y(y - .36 - .28 * i), 9, _serif, Note);
     }
 
     /// <summary>The text at the largest size from <paramref name="size"/> down to <paramref name="min"/> that fits, cut with an ellipsis if even that doesn't.</summary>
@@ -596,7 +644,8 @@ public sealed partial class CourseCardRenderer : IDisposable
     }
 
     /// <summary>Draws the rose centred in <paramref name="axes"/>; returns its centre and points per yard.</summary>
-    (SKPoint Centre, float PointsPerYard) DrawRose(SKCanvas canvas, SKRect axes, float k)
+    /// <param name="bearings">Print each hole's tee and approach bearing beside its marker (the standalone rose).</param>
+    (SKPoint Centre, float PointsPerYard) DrawRose(SKCanvas canvas, SKRect axes, float k, bool bearings = false)
     {
         float R = _roseMax;
         float L = R * 1.19f;
@@ -616,10 +665,12 @@ public sealed partial class CourseCardRenderer : IDisposable
                 float size = (card ? 12 : 9.5f) * k;
                 Text(canvas, lab, lp.X, lp.Y + size * 0.36f, size, card ? _bold : _serif, card ? _ink : Faint, SKTextAlign.Center);
             }
-        // Ring labels at 345°, boxed so spokes don't strike through the numbers.
+        // Ring labels midway between two spokes, on the gap no hole's marker or path covers (345° when it is clear, as
+        // the reference had it), boxed so nothing strikes through the numbers.
+        double ringAt = RingLabelBearing(c, ppy, k);
         for (int r = _c.RingStepYards; r <= R; r += _c.RingStepYards)
         {
-            var rp = P(345, r);
+            var rp = P(ringAt, r);
             float size = 8.5f * k, tw = Measure($"{r}", size, _serif);
             using var box = Fill(_salt.WithAlpha(230));
             canvas.DrawRoundRect(new SKRect(rp.X - tw / 2 - 2, rp.Y - size * 0.62f, rp.X + tw / 2 + 2, rp.Y + size * 0.55f), 2, 2, box);
@@ -681,8 +732,80 @@ public sealed partial class CourseCardRenderer : IDisposable
             float size = 9.5f * k;
             Text(canvas, h.Number.ToString(), end.X, end.Y + size * 0.36f, size, _bold, OnPar(h.Par), SKTextAlign.Center);
         }
+        if (bearings) DrawRoseBearings(canvas, c, ppy, k);
         using (var dot = Fill(_ink)) canvas.DrawCircle(c, 4.2f * (float)Math.Sqrt(k), dot);
         return (c, ppy);
+    }
+
+    /// <summary>
+    /// The bearing the ring labels sit on: halfway between two spokes, where the fewest labels are covered by a hole's
+    /// marker or run along a hole's path. 345° wins a tie.
+    /// </summary>
+    double RingLabelBearing(SKPoint c, float ppy, float k)
+    {
+        int step = Math.Max(1, _c.SpokeStepDegrees);
+        var candidates = Enumerable.Range(0, 360 / step).Select(i => (i * step + step / 2.0 + 330) % 360).ToList();   // 345 first
+        double Cost(double deg)
+        {
+            double cost = 0;
+            var v = Vec(deg);
+            for (int r = _c.RingStepYards; r <= _roseMax; r += _c.RingStepYards)
+            {
+                var at = new SKPoint(c.X + (float)(v.X * r * ppy), c.Y - (float)(v.Y * r * ppy));
+                foreach (var h in _d.Holes)
+                {
+                    var end = EndPoint(h, c, ppy);
+                    if (SKPoint.Distance(end, at) < 16 * k) cost += 3;                      // under a marker
+                    double off = Math.Abs(((h.TeeBearing - deg) % 360 + 540) % 360 - 180);   // the tee leg runs along the labels
+                    double leg = h.Yards[_d.RoseTee] * (h.TeeBearing == h.ApproachBearing ? 1 : h.CornerFraction);
+                    if (off < 5 && leg >= r) cost += 1;
+                }
+            }
+            return cost;
+        }
+        return candidates.MinBy(Cost);
+    }
+
+    /// <summary>
+    /// Each hole's bearings beside its marker on the large rose ("171° › 155°", one figure when the hole plays straight):
+    /// on the outward side where that is clear of the other markers, labels and the compass points, else round the marker.
+    /// </summary>
+    void DrawRoseBearings(SKCanvas canvas, SKPoint c, float ppy, float k)
+    {
+        float size = 7.6f * k, r = 7.16f * k, hgt = size * 1.25f;
+        var taken = _d.Holes.Select(h => { var e = EndPoint(h, c, ppy); return new SKRect(e.X - r, e.Y - r, e.X + r, e.Y + r); }).ToList();
+        for (int d = 0; d < 360; d += Math.Max(1, _c.SpokeStepDegrees))
+        {
+            var v = Vec(d);
+            var lp = new SKPoint(c.X + (float)(v.X * _roseMax * 1.075 * ppy), c.Y - (float)(v.Y * _roseMax * 1.075 * ppy));
+            taken.Add(new SKRect(lp.X - 16 * k, lp.Y - 8 * k, lp.X + 16 * k, lp.Y + 8 * k));
+        }
+        foreach (var h in _d.Holes.OrderByDescending(h => h.Yards[_d.RoseTee]))
+        {
+            string text = h.TeeBearing == h.ApproachBearing ? $"{h.TeeBearing}°" : $"{h.TeeBearing}° › {h.ApproachBearing}°";
+            float tw = Measure(text, size, _serif) + 4;
+            var end = EndPoint(h, c, ppy);
+            var outward = new SKPoint(end.X - c.X, end.Y - c.Y);
+            float len = Math.Max(1e-3f, outward.Length);
+            outward = new SKPoint(outward.X / len, outward.Y / len);
+            // Eight places round the marker, the one nearest the outward direction first.
+            var spots = new List<(SKRect Box, double Rank)>();
+            for (int a = 0; a < 8; a++)
+            {
+                double ang = a * Math.PI / 4;
+                float ux = (float)Math.Cos(ang), uy = (float)Math.Sin(ang);
+                float cx = end.X + ux * (r + 3 + tw / 2 * Math.Abs(ux)) + (Math.Abs(ux) < 0.1f ? 0 : 0);
+                float cy = end.Y + uy * (r + 3 + hgt / 2);
+                if (Math.Abs(ux) > 0.1f) cx = end.X + Math.Sign(ux) * (r + 3 + tw / 2);
+                if (Math.Abs(uy) < 0.1f) cy = end.Y;
+                spots.Add((new SKRect(cx - tw / 2, cy - hgt / 2, cx + tw / 2, cy + hgt / 2), -(ux * outward.X + uy * outward.Y)));
+            }
+            var ordered = spots.OrderBy(s => s.Rank).ToList();
+            var box = ordered.Select(s => s.Box).FirstOrDefault(b => !taken.Any(t => t.IntersectsWith(b)), ordered[0].Box);
+            taken.Add(box);
+            using (var bg = Fill(_salt.WithAlpha(215))) canvas.DrawRoundRect(box, 2, 2, bg);
+            Text(canvas, text, box.MidX, box.MidY + size * 0.36f, size, _serif, Muted, SKTextAlign.Center);
+        }
     }
 
     SKPoint EndPoint(CardHole h, SKPoint c, float ppy)
@@ -703,7 +826,16 @@ public sealed partial class CourseCardRenderer : IDisposable
 
     // ───────────────────────────── bars ─────────────────────────────
 
-    void DrawBars(SKCanvas canvas, SKRect r, List<int> order, string title, int? divideAfter)
+    /// <summary>Each par's shortest and longest hole on the rose tee and the yards between them, par 3s first.</summary>
+    public IReadOnlyList<(int Par, string Text)> LengthSpreads() =>
+        _d.Holes.GroupBy(h => h.Par).OrderBy(g => g.Key).Select(g =>
+        {
+            int lo = g.Min(h => h.Yards[_d.RoseTee]), hi = g.Max(h => h.Yards[_d.RoseTee]);
+            return (g.Key, g.Count() == 1 ? $"Par {g.Key}  {lo}" : $"Par {g.Key}  {lo}–{hi} ({hi - lo})");
+        }).ToList();
+
+    /// <param name="spreads">On the sorted chart: each par's shortest-to-longest spread beside the title, and the largest gap between neighbours marked.</param>
+    void DrawBars(SKCanvas canvas, SKRect r, List<int> order, string title, int? divideAfter, bool spreads = false)
     {
         int n = order.Count;
         float yMax = _barTop + 20;
@@ -730,6 +862,33 @@ public sealed partial class CourseCardRenderer : IDisposable
         Text(canvas, title, r.Left, r.Top - 9, 12.5f, _bold, _ink);
         Text(canvas, "hole", r.MidX, r.Bottom + 25, 8.6f, _serif, Faint, SKTextAlign.Center);
 
+        if (spreads && n > 1)
+        {
+            // Each par's spread, right of the title, longest par first: "Par 4  343–485 (142)".
+            float sx = r.Right;
+            foreach (var (par, text) in LengthSpreads().Reverse())
+            {
+                sx -= Measure(text, 8.6f, _serif);
+                Text(canvas, text, sx, r.Top - 9, 8.6f, _serif, Muted);
+                using (var sw = Fill(ParColour(par))) canvas.DrawRect(sx - 14, r.Top - 16, 9, 7, sw);
+                sx -= 30;
+            }
+            // The largest gap between two neighbours: a bracket from one bar's top to the next, with the yards.
+            int at = Enumerable.Range(0, n - 1).MaxBy(i => _d.Holes[order[i]].Yards[_d.RoseTee] - _d.Holes[order[i + 1]].Yards[_d.RoseTee]);
+            int hi = _d.Holes[order[at]].Yards[_d.RoseTee], lo = _d.Holes[order[at + 1]].Yards[_d.RoseTee];
+            if (hi - lo > 0)
+            {
+                float gx = X(at + 1) + bw / 2 + 5, yHi = Yv(hi), yLo = Yv(lo + 12) - 9;
+                if (yLo - yHi > 14)
+                {
+                    using var g = Stroke(_ink, .8f);
+                    canvas.DrawLine(gx - 3, yHi, gx, yHi, g); canvas.DrawLine(gx, yHi, gx, yLo, g); canvas.DrawLine(gx - 3, yLo, gx, yLo, g);
+                    Text(canvas, $"{hi - lo} yds", gx + 4, (yHi + yLo) / 2 + 3, 7.6f, _italic, _ink);
+                    Text(canvas, "largest gap", gx + 4, (yHi + yLo) / 2 - 6, 7.2f, _italic, Muted);
+                }
+            }
+        }
+
         if (divideAfter is int d)
         {
             float x = X(d - 0.5);
@@ -737,8 +896,9 @@ public sealed partial class CourseCardRenderer : IDisposable
             using var line = Stroke(_ink, .9f);
             line.PathEffect = dash;
             canvas.DrawLine(x, r.Top, x, r.Bottom, line);
-            Text(canvas, "OUT", x - 4, Yv(_barTop - 10), 8.2f, _italic, _ink, SKTextAlign.Right);
-            Text(canvas, "IN", x + 4, Yv(_barTop - 10), 8.2f, _italic, _ink);
+            // Above the plot, where no bar's yardage can sit under them.
+            Text(canvas, "OUT", x - 4, r.Top - 4, 8.2f, _italic, _ink, SKTextAlign.Right);
+            Text(canvas, "IN", x + 4, r.Top - 4, 8.2f, _italic, _ink);
         }
     }
 

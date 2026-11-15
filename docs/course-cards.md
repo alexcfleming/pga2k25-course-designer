@@ -4,14 +4,35 @@ Print pages that describe a course's orientation, lengths, green sizes, wind and
 
 | Page | File | Shows |
 |---|---|---|
-| Compass rose | `<course> - Compass Rose.png/.pdf` (13 × 14 in) | Every hole as a path from a common origin, by bearing, scaled to the longest tee set |
-| Hole data card | `<course> - Hole Data Card` (16 × 11.6 in) | Every hole × every tee set (with a Name column when the Holes card names any hole), tee and approach bearings, hazards, green contours and hole positions, OUT / IN / TOTAL |
-| Course data card | `<course> - Course Data Card` (17 × 11.6 in) | Rose + bar chart in hole order + bar chart sorted by length, with live header totals |
+| Compass rose | `<course> - Compass Rose.png/.pdf` (13 × 14 in) | Every hole as a path from a common origin, by bearing, scaled to the longest tee set, with each hole's tee and approach bearing beside its marker |
+| Hole data card | `<course> - Hole Data Card` (17 × 11.6 in; 16 in before 3.4) | Every hole × every tee set (with a Name column when the Holes card names any hole), tee and approach bearings, fairway width at 3-wood and driver distance, hazards, green contours and hole positions, OUT / IN / TOTAL |
+| Course data card | `<course> - Course Data Card` (17 × 11.6 in) | Rose + bar chart in hole order + bar chart sorted by length (with each par's shortest-to-longest spread and the largest gap between neighbours), with live header totals |
 | Green size card | `<course> - Green Size Card` (17 × 11.6 in) | Green area by hole against the mean, median and ±1 SD; difference from the mean; spread and average by par. Only when the course has drawn greens |
 | Wind card | `<course> - Wind Card` (17 × 11.6 in) | The wind rose (16 directions × mph bands, calm in the middle) and a table of how each hole plays in it: share of breezy hours (8 mph and up) into, across from the left or right, and down the line of play, back tee to green, with a summary (holes into the wind, downwind, par 3s into the wind, par 5s downwind). Hole names follow the number when the Holes card has any. Only when the Place card has a wind rose |
 | Shot variety card | `<course> - Shot Variety Card` (17 × 11.6 in) | The club each hole asks for into the green, for a Power Drive golfer from the back tees and a Normal golfer one tee forward: a grid of holes against clubs, the club families those shots fall in, the yards into each green on one line, and eight variety checks. Drawn for every course with holes (new in 3.3) |
 
+With PDFs on, every card also goes into one file, `<course> - Course Cards.pdf`, a page per card in the order Studio shows them (course data, green size, wind, shot variety, hole data, compass rose). The separate files are still written.
+
 The layouts follow the reference matplotlib build from the Cassimbo card handoff, which was approved. The fonts, sizes and figure fractions carry over.
+
+## What the cards share (3.4)
+
+- **One page and header.** Every card but the rose is 17 × 11.6 in with the same header: the title, what the card is, a small line on how it was measured, and the card's headline figures on the right. The hole data card joined them in 3.4; its tee-column and yardage notes moved from the foot to that third header line.
+- **One hole marker.** A hole is its number on a disc in the par's colour on every card: the roses, the Shot Variety grid, the Green Size spread and, since 3.4, the hole data card's Hole column and the Wind Card's table. The par itself stays printed in its own column on both tables.
+- **Labels kept clear.** OUT and IN sit above the bar charts, where no bar's value can be under them. The rose's ring labels sit on whichever gap between spokes no hole's marker or path covers (345° when it is clear).
+- **Cards not drawn.** A card left out is named with its reason in one line of the log and of `Card Validation.txt` ("Cards not drawn: Wind Card (no wind rose on the Place card)."), and on the build result (`NotDrawn`).
+
+## Fairway width columns (hole data card)
+
+Two columns between the bearings and the hazards, **Width 3W** and **Width Dr**: the fairway's width at 3-wood distance (260–290 yds from the back tee) and at driver distance (the design tee shot, 300–350). They are the figures the readiness check `landing-widths` judges (`ReadinessChecker.FairwayWidths`; see [readiness.md](readiness.md)), against the course's own limits from `Readiness.json` beside the products.
+
+- **A cell** is the narrowest to the widest of the distance's three stations in yards, or one number when they agree.
+- **Red** means a station is outside the range (30–50 at 3-wood, 25–35 at driver) or has no fairway by the line (`none`).
+- **not built** means no fairway spline lies by the hole's line, so nothing was measured. A sketched fairway isn't in the course file.
+- **A dash** means the hole is too short to have a station there. Par 3s are blank.
+- Three lines under the table say what was measured and what the ranges are.
+
+A dogleg the validation warns about (over 45° between the two bearings) has its bearings in red with a dagger, and is named under the table.
 
 ```bash
 dotnet run --project src/Pga2K25.Cli -- cards "<file.course>" -o out --config samples/data/sagan-khushun-card.json
@@ -44,14 +65,14 @@ Checks that the course asks for different shots into its greens instead of the s
 | Off the tee | driver isn't the play on at least 2 holes |
 | Par 5s in two | reported only |
 
-- **The page:** the club grid (holes across in par colours with the back-tee yards, clubs down in family bands; Power filled, Normal hollow, squares for par 3 tee shots, diamonds for the wedge after a lay-up), the clubs off the tee and the yards into each green under it; the family bars; the yards on one line with the tightest 15-yd cluster shaded; and the checks with a tick or flag per golfer. The header gives the checks passed for each.
+- **The page:** the club grid (holes across in par colours with the back-tee yards, clubs down in family bands; Power filled, Normal hollow, squares for par 3 tee shots, diamonds for the wedge after a lay-up), the clubs off the tee ("Dr" for driver; a par 3's cell is empty because its tee shot is on the grid) and the yards into each green under it; the family bars; the yards on one line with the tightest 15-yd cluster shaded; and the checks with a tick or flag per golfer. The header gives the checks passed for each.
 
 On Cassimbo the Power golfer passes 4 of 7 and the Normal golfer 3: ten different clubs each, but sand wedge on five holes and no mid irons into any green.
 
 ## Green size card
 
 - **Area** is the area inside each green's outline, the same smoothed spline the greens book draws (`GreenOutline` / `GreenSizes` in the course format library), so the card, the sheet captions and the study pages always agree.
-- **Only drawn greens count.** A green the game generates has no spline in the file, so the greens book uses a stand-in ellipse. Those greens are hatched on the sequential chart, shown as "–" on the difference chart, and left out of the mean, median, SD, CV, range and ranks. The header says which holes they are.
+- **Only drawn greens count.** A green the game generates has no spline in the file, so the greens book uses a stand-in ellipse. Those greens are a short hatched stub marked "est." on the sequential chart (a full bar read as a measured green), shown as "–" on the difference chart, and left out of the mean, median, SD, CV, range and ranks. The header says which holes they are.
 - **Statistics:** mean, median, population SD and CV of the drawn greens. The spread panel draws every drawn green as a numbered dot, over a box for the middle half and the median, and lists each par's average and range.
 - A course with no drawn greens gets no green size card; the validation file says so (INFO).
 
@@ -135,8 +156,8 @@ The approved cards set titles, totals and markers in the regular weight, and so 
 
 - `CourseCardData`: per-hole data from the course file and the Holes card, totals and validation
 - `CourseCardConfig`: settings and `OceanFinder`
-- `CourseCardRenderer`: the three pages, drawn in points
-- `CourseCardBuilder`: validation, the wind direction (`WindFrom`) and PNG / PDF / SVG output
+- `CourseCardRenderer`: the pages, drawn in points (`.Widths.cs`, `.Wind.cs` and `.ShotVariety.cs` hold their cards' parts)
+- `CourseCardBuilder`: validation, the wind direction (`WindFrom`), PNG / PDF / SVG output, the combined PDF and the cards not drawn
 
 Tests are in `tests/Pga2K25.Tests/CourseCardTests.cs`. They cover:
 - the compass convention
@@ -144,3 +165,5 @@ Tests are in `tests/Pga2K25.Tests/CourseCardTests.cs`. They cover:
 - Cassimbo's inverted tees being reported but not corrected, and tee names, hole names and hand-written notes from the Holes card
 - ERRORs stopping the build unless forced, and forced cards carrying the DRAFT line
 - the course data card's wind agreeing with the Wind Card (fetched record, climate model, no rose)
+- the width cells (range, red outside, not built, too short) and that they are the widths readiness judges
+- each par's length spread, the combined PDF's page count, the cards-not-drawn line, and every card drawing on an in-progress course

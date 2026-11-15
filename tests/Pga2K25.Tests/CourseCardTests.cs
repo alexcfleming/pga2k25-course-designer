@@ -88,6 +88,8 @@ public class CourseCardTests
             Assert.Equal(rose.PrevailingFrom, withRose.WindFromDegrees);   // the Wind Card prints the rose's prevailing direction
             Assert.Equal(WindRose.SectorOf(90), WindRose.SectorOf(withRose.WindFromDegrees!.Value));
             Assert.Contains(withRose.Files, f => f.EndsWith("Wind Card.png"));
+            Assert.Empty(withRose.NotDrawn);
+            Assert.Null(withRose.CombinedPdf);                             // PNGs only: no combined PDF
             Assert.Contains(withRose.Issues, i => i.Message.StartsWith("Wind set by hand (SW) differs"));
 
             // The climate model: the arrow follows the generated rose, the one the Wind Card draws.
@@ -99,7 +101,11 @@ public class CourseCardTests
 
             // No rose: the wind set by hand, card settings first.
             CoursePlaces.Save(dir, new CoursePlace { WindFromDegrees = 270 });
-            Assert.Equal(225, CourseCardBuilder.Build(SaganPath, dir, config).WindFromDegrees);
+            var noRose = CourseCardBuilder.Build(SaganPath, dir, config);
+            Assert.Equal(225, noRose.WindFromDegrees);
+            // A card left out is named with its reason, on the result, in the log and in the validation file.
+            Assert.Equal([("Wind Card", "no wind rose on the Place card")], noRose.NotDrawn);
+            Assert.Contains(noRose.Issues, i => i.Message == "Cards not drawn: Wind Card (no wind rose on the Place card).");
             Assert.Equal(270, CourseCardBuilder.Build(SaganPath, dir, config with { WindFromDegrees = null }).WindFromDegrees);
         }
         finally
@@ -120,8 +126,12 @@ public class CourseCardTests
             Assert.Empty(Directory.GetFiles(dir, "*.png"));
             var forced = CourseCardBuilder.Build(CassimboPath, dir, config, force: true);
             Assert.Equal(5, forced.Files.Count);   // compass rose, hole data, course data, green size and shot variety cards
-            var sagan = CourseCardBuilder.Build(SaganPath, dir, config);
+            // With PDFs, every card also goes into one "Course Cards" PDF, a page per card.
+            var sagan = CourseCardBuilder.Build(SaganPath, dir, config with { Formats = ["pdf"] });
             Assert.Equal("WEST", sagan.OceanSide);
+            Assert.Equal(Path.Combine(dir, "Sagan-Khushun - Course Cards.pdf"), sagan.CombinedPdf);
+            Assert.Equal(sagan.Files.Count - 1, PdfPages(sagan.CombinedPdf!));
+            Assert.All(sagan.Files, f => Assert.True(File.Exists(f), f));
         }
         finally
         {
@@ -148,5 +158,87 @@ public class CourseCardTests
             Assert.Contains("Drawn as DRAFT cards", report);
         }
         finally { if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true); }
+    }
+
+    /// <summary>Pages in a PDF Skia wrote: its page objects.</summary>
+    static int PdfPages(string path) =>
+        System.Text.RegularExpressions.Regex.Matches(System.Text.Encoding.Latin1.GetString(File.ReadAllBytes(path)), @"/Type\s*/Page\b(?!s)").Count;
+
+    [Fact]
+    public void LengthSpreads_GiveEachParsShortestAndLongest()
+    {
+        var data = Data(SaganPath, out _);
+        using var r = new CourseCardRenderer(data, new CourseCardConfig(), null);
+        var spreads = r.LengthSpreads();
+        Assert.Equal([3, 4, 5], spreads.Select(s => s.Par));
+        foreach (var (par, text) in spreads)
+        {
+            var yards = data.Holes.Where(h => h.Par == par).Select(h => h.Yards[data.RoseTee]).ToList();
+            Assert.Equal($"Par {par}  {yards.Min()}–{yards.Max()} ({yards.Max() - yards.Min()})", text);
+        }
+    }
+
+    [Fact]
+    public void EveryCardDraws_OnTheCommonPage()
+    {
+        // The whole set on one canvas size (the rose keeps its own): hole discs, width columns, the dogleg mark,
+        // estimated-green stubs, the sorted chart's spreads and the rose's bearings all draw without a fault.
+        var course = Samples.Course("murray-estate.course");
+        var issues = new List<CardIssue>();
+        var data = CourseCardData.From(course, null, null, issues);
+        Assert.Contains(data.Holes, h => Math.Abs(h.Bend) > CourseCardData.MaxBendDegrees);    // hole 12: marked on the card
+        Assert.Contains(data.Greens.Greens, g => g.Estimated);
+        using var r = new CourseCardRenderer(data, new CourseCardConfig(), null)
+        {
+            FairwayWidths = Pga2K25.Readiness.ReadinessChecker.FairwayWidths(course).ToDictionary(w => w.Number),
+        };
+        using var card = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo((int)CourseCardRenderer.CardPage.Width, (int)CourseCardRenderer.CardPage.Height));
+        r.DrawTablePage(card.Canvas);
+        r.DrawCoursePage(card.Canvas);
+        r.DrawGreenSizePage(card.Canvas);
+        using var rose = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo((int)CourseCardRenderer.RosePage.Width, (int)CourseCardRenderer.RosePage.Height));
+        r.DrawRosePage(rose.Canvas);
+    }
+
+    // ───────── fairway width columns on the hole data card ─────────
+
+    static Pga2K25.Readiness.HoleFairwayWidths Widths(bool built, params double?[] yards) =>
+        new(1, [], yards.Select((w, i) => new Pga2K25.Readiness.StationWidth(300 + 25 * i, w)).ToList(), built);
+
+    [Fact]
+    public void WidthCell_ShowsTheRangeAndFlagsWhatIsOutside()
+    {
+        (string, CourseCardRenderer.WidthTone) Cell(Pga2K25.Readiness.HoleFairwayWidths w) => CourseCardRenderer.WidthCell(w, w.Driver, 25, 35);
+        Assert.Equal(("26–28", CourseCardRenderer.WidthTone.Plain), Cell(Widths(true, 28.2, 26.4, 27)));
+        Assert.Equal(("30", CourseCardRenderer.WidthTone.Plain), Cell(Widths(true, 30.2, 29.8)));           // stations agree: one number
+        Assert.Equal(("30–45", CourseCardRenderer.WidthTone.Flag), Cell(Widths(true, 30, 45, 41)));         // one station wide
+        Assert.Equal(("15–27", CourseCardRenderer.WidthTone.Flag), Cell(Widths(true, 19, 15, 27)));         // narrow
+        Assert.Equal(("none–30", CourseCardRenderer.WidthTone.Flag), Cell(Widths(true, 30, 30, null)));     // no fairway at one station
+        Assert.Equal(("none", CourseCardRenderer.WidthTone.Flag), Cell(Widths(true, null, null)));
+        Assert.Equal(("not built", CourseCardRenderer.WidthTone.Quiet), Cell(Widths(false, null, null, null))); // nothing to measure: not judged
+        Assert.Equal(("–", CourseCardRenderer.WidthTone.Quiet), Cell(Widths(true)));                        // too short for a station
+    }
+
+    [Fact]
+    public void FairwayWidths_AreTheOnesReadinessJudges_AndWidenTheHoleDataCard()
+    {
+        var widths = Pga2K25.Readiness.ReadinessChecker.FairwayWidths(Samples.Cassimbo);
+        var report = ReadinessTests.Report.Value;
+        Assert.Equal(report.Holes.Where(h => h.Par >= 4).Select(h => h.Number), widths.Select(w => w.Number));
+        Assert.All(widths, w =>
+        {
+            var h = report.Holes[w.Number - 1];
+            Assert.Equal(h.Stations, w.Driver);
+            Assert.Equal(h.ThreeWoodStations, w.ThreeWood);
+            Assert.Equal(h.FairwayBuilt, w.Built);
+        });
+
+        var data = Data(CassimboPath, out _);
+        using var plain = new CourseCardRenderer(data, new CourseCardConfig(), null);
+        using var wide = new CourseCardRenderer(data, new CourseCardConfig(), null) { FairwayWidths = widths.ToDictionary(w => w.Number) };
+        Assert.Equal(CourseCardRenderer.CardPage, CourseCardRenderer.TablePage);   // one page size for every card but the rose
+        using var surface = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo(1224, 835));
+        plain.DrawTablePage(surface.Canvas);                                   // both layouts draw
+        wide.DrawTablePage(surface.Canvas);
     }
 }

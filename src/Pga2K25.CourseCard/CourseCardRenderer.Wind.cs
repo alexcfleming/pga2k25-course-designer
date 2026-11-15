@@ -60,7 +60,7 @@ public sealed partial class CourseCardRenderer
         {
             float base_ = y + rowH * 0.68f;
             if (hw.Hole % 2 == 0) using (var band = Fill(_fog.WithAlpha(45))) canvas.DrawRect(r.Left, y, r.Width, rowH, band);
-            Text(canvas, hw.Hole.ToString(), X(0), base_, 10.5f, _bold, _ink);
+            HoleDisc(canvas, X(0) + 8, y + rowH / 2, Math.Min(8, rowH * 0.38f), hw.Hole, hw.Par);
             if (NameOf(hw.Hole) is { } name)
             {
                 var (fit, size) = FitLine(name, 10f, 7.5f, (cols[1] - 0.015f) * r.Width - numW, _italic);

@@ -133,16 +133,17 @@ public sealed partial class CourseCardRenderer
         for (int i = 0; i < n; i++)
         {
             var (p, q) = (power.Holes[i], normal.Holes[i]);
-            if (p.Par == 3) Text(canvas, "·", X(i), y0, 9, _serif, Faint, SKTextAlign.Center);
-            else
+            // The club in words: driver is "Dr", quieter than a hole where it isn't the play. A par 3's tee shot is on
+            // the grid above, so its cell is empty.
+            if (p.Par != 3)
             {
-                Text(canvas, p.Tee == "Dr" ? "–" : p.Tee, X(i), y0, 8.5f, _bold, p.Tee == "Dr" ? _fog : _ink, SKTextAlign.Center);
-                Text(canvas, q.Tee == "Dr" ? "–" : q.Tee, X(i), y0 + 12, 8.5f, _serif, q.Tee == "Dr" ? _fog : Muted, SKTextAlign.Center);
+                Text(canvas, p.Tee, X(i), y0, 8.5f, _bold, p.Tee == "Dr" ? Faint : _ink, SKTextAlign.Center);
+                Text(canvas, q.Tee, X(i), y0 + 12, 8.5f, _serif, q.Tee == "Dr" ? Faint : Muted, SKTextAlign.Center);
             }
             Text(canvas, p.Approach.ToString(), X(i), y0 + 42, 8.5f, _bold, _ink, SKTextAlign.Center);
             Text(canvas, q.Approach.ToString(), X(i), y0 + 54, 8.5f, _serif, Muted, SKTextAlign.Center);
         }
-        Text(canvas, "Upper line: " + power.Golfer.Short + "  ·  lower, grey: " + normal.Golfer.Short + "  ·  yards played-like for height (1 yd per 3 ft)",
+        Text(canvas, "Both rows, upper line: " + power.Golfer.Short + "  ·  lower, grey: " + normal.Golfer.Short + "  ·  Dr: driver  ·  par 3 tee shots are on the grid  ·  yards played-like for height (1 yd per 3 ft)",
             left, y0 + 72, 8, _italic, Faint);
     }
 
