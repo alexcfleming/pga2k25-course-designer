@@ -31,6 +31,9 @@ public static class Products
     /// <summary>The build log's line when a course has no scorecard map style ticked.</summary>
     public const string NoScorecardStyles = "No scorecard map styles are ticked, so none were built. Tick the styles you want on the Scorecard map page.";
 
+    /// <summary>The build log's line when a course has no hole illustration style ticked.</summary>
+    public const string NoIllustrationStyles = "No hole illustration styles are ticked, so none were built. Tick the styles you want on the Hole illustrations page.";
+
     /// <summary>Every product, in menu and "Build all" order (Alex's order, 4 Nov 2026).</summary>
     public static readonly IReadOnlyList<ProductDefinition> All =
     [
@@ -80,10 +83,20 @@ public static class Products
         },
         // One watercolour plate per hole, after the hole plates of Jim Ryan (illustrated by Tyler J. Rae); tee and hole names from Holes.json.
         new("Hole illustrations", " - Hole Illustrations.pdf", c =>
-            HoleIllustrationBuilder.Build(c.CoursePath, c.OutputDir, new IllustrationOptions { Credit = c.Settings.Credit },
-                new IllustrationOutputs { Pdf = true, Pngs = true }, log: c.Log).PdfPath)
         {
-            Pages = ["{0} - Hole Illustrations/*.png"], Pdfs = ["{0} - Hole Illustrations.pdf"],
+            // Only the styles ticked for this course on the Hole illustrations page; none are ticked to start with.
+            var looks = c.Extras.IllustrationLookKinds();
+            if (looks.Count == 0)
+            {
+                c.Log.Report(NoIllustrationStyles);
+                return null;
+            }
+            return looks.Select(look => HoleIllustrationBuilder.Build(c.CoursePath, c.OutputDir, new IllustrationOptions { Credit = c.Settings.Credit, Look = look },
+                new IllustrationOutputs { Pdf = true, Pngs = true }, log: c.Log).PdfPath).ToList().FirstOrDefault();
+        })
+        {
+            Pages = ["{0} - Hole Illustrations/*.png", "{0} - Hole Illustrations (Coore & Crenshaw)/*.png"],
+            Pdfs = ["{0} - Hole Illustrations.pdf", "{0} - Hole Illustrations (Coore & Crenshaw).pdf"],
         },
         // Reads Estimate.json from the course's output folder for per-course choices (zones, overrides).
         new("Construction estimate", " - Estimate.pdf", c => EstimateBuilder.Build(c.CoursePath, c.OutputDir, log: c.Log).PdfPath)
@@ -104,8 +117,8 @@ public static class Products
                 .Files.FirstOrDefault();
         })
         {
-            Pages = ["{0} - Scorecard Map (Vintage).png", "{0} - Scorecard Map (Modern).png", "{0} - Scorecard Map (Illustrated).png", "{0} - Scorecard Map (Plan Sheet).png", "{0} - Scorecard Map (Modern Illustrated).png", "{0} - Scorecard Map (Routing Plan).png", "{0} - Scorecard Map (Course Portrait).png", "{0} - Scorecard Map (Travis Sketch).png", "{0} - Scorecard Map (MacKenzie Sketch).png", "{0} - Scorecard Map (Hanse Design).png"],
-            Pdfs = ["{0} - Scorecard Map (Vintage).pdf", "{0} - Scorecard Map (Modern).pdf", "{0} - Scorecard Map (Illustrated).pdf", "{0} - Scorecard Map (Plan Sheet).pdf", "{0} - Scorecard Map (Modern Illustrated).pdf", "{0} - Scorecard Map (Routing Plan).pdf", "{0} - Scorecard Map (Course Portrait).pdf", "{0} - Scorecard Map (Travis Sketch).pdf", "{0} - Scorecard Map (MacKenzie Sketch).pdf", "{0} - Scorecard Map (Hanse Design).pdf"],
+            Pages = ["{0} - Scorecard Map (Vintage).png", "{0} - Scorecard Map (Modern).png", "{0} - Scorecard Map (Illustrated).png", "{0} - Scorecard Map (RGD Style 1).png", "{0} - Scorecard Map (Modern Illustrated).png", "{0} - Scorecard Map (Routing Plan).png", "{0} - Scorecard Map (Course Portrait).png", "{0} - Scorecard Map (Travis Sketch).png", "{0} - Scorecard Map (MacKenzie Sketch).png", "{0} - Scorecard Map (Hanse Design).png", "{0} - Scorecard Map (RGD Style 2).png", "{0} - Scorecard Map (Cutten Map).png", "{0} - Scorecard Map (Thompson).png"],
+            Pdfs = ["{0} - Scorecard Map (Vintage).pdf", "{0} - Scorecard Map (Modern).pdf", "{0} - Scorecard Map (Illustrated).pdf", "{0} - Scorecard Map (RGD Style 1).pdf", "{0} - Scorecard Map (Modern Illustrated).pdf", "{0} - Scorecard Map (Routing Plan).pdf", "{0} - Scorecard Map (Course Portrait).pdf", "{0} - Scorecard Map (Travis Sketch).pdf", "{0} - Scorecard Map (MacKenzie Sketch).pdf", "{0} - Scorecard Map (Hanse Design).pdf", "{0} - Scorecard Map (RGD Style 2).pdf", "{0} - Scorecard Map (Cutten Map).pdf", "{0} - Scorecard Map (Thompson).pdf"],
         },
     ];
 

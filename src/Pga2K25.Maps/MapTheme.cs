@@ -2,7 +2,7 @@ using SkiaSharp;
 
 namespace Pga2K25.Maps;
 
-public enum MapThemeKind { Vintage, Modern, Illustrated, PlanSheet, ModernIllustrated, RoutingPlan, CoursePortrait, TravisSketch, MacKenzieSketch, HanseDesign }
+public enum MapThemeKind { Vintage, Modern, Illustrated, PlanSheet, ModernIllustrated, RoutingPlan, CoursePortrait, TravisSketch, MacKenzieSketch, HanseDesign, GrassingPlan, CuttenMap, Thompson }
 
 /// <summary>Colours, strokes and type for a scorecard map style.</summary>
 public sealed record MapTheme
@@ -100,7 +100,7 @@ public sealed record MapTheme
     /// </summary>
     public static MapTheme PlanSheet { get; } = Illustrated with
     {
-        Kind = MapThemeKind.PlanSheet, Name = "Plan Sheet",
+        Kind = MapThemeKind.PlanSheet, Name = "RGD Style 1",
         Background = SKColor.Parse("#ece2c9"),
         RouteColour = SKColor.Parse("#b3261e"), RouteDash = null,
         TitleFonts = ["Federo", "Bahnschrift", "Georgia"],
@@ -191,8 +191,33 @@ public sealed record MapTheme
         Background = SKColor.Parse("#f6f1e2"), Ink = SKColor.Parse("#2e2a22"), MutedInk = SKColor.Parse("#6f6757"),
     };
 
+    /// <summary>RGD Style 2: a Renaissance Golf Design grassing plan, drawn by the GrassingPlan partial.</summary>
+    public static MapTheme GrassingPlan { get; } = TravisSketch with
+    {
+        Kind = MapThemeKind.GrassingPlan, Name = "RGD Style 2",
+        Background = SKColor.Parse("#fbfaf5"), Ink = SKColor.Parse("#3b2a36"), MutedInk = SKColor.Parse("#6f6470"),
+    };
+
+    /// <summary>An aged parchment map in the manner of Keith Cutten's, drawn by the Cutten partial.</summary>
+    public static MapTheme CuttenMap { get; } = TravisSketch with
+    {
+        Kind = MapThemeKind.CuttenMap, Name = "Cutten Map",
+        Background = SKColor.Parse("#e4d9b4"), Ink = SKColor.Parse("#2f2619"), MutedInk = SKColor.Parse("#6d5838"),
+        TeeFill = SKColor.Parse("#ebe2bf"), TeeOutline = SKColor.Parse("#2f2619"),
+    };
+
+    /// <summary>A blueprint in the manner of Stanley Thompson's plans, drawn by the Thompson partial.</summary>
+    public static MapTheme Thompson { get; } = TravisSketch with
+    {
+        Kind = MapThemeKind.Thompson, Name = "Thompson",
+        Background = SKColor.Parse("#1d3f9e"), Ink = SKColor.Parse("#eef3ff"), MutedInk = SKColor.Parse("#c9d6f5"),
+    };
+
     public static MapTheme For(MapThemeKind kind) => kind switch
     {
+        MapThemeKind.Thompson => Thompson,
+        MapThemeKind.CuttenMap => CuttenMap,
+        MapThemeKind.GrassingPlan => GrassingPlan,
         MapThemeKind.TravisSketch => TravisSketch,
         MapThemeKind.MacKenzieSketch => MacKenzieSketch,
         MapThemeKind.HanseDesign => HanseDesign,

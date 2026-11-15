@@ -102,6 +102,25 @@ public sealed partial class ScorecardMapRenderer : IDisposable
     {
         _teeSets = layers.Holes.Count == 0 ? 1 : layers.Holes.Max(h => Math.Max(1, h.Hole.Tees.Count));
         var pts = layers.ExtentPoints().ToList();
+        if (IsGrassing || IsCutten || IsThompson)
+        {
+            // Landscape or portrait, whichever draws the course larger.
+            (SKSize Page, double Rot, double Scale) Fit(SKSize page)
+            {
+                var rect = IsThompson ? ThompsonMapRect(page) : IsCutten ? CuttenMapRect(page) : GrassingMapRect(page);
+                double rot = _o.AutoRotate ? MapProjection.BestRotation(pts, rect) : MapProjection.NorthUpRotation;
+                return (page, rot, MapProjection.FitScale(pts, rect, rot));
+            }
+            var wide = Fit(new SKSize(LongSide, ShortSide));
+            var tall = Fit(new SKSize(ShortSide, LongSide));
+            var pick = _o.Orientation switch
+            {
+                PageOrientation.Landscape => wide,
+                PageOrientation.Portrait => tall,
+                _ => wide.Scale >= tall.Scale ? wide : tall,
+            };
+            return (pick.Page, pick.Page.Width > pick.Page.Height, pick.Rot);
+        }
         if (IsSketchStyle)
         {
             var page = new SKSize(LongSide, ShortSide);
@@ -138,7 +157,7 @@ public sealed partial class ScorecardMapRenderer : IDisposable
     int _teeSets = 1;
 
     SKRect MapRectFor(SKSize page, bool landscape) =>
-        IsSketchStyle ? SketchMapRect(page) : IsPlanSheet ? PlanSheetMapRect(page) : IsRoutingPlan ? _routingRect : landscape ? StripMapRect(page)
+        IsThompson ? ThompsonMapRect(page) : IsCutten ? CuttenMapRect(page) : IsGrassing ? GrassingMapRect(page) : IsSketchStyle ? SketchMapRect(page) : IsPlanSheet ? PlanSheetMapRect(page) : IsRoutingPlan ? _routingRect : landscape ? StripMapRect(page)
         : new SKRect(40, 118, page.Width - 40, page.Height - 40 - PortraitBand(_teeSets));
 
     public void Draw(SKCanvas canvas, string courseName, CourseModel course, CourseLayers layers)
@@ -150,6 +169,21 @@ public sealed partial class ScorecardMapRenderer : IDisposable
         if (IsModernIllustrated)
         {
             DrawModernIllustrated(canvas, courseName, course, layers, proj, page, mapRect);
+            return;
+        }
+        if (IsThompson)
+        {
+            DrawThompson(canvas, courseName, course, layers, proj, page, mapRect);
+            return;
+        }
+        if (IsCutten)
+        {
+            DrawCuttenMap(canvas, courseName, course, layers, proj, page, mapRect);
+            return;
+        }
+        if (IsGrassing)
+        {
+            DrawGrassingPlan(canvas, courseName, course, layers, proj, page, mapRect);
             return;
         }
         if (IsSketchStyle)

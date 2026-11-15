@@ -236,8 +236,8 @@ public class ScorecardMapTests
             var options = new ScorecardMapOptions { Orientation = PageOrientation.Portrait, Credit = "Test Designer", Location = "Somewhere, Far Away" };
             var result = ScorecardMapBuilder.Build(path, dir, options, [MapThemeKind.PlanSheet], pdf: true, scale: 1);
             Assert.True(result.Landscape);
-            Assert.Contains(result.Files, f => f.EndsWith("Scorecard Map (Plan Sheet).pdf"));
-            using var bmp = SKBitmap.Decode(result.Files.Single(f => f.EndsWith("Scorecard Map (Plan Sheet).png")));
+            Assert.Contains(result.Files, f => f.EndsWith("Scorecard Map (RGD Style 1).pdf"));
+            using var bmp = SKBitmap.Decode(result.Files.Single(f => f.EndsWith("Scorecard Map (RGD Style 1).png")));
             Assert.Equal(1100, bmp.Width);
             var red = MapTheme.PlanSheet.RouteColour;
             Assert.True(bmp.Pixels.Count(c => Math.Abs(c.Red - red.Red) + Math.Abs(c.Green - red.Green) + Math.Abs(c.Blue - red.Blue) < 40) > 200);
@@ -526,6 +526,91 @@ public class ScorecardMapTests
                 Assert.True(ink > 2_500, $"ink drawn ({ink})");
                 Assert.Equal(0, lime);
                 Assert.True(bmp.Pixels.Count(p => Math.Max(p.Red, Math.Max(p.Green, p.Blue)) - Math.Min(p.Red, Math.Min(p.Green, p.Blue)) > 30) < 2_000, "monochrome");
+            }
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void RgdStyles_PlanSheetIsRgdStyle1_AndTheGrassingPlanIsRgdStyle2()
+    {
+        Assert.Equal("RGD Style 1", MapTheme.For(MapThemeKind.PlanSheet).Name);
+        Assert.Equal("RGD Style 2", MapTheme.For(MapThemeKind.GrassingPlan).Name);
+        Assert.Equal(MapThemeKind.GrassingPlan, MapTheme.For(MapThemeKind.GrassingPlan).Kind);
+        Assert.Equal("Inspired by RGD", ScorecardMapRenderer.GrassingStyleCredit);
+    }
+
+    [Trait("Speed", "Slow")]
+    [Theory]
+    [InlineData(PageOrientation.Auto, true)]       // Cassimbo is wider than tall
+    [InlineData(PageOrientation.Portrait, false)]
+    public void Build_RgdStyle2_DrawsRoseContoursAndGreenFairwaysEitherWayRound(PageOrientation orientation, bool landscape)
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "pga2k25-maps-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            string path = Path.Combine(TestPaths.SamplesDir, "cassimbo.course");
+            var options = new ScorecardMapOptions { Orientation = orientation, Credit = "Test Designer" };
+            var result = ScorecardMapBuilder.Build(path, dir, options, [MapThemeKind.GrassingPlan], pdf: true, scale: 1);
+            Assert.Equal(landscape, result.Landscape);
+            string pdf = result.Files.Single(f => f.EndsWith("Scorecard Map (RGD Style 2).pdf"));
+            Assert.True(new FileInfo(pdf).Length < 20_000_000, "the PDF stays a shareable size");
+            using var bmp = SKBitmap.Decode(result.Files.Single(f => f.EndsWith("Scorecard Map (RGD Style 2).png")));
+            Assert.Equal(landscape ? (1100, 850) : (850, 1100), (bmp.Width, bmp.Height));
+            // Rose contours (red and blue above green), green fairways (green well above red and blue).
+            int rose = bmp.Pixels.Count(p => p.Red - p.Green > 25 && p.Blue - p.Green > 10);
+            int green = bmp.Pixels.Count(p => p.Green - p.Red > 25 && p.Green - p.Blue > 40);
+            Assert.True(rose > 3_000, $"rose survey contours ({rose})");
+            Assert.True(green > 20_000, $"green fairways ({green})");
+        }
+        finally
+        {
+            if (Directory.Exists(dir)) Directory.Delete(dir, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void CuttenAndThompson_AreThemesOfTheirOwnWithAStyleCredit()
+    {
+        Assert.Equal("Cutten Map", MapTheme.For(MapThemeKind.CuttenMap).Name);
+        Assert.Equal("Thompson", MapTheme.For(MapThemeKind.Thompson).Name);
+        Assert.Equal("IN THE STYLE OF KEITH CUTTEN", ScorecardMapRenderer.CuttenStyleCredit);
+        Assert.Contains("STANLEY THOMPSON", ScorecardMapRenderer.ThompsonStyleCredit);
+    }
+
+    [Trait("Speed", "Slow")]
+    [Theory]
+    [InlineData(MapThemeKind.CuttenMap)]
+    [InlineData(MapThemeKind.Thompson)]
+    public void Build_CuttenAndThompson_DrawTheirPaper(MapThemeKind kind)
+    {
+        string dir = Path.Combine(Path.GetTempPath(), "pga2k25-maps-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            string path = Path.Combine(TestPaths.SamplesDir, "cassimbo.course");
+            var result = ScorecardMapBuilder.Build(path, dir, new ScorecardMapOptions { Credit = "Test Designer" }, [kind], pdf: true, scale: 1);
+            string name = MapTheme.For(kind).Name;
+            Assert.True(result.Landscape);   // Cassimbo is wider than tall
+            Assert.True(new FileInfo(result.Files.Single(f => f.EndsWith($"Scorecard Map ({name}).pdf"))).Length < 20_000_000, "the PDF stays a shareable size");
+            using var bmp = SKBitmap.Decode(result.Files.Single(f => f.EndsWith($"Scorecard Map ({name}).png")));
+            Assert.Equal((1100, 850), (bmp.Width, bmp.Height));
+            var px = bmp.Pixels;
+            if (kind == MapThemeKind.Thompson)
+            {
+                // Blueprint: mostly deep blue, with chalk-white lines on it.
+                Assert.True(px.Count(p => p.Blue > 120 && p.Blue - p.Red > 60) > px.Length / 2, "blueprint blue ground");
+                int chalk = px.Count(p => p.Red > 150 && p.Green > 165 && p.Blue > 200);
+                Assert.True(chalk > 1_500, $"chalk lines ({chalk})");
+            }
+            else
+            {
+                // Parchment: warm sepia everywhere (red over blue), with dark ink lines and the property's burnt edge.
+                Assert.True(px.Count(p => p.Red - p.Blue > 25 && p.Red > 150) > px.Length / 2, "sepia paper");
+                int ink = px.Count(p => p.Red < 130 && p.Green < 115);
+                Assert.True(ink > 1_500, $"ink and the burnt edge ({ink})");
             }
         }
         finally

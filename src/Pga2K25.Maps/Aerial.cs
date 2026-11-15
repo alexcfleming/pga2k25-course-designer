@@ -15,7 +15,7 @@ public sealed class Aerial : IDisposable
     const float Density = 1.5f;
     /// <summary>Slope is measured across this (m), as on Modern Illustrated's hillshade.</summary>
     const double SlopeSpanMetres = 12;
-    /// <summary>Contour intervals (m) to choose from; the first that gives no more than <see cref="MaxContours"/> lines over the holes' relief.</summary>
+    /// <summary>Contour intervals (m) to choose from; the first that gives no more than <c>maxContours</c> (default <see cref="MaxContours"/>) lines over the holes' relief.</summary>
     static readonly double[] Intervals = [0.5, 1, 2, 2.5, 5, 10];
     const int MaxContours = 26;
 
@@ -33,7 +33,7 @@ public sealed class Aerial : IDisposable
     /// <summary>The contour interval in metres.</summary>
     public required double Interval { get; init; }
 
-    public static Aerial Build(CourseModel course, CourseLayers layers, MapProjection p, SKRect rect)
+    public static Aerial Build(CourseModel course, CourseLayers layers, MapProjection p, SKRect rect, int maxContours = MaxContours)
     {
         var corners = new[] { new SKPoint(rect.Left, rect.Top), new SKPoint(rect.Right, rect.Top),
                               new SKPoint(rect.Left, rect.Bottom), new SKPoint(rect.Right, rect.Bottom) }.Select(p.Unmap).ToList();
@@ -90,7 +90,7 @@ public sealed class Aerial : IDisposable
             lo = Math.Min(lo, z[y * w + x]); hi = Math.Max(hi, z[y * w + x]);
         }
         double relief = lo > hi ? 1 : Math.Max(1, hi - lo);
-        double step = Intervals.FirstOrDefault(s => relief / s <= MaxContours, Intervals[^1]);
+        double step = Intervals.FirstOrDefault(s => relief / s <= maxContours, Intervals[^1]);
         return new Aerial { Grey = grey, Land = land, Rect = rect, Segments = Contours(z, w, h, sea, step, rect), Interval = step };
     }
 

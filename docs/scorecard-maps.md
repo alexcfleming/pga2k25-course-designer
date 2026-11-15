@@ -8,7 +8,7 @@ dotnet run --project src/Pga2K25.Cli -- scorecard "path/to/course.course" -o out
 
 Options:
 
-- `--theme vintage|modern|illustrated|plansheet|modernillustrated|routingplan|portrait|travis|mackenzie|hanse|both|all`, or a comma list such as `vintage,routing-plan` (default `all`; `both` is Vintage and Modern)
+- `--theme vintage|modern|illustrated|plansheet|modernillustrated|routingplan|portrait|travis|mackenzie|hanse|rgd2|cutten|thompson|both|all`, or a comma list such as `vintage,routing-plan` (default `all`; `both` is Vintage and Modern)
 - `--landscape` / `--portrait` (default: landscape, unless portrait draws the course at least 15% larger)
 - `--north-up`: disable auto-rotation
 - `--waste`: draw stippled waste areas (off by default; on desert courses everything off the fairway is waste)
@@ -37,9 +37,9 @@ Tee set names and hole names come from `Holes.json` in the output folder (`-o`),
 | Hole numbers | Circled, on the middle of the hole | Bold on a soft disc, on the middle of the hole | As Vintage |
 | North | 32-point compass rose | As Vintage, in Modern's ink | As Vintage |
 
-## Plan Sheet
+## RGD Style 1 (Plan Sheet)
 
-The Plan Sheet is the Illustrated map laid out as a hand-drawn course plan, in the style of the RGD Artworks Course Graphics Dept. (Renaissance Golf Design). The sheet credits that style first, then the designer credit.
+Called the Plan Sheet until 3.6.0 (`MapThemeKind.PlanSheet`, CLI `--theme plansheet` or `rgd1`); its files are now named "Scorecard Map (RGD Style 1)". The Plan Sheet is the Illustrated map laid out as a hand-drawn course plan, in the style of the RGD Artworks Course Graphics Dept. (Renaissance Golf Design). The sheet credits that style first, then the designer credit.
 
 - **Always landscape.** A title column on the left holds "A Plan of the", the course name (broken at spaces and hyphens, as large as fits), the optional location line, and the scorecard: the championship tees, the front and back nines side by side. When the course has a wind rose (Place card), it sits under the scorecard, north-up with its mph key.
 - **Ball flight:** red arrows, one per shot (back tee → aim points → green), each stopping just short of its target.
@@ -113,6 +113,36 @@ Three hand-drawn plan styles after course architects' own drawings, added in 3.6
 **MacKenzie Sketch** (after Alister MacKenzie's pen plans): greens have a heavy black outline round white and a flag on the pin. Woods are clumps of small scalloped crowns (three per tree, one per bush, drawn over paper so they pile up). Slopes are shaded with the landscape's strokes, fainter and finer, and kept off the corridor, which has only a fine edge. Bunkers are outlined and hatched on their shaded face; water and creeks have heavy banks; paths are dashed; the property is a long-dash boundary. Plain bold numerals sit beside each shot line. "PLAN OF / NAME / GOLF COURSE" (and the place lines) is in a ruled title box in the quieter top corner; the card is in a hatched double frame in the quieter bottom corner; opposite it are "Scale – 1 inch to N feet", the designer's signature with "Golf Course Architect · Month Year", and the style credit.
 
 **Hanse Design** (after Hanse Golf Course Design's coloured plans): the property is painted as a cut-out on cream inside a ruled double border with four corner boxes (the colour seal, or a flag without a logo). Inside the property: pale grey native ground with flecks; mottled lime rough and brighter mottled fairways; water deep blue in the middle and paler towards a dark bank, with a fine depth line at each band; grey cart paths; tree and bush masses in dark green with lit tops; salmon bunkers with a brown lip and a lit face; round tee pads and mid-green greens. Thin shot lines, small hand numerals and red pin flags go on top. The left column has a framed two-nines card for **every tee set**, longest first, each headed by its name from the Holes card; the cards shrink to fit (`HanseCards`). The title, "The NAME Golf Course" (the words "Golf Course" are left off a name that already has Golf, Links or Club), is set in gold with a dark edge in the quietest corner of the map, with the place lines, the signed credit and the style credit under it. The month and year, the scale and a hand-drawn north arrow are at the foot of the column.
+
+## RGD Style 2 (grassing plan)
+
+A grassing plan after Renaissance Golf Design's, added in 3.6.0 (`MapThemeKind.GrassingPlan`, `ScorecardMapRenderer.GrassingPlan.cs`, CLI `--theme rgd2`). The sheet prints "Inspired by RGD" before the designer credit. Landscape or portrait, whichever draws the course larger (`--landscape` / `--portrait` force one); the map fills the page inside a thin violet border.
+
+- **Survey contours** in rose over the whole sheet, every fifth heavier, from the Routing Plan's terrain model (`Aerial`) asked for up to 45 lines over the holes' relief (1 m on Cassimbo); the sea in pale violet strokes and the property line (`PortraitParcel`) in violet.
+- **Fairway / rough:** the mown corridor on white, hatched in fine horizontal lines, with a thin edge.
+- **Fairways** in a green wash, lighter towards the middle, with a dark pen edge and a fine stipple; **greens** checkered dark and mid green (putting surfaces); **tees** as pink ovals along the line of play; **bunkers** ochre with a brown edge; water pale blue.
+- **Shot lines** thin red with a dot at each aim point; **hole numbers** red italic beside the line.
+- **Title block** in plum italic (Old Standard TT) in the quietest corner: "A / Grassing Plan / for / NAME", the place lines, month and year, "Designed by …" underlined and "Inspired by RGD". A **Grassing Legend** (teeing grounds, fairways / rough, putting surfaces, sand) with a red note giving the contour interval and the scale goes in another quiet corner, and a small ruled card of the longest tees in a third.
+- Textures are tiles, as on the hand-drawn styles; Cassimbo's PDF is about 6 MB.
+
+## Cutten Map
+
+An aged parchment course map after Keith Cutten's course map art, added in 3.6.0 (`MapThemeKind.CuttenMap`, `ScorecardMapRenderer.Cutten.cs`, CLI `--theme cutten`). The sheet prints "IN THE STYLE OF KEITH CUTTEN" at the bottom right, where the original carries its "Drawn by" line. Landscape or portrait, whichever draws the course larger.
+
+- **Paper:** sepia, mottled (a large soft tile) with a fine grain and darker towards the edges.
+- **Property:** the parcel (`PortraitParcel`) as a cut-out in a deeper wash, its line torn like an old pirate map (`TornOutline`: walked every 1.8 units and pushed in and out by three waves of noise, up to about 6 units, with a few deeper bites into the land, seeded by the course name), burnt-brown bands inside the tear and a dark scorched rim.
+- **Inside:** faint brown contours (`Aerial`, up to 30 lines over the holes' relief); the corridor and fairways lighter and soft-edged; tree and bush masses as one darker wash with ink edges (every plant a disc, the union outlined); ink-edged pale bunkers; ponds with an ink bank and dotted fill, creeks and cart paths dotted.
+- **Play:** tee pads, ink greens with an inner ring and a pin, fine shot lines with a dot at each aim point, small serif hole numbers beside the line.
+- **Furniture:** the course name in large and small capitals, the place lines, the course seal (ink) and "Designed by" the credit in the quietest top corner; "Card of the Course" (hole, par and yards for each nine, Front, Back and Total, without rules) in the quietest bottom spot; a compass rose turned to game north; a 0 / 150 / 300 yds bar scale.
+
+## Thompson
+
+A blueprint after Stanley Thompson's course plans, added in 3.6.0 (`MapThemeKind.Thompson`, `ScorecardMapRenderer.Thompson.cs`, CLI `--theme thompson`). The sheet prints "IN THE STYLE OF A STANLEY THOMPSON PLAN" at the bottom right, where the original has its "Plan drawn by" note. Landscape or portrait, whichever draws the course larger.
+
+- **Ground:** blueprint blue, lighter in the middle, with a fine paper grain. Everything else is chalk white, slightly wobbled.
+- **Property** as a ruled line; **fairways** (the mown corridor) as a white outline with a stippled rim inside it, the blue left open in the middle; **trees and bushes** as clumps of stippled crowns with fine rings; **bunkers** and **tee boxes** in white line; **roads** as double lines; ponds with a bank and level dashes.
+- **Greens** outlined, each in a circle holding its hole number and a flag. No shot lines, as on the original.
+- **Furniture:** "PROPOSED / NAME", the place lines and "SCALE 1" = N'" hand-lettered (Architects Daughter) in the quietest top corner, the credit with "GOLF & LANDSCAPE ARCHITECT" between two rules, and a small chalk card of the longest tees in another quiet corner.
 
 ## Illustrated landscape
 

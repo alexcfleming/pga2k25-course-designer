@@ -19,7 +19,7 @@ const string Usage = """
       default output: one PDF workbook, a portrait 4.25 x 11 in page per hole
       --png       also write a 1275 x 3300 px PNG per hole
     pga2k25 illustrations <file.course> [-o <dir>] [--holes 1,4,11] [--png] [--no-pdf] [--waste]
-                          [--credit "NAME"] [--year 2026] [--verbose]
+                          [--credit "NAME"] [--year 2026] [--look watercolour|coore] [--verbose]
       hole illustrations: one watercolour-and-ink plate per hole, 8.5 x 11 in portrait
       ("<course> - Hole Illustrations.pdf"), after the hole plates of Jim Ryan, illustrated
       by Tyler J. Rae; the ruler
@@ -71,7 +71,7 @@ const string Usage = """
       fringe and lighting. Yardages from the back tees. --limits overrides any ReadinessLimits
       value; --holes adds the per-hole table; --json writes the whole report
     pga2k25 calibrate <file.course> <captures.json> [--hardness 0.85] [--blur 1.0]
-    pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|illustrated|plansheet|modernillustrated|routingplan|portrait|travis|mackenzie|hanse|both|all, or a comma list] [--title TEXT] [--year N] [--no-coast] [--landscape|--portrait]
+    pga2k25 scorecard <file.course> [-o <dir>] [--theme vintage|modern|illustrated|plansheet|modernillustrated|routingplan|portrait|travis|mackenzie|hanse|rgd2|cutten|thompson|both|all, or a comma list] [--title TEXT] [--year N] [--no-coast] [--landscape|--portrait]
                       [--north-up] [--waste] [--raw-bunkers] [--no-paths]
                       [--pdf] [--credit "NAME"] [--subtitle "TEXT"]
 
@@ -785,6 +785,7 @@ static int Illustrations(string path, string[] rest)
             case "--waste": options = options with { Waste = true }; break;
             case "--credit": options = options with { Credit = Next() }; break;
             case "--year": options = options with { Year = int.Parse(Next(), CultureInfo.InvariantCulture) }; break;
+            case "--look": options = options with { Look = Next().ToLowerInvariant() switch { "coore" or "coore-crenshaw" or "cc" => IllustrationLook.CooreCrenshaw, "watercolour" or "watercolor" => IllustrationLook.Watercolour, var l => throw new ArgumentException($"unknown look {l}") } }; break;
             default: throw new ArgumentException($"unknown option {rest[i]}");
         }
     }
@@ -951,13 +952,16 @@ static int Scorecard(string path, string[] rest)
                     "vintage" => [MapThemeKind.Vintage],
                     "modern" => [MapThemeKind.Modern],
                     "illustrated" => [MapThemeKind.Illustrated],
-                    "plansheet" or "plan-sheet" or "plan" => [MapThemeKind.PlanSheet],
+                    "plansheet" or "plan-sheet" or "plan" or "rgd1" or "rgd-style-1" => [MapThemeKind.PlanSheet],
                     "modernillustrated" or "modern-illustrated" => [MapThemeKind.ModernIllustrated],
                     "routingplan" or "routing-plan" or "routing" => [MapThemeKind.RoutingPlan],
                     "portrait" or "courseportrait" or "course-portrait" => [MapThemeKind.CoursePortrait],
                     "travis" or "travissketch" or "travis-sketch" => [MapThemeKind.TravisSketch],
                     "mackenzie" or "mackenziesketch" or "mackenzie-sketch" => [MapThemeKind.MacKenzieSketch],
                     "hanse" or "hansedesign" or "hanse-design" => [MapThemeKind.HanseDesign],
+                    "rgd2" or "rgd-style-2" or "grassing" or "grassingplan" => [MapThemeKind.GrassingPlan],
+                    "cutten" or "cuttenmap" or "cutten-map" => [MapThemeKind.CuttenMap],
+                    "thompson" or "blueprint" => [MapThemeKind.Thompson],
                     "both" => [MapThemeKind.Vintage, MapThemeKind.Modern],
                     "all" => Enum.GetValues<MapThemeKind>(),
                     var t => throw new ArgumentException($"unknown theme {t}"),

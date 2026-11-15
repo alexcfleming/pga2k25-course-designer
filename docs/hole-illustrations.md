@@ -1,10 +1,10 @@
 # Hole illustrations
 
-One illustrated plate per hole, in watercolour and ink, on US Letter portrait (8.5 × 11 in). The look is after the hole plates posted by Jim Ryan (`jimryangcdesign`), such as the Wakonda Club plates illustrated by Tyler J. Rae, and every plate credits both in its footer, before the designer credit, the same way the Plan Sheet scorecard map credits the RGD Artworks Course Graphics Dept.
+One illustrated plate per hole, in either or both of two looks: watercolour and ink (below), and Coore & Crenshaw pencil (see **Coore & Crenshaw look**). The watercolour plate is on US Letter portrait (8.5 × 11 in), after the hole plates posted by Jim Ryan (`jimryangcdesign`), such as the Wakonda Club plates illustrated by Tyler J. Rae, and every plate credits both in its footer, before the designer credit, the same way the Plan Sheet scorecard map credits the RGD Artworks Course Graphics Dept.
 
 ```
 pga2k25 illustrations <file.course> [-o <dir>] [--holes 1,4,11] [--png] [--no-pdf] [--waste]
-                      [--credit "NAME"] [--year 2026] [--verbose]
+                      [--credit "NAME"] [--year 2026] [--look watercolour|coore] [--verbose]
 ```
 
 Output: `<course> - Hole Illustrations.pdf` (one plate per page) and, with `--png`, `<course> - Hole Illustrations/Hole_NN.png` at 300 dpi (2550 × 3300 px). The Studio builds both from **Products → Hole illustrations**, with the designer credit from Settings.
@@ -31,6 +31,17 @@ The art is raster, the type is vector. `HoleIllustrationRenderer` renders the ar
 The PDF embeds each plate's art as a JPEG (quality 90) and draws the frame, ruler and every word as vectors on top, so the text is sharp and selectable. A plate is about 0.5 MB.
 
 The hole analysis is the yardage book's, with 30 m behind the tee and 45 m past the green, its window widened and lengthened to cover the whole art zone at the plate's scale (`HoleIllustrationBuilder.Analyze`).
+
+## Coore & Crenshaw look
+
+Added in 3.6.0: graphite pencil on cream, after Coore & Crenshaw's hand-drawn hole sketches (`SketchPlateRenderer`, `IllustrationLook.CooreCrenshaw`, CLI `--look coore`). In Studio the Hole illustrations page has a **Styles to build** tick for each look, like the scorecard maps (none ticked to start with, saved per course in `CourseExtras.IllustrationLooks`; with none ticked a build skips hole illustrations and says so in the log). Each look writes its own files: `<course> - Hole Illustrations (Coore & Crenshaw).pdf` and `<course> - Hole Illustrations (Coore & Crenshaw)/Hole_NN (Coore & Crenshaw).png`, so a course can have both. Same page size, scale and geometry as the watercolour plate.
+
+- **Fairway:** one heavy wobbling pencil outline round graphite shading (a tile of slanted strokes). **Green:** denser graphite, the heaviest outline, a flag on the first pin.
+- **Bunkers:** paper inside with a light stipple and a heavy lip on the face the player looks into (toward the green within 45 yds of it, else toward the tee). A sandy expanse over 1,500 sq yd is drawn lightly as waste: sparse stipple and a soft line.
+- **Tees:** shaded pads marked T. **Pines** as asterisks, other trees as scribbled rings (near play only). Water as an outline with level strokes.
+- **Slopes:** short strokes running downhill wherever the ground falls more than 7 %, longer, heavier and darker the steeper, lighter on the fairway and fading out 34–62 yds from the line of play. From the hole analysis's heightfield.
+- **Page:** no frame or ruler; the drawing is centred across the page by where its pencil is. A hand-lettered caption (Architects Daughter, from `fonts/sketches`) at the bottom right: the course, the hole's name when the Holes card has one, `HOLE NO. n` and `yards YARDS PAR p`. At the bottom left: "IN THE STYLE OF COORE & CRENSHAW'S HOLE SKETCHES", the designer credit and year, and the Studio note.
+- The art is a raster; the caption and credits are vector. Seeded by the hole number, so a plate renders the same pixels every time.
 
 ## Tests
 

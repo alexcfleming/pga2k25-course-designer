@@ -8,7 +8,7 @@ Reads your .course files and makes printable products from them:
     (PNG and PDF)
   - Hole sheets: a terrain sketch sheet per hole (PNG and PDF)
   - Greens book: slope and fall of every green
-  - Yardage book, scorecard maps (ten styles) and course cards
+  - Yardage book, scorecard maps (thirteen styles) and course cards
     (including a Wind Card when the course has a wind rose)
   - Hole illustrations: a watercolour plate per hole, after the hole
     plates of Jim Ryan, illustrated by Tyler J. Rae (PNG and PDF)
@@ -247,12 +247,40 @@ NEW IN 3.6.0
     scorecard for every tee set and a gold ornamental title.
   Their fonts are in the "fonts\sketches" folder next to the exe, so
   keep it there.
+- RGD Style 2, a scorecard map drawn as a grassing plan: light rose
+  survey contours from your ground across the whole sheet, the
+  fairway / rough corridor hatched, fairways in a green wash, checkered
+  greens, pink tee ovals, ochre bunkers, red shot lines and numbers, an
+  italic "A Grassing Plan for ..." title, a grassing legend and a small
+  scorecard. It's landscape or portrait, whichever fits the course
+  better, and prints "Inspired by RGD" before your designer credit.
+- Cutten Map, a scorecard map on aged parchment after Keith Cutten's
+  course map art: the property as a cut-out with a torn, burnt edge
+  like an old chart, faint contours, tree masses in a darker wash, ink
+  greens and bunkers, a "Card of the Course", a compass rose and a bar
+  scale. It prints "In the style of Keith Cutten".
+- Thompson, a scorecard map drawn as a blueprint after Stanley
+  Thompson's plans: chalk-white fairways with stippled rims, stippled
+  tree clumps, greens circled with their hole numbers, a hand-lettered
+  "PROPOSED" title and a small card, on blueprint blue. It prints "In
+  the style of a Stanley Thompson plan".
+- The Plan Sheet scorecard map is now called RGD Style 1. Its files are
+  named "Scorecard Map (RGD Style 1)"; files built under the old name
+  stay until you delete them, and a course with it ticked keeps it.
+- Hole illustrations in pencil, as Coore & Crenshaw sketches: graphite
+  on cream, heavy pencil outlines, the green shaded dark with a flag,
+  heavy-lipped bunkers, tees marked T, your ground's slopes as short
+  pencil strokes round the hole and a hand-lettered caption. The Hole
+  illustrations page now has "Styles to build" ticks like the scorecard
+  maps: Watercolour, Coore & Crenshaw or both, saved for each course.
+  None is ticked to start with, so tick Watercolour to keep building
+  the plates you had.
 - Scorecard maps are built only for the styles you tick. Each course
   starts with none ticked under "Styles to build" on the Scorecard map
-  page, so Build all no longer makes ten maps you didn't ask for. Tick
-  the styles you want for a course (they're saved for it) and build.
-  With none ticked, the build log says so. This applies to courses you
-  built before too: tick their styles again.
+  page, so Build all no longer makes thirteen maps you didn't ask for.
+  Tick the styles you want for a course (they're saved for it) and
+  build. With none ticked, the build log says so. This applies to
+  courses you built before too: tick their styles again.
 
 NEW IN 3.5.0
 - 3D view: on the Terrain map page, "3D view" swaps the map for a 3D

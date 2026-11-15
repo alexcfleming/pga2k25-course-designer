@@ -2,7 +2,7 @@
 
 A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer `.course` files and produces print-style companion material. It only reads course files; it never edits or writes them.
 
-> Status: **Greens books** (one-page PNG of all greens with slope colour, per-green studies, PDF; terrain calibrated against in-game spot elevations) **scorecard maps** (vintage, modern, illustrated, Plan Sheet, Modern Illustrated, Routing Plan, Course Portrait, Travis Sketch, MacKenzie Sketch and Hanse Design themes) **yardage books** (an 18-page portrait PDF workbook, optional PNG per hole) and **terrain maps** (one large contour sheet of a routed plot, plus a Letter-size sketch sheet per hole with its design notes) and **course cards** (compass rose, hole data card with hazards and green notes, course data card, green size card, wind card and shot variety card) are working.
+> Status: **Greens books** (one-page PNG of all greens with slope colour, per-green studies, PDF; terrain calibrated against in-game spot elevations) **scorecard maps** (vintage, modern, illustrated, RGD Style 1, Modern Illustrated, Routing Plan, Course Portrait, Travis Sketch, MacKenzie Sketch, Hanse Design, RGD Style 2, Cutten Map and Thompson themes) **yardage books** (an 18-page portrait PDF workbook, optional PNG per hole) and **terrain maps** (one large contour sheet of a routed plot, plus a Letter-size sketch sheet per hole with its design notes) and **course cards** (compass rose, hole data card with hazards and green notes, course data card, green size card, wind card and shot variety card) are working.
 
 ## Documentation
 
@@ -11,7 +11,7 @@ A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer
 - [Greens book](docs/greens-book.md): what it produces, how the terrain is reconstructed, current limits, and calibration.
 - [Scorecard maps](docs/scorecard-maps.md): themes, layout, how features are traced, and known limits.
 - [Yardage book](docs/yardage-book.md): page contents, hazard numbering, rock footprint estimation, and PDF output.
-- [Hole illustrations](docs/hole-illustrations.md): one watercolour-and-ink plate per hole, after the hole plates of Jim Ryan, illustrated by Tyler J. Rae.
+- [Hole illustrations](docs/hole-illustrations.md): one plate per hole, in watercolour and ink after the hole plates of Jim Ryan, illustrated by Tyler J. Rae, or in pencil after Coore & Crenshaw's hole sketches.
 - [Terrain map](docs/terrain-map.md): contour planning sheet of the plot with the routing as sticks and dots; terrain model notes and options.
 - [3D view](docs/3d-view.md): the terrain map's ground as a 3D model in Studio, or as one web page from the command line; what it shows and what it can't.
 - [Course Designer Studio](docs/studio.md): the desktop app, with a course library, a live terrain map, measurements, product viewers and builds.

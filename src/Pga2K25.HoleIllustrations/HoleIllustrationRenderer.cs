@@ -37,7 +37,7 @@ public sealed class Plate : IDisposable
 /// type stays sharp and searchable in the PDF. The look is after the hole plates posted by Jim Ryan and illustrated by
 /// Tyler J. Rae (both credited on every plate); the geometry is the yardage book's hole analysis with its numbers left out.
 /// </summary>
-public sealed class HoleIllustrationRenderer : IDisposable
+public sealed class HoleIllustrationRenderer : IPlateRenderer
 {
     /// <summary>The inspiration credit printed on every plate, before the designer credit.</summary>
     public const string StyleCredit = "AFTER THE HOLE PLATES OF JIM RYAN · ILLUSTRATED BY TYLER J. RAE";
