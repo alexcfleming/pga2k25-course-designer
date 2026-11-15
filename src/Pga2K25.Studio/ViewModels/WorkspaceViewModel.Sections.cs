@@ -114,7 +114,8 @@ public partial class WorkspaceViewModel
         var recent = Settings.Recent.Where(p => !string.Equals(p, Entry.Path, StringComparison.OrdinalIgnoreCase) && File.Exists(p)).Take(5).ToList();
         Task.Run(() =>
         {
-            var entries = recent.Select(CourseLibrary.Read).Where(e => e.Error is null).ToList();
+            // Courses archived in the library stay out of Recent too.
+            var entries = recent.Select(CourseLibrary.Read).Where(e => e.Error is null && !Settings.IsArchived(e)).ToList();
             Dispatcher.UIThread.Post(() =>
             {
                 foreach (var e in entries) Recent.Add(new RecentCourseViewModel(e, () => _main.OpenCourse(e)));

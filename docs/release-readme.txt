@@ -227,6 +227,15 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
+NEW IN 3.4.0
+- Library: an Archive button on each course card hides a course you're
+  no longer working on. Nothing is deleted or moved: the course file
+  stays in your Courses folder and its products stay where they are.
+  An "Archived" filter lists the courses you've hidden, with Restore to
+  bring one back, and Undo is offered straight after archiving. A
+  course you rename in the designer stays archived; a copy saved as a
+  new file shows as usual.
+
 NEW IN 3.3.0
 - Course cards: a Shot Variety Card. Every hole is played by two
   golfers, a Power Drive player from the back tees and a Normal player
