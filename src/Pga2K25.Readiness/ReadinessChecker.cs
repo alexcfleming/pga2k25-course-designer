@@ -193,6 +193,7 @@ public static class ReadinessChecker
             return Math.Sqrt(gx * gx + gz * gz) * 100;
         }, L));
         checks.AddRange(SettingChecks(course, stimp, L));
+        checks.AddRange(DesignerChecks(course));
         checks.AddRange(PromptChecks(measures, medGreen, medStart, L));
 
         return new ReadinessReport
@@ -770,6 +771,109 @@ public static class ReadinessChecker
                 "Lighting section · match the published course", []);
         }
     }
+
+    /// <summary>A hole's first and last waypoints closer than this (m) count as the same place.</summary>
+    public const double SameWaypointMetres = 1;
+
+    /// <summary>A stored hole length more than this many yards from the drawn one is out of date (the game shows whole yards).</summary>
+    public const double StoredYardsTolerance = 0.5;
+
+    /// <summary>
+    /// What the course designer checks for itself, going by its own messages ("Missing a tee marker", "Fewer than 2
+    /// waypoints!", "First and last waypoints should not be in the same location", "Failed to 'Keep Yardages'…",
+    /// "High-res bunker stamping disabled due to insufficient memory budget"; found in the game's strings, 17 Nov 2026).
+    /// They need no terrain, so they can run on their own.
+    /// </summary>
+    public static IEnumerable<ReadinessCheck> DesignerChecks(CourseModel course)
+    {
+        const string rule = "Course designer · its own checks";
+        var holes = course.Holes.OrderBy(h => h.Number).ToList();
+
+        var noTee = holes.Where(h => h.Tees.Count == 0).Select(h => h.Number).ToList();
+        var short_ = holes.Where(h => h.Route.Count < 2).Select(h => h.Number).ToList();
+        var loop = holes.Where(h => h.Route.Count >= 2 && Vec2.Distance(h.Route[0], h.Route[^1]) < SameWaypointMetres).Select(h => h.Number).ToList();
+        var lp = new List<string>();
+        if (noTee.Count > 0) lp.Add($"No tee marker on {List(noTee)}.");
+        if (short_.Count > 0) lp.Add($"Fewer than 2 waypoints on {List(short_)}.");
+        if (loop.Count > 0) lp.Add($"First and last waypoints in the same place on {List(loop)}.");
+        yield return new("hole-layout", "Every hole has a tee and a route from it to a green", lp.Count > 0 ? Severity.Flag : Severity.Pass,
+            lp.Count > 0 ? string.Join(" ", lp) : $"All {holes.Count} holes have a tee marker and at least two waypoints, starting and ending apart.",
+            rule, noTee.Concat(short_).Concat(loop).Distinct().OrderBy(n => n).ToList());
+
+        yield return StoredScorecardCheck(course, holes, rule);
+
+        if (course.HasBunkerDepths) yield return BunkerStampingCheck(course, GameBudget.Estimate(course), rule);
+    }
+
+    /// <summary>The scorecard the game saved against the holes as drawn: pars, and every tee set's hole lengths.</summary>
+    static ReadinessCheck StoredScorecardCheck(CourseModel course, List<Hole> holes, string rule)
+    {
+        const string id = "stored-scorecard", title = "The game's saved scorecard matches the holes";
+        if (course.Stored is not { } stored)
+            return new(id, title, Severity.Confirm, "The file has no saved scorecard to compare; save the course in the designer.", rule, []);
+
+        var parts = new List<string>();
+        var named = new SortedSet<int>();
+        var pars = holes.Where((h, i) => i < stored.Pars.Count && stored.Pars[i] != h.Par)
+            .Select(h => (h.Number, Drawn: h.Par, Saved: stored.Pars[holes.IndexOf(h)])).ToList();
+        if (pars.Count > 0)
+        {
+            parts.Add($"Par differs on {string.Join(", ", pars.Select(p => $"{p.Number} (saved {p.Saved}, drawn {p.Drawn})"))}.");
+            named.UnionWith(pars.Select(p => p.Number));
+        }
+        if (stored.Pars.Count != holes.Count)
+            parts.Add($"The saved scorecard has {stored.Pars.Count} holes; the layout has {holes.Count}.");
+
+        var lengths = new List<string>();
+        for (int set = 0; set < stored.TeeSetLengths.Count; set++)
+        {
+            var saved = stored.TeeSetLengths[set];
+            for (int i = 0; i < holes.Count && i < saved.Count; i++)
+            {
+                if (holes[i].Tees.Count == 0 || !double.IsFinite(saved[i])) continue;
+                double drawn = holes[i].TeeSetLength(set) * YardsPerMetre, kept = saved[i] * YardsPerMetre;
+                if (Math.Abs(drawn - kept) <= StoredYardsTolerance) continue;
+                lengths.Add($"{holes[i].Number} tee {set + 1} (saved {kept:0}, drawn {drawn:0})");
+                named.Add(holes[i].Number);
+            }
+        }
+        if (lengths.Count > 0)
+            parts.Add($"Hole lengths differ by more than {StoredYardsTolerance} yd: {string.Join(", ", lengths.Take(12))}{(lengths.Count > 12 ? $" and {lengths.Count - 12} more" : "")}. " +
+                "The game's \"Keep Yardages\" option holds old lengths; turn it off and save again, or keep them on purpose.");
+
+        return parts.Count > 0
+            ? new(id, title, Severity.Flag, string.Join(" ", parts), rule, named.ToList())
+            : new(id, title, Severity.Pass,
+                $"Pars and {stored.TeeSetLengths.Count} tee set{(stored.TeeSetLengths.Count == 1 ? "" : "s")} of hole lengths match the layout.", rule, []);
+    }
+
+    /// <summary>
+    /// The game only cuts bunkers below their edges with its high-resolution bunkers switched on and memory to spare
+    /// ("High-res bunker stamping disabled due to insufficient memory budget"). Where it gives up isn't known: the
+    /// memory figure is Studio's estimate of the designer's meter (<see cref="GameBudget"/>), fitted to six readings.
+    /// </summary>
+    static ReadinessCheck BunkerStampingCheck(CourseModel course, GameBudget budget, string rule)
+    {
+        const string id = "bunker-stamping", title = "Bunker depths will be cut in game";
+        string memory = $"about {budget.MemoryPercent:0} %";
+        if (!course.Bunkers.HighResStamping)
+            return new(id, title, Severity.Confirm,
+                "Bunkers have depths set, but high-resolution bunkers are off, and the game cuts bunkers in high resolution. " +
+                "Turn them on, or check in game that the bunkers sit below their edges.", rule, []);
+        if (budget.MemoryPercent > BunkerMemoryWarningPercent)
+            return new(id, title, Severity.Warning,
+                $"High-resolution bunkers are on, but memory is {memory} (Studio's estimate), and the game skips the cut when " +
+                "memory runs short. Where it gives up isn't known: confirm in game that the bunkers sit below their edges.", rule, []);
+        return new(id, title, Severity.Pass,
+            $"High-resolution bunkers are on and memory is {memory} (Studio's estimate), under the {BunkerMemoryWarningPercent:0} % " +
+            "this check warns at.", rule, []);
+    }
+
+    /// <summary>
+    /// Estimated memory above which the bunker cut may be skipped. A guess (Alex's call, 17 Nov 2026): the game's own
+    /// limit isn't known, so this only warns.
+    /// </summary>
+    public const double BunkerMemoryWarningPercent = 85;
 
     /// <summary>TGC Tours' published minimum approval requirements, where the course file can answer them.</summary>
     static IEnumerable<ReadinessCheck> MinimumChecks(List<HoleMeasures> m, ReadinessLimits L)

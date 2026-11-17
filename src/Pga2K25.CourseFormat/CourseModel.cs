@@ -43,14 +43,85 @@ public sealed record Hole(int Number, int Par, IReadOnlyList<Vec2> Route, IReadO
 
 public sealed record SplinePoint(Vec2 In, Vec2 Anchor, Vec2 Out, double Width);
 
-public sealed record SurfaceSpline(int Index, int Surface, bool Closed, double Width, IReadOnlyList<SplinePoint> Points);
+public sealed record SurfaceSpline(int Index, int Surface, bool Closed, double Width, IReadOnlyList<SplinePoint> Points)
+{
+    /// <summary>A bunker spline's own depth sliders (<c>bunkerOverrideParameters</c>); null when it uses the course's.</summary>
+    public BunkerOverride? Bunker { get; init; }
+}
+
+/// <summary>
+/// The designer's bunker depth sliders (metres): how far the sand sits below the bunker's edge. The game stamps this
+/// into the ground when it builds the course, so it is not in <c>height[]</c>.
+/// </summary>
+/// <param name="BaseDepth">Depth of the floor below the foot of the lip.</param>
+/// <param name="LipStart">Where the lip starts; 0.5 on every course seen. Not modelled.</param>
+/// <param name="LipDepth">Height of the lip at the bunker's edge.</param>
+/// <param name="LipSteepness">0–1: how steep the lip's face is.</param>
+public sealed record BunkerDepression(double BaseDepth, double LipStart, double LipDepth, double LipSteepness)
+{
+    public static readonly BunkerDepression None = new(0, 0.5, 0, 0);
+
+    /// <summary>The floor's depth below the edge: lip plus base, which the file also stores as <c>stampDepth</c>.</summary>
+    public double Depth => Math.Max(0, BaseDepth) + Math.Max(0, LipDepth);
+}
+
+/// <summary>
+/// One bunker brush's or spline's own sliders (<c>bunkerOverrideParameters</c>). A negative value means "use the
+/// course's" (<see cref="BunkerSettings.Resolve"/>). <paramref name="FlatFloor"/> is 0 for the course's setting and 1
+/// for on; 2 is read as off, going by the game's own three-way switch.
+/// </summary>
+public sealed record BunkerOverride(double BaseDepth, double LipStart, double LipDepth, double LipSteepness, int FlatFloor);
+
+/// <summary>
+/// The pars and tee-set lengths the game saved in <c>CourseMetadata</c>: what its scorecard and course details show.
+/// The game re-saves them from the layout, except that its "Keep Yardages" option holds the old lengths (and gives up,
+/// re-saving them, when the tee or hole count changes), so they can disagree with the holes as drawn.
+/// </summary>
+/// <param name="Pars">Par by hole, in hole order (<c>pars</c>).</param>
+/// <param name="TeeSetLengths">Metres by tee set, then by hole (<c>teeSetInfos[].holeLengths</c>).</param>
+public sealed record StoredScorecard(IReadOnlyList<int> Pars, IReadOnlyList<IReadOnlyList<double>> TeeSetLengths)
+{
+    public static StoredScorecard? Read(JsonObject? meta)
+    {
+        if (meta is null) return null;
+        var pars = (meta["pars"] as JsonArray ?? []).Select(p => (int)CourseModel.Num(p)).ToList();
+        var sets = (meta["teeSetInfos"] as JsonArray ?? [])
+            .Select(s => (IReadOnlyList<double>)(s?["holeLengths"] as JsonArray ?? []).Select(l => CourseModel.Num(l, double.NaN)).ToList())
+            .ToList();
+        return pars.Count == 0 && sets.Count == 0 ? null : new StoredScorecard(pars, sets);
+    }
+}
+
+/// <summary>The course's bunker depths (<c>bunkerSettings2</c>).</summary>
+/// <param name="HighResStamping">The designer's "high resolution bunkers" switch.</param>
+/// <param name="Regular">Painted and drawn bunkers.</param>
+/// <param name="Pot">Pot bunker objects. Read, not modelled.</param>
+/// <param name="FlatFloor">The floor is level, not following the ground the bunker was cut into.</param>
+public sealed record BunkerSettings(bool HighResStamping, BunkerDepression Regular, BunkerDepression Pot, bool FlatFloor)
+{
+    public static readonly BunkerSettings None = new(false, BunkerDepression.None, BunkerDepression.None, false);
+
+    /// <summary>One bunker's depths: its own sliders where set, the course's otherwise.</summary>
+    public (BunkerDepression Depression, bool FlatFloor) Resolve(BunkerOverride? own)
+    {
+        if (own is null) return (Regular, FlatFloor);
+        static double Pick(double mine, double course) => mine >= 0 ? mine : course;
+        return (new BunkerDepression(Pick(own.BaseDepth, Regular.BaseDepth), Pick(own.LipStart, Regular.LipStart),
+                Pick(own.LipDepth, Regular.LipDepth), Pick(own.LipSteepness, Regular.LipSteepness)),
+            own.FlatFloor switch { 1 => true, 2 => false, _ => FlatFloor });
+    }
+}
 
 /// <param name="Tool">0 = absolute height, 1 = relative (raise/lower/level).</param>
 public sealed record HeightStamp(int Index, int Tool, int Type, Vec2 Position, double Scale, double RotationY, double Value);
 
 /// <param name="Scale">Brush diameter in metres (scale.x).</param>
 /// <param name="Value">Paint opacity 0–1.</param>
-public sealed record SurfaceBrush(int Index, int Category, int Type, Vec2 Position, double Scale, double RotationY, double Value);
+public sealed record SurfaceBrush(int Index, int Category, int Type, Vec2 Position, double Scale, double RotationY, double Value)
+{
+    /// <summary>A bunker brush's own depth sliders (<c>bunkerOverrideParameters</c>); null when it uses the course's.</summary>
+    public BunkerOverride? Bunker { get; init; }
+}
 
 /// <summary>
 /// One <c>distanceMarkers[]</c> point: where the game set a marker, with <paramref name="Height"/> its own ground
@@ -239,6 +310,14 @@ public sealed class CourseModel
     public bool FlattenGreens { get; init; }
     public bool BlurHeight { get; init; }
 
+    /// <summary>The course's bunker depths (<c>bunkerSettings2</c>); <see cref="BunkerSettings.None"/> when the file has none.</summary>
+    public BunkerSettings Bunkers { get; init; } = BunkerSettings.None;
+
+    /// <summary>True when any painted or drawn bunker is cut below its edge.</summary>
+    public bool HasBunkerDepths =>
+        SurfaceBrushes.Any(b => b.Category == Surfaces.Bunker && Bunkers.Resolve(b.Bunker).Depression.Depth > 0)
+        || SurfaceSplines.Any(s => s.Surface == Surfaces.Bunker && Bunkers.Resolve(s.Bunker).Depression.Depth > 0);
+
     /// <summary>
     /// The plot's pre-made hills setting (<c>hillsHeight</c>, metres; the designer shows it in feet, 10 → 33). Terrain the
     /// game makes before any brush, which the brush replay can't see. 0 on every built sample; a fresh blank plot may
@@ -249,6 +328,12 @@ public sealed class CourseModel
 
     /// <summary>The course description's unpacked size (bytes), set by <see cref="CourseFile.ReadModel"/>; 0 when unknown.</summary>
     public long DescriptionBytes { get; set; }
+
+    /// <summary>
+    /// The scorecard the game saved beside the layout (<c>CourseMetadata</c>), set by <see cref="CourseFile.ReadModel"/>;
+    /// null when the file has none. It can lag the layout (<see cref="StoredScorecard"/>).
+    /// </summary>
+    public StoredScorecard? Stored { get; set; }
     public double GreenSpeed { get; init; }
 
     /// <summary><c>greenFringeRadius</c>: −1 is the game's default; 0.5 shows no visible fringe (Cassimbo, Sagan-Khushun).</summary>
@@ -294,6 +379,7 @@ public sealed class CourseModel
             MeasureLines = CourseFormat.MeasureLines.Read(desc["distanceMarkers"] as JsonArray),
             FlattenGreens = desc["flattenGreens"]?.GetValue<bool>() ?? false,
             BlurHeight = desc["blurHeight"]?.GetValue<bool>() ?? false,
+            Bunkers = ReadBunkerSettings(desc["bunkerSettings2"] as JsonObject),
             HillsHeightMetres = Num(desc["hillsHeight"]),
             GreenSpeed = Num(desc["greenSpeed"], -1),
             GreenFringeRadius = Num(desc["greenFringeRadius"], -1),
@@ -344,10 +430,26 @@ public sealed class CourseModel
         for (int i = 0; i < splines.Count; i++)
         {
             var s = splines[i]!.AsObject();
-            result.Add(new SurfaceSpline(i, (int)Num(s["surface"], -1), IsClosed(s), Num(s["width"]), SplinePoints(s)));
+            result.Add(new SurfaceSpline(i, (int)Num(s["surface"], -1), IsClosed(s), Num(s["width"]), SplinePoints(s))
+            {
+                Bunker = ReadBunkerOverride(s["bunkerOverrideParameters"] as JsonObject),
+            });
         }
         return result;
     }
+
+    static BunkerSettings ReadBunkerSettings(JsonObject? b)
+    {
+        if (b is null) return BunkerSettings.None;
+        static BunkerDepression Depression(JsonNode? d) => d is null ? BunkerDepression.None
+            : new(Num(d["baseDepth"]), Num(d["lipStart"], 0.5), Num(d["lipDepth"]), Num(d["lipSteepness"]));
+        return new BunkerSettings(b["highResStamping"]?.GetValue<bool>() ?? false,
+            Depression(b["regularBunkerDepressionSettings"]), Depression(b["potBunkerDepressionSettings"]),
+            b["flatFloor"]?.GetValue<bool>() ?? false);
+    }
+
+    static BunkerOverride? ReadBunkerOverride(JsonObject? o) => o is null ? null
+        : new(Num(o["baseDepth"], -1), Num(o["lipStart"], -1), Num(o["lipDepth"], -1), Num(o["lipSteepness"], -1), (int)Num(o["flatFloor"]));
 
     static List<SplinePoint> SplinePoints(JsonObject s) => Array(s["waypoints"]).Select(w => new SplinePoint(
         ReadVec(w!["pointOne"]), ReadVec(w["waypoint"]), ReadVec(w["pointTwo"]), Num(w["width"]))).ToList();
@@ -393,7 +495,10 @@ public sealed class CourseModel
         {
             var b = brushes[i]!.AsObject();
             result.Add(new SurfaceBrush(i, (int)Num(b["surfaceCategory"], -1), (int)Num(b["type"]), ReadVec(b["position"]),
-                Num(b["scale"]?["x"]), Num(b["rotation"]?["y"]), Num(b["value"], 1)));
+                Num(b["scale"]?["x"]), Num(b["rotation"]?["y"]), Num(b["value"], 1))
+            {
+                Bunker = ReadBunkerOverride(b["bunkerOverrideParameters"] as JsonObject),
+            });
         }
         return result;
     }

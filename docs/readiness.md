@@ -100,6 +100,9 @@ Yardages are from the back tees. Lengths use card yards; yards left use the stra
 | `edge-setback` | Each hole's closest tee or route point to the plot edge (Warning): room to hide the edge with planting and hills | 200 m (219 yds) | Routing |
 | `doglegs` | Par 4s and 5s turning 10° or more at the first aim point, left against right (Warning): lopsided over 70 % one way (six or more), or five in a row | | Routing |
 | `premade-hills` | The plot's pre-made hills setting (`hillsHeight`): above 0, that ground isn't in the terrain model (Flag) | 0 | Studio terrain model |
+| `hole-layout` | Every hole has a tee marker and at least two waypoints, and its first and last waypoints are more than 1 m apart (Flag). The course designer's own checks, from its messages ("Missing a tee marker", "Fewer than 2 waypoints!", "First and last waypoints should not be in the same location") | | Course designer |
+| `stored-scorecard` | The pars and every tee set's hole lengths the game saved (`CourseMetadata`: `pars`, `teeSetInfos`) against the holes as drawn (Flag past half a yard). The game's "Keep Yardages" option holds old lengths, so the published scorecard can lag the layout. No saved scorecard: Confirm | 0.5 yd | Course designer |
+| `bunker-stamping` | Only when bunkers have depths set. The game cuts them only with high-resolution bunkers on and memory to spare ("High-res bunker stamping disabled due to insufficient memory budget"): switch off is Confirm; Studio's memory estimate over 85 % is a Warning, since where the game gives up isn't known. Cassimbo estimates about 98 % | 85 % | Course designer |
 | `green-speed` | `greenSpeed` as Stimp | 8–13 | Build checks |
 | `fringe` | `greenFringeRadius` | 0.5 or less | §5 |
 | `lighting` | Time of day, sun, cloud layers, fog, haze, rain as recorded | | Lighting section |
