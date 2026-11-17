@@ -16,7 +16,9 @@ Every hole with a tee, a route and a pin, from the back tee, for **Power Drive**
 
 No hole's live checks or terrain gate are used, so every hole stands on the same footing. A green the replay makes too steep (over 25 % of it can't hold a stopped ball) gets a hollow ring: the game levels greens, so the replay is probably wrong there and the hole may read harder than it plays.
 
-On Cassimbo, 18 holes take about a minute once the golfer fit is cached.
+A hole that can't be played yet (no tee marker, no route, no pins, or no green drawn near its green point) is left out and keeps its row on the scorecard, saying why; the headline and totals say which holes they leave out, and the handicap is numbered by rank until all 18 are played. Before 3.9.1 one such hole stopped the whole build (Nodens Estate, 17 Nov 2026: holes 16 and 18 had no green yet).
+
+On Cassimbo, 18 holes take about a minute once the golfer fit is cached; Nodens Estate's 16 playable holes took 50 s.
 
 ## The sheet
 

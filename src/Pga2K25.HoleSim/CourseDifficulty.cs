@@ -33,10 +33,16 @@ public sealed record HoleDifficulty(int Hole, int Par, int Yards, string TeeName
 public sealed record RoundFigures(double Score, double ToPar, double FairwayHit, double GreenInRegulation, double Scrambling,
     double HolesWithPenalty, PhaseSg Sg, double Birdies, double BogeysOrWorse);
 
+/// <summary>A hole the play-out couldn't play (no tee, route, pin or green yet), with its par, back-tee yards and why.</summary>
+public sealed record SkippedHole(int Hole, int Par, int Yards, string Reason);
+
 /// <summary>The whole course played: every hole, both players, every pin.</summary>
 public sealed record CourseDifficultyResult(string CourseName, IReadOnlyList<HoleDifficulty> Holes, int Samples, string BaselineId,
     DateTime CourseSavedUtc, double Seconds)
 {
+    /// <summary>Holes left out because they can't be played yet; the totals cover the played holes only.</summary>
+    public IReadOnlyList<SkippedHole> Skipped { get; init; } = [];
+
     public int Par => Holes.Sum(h => h.Par);
     public RoundFigures Power => CourseDifficulty.Round(Holes, h => h.Power);
     public RoundFigures Normal => CourseDifficulty.Round(Holes, h => h.Normal);
@@ -77,15 +83,23 @@ public static class CourseDifficulty
         fitCacheFolder ??= Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CourseDesignerStudio", "holesim");
         string name = course.Name;
         var holes = new List<HoleDifficulty>();
+        var skipped = new List<SkippedHole>();
         foreach (var hole in course.Holes)
         {
             cancel.ThrowIfCancellationRequested();
-            if (hole.Pins.Count == 0 || hole.Tees.Count == 0 || hole.Route.Count < 2) continue;
+            int backYards = hole.Tees.Count == 0 || hole.Route.Count < 2 ? 0 : (int)Math.Round(hole.TeeSetLength(hole.Tees.Count - 1) * 1.0936133);
+            void Skip(string why) { skipped.Add(new SkippedHole(hole.Number, hole.Par, backYards, why)); progress?.Report($"Hole {hole.Number} not played: {why}."); }
+            if (hole.Tees.Count == 0) { Skip("no tee marker"); continue; }
+            if (hole.Route.Count < 2) { Skip("no route to a green"); continue; }
+            if (hole.Pins.Count == 0) { Skip("no pins"); continue; }
             progress?.Report($"Playing hole {hole.Number} of {course.Holes.Count}, every pin for both players…");
             var m = HoleModelBuilder.Build(course, file.Description, hole.Number, new HoleModelOptions(), stamp, layers);
-            if (m.Pins.Count == 0) continue;
+            if (m.Pins.Count == 0) { Skip("no pins"); continue; }
             name = m.CourseName;
-            var surface = GreenSurface.Build(m, ReplayTerrain.Smoothed(course, m, smoothing));
+            GreenSurface surface;
+            // A green not drawn yet (no green surface near the green point) can't be putted: the hole waits until it is.
+            try { surface = GreenSurface.Build(m, ReplayTerrain.Smoothed(course, m, smoothing)); }
+            catch (InvalidOperationException) { Skip("no green drawn near its green point"); continue; }
             var (ctx, _) = ApproachSetup.Build(m, surface, null, sheet, baseline, stimp, fitCacheFolder, cancel: cancel);
             var steep = surface.SlopeStats(ctx.Putting.Friction, ctx.Putting.Settings.StaticFactor).TooSteep;
             var played = new List<HoleSummary>[2];
@@ -99,7 +113,7 @@ public static class CourseDifficulty
             }
             holes.Add(new HoleDifficulty(m.Number, m.Par, m.Tee.Yards, m.Tee.Name, played[0], played[1], steep));
         }
-        return new CourseDifficultyResult(name, holes, samples, baseline.Id, stamp.ModifiedUtc, watch.Elapsed.TotalSeconds);
+        return new CourseDifficultyResult(name, holes, samples, baseline.Id, stamp.ModifiedUtc, watch.Elapsed.TotalSeconds) { Skipped = skipped };
     }
 
     /// <summary>A player's round: each figure averaged over the hole's pins, then added (scores, penalties) or averaged (rates).</summary>
