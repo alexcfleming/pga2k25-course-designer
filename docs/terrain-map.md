@@ -153,6 +153,13 @@ The terrain is rebuilt by replaying the file's height stamps in order (`TerrainR
   - **Flattens:** the game does apply them. Links Lowland's ocean is 19 large flattens dragged along its two sides; without them the map showed a few inland lakes where the game has sea down both sides with bays running in.
   - **How sure this is:** no in-game marker lies under an edge flatten on any course yet, so the flatten half rests on Links Lowland as seen in the game. Keeping them moves the ground at holes by under 0.4 m on the samples (2 m on Wakinyan Tournament), but it can change scenery past the routing a lot: Berwick Coast's sea goes from 7.5% to 17% of the plot, on its far side.
 
+**Bunker depths (optional, `BunkerDepths`, CLI `--bunker-depths`).** The game cuts each bunker below its edge when it builds the course, from the designer's bunker sliders, so the cut is not in `height[]` and the plain replay shows sand level with the grass round it. Studio reads the sliders (`CourseModel.Bunkers`, and `Bunker` on each painted dab and drawn bunker): the course's own in `bunkerSettings2` (base depth, lip start, lip depth, lip steepness, flat floor, for regular and pot bunkers), and a bunker's own in `bunkerOverrideParameters`, where −1 means "the course's value". The field names and the three-way flat floor switch come from the game's own class names (`CourseDescription.BunkerSettings`).
+
+- **What is known.** The floor is lip depth + base depth below the edge; the file stores that sum as `stampDepth` (0.15 + 0.15 = 0.3 on Murray Estate, 0.85 + 0.73 = 1.58 on Shinnecock Hills).
+- **The game's distance markers do not include the cut.** On Nodens Estate (16 Nov 2026), 14 markers at least 0.6 m inside bunkers set 0.5 m deep read a median 0.08 m *higher* against the replay than the nearest marker just outside (quartiles +0.01 to +0.16 m); 14 more in 0.4 m bunkers read the same as outside. A cut would show as −0.4 to −0.5 m. So the markers read the ground before bunkers are stamped, and no in-game reading of the cut's shape exists.
+- **So the option is off by default.** Everything checked against the markers (the tables below, the measure lines, the hole simulator's terrain study) keeps the plain replay.
+- **The shape is a judgement.** With the option on, `BunkerCut` lowers each cell of sand by its distance in from the sand's edge (touching dabs and outlines count as one bunker): down a lip face of 20° at steepness 0 to 80° at steepness 1, then a floor easing down the base depth at 1 in 6. A bunker too narrow for that never reaches its full depth. Lip start, flat floor and pot bunker objects are read but not modelled. Check a bunker that matters in the game.
+
 **Checks:**
 
 The measured model against the icon model on every measured set (2026-11-10, `samples/calibration/brush-markers` and the course files' measure points):
@@ -212,6 +219,7 @@ The images come from screenshots of the palette icons, so fine detail is approxi
 | `--cell` | 1.0 | Terrain raster (m) |
 | `--grid` | 100 | Grid square (yd); 0 hides the grid |
 | `--hardness` / `--large-hardness` | 0.85 / 0.3 | Falloff for small / large brushes of unknown shape (round-disc fallback) |
+| `--bunker-depths` | off | Cut the bunkers below their edges by the designer's bunker sliders (see "Terrain model"; a judged shape, not a measured one) |
 | `--smooth` | 0 | Extra Gaussian smoothing (sigma, m) before contouring |
 | `--no-features`, `--no-summits` | shown | |
 | `--holes` | | Hole sheets instead of the plot map (`all` or a list) |

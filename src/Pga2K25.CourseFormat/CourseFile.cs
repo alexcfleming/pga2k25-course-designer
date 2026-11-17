@@ -39,6 +39,7 @@ public sealed class CourseFile
     {
         var model = CourseModel.From(Description);
         model.DescriptionBytes = DescriptionBytes;
+        model.Stored = StoredScorecard.Read(Metadata);
         return model;
     }
 

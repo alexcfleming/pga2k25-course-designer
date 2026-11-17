@@ -13,7 +13,7 @@ using Pga2K25.YardageBook;
 const string Usage = """
     pga2k25 info <file.course>
     pga2k25 greensbook <file.course> [-o <dir>] [--studies] [--pdf] [--no-sheet] [--mono]
-                       [--holes 1,2,3] [--hardness 0.85] [--blur 1.0] [--credit "NAME"]
+                       [--holes 1,2,3] [--hardness 0.85] [--blur 1.0] [--bunker-depths] [--credit "NAME"]
     pga2k25 yardage <file.course> [-o <dir>] [--holes 1,2] [--png] [--no-pdf]
                     [--verbose] [--credit "NAME"]
       default output: one PDF workbook, a portrait 4.25 x 11 in page per hole
@@ -28,7 +28,7 @@ const string Usage = """
       --waste     also draw surface-15 waste areas (big sand over 1,500 sq yd always reads as waste)
     pga2k25 terrain <file.course> [-o <dir>] [--full-plot|--buildable] [--margin 150] [--interval 5] [--index 5]
                     [--shading relief|slope|none] [--ppm 4] [--cell 1.0] [--grid 100] [--no-features]
-                    [--hardness 0.85] [--large-hardness 0.3] [--smooth 0] [--sea-level <m>] [--no-water]
+                    [--hardness 0.85] [--large-hardness 0.3] [--bunker-depths] [--smooth 0] [--sea-level <m>] [--no-water]
                     [--water-footprints] [--pdf [--print-dpi 250]] [--holes 7,12|all [--sheet-grid 50] [--sheet-side 75] [--green-inset 50] [--no-pdf] [--no-png]]
       --holes     instead, one 8.5 x 11 in terrain sketch sheet per hole, oriented like the
                   yardage book (PNGs at 300 dpi + one PDF): a strip 75 yd past the route's
@@ -110,7 +110,7 @@ const string Usage = """
       --whole plays every pin tee to cup for --player (strokes gained by phase); --experiments plays design
       changes (landing zone 5 yds wider or narrower, hazards near play taken out) against the hole as it is
     pga2k25 view3d <file.course> [-o <dir>] [--margin 200] [--full-plot] [--grid 1024] [--texture 4096]
-                   [--plants 60000] [--cell 1.0]
+                   [--plants 60000] [--cell 1.0] [--bunker-depths]
       3D view (first look): one self-contained page, "<course> - 3D View.html", with the replayed ground,
       the drawn surfaces draped over it, water, planted trees and bushes, and a view down every hole
     pga2k25 holesim-terrain <file.course> --holes 11,3,4 [--smooth 8] [--readings 10] [--fit-length 25]
@@ -165,6 +165,7 @@ static int View3DCommand(string path, string[] rest)
             case "--margin": options = options with { Map = options.Map with { MarginMetres = double.Parse(Next(), inv) } }; break;
             case "--full-plot": options = options with { Map = options.Map with { Extent = MapExtent.FullPlot } }; break;
             case "--cell": options = options with { Map = options.Map with { Terrain = options.Map.Terrain with { CellMetres = double.Parse(Next(), inv) } } }; break;
+            case "--bunker-depths": options = options with { Map = options.Map with { Terrain = options.Map.Terrain with { BunkerDepths = true } } }; break;
             case "--grid": options = options with { MaxGrid = int.Parse(Next(), inv) }; break;
             case "--texture": options = options with { MaxTexture = int.Parse(Next(), inv) }; break;
             case "--plants": options = options with { MaxPlants = int.Parse(Next(), inv) }; break;
@@ -694,6 +695,7 @@ static int GreensBook(string path, string[] rest)
             case "--mono": options = options with { ColourSlopes = false }; break;
             case "--holes": holes = Next().Split(',').Select(int.Parse).ToList(); break;
             case "--hardness": terrain = terrain with { Hardness = NextDouble() }; break;
+            case "--bunker-depths": terrain = terrain with { BunkerDepths = true }; break;
             case "--blur": terrain = terrain with { BlurSigmaMetres = NextDouble() }; break;
             case "--credit": options = options with { Credit = Next() }; break;
             default: throw new ArgumentException($"unknown option {rest[i]}");
@@ -859,6 +861,7 @@ static int Terrain(string path, string[] rest)
             case "--cell": options = options with { Terrain = options.Terrain with { CellMetres = NextDouble() } }; break;
             case "--hardness": options = options with { Terrain = options.Terrain with { Hardness = NextDouble() } }; break;
             case "--large-hardness": options = options with { Terrain = options.Terrain with { LargeBrushHardness = NextDouble() } }; break;
+            case "--bunker-depths": options = options with { Terrain = options.Terrain with { BunkerDepths = true } }; break;
             case "--smooth": options = options with { SmoothMetres = NextDouble() }; break;
             case "--grid": options = options with { GridYards = NextDouble() }; break;
             case "--no-features": options = options with { ShowFeatures = false }; break;

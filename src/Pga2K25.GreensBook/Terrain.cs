@@ -90,6 +90,13 @@ public sealed record TerrainModelOptions
     /// <summary>Gaps larger than this (m) are taken as a set height, not a sample, and left alone.</summary>
     public double FlattenSampleMaxMetres { get; init; } = 1;
 
+    /// <summary>
+    /// Cut the bunkers below their edges by the designer's bunker depth sliders (<see cref="BunkerCut"/>). Off by
+    /// default: the game's distance markers read the ground without the cut, so everything checked against them
+    /// keeps the plain replay, and the cut's shape is a judgement, not a measurement.
+    /// </summary>
+    public bool BunkerDepths { get; init; }
+
     /// <summary>Raster cell size in metres.</summary>
     public double CellMetres { get; init; } = 0.25;
 }
@@ -148,7 +155,8 @@ public static class TerrainReplay
     /// plateau + smoothstep falloff. With <see cref="TerrainModelOptions.FlattenSamples"/>, a small flatten first
     /// shifts the ground around it to its value (<see cref="FlattenShifts"/>).
     /// A cell's height depends only on the stamps over that cell, so the rows are replayed in parallel bands, each
-    /// band taking every stamp in file order.
+    /// band taking every stamp in file order. With <see cref="TerrainModelOptions.BunkerDepths"/> the bunkers are then
+    /// cut below their edges (<see cref="BunkerCut"/>).
     /// </summary>
     public static Heightfield Build(CourseModel course, Vec2 min, Vec2 max, TerrainModelOptions options)
     {
@@ -198,6 +206,7 @@ public static class TerrainReplay
         });
 
         if (sigma > 0) GaussianBlur(field, sigma / cell);
+        if (options.BunkerDepths) BunkerCut.Apply(course, field);
         return field;
     }
 
@@ -388,7 +397,7 @@ public static class TerrainReplay
     public static double[] FlattenShifts(CourseModel course, TerrainModelOptions options) =>
         // Only the settings that change the replay matter; the window and cell don't.
         ShiftCache.GetOrCreateValue(course)
-            .GetOrAdd(options with { CellMetres = 0, BlurSigmaMetres = 0 }, key => new Lazy<double[]>(() => ComputeShifts(course, key))).Value;
+            .GetOrAdd(options with { CellMetres = 0, BlurSigmaMetres = 0, BunkerDepths = false }, key => new Lazy<double[]>(() => ComputeShifts(course, key))).Value;
 
     /// <summary>
     /// The ground at each small flatten's centre is the replay of the earlier stamps that reach it. Those are looked
