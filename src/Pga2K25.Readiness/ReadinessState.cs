@@ -90,6 +90,25 @@ public sealed class CourseInfo
     /// <summary>Tee set names, front to back.</summary>
     public List<string> TeeNames { get; set; } = [];
     public string PrevailingWind { get; set; } = "";
+    /// <summary>The designer's four meters as last read in the game.</summary>
+    public GameMeterReadings Meters { get; set; } = new();
+}
+
+/// <summary>
+/// The course designer's four meters (percent), read off its screen: the file stores none of them. Studio estimates
+/// objects, memory and file size (GameBudget); the terrain meter has no estimate yet, so a reading is the only figure.
+/// Each reading kept here is also a point for fitting the estimates later.
+/// </summary>
+public sealed class GameMeterReadings
+{
+    public double? Objects { get; set; }
+    public double? Memory { get; set; }
+    public double? File { get; set; }
+    public double? Terrain { get; set; }
+    /// <summary>When they were read (free text, as typed).</summary>
+    public string ReadOn { get; set; } = "";
+
+    public bool Any => Objects is not null || Memory is not null || File is not null || Terrain is not null;
 }
 
 public sealed class SignOff

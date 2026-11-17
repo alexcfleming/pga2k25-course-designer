@@ -262,12 +262,88 @@ public abstract class TerrainInk : IDisposable
         foreach (var d in L.BunkerBrushes)
             canvas.DrawCircle(p.Map(d.Centre), (float)(d.Radius * p.PointsPerMetre), sand);
         foreach (var r in L.Roads.Concat(L.Paths)) DrawRibbon(canvas, p, r, SKColor.Parse("#9a958c").WithAlpha(170));
+        DrawOutOfBounds(canvas, L, p);
+    }
+
+    /// <summary>Out of bounds: the ground beyond hatched in grey, and its edge as a white-staked line.</summary>
+    protected static readonly SKColor OutOfBoundsInk = SKColor.Parse("#3d3f40");
+
+    protected void DrawOutOfBounds(SKCanvas canvas, Maps.CourseLayers L, MapProjection p)
+    {
+        if (L.OutOfBounds.Count == 0) return;
+        float u = _u;
+        foreach (var poly in L.OutOfBounds)
+        {
+            using var path = p.Path(poly, true);
+            canvas.Save();
+            canvas.ClipPath(path, antialias: true);
+            using (var hatch = Stroke(OutOfBoundsInk.WithAlpha(90), 0.4f * u))
+            {
+                var b = path.Bounds;
+                float step = 4.5f * u;
+                for (float x = b.Left - b.Height; x < b.Right; x += step) canvas.DrawLine(x, b.Top, x + b.Height, b.Bottom, hatch);
+            }
+            canvas.Restore();
+            DrawOutOfBoundsEdge(canvas, path);
+        }
+    }
+
+    /// <summary>The out-of-bounds edge: a dark line with white stakes along it, as on a course planner's sheet.</summary>
+    protected void DrawOutOfBoundsEdge(SKCanvas canvas, SKPath path)
+    {
+        float u = _u;
+        using var line = Stroke(OutOfBoundsInk, 0.8f * u);
+        canvas.DrawPath(path, line);
+        using var stake = Fill(SKColors.White);
+        using var ring = Stroke(OutOfBoundsInk, 0.45f * u);
+        using var measure = new SKPathMeasure(path, true);
+        float gap = 14 * u;
+        do
+        {
+            for (float d = gap / 2; d < measure.Length; d += gap)
+                if (measure.GetPosition(d, out var at)) { canvas.DrawCircle(at, 1.3f * u, stake); canvas.DrawCircle(at, 1.3f * u, ring); }
+        } while (measure.NextContour());
+    }
+
+    /// <summary>A legend sample for out of bounds, in a box of the given size.</summary>
+    protected void OutOfBoundsSample(SKCanvas canvas, SKRect box)
+    {
+        using var path = new SKPath();
+        path.AddRect(box);
+        canvas.Save();
+        canvas.ClipRect(box);
+        using (var hatch = Stroke(OutOfBoundsInk.WithAlpha(90), 0.4f * _u))
+            for (float x = box.Left - box.Height; x < box.Right; x += 4.5f * _u) canvas.DrawLine(x, box.Top, x + box.Height, box.Bottom, hatch);
+        canvas.Restore();
+        using var line = Stroke(OutOfBoundsInk, 0.8f * _u);
+        canvas.DrawLine(box.Left, box.Top, box.Right, box.Top, line);
+        using var stake = Fill(SKColors.White);
+        using var ring = Stroke(OutOfBoundsInk, 0.45f * _u);
+        foreach (float fx in new[] { 0.25f, 0.75f })
+        {
+            var at = new SKPoint(box.Left + fx * box.Width, box.Top);
+            canvas.DrawCircle(at, 1.3f * _u, stake); canvas.DrawCircle(at, 1.3f * _u, ring);
+        }
     }
 
     // Planting ink: shape and lightness tell the layers apart, so a black-and-white print still reads.
     protected static readonly SKColor Broadleaf = SKColor.Parse("#7fa65e"), BroadleafEdge = SKColor.Parse("#3f6b3a"),
         Conifer = SKColor.Parse("#25523f"), OneTree = SKColor.Parse("#4f7f3a"), BushInk = SKColor.Parse("#5b7a30"),
-        GrassInk = SKColor.Parse("#a88b45"), FlowerInk = SKColor.Parse("#c0477a"), WallInk = SKColor.Parse("#4a4f4b");
+        GrassInk = SKColor.Parse("#a88b45"), FlowerInk = SKColor.Parse("#c0477a"), WallInk = SKColor.Parse("#4a4f4b"),
+        ClearedTreesInk = SKColor.Parse("#8a5a2b"), ClearedDetailInk = SKColor.Parse("#9a8a5a");
+
+    /// <summary>A legend sample for a cleared area: its wash and dotted edge in a box.</summary>
+    protected void ClearedSample(SKCanvas canvas, SKRect box, bool trees)
+    {
+        var ink = trees ? ClearedTreesInk : ClearedDetailInk;
+        using var wash = Fill(ink.WithAlpha(28));
+        using var edge = Stroke(ink.WithAlpha(210), 0.7f * _u);
+        edge.StrokeCap = SKStrokeCap.Round;
+        using var dots = SKPathEffect.CreateDash(trees ? [0.6f * _u, 1.8f * _u] : [1.2f * _u, 1.6f * _u], 0);
+        edge.PathEffect = dots;
+        canvas.DrawRect(box, wash);
+        canvas.DrawRect(box, edge);
+    }
 
     protected SKColor TreeFill(PlantSpecies s) => !_o.TreesByType ? OneTree : s.Form == TreeForm.Conifer ? Conifer : Broadleaf;
 
@@ -292,6 +368,28 @@ public abstract class TerrainInk : IDisposable
         bool On(PlantKind k) => (layers & Planting.LayerOf(k)) != 0;
         var reach = Inflate(view, 40 * ppm);
         bool Near(SKPoint at) => reach.Contains(at);
+
+        // Cleared ground first, under everything planted: where the game's own trees or detail won't grow.
+        if ((layers & PlantingLayers.Cleared) != 0)
+        {
+            DrawCleared(plants.ClearedDetail, ClearedDetailInk, [1.2f * u, 1.6f * u]);
+            DrawCleared(plants.ClearedTrees, ClearedTreesInk, [0.6f * u, 1.8f * u]);
+        }
+        void DrawCleared(IReadOnlyList<List<Vec2>> outlines, SKColor ink, float[] pattern)
+        {
+            using var wash = Fill(ink.WithAlpha(28));
+            using var edge = Stroke(ink.WithAlpha(210), 0.7f * u);
+            edge.StrokeCap = SKStrokeCap.Round;
+            using var dots = SKPathEffect.CreateDash(pattern, 0);
+            edge.PathEffect = dots;
+            foreach (var o in outlines.Where(o => o.Count >= 3))
+            {
+                using var path = p.Path(o, true);
+                if (!reach.IntersectsWith(path.Bounds)) continue;
+                canvas.DrawPath(path, wash);
+                canvas.DrawPath(path, edge);
+            }
+        }
 
         // Grass and fescue tufts, as stipple.
         if (On(PlantKind.Grass))

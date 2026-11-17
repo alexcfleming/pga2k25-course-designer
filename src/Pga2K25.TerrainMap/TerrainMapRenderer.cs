@@ -151,7 +151,8 @@ public sealed class TerrainMapRenderer : TerrainInk
 
     const float RowH = 12.5f;
 
-    float PanelHeight(TerrainSurvey s) => ((s.Holes.Count == 0 ? 520 : 300 + RowH * (s.Holes.Count + 2) + 420) + 80 + (ShowsPlanting(s) ? 280 : 0)
+    float PanelHeight(TerrainSurvey s) => ((s.Holes.Count == 0 ? 520 : 300 + RowH * (s.Holes.Count + 2) + 420) + 80 + (ShowsPlanting(s) ? 280 + (s.Planting.HasCleared && (_o.Planting & PlantingLayers.Cleared) != 0 ? 30 : 0) : 0)
+        + (_o.ShowFeatures && s.Layers.OutOfBounds.Count > 0 ? 15 : 0) + 13
         + (_o.Region is not null ? RegionBlock : _o.SiteInset ? SiteBlock : 0) + (_o.Wind is not null ? WindBlock : 0)) * _u;
 
     // Heading, the inset square and its caption, in panel units.
@@ -317,6 +318,9 @@ public sealed class TerrainMapRenderer : TerrainInk
         Meter("Objects", budget.ObjectPercent);
         Meter("Memory", budget.MemoryPercent);
         if (budget.FilePercent is { } filePct) Meter("File size", filePct);
+        Text(canvas, "Terrain", r.Left, y + 6.5f * u, 7.6f * u, _sans, Ink);
+        Text(canvas, "read it in the designer", r.Right, y + 6.5f * u, 7.6f * u, _sansItalic, Grey, SKTextAlign.Right);
+        y += 13 * u;
         Text(canvas, $"≈ {budget.Objects:N0} objects, {budget.UniqueAssets} different assets. Fitted to six courses'", r.Left, y + 5 * u, 6.4f * u, _sansItalic, Grey);
         y += 9 * u;
         Text(canvas, "in-game readings; the designer's own counters are the real figures.", r.Left, y + 5 * u, 6.4f * u, _sansItalic, Grey);
@@ -369,6 +373,8 @@ public sealed class TerrainMapRenderer : TerrainInk
             y += 15 * u;
         }
         if (planting) PlantingLegend(canvas, plants, Row, sx, sw);
+        if (_o.ShowFeatures && s.Layers.OutOfBounds.Count > 0)
+            Row(cy => OutOfBoundsSample(canvas, new SKRect(sx, cy - 4 * u, sx + sw, cy + 5 * u)), "Out of bounds, white-staked edge");
         Row(cy => { using var p = Stroke(MinorContour, 0.38f * u); canvas.DrawLine(sx, cy, sx + sw, cy, p); },
             $"Contour, every {Interval(s)}" + (_o.MinContourSpacingPixels > 0 ? " (thinned on steep ground)" : ""));
         Row(cy =>
@@ -584,6 +590,10 @@ public sealed class TerrainMapRenderer : TerrainInk
             row(cy => { using var f = Fill(BushInk); canvas.DrawCircle(sx + 12 * u, cy, 1.8f * u, f); canvas.DrawCircle(sx + 22 * u, cy, 1.8f * u, f); }, "Bush");
         if (Has(PlantKind.Flower))
             row(cy => { using var f = Fill(FlowerInk); canvas.DrawCircle(sx + 12 * u, cy, 1.3f * u, f); canvas.DrawCircle(sx + 20 * u, cy, 1.3f * u, f); }, "Flowers");
+        if (On(PlantingLayers.Cleared) && plants.ClearedTrees.Count > 0)
+            row(cy => ClearedSample(canvas, new SKRect(sx + 4 * u, cy - 5 * u, sx + sw - 4 * u, cy + 5 * u), trees: true), "Cleared of the game's own trees");
+        if (On(PlantingLayers.Cleared) && plants.ClearedDetail.Count > 0)
+            row(cy => ClearedSample(canvas, new SKRect(sx + 4 * u, cy - 5 * u, sx + sw - 4 * u, cy + 5 * u), trees: false), "Cleared of the game's own grass, rocks and plants");
         if (On(PlantingLayers.Walls) && plants.Walls.Count > 0)
             row(cy =>
             {

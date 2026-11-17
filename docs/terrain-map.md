@@ -99,6 +99,8 @@ The side panel shows meters for the course designer's budget counters: **Objects
 - **Memory %** ≈ 9.8 + 0.32 × the number of different assets + 0.10 × √objects.
 - **File size %** ≈ the course description's unpacked size ÷ 384 MB.
 
+The designer has a fourth meter, **Terrain**, that Studio doesn't estimate yet: no reading of it has been taken. The panel lists it as "read it in the designer". Readings of all four meters can be typed on the Readiness page (Sign-off card); they win over these estimates in Publish readiness (`game-meters`, `bunker-stamping`) and are kept in Readiness.json, so the terrain meter can be fitted once four to six courses have a reading.
+
 The object constants fit six in-game readings (object % / memory %): Sagan-Khushun 72.5 / 62.7, Wakinyan Dunes 0.7 / 14.3, Blackwolf Lenz Upper 6.3 / 46.9 and Murray Estate 11.7 / 28.1 (2026-10-26), and two of Plot Starter's generated plots with nothing placed and no holes (2026-11-08): PS2 Dunes Layered, 2,455 stamps, 0.2 / 16.8, and PS4 Chop Hills, 19,086 stamps, 1.9 / 12.6. Those two show that terrain stamps count as objects (0.118 each); all six now fit within 0.11 points. Memory is the 2026-10-26 fit and still matches the first four within a point, but the two bare plots read 16.8 % and 12.6 % where it gives about 11.5 and 14.6, the other way round from anything in the file (the second had its theme and backdrop changed), so something the file doesn't show adds to memory. The file size meter rests on those two bare plots only (7.29 MB of description read 1.9 %, 0.94 MB read 0.2 %). The panel labels all three as rough, and the designer's own counters are the real figures. The meters turn red from 90 %.
 
 Readings from Halvoy (almost nothing placed, no holes) and Berwick Coast (few items, 833 m of walls) would test the per-hole and per-metre parts. A count of Murray's pines in game would test the planted-area scale. That scale suggests planted areas hold far more trees than the plain area × `fillPct` the planting overlay uses.
@@ -113,6 +115,7 @@ With planting on (Studio's **Planting** toggle, or `--planting` on the CLI), the
 | Bushes, flowers | Small dots (bushes green, flowers rose). Hole sheets leave flowers off. |
 | Grass and fescue | Stipple. |
 | Walls and fences | A line, dashed for fences. |
+| Cleared ground | Where the designer cleared the game's own trees (`clearTrees`, brown, fine dots) or its grass, rocks and small plants (`clearDetail`, tan, longer dots): a faint wash and a dotted edge, under everything planted. Studio's **Cleared** toggle; on by default. |
 
 The course file stores planting three ways, and all three are shown:
 
@@ -122,7 +125,9 @@ The course file stores planting three ways, and all three are shown:
 
 The side panel adds a **Planting** section, with tree totals (≈ where groups or areas are involved) and the six commonest tree species, plus legend rows for the layers that are on. Kind and species come from the asset's folders (`…/Trees/Birch_River/…` is a broadleaf "Birch River"; names with Pine, Larch, Cedar, Spruce, Fir and the like are conifers).
 
-Vegetation the game generates by itself (its tree, plant and grass density settings, which change with each theme) isn't stored in the file and isn't shown. Neither are the `clearTrees` / `clearDetail` layers, which only remove that generated vegetation. Most designers clear it from near the playing area anyway.
+Vegetation the game generates by itself (its tree, plant and grass density settings, which change with each theme) isn't stored in the file and isn't shown; the cleared ground shows where it won't grow. The tree density layer (`treeDensityMap`) is empty on every file seen, so it isn't drawn. The Planting card in Studio adds a **Cleared ground** row with the acres cleared of trees and of detail.
+
+**Out of bounds** (`outOfBounds2`) is drawn on the terrain map, the hole sheets and the yardage book: the ground beyond hatched grey, its edge a dark line with white stakes. Every file seen paints it as filled outlines; brushes and open lines would draw too. It is in the legend when any shows, and Publish readiness checks it against play (`out-of-bounds`).
 
 The code is `Planting` and `PlantSpecies` in `src/Pga2K25.TerrainMap/Planting.cs`, plus `TerrainInk.DrawPlanting`. The extra records (`PlacedCluster`, `PlacedArea`, `ObjectPath`) are read in `CourseModel`.
 
@@ -153,7 +158,7 @@ The terrain is rebuilt by replaying the file's height stamps in order (`TerrainR
   - **Flattens:** the game does apply them. Links Lowland's ocean is 19 large flattens dragged along its two sides; without them the map showed a few inland lakes where the game has sea down both sides with bays running in.
   - **How sure this is:** no in-game marker lies under an edge flatten on any course yet, so the flatten half rests on Links Lowland as seen in the game. Keeping them moves the ground at holes by under 0.4 m on the samples (2 m on Wakinyan Tournament), but it can change scenery past the routing a lot: Berwick Coast's sea goes from 7.5% to 17% of the plot, on its far side.
 
-**Bunker depths (optional, `BunkerDepths`, CLI `--bunker-depths`).** The game cuts each bunker below its edge when it builds the course, from the designer's bunker sliders, so the cut is not in `height[]` and the plain replay shows sand level with the grass round it. Studio reads the sliders (`CourseModel.Bunkers`, and `Bunker` on each painted dab and drawn bunker): the course's own in `bunkerSettings2` (base depth, lip start, lip depth, lip steepness, flat floor, for regular and pot bunkers), and a bunker's own in `bunkerOverrideParameters`, where −1 means "the course's value". The field names and the three-way flat floor switch come from the game's own class names (`CourseDescription.BunkerSettings`).
+**Bunker depths (optional, `BunkerDepths`, CLI `--bunker-depths`).** The game cuts each bunker below its edge when it builds the course, from the designer's bunker sliders, so the cut is not in `height[]` and the plain replay shows sand level with the grass round it. Studio reads the sliders (`CourseModel.Bunkers`, and `Bunker` on each painted dab and drawn bunker): the course's own in `bunkerSettings2` (base depth, lip start, lip depth, lip steepness, flat floor, for regular and pot bunkers), and a bunker's own in `bunkerOverrideParameters`, where −1 means "the course's value". A bunker's own flat floor is 0 (the course's setting) or 1 (on) in every file seen; 2 is read as off.
 
 - **What is known.** The floor is lip depth + base depth below the edge; the file stores that sum as `stampDepth` (0.15 + 0.15 = 0.3 on Murray Estate, 0.85 + 0.73 = 1.58 on Shinnecock Hills).
 - **The game's distance markers do not include the cut.** On Nodens Estate (16 Nov 2026), 14 markers at least 0.6 m inside bunkers set 0.5 m deep read a median 0.08 m *higher* against the replay than the nearest marker just outside (quartiles +0.01 to +0.16 m); 14 more in 0.4 m bunkers read the same as outside. A cut would show as −0.4 to −0.5 m. So the markers read the ground before bunkers are stamped, and no in-game reading of the cut's shape exists.

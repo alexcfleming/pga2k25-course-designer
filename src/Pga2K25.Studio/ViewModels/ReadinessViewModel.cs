@@ -146,12 +146,13 @@ public partial class ReadinessViewModel : ObservableObject
         Show("Checking the course file…");
         var limits = _state.Limits;
         var overrides = _state.Overrides();
+        var meters = _state.Info.Meters;
         Task.Run(() =>
         {
             try
             {
                 var course = CourseFile.Load(_coursePath).ReadModel();
-                var report = ReadinessChecker.Run(course, limits, overrides: overrides);
+                var report = ReadinessChecker.Run(course, limits, overrides: overrides, meters: meters);
                 string stamp = ReadinessStore.Stamp(_coursePath);
                 Dispatcher.UIThread.Post(() =>
                 {
@@ -602,8 +603,29 @@ public partial class ReadinessViewModel : ObservableObject
         // The Holes card in Course settings is where the products read tee names; this box shares them.
         if (CourseHolesFile.Load(_outputDir).Tees is { Count: > 0 } tees) _state.Info.TeeNames = [.. tees];
         _teeNames = string.Join(", ", _state.Info.TeeNames);
-        foreach (var p in new[] { nameof(SignName), nameof(SignDate), nameof(SignNotes), nameof(Designer), nameof(Version), nameof(TeeNames) }) OnPropertyChanged(p);
+        foreach (var p in new[] { nameof(SignName), nameof(SignDate), nameof(SignNotes), nameof(Designer), nameof(Version), nameof(TeeNames),
+                     nameof(MeterObjects), nameof(MeterMemory), nameof(MeterFile), nameof(MeterTerrain), nameof(MetersReadOn) })
+            OnPropertyChanged(p);
     }
+
+    // The designer's four meters as read in the game: typed as numbers, blank for not read. A change saves and reruns,
+    // since the meters check and the bunker check use them.
+    static string MeterText(double? v) => v is double d ? d.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture) : "";
+    void SetMeter(string text, Action<double?> set)
+    {
+        string t = text.Trim().TrimEnd('%').Trim();
+        double? v = t.Length == 0 ? null
+            : double.TryParse(t, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d) && d >= 0 ? d : null;
+        if (t.Length > 0 && v is null) { Show($"\"{text}\" isn't a percentage; type a number like 62.7.", error: true); return; }
+        set(v);
+        Save();
+        if (HasReport && !Busy) Rerun();
+    }
+    public string MeterObjects { get => MeterText(_state.Info.Meters.Objects); set => SetMeter(value, v => _state.Info.Meters.Objects = v); }
+    public string MeterMemory { get => MeterText(_state.Info.Meters.Memory); set => SetMeter(value, v => _state.Info.Meters.Memory = v); }
+    public string MeterFile { get => MeterText(_state.Info.Meters.File); set => SetMeter(value, v => _state.Info.Meters.File = v); }
+    public string MeterTerrain { get => MeterText(_state.Info.Meters.Terrain); set => SetMeter(value, v => _state.Info.Meters.Terrain = v); }
+    public string MetersReadOn { get => _state.Info.Meters.ReadOn; set { _state.Info.Meters.ReadOn = value; Save(); } }
 
     partial void OnSignNameChanged(string value) { _state.SignOff.Name = value; Save(); RefreshSummary(); }
     partial void OnSignDateChanged(string value) { _state.SignOff.Date = value; Save(); RefreshSummary(); }

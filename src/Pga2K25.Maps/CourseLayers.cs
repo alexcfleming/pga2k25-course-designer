@@ -49,6 +49,9 @@ public sealed class CourseLayers
     public required List<Ribbon> Roads { get; init; }
     public required List<HoleLayout> Holes { get; init; }
 
+    /// <summary>Out of bounds as the designer painted it (<see cref="CourseModel.OutOfBounds"/>), as outlines.</summary>
+    public List<List<Vec2>> OutOfBounds { get; init; } = [];
+
     readonly Dictionary<double, List<List<Vec2>>> _mergedBunkers = new();
 
     /// <summary>
@@ -78,6 +81,7 @@ public sealed class CourseLayers
             Grass = [], Greens = [], BunkerAreas = [], BunkerRibbons = [], BunkerBrushes = [],
             WaterAreas = [], WaterRibbons = [], WasteAreas = [], WasteRibbons = [], WasteBrushes = [],
             Paths = [], Roads = [], Holes = [],
+            OutOfBounds = MapEditShapes.Outlines(course.OutOfBounds),
         };
 
         foreach (var s in course.SurfaceSplines)
@@ -163,7 +167,7 @@ public sealed class CourseLayers
             BunkerAreas = Keep(BunkerAreas), BunkerRibbons = KeepRibbons(BunkerRibbons), BunkerBrushes = KeepDiscs(BunkerBrushes),
             WaterAreas = Keep(WaterAreas), WaterRibbons = KeepRibbons(WaterRibbons),
             WasteAreas = Keep(WasteAreas), WasteRibbons = KeepRibbons(WasteRibbons), WasteBrushes = KeepDiscs(WasteBrushes),
-            Paths = Paths, Roads = Roads, Holes = Holes,
+            Paths = Paths, Roads = Roads, Holes = Holes, OutOfBounds = OutOfBounds,
         };
         routed.Fairways.AddRange(Fairways.Where(f => grass.Contains(f)));
         routed.WaterBodies.AddRange(WaterBodies);

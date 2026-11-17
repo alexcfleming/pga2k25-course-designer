@@ -537,6 +537,10 @@ public sealed class HoleSheetRenderer : TerrainInk
             l.PathEffect = dash;
             canvas.DrawLine(x, y, x + sw, y, l);
         }, "Neighbouring holes");
+        // Out of bounds, when any of it shows on this sheet.
+        bool seaRow = s.SeaLevelMetres is not null || painted;
+        if (_o.ShowFeatures && s.Layers.OutOfBounds.Any(poly => { using var path = p.Path(poly, true); return path.Bounds.IntersectsWith(map); }))
+            Row(0, seaRow ? 4 : 3, (x, y) => OutOfBoundsSample(canvas, new SKRect(x, y - 3 * u, x + sw, y + 3.5f * u)), "Out of bounds, white-staked edge");
 
         // Scale bar and north arrow.
         float pxPerYard = (float)(p.PointsPerMetre / TerrainSurvey.YardsPerMetre);

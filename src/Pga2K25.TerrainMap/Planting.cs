@@ -12,13 +12,16 @@ public enum PlantingLayers
     Grass = 4,
     Flowers = 8,
     Walls = 16,
-    All = Trees | Bushes | Grass | Flowers | Walls,
+    /// <summary>Where the designer cleared the game's own trees or detail (<c>clearTrees</c>, <c>clearDetail</c>).</summary>
+    Cleared = 32,
+    All = Trees | Bushes | Grass | Flowers | Walls | Cleared,
 }
 
 /// <summary>
 /// Everything the designer planted, from the course file: single trees and plants, scatter groups and planted
-/// areas, plus walls and fences. Vegetation the game generates by itself isn't in the file and isn't shown, and the
-/// tree-clearing layers (which only remove that) are ignored.
+/// areas, plus walls and fences, and where the designer cleared the game's own trees and detail. Vegetation the game
+/// generates by itself isn't in the file and isn't shown; the cleared areas show where it won't grow.
+/// The tree density map (<c>treeDensityMap</c>) is empty on every file seen, so it isn't drawn.
 /// </summary>
 public sealed class Planting
 {
@@ -39,8 +42,16 @@ public sealed class Planting
     public required IReadOnlyList<Area> Areas { get; init; }
     public required IReadOnlyList<Wall> Walls { get; init; }
 
+    /// <summary>Areas cleared of the game's own trees, as outlines.</summary>
+    public IReadOnlyList<List<Vec2>> ClearedTrees { get; init; } = [];
+
+    /// <summary>Areas cleared of the game's own detail (grass tufts, rocks, small plants), as outlines.</summary>
+    public IReadOnlyList<List<Vec2>> ClearedDetail { get; init; } = [];
+
     public static Planting From(CourseModel course) => new()
     {
+        ClearedTrees = MapEditShapes.Outlines(course.ClearTrees),
+        ClearedDetail = MapEditShapes.Outlines(course.ClearDetail),
         Singles = course.PlacedObjects.Select(o => PlantSpecies.Of(o.AssetPath) is { } s ? new Single(o.Position, o.Scale, s) : null)
             .OfType<Single>().ToList(),
         Groups = course.PlacedClusters.Select(c => PlantSpecies.Of(c.AssetPath) is { } s ? new Group(c, s) : null).OfType<Group>().ToList(),
@@ -50,15 +61,22 @@ public sealed class Planting
             .Select(p => new Wall(p.Points, p.AssetPath.Contains("Fence", StringComparison.OrdinalIgnoreCase))).ToList(),
     };
 
-    public bool IsEmpty => Singles.Count == 0 && Groups.Count == 0 && Areas.Count == 0 && Walls.Count == 0;
+    public bool IsEmpty => Singles.Count == 0 && Groups.Count == 0 && Areas.Count == 0 && Walls.Count == 0 && !HasCleared;
+
+    public bool HasCleared => ClearedTrees.Count > 0 || ClearedDetail.Count > 0;
 
     /// <summary>Whether any of <paramref name="layers"/> has something in it.</summary>
     public bool Has(PlantingLayers layers)
     {
         bool On(PlantSpecies s) => (layers & LayerOf(s.Kind)) != 0;
         return Singles.Any(p => On(p.Species)) || Groups.Any(g => On(g.Species)) || Areas.Any(a => On(a.Species))
-            || ((layers & PlantingLayers.Walls) != 0 && Walls.Count > 0);
+            || ((layers & PlantingLayers.Walls) != 0 && Walls.Count > 0)
+            || ((layers & PlantingLayers.Cleared) != 0 && HasCleared);
     }
+
+    /// <summary>Cleared ground in m² (trees, detail), overlaps counted twice: a rough size, not a survey.</summary>
+    public (double Trees, double Detail) ClearedArea() =>
+        (ClearedTrees.Sum(o => Math.Abs(Geometry.Area(o))), ClearedDetail.Sum(o => Math.Abs(Geometry.Area(o))));
 
     /// <summary>A kind's count: placed one by one, and about how many more the game scatters in groups and areas.</summary>
     public (int Placed, int Scattered) Count(PlantKind kind) =>

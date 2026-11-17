@@ -50,7 +50,8 @@ With a course logo (`Logos.json`, see [Course logo](course-logo.md)), the header
 
 - **View:** the page is cut along the line of play, from 22 m behind the back tee to 32 m past the green, and rotated so play runs up the page. A north arrow in the header shows the true bearing (north = −Z).
 - **Surfaces:**
-  - Drawing order: rough, paths, water, fairways, bunkers, vegetation and rock masses, in-play hazards, tee pads, greens.
+  - Drawing order: rough, paths, water, fairways, bunkers, vegetation and rock masses, in-play hazards, out of bounds, tee pads, greens.
+  - Out of bounds (`outOfBounds2`, since 3.8): the ground beyond lightly hatched, its edge a dark line with white stakes every 12 yds, and an "OB" tag inside the biggest piece on the page.
   - Shapes owned by another hole are faded. Ownership is decided by a majority vote of nearby hole routes, and any shape within 15 m of this hole's line of play always belongs to this hole.
   - Water includes drawn water shapes and the course's `water[]` entries (painted streams and water planes) and the water tools' streams and ponds, traced once per course by `WaterTracer` (see [terrain-map.md](terrain-map.md)). Islands stay dry.
 - **Vegetation and rocks:**

@@ -338,6 +338,10 @@
               <ToggleButton Classes="pill" IsChecked="{Binding PlantWalls}" VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal" Spacing="6"><Rectangle Width="10" Height="10" Fill="#4A4F4B" VerticalAlignment="Center"/><TextBlock Text="Walls &amp; fences" VerticalAlignment="Center"/></StackPanel>
               </ToggleButton>
+              <ToggleButton Classes="pill" IsChecked="{Binding PlantCleared}" VerticalAlignment="Center"
+                            ToolTip.Tip="Where you cleared the game's own trees, grass, rocks and plants">
+                <StackPanel Orientation="Horizontal" Spacing="6"><Rectangle Width="10" Height="10" Stroke="#8A5A2B" StrokeThickness="1.5" StrokeDashArray="1,1.5" VerticalAlignment="Center"/><TextBlock Text="Cleared" VerticalAlignment="Center"/></StackPanel>
+              </ToggleButton>
               <Border Width="1" Height="22" Background="{StaticResource Hairline}" VerticalAlignment="Center" Margin="2,0"/>
               <ToggleButton Classes="pill" Content="Trees by type" IsChecked="{Binding TreesByType}" VerticalAlignment="Center"
                             ToolTip.Tip="Conifers darker than broadleaf trees; off draws every tree in one green"/>
@@ -2184,6 +2188,17 @@
                   <StackPanel Spacing="2"><TextBlock Text="Designer" Classes="muted small"/><TextBox Text="{Binding Designer}"/></StackPanel>
                   <StackPanel Spacing="2"><TextBlock Text="Version" Classes="muted small"/><TextBox Text="{Binding Version}"/></StackPanel>
                   <StackPanel Spacing="2"><TextBlock Text="Tee set names, front to back" Classes="muted small"/><TextBox Text="{Binding TeeNames}" PlaceholderText="Red, Green, White, Blue"/></StackPanel>
+                  <StackPanel Spacing="2">
+                    <TextBlock Text="The designer's meters as read in the game (%)" Classes="muted small"
+                               ToolTip.Tip="Type what the designer shows. Readings win over Studio's estimates; the terrain meter has no estimate, so it needs a reading."/>
+                    <Grid ColumnDefinitions="*,6,*,6,*,6,*">
+                      <TextBox Grid.Column="0" Text="{Binding MeterObjects, UpdateSourceTrigger=LostFocus}" PlaceholderText="Objects" AutomationProperties.Name="Objects meter"/>
+                      <TextBox Grid.Column="2" Text="{Binding MeterMemory, UpdateSourceTrigger=LostFocus}" PlaceholderText="Memory" AutomationProperties.Name="Memory meter"/>
+                      <TextBox Grid.Column="4" Text="{Binding MeterFile, UpdateSourceTrigger=LostFocus}" PlaceholderText="File" AutomationProperties.Name="File size meter"/>
+                      <TextBox Grid.Column="6" Text="{Binding MeterTerrain, UpdateSourceTrigger=LostFocus}" PlaceholderText="Terrain" AutomationProperties.Name="Terrain meter"/>
+                    </Grid>
+                    <TextBox Text="{Binding MetersReadOn, UpdateSourceTrigger=LostFocus}" PlaceholderText="Read on (date)" AutomationProperties.Name="Meters read on"/>
+                  </StackPanel>
                   <StackPanel Spacing="2"><TextBlock Text="Signed off by" Classes="muted small"/><TextBox Text="{Binding SignName}"/></StackPanel>
                   <StackPanel Spacing="2"><TextBlock Text="Date" Classes="muted small"/><TextBox Text="{Binding SignDate}" PlaceholderText="Year-month-day"/></StackPanel>
                   <StackPanel Spacing="2"><TextBlock Text="Notes and known issues going out with this version" Classes="muted small"/>

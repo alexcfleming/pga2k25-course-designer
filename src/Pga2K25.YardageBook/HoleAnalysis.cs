@@ -91,6 +91,9 @@ public sealed class HoleAnalysis
     public required IReadOnlyList<List<Vec2>> Bunkers { get; init; }
     public required IReadOnlyList<List<Vec2>> Water { get; init; }
 
+    /// <summary>Out of bounds in the page's view (<see cref="CourseLayers.OutOfBounds"/>).</summary>
+    public IReadOnlyList<List<Vec2>> OutOfBounds { get; init; } = [];
+
     /// <summary>Ponds and creeks from water planes and painted streams: each body's shores (outer first, then islands; fill even-odd).</summary>
     public required IReadOnlyList<IReadOnlyList<List<Vec2>>> WaterBodies { get; init; }
     public required IReadOnlyList<Ribbon> Paths { get; init; }
@@ -395,6 +398,7 @@ public sealed class HoleAnalysis
             Hole = hole, Route = route, BackTee = back, Green = green, Forward = fwd, RotationDegrees = rotation,
             Window = window, TeeSets = teeSets, Fairways = fairways, Rough = rough, Greens = greens,
             GreenOutline = greenOutline, Bunkers = bunkers, Water = water, Paths = paths,
+            OutOfBounds = layers.OutOfBounds.Where(AnyInView).ToList(),
             WaterBodies = waterBodies.Select(b => b.Shores).ToList(),
             Scrub = scrub, Trees = trees, Rocks = rocks, Vegetation = vegetation, Outcrops = outcrops,
             InPlay = inPlay, Foreign = foreign, AimPoints = aims, BunkerLabels = labels, Diagnostics = diagnostics, Widths = widths, Spots = spots,
