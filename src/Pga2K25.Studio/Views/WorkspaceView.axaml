@@ -2085,6 +2085,10 @@
               <StackPanel Spacing="8">
                 <TextBlock Classes="h2" Text="Pins"/>
                 <TextBlock Classes="muted small" TextWrapping="Wrap" Text="Where each pin sits comes from the file: front, centre or back along the approach, then left, centre or right. Click to set its difficulty: hard, medium, easy. Mix them up."/>
+                <DockPanel>
+                  <Button DockPanel.Dock="Left" Classes="primary" Content="Rate pins from the greens" Command="{Binding RatePinsCommand}" IsEnabled="{Binding !Busy}" Margin="0,0,12,0" VerticalAlignment="Top"/>
+                  <TextBlock Text="{Binding PinRatingText}" Classes="muted small" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                </DockPanel>
                 <TextBlock Text="{Binding PinTally}" Classes="mono small" TextWrapping="Wrap"/>
                 <ItemsControl ItemsSource="{Binding PinRows}">
                   <ItemsControl.ItemsPanel>
