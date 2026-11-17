@@ -230,6 +230,13 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
+FIXED IN 3.9.1
+- Course difficulty no longer stops when a hole can't be played yet
+  (no green drawn, no tee marker, no route or no pins). That hole is
+  left out and keeps its row on the scorecard saying why, and the
+  headline and totals say which holes they leave out. The handicap is
+  numbered by rank until all 18 holes can be played.
+
 NEW IN 3.9.0
 - Course difficulty (a new product): every hole and pin played by the
   hole design simulator, for Power Drive and Normal from the back tees,

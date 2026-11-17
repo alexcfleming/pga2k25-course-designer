@@ -36,7 +36,8 @@ public sealed partial class CourseCardRenderer
         Text(canvas, Title, x0, (1 - 0.955f) * h, 30, _bold, _ink, tracking: 0.32f * 30);
         Text(canvas, $"Course difficulty estimate  ·  every hole and pin played by the hole design simulator  ·  {ParLine}", x0, (1 - 0.925f) * h, 12.5f, _italic, Muted);
         int doubtful = r.Holes.Count(x => x.Doubtful);
-        Text(canvas, $"From the back tees  ·  every pin played {r.Samples:N0} times per player  ·  course saved {r.CourseSavedUtc.ToLocalTime():d MMM yyyy HH:mm}",
+        string played = r.Skipped.Count == 0 ? "" : $"  ·  {r.Holes.Count} of {r.Holes.Count + r.Skipped.Count} holes played";
+        Text(canvas, $"From the back tees  ·  every pin played {r.Samples:N0} times per player  ·  course saved {r.CourseSavedUtc.ToLocalTime():d MMM yyyy HH:mm}{played}",
             x0, (1 - 0.902f) * h, 9, _serif, Faint);
         var (main, _, halves) = HeaderTotals();
         Text(canvas, main, 0.970f * w, (1 - 0.955f) * h, 14, _bold, _ink, SKTextAlign.Right);
@@ -65,6 +66,13 @@ public sealed partial class CourseCardRenderer
         y += 18;
         Text(canvas, $"Power Drive  ·  {Signed(power.ToPar, "0.0")} to par", r.Left, y, 10.5f, _serif, _ink);
         Text(canvas, $"Normal  ·  {Signed(normal.ToPar, "0.0")} to par", colB, y, 10.5f, _serif, Muted);
+        if (d.Skipped.Count > 0)
+        {
+            y += 18;
+            var gone = d.Skipped.Select(s => s.Hole).ToList();
+            Text(canvas, $"Over the {d.Holes.Count} holes played (par {d.Par}): hole{(gone.Count == 1 ? "" : "s")} " +
+                         $"{string.Join(", ", gone)} can't be played yet (see {(gone.Count == 1 ? "its row" : "their rows")}).", r.Left, y, 9, _italic, Harder);
+        }
         y += 18;
         if (doubtful > 0)
             Text(canvas, $"{doubtful} of {d.Holes.Count} greens look too steep in the replay: see the hollow rings.", r.Left, y, 9, _italic, Harder);
@@ -139,7 +147,9 @@ public sealed partial class CourseCardRenderer
         var rank = ranked.Select((x, i) => (x.Hole, i + 1)).ToDictionary(t => t.Hole, t => t.Item2);
         var index = CourseDifficulty.StrokeIndex(ranked);
         double lo = holes.Min(x => x.ToPar), hi = Math.Max(lo + 1e-6, holes.Max(x => x.ToPar));
-        bool halves = holes.Count == 18;
+        // Every hole in order, played or not: a hole that couldn't be played keeps its row, saying why.
+        var numbers = holes.Select(x => x.Hole).Concat(d.Skipped.Select(s => s.Hole)).Distinct().Order().ToList();
+        bool halves = numbers.Count == 18 && numbers.SequenceEqual(Enumerable.Range(1, 18));
 
         // Columns (x positions as shares of the card's width).
         float W(double f) => r.Left + (float)f * r.Width;
@@ -153,7 +163,7 @@ public sealed partial class CourseCardRenderer
         Head("RANK", cRank, SKTextAlign.Right); Head("HCP", cHcp, SKTextAlign.Right);
         using (var rule = Stroke(_ink, 1)) canvas.DrawLine(r.Left, head + 7, r.Right, head + 7, rule);
 
-        int rows = holes.Count + (halves ? 3 : 1);
+        int rows = numbers.Count + (halves ? 3 : 1);
         float rowH = Math.Min(32, (r.Bottom - head - 12) / rows);
         float y = head + 7;
 
@@ -163,8 +173,9 @@ public sealed partial class CourseCardRenderer
         double pinLo = Math.Min(0, holes.Min(x => x.PinRange.Easiest)), pinHi = Math.Max(0.1, holes.Max(x => x.PinRange.Hardest));
         float Pn(double v) => pinL + (float)((v - pinLo) / (pinHi - pinLo)) * (pinR - pinL);
 
-        void Totals(string label, IReadOnlyList<HoleDifficulty> part)
+        void Totals(string label, int from, int to)
         {
+            var part = holes.Where(x => x.Hole >= from && x.Hole <= to).ToList();
             using (var band = Fill(_fog.WithAlpha(90))) canvas.DrawRect(r.Left, y, r.Width, rowH, band);
             float b = y + rowH * 0.66f;
             Text(canvas, label, cHole, b, 10, _bold, _ink, SKTextAlign.Center, tracking: 0.6f);
@@ -173,13 +184,32 @@ public sealed partial class CourseCardRenderer
             Text(canvas, part.Sum(x => x.PowerScore).ToString("0.0"), cPow, b, 11.5f, _bold, _ink, SKTextAlign.Right);
             Text(canvas, part.Sum(x => x.NormalScore).ToString("0.0"), cNor, b, 11.5f, _bold, Muted, SKTextAlign.Right);
             double avg = part.Sum(x => x.ToPar);
-            Text(canvas, $"{Signed(avg, "0.0")} over par, both players averaged", toParL, b, 9.5f, _italic, Muted);
+            var missing = d.Skipped.Where(s => s.Hole >= from && s.Hole <= to).Select(s => s.Hole).ToList();
+            Text(canvas, $"{Signed(avg, "0.0")} over par, both players averaged" + (missing.Count == 0 ? ""
+                : $", without hole{(missing.Count == 1 ? "" : "s")} {string.Join(", ", missing)}"), toParL, b, 9.5f, _italic, Muted);
             y += rowH;
         }
 
-        for (int i = 0; i < holes.Count; i++)
+        void Halves(int number)
         {
-            var x = holes[i];
+            if (halves && number == 9) Totals("OUT", 1, 9);
+            if (halves && number == 18) Totals("IN", 10, 18);
+        }
+        foreach (int number in numbers)
+        {
+            if (d.Skipped.FirstOrDefault(s => s.Hole == number) is { } skip)
+            {
+                float sm = y + rowH / 2, sb = y + rowH * 0.66f;
+                HoleDisc(canvas, cHole, sm, Math.Min(10, rowH * 0.36f), skip.Hole, skip.Par);
+                Text(canvas, skip.Par.ToString(), cPar, sb, 11, _serif, _ink, SKTextAlign.Center);
+                if (skip.Yards > 0) Text(canvas, skip.Yards.ToString("N0"), cYds, sb, 11, _serif, _ink, SKTextAlign.Right);
+                Text(canvas, $"Not played: {skip.Reason}.", cYds + 24, sb, 10, _italic, Harder);
+                y += rowH;
+                using (var sep = Stroke(_fog.WithAlpha(140), 0.6f)) canvas.DrawLine(r.Left, y, r.Right, y, sep);
+                Halves(number);
+                continue;
+            }
+            var x = holes.First(h => h.Hole == number);
             float mid = y + rowH / 2, b = y + rowH * 0.66f;
             HoleDisc(canvas, cHole, mid, Math.Min(10, rowH * 0.36f), x.Hole, x.Par);
             Text(canvas, x.Par.ToString(), cPar, b, 11, _serif, _ink, SKTextAlign.Center);
@@ -224,17 +254,17 @@ public sealed partial class CourseCardRenderer
             y += rowH;
             using (var sep = Stroke(_fog.WithAlpha(140), 0.6f)) canvas.DrawLine(r.Left, y, r.Right, y, sep);
 
-            if (halves && i == 8) Totals("OUT", holes.Take(9).ToList());
-            if (halves && i == 17) Totals("IN", holes.Skip(9).ToList());
+            Halves(number);
         }
-        Totals("TOTAL", holes);
+        Totals("TOTAL", int.MinValue, int.MaxValue);
 
         // Scale labels under the bar columns.
         float sy = y + 13;
-        foreach (double v in new[] { scaleLo, 0, scaleHi }.Distinct())
+        // Zero always; each end only where it has room beside zero.
+        foreach (double v in new[] { 0, scaleLo, scaleHi }.Distinct().Where(v => v == 0 || Math.Abs(Tp(v) - Tp(0)) > 22))
             Text(canvas, Signed(v, "0.0"), Tp(v), sy, 7.5f, _serif, Faint, SKTextAlign.Center);
         Text(canvas, "solid Power Drive, light Normal", toParL, sy + 11, 7.5f, _italic, Faint);
         Text(canvas, "% of play-outs, both players", splitL, sy, 7.5f, _italic, Faint);
-        Text(canvas, "pins: easiest to hardest  ·  HCP: suggested handicap, odd numbers on the harder nine", cHcp, sy + 11, 7.5f, _italic, Faint, SKTextAlign.Right);
+        Text(canvas, "pins: easiest to hardest  ·  HCP: suggested handicap, " + (ranked.Count == 18 ? "odd numbers on the harder nine" : d.Skipped.Count > 0 ? "by rank until every hole is played" : "by rank"), cHcp, sy + 11, 7.5f, _italic, Faint, SKTextAlign.Right);
     }
 }

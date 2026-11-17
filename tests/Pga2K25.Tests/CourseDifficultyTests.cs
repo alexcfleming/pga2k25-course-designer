@@ -77,10 +77,15 @@ public class CourseDifficultyTests
     public void Sheet_DrawsFor18Holes_AndForAShortCourse()
     {
         var data = CourseCardData.From(Pga2K25.CourseFormat.CourseFile.Load(CassimboPath).ReadModel(), null, null, []);
-        foreach (int count in new[] { 18, 9 })
+        foreach (int count in new[] { 18, 9, 17 })
         {
-            var holes = Enumerable.Range(1, count).Select(n => Hole(n, n % 3 + 3, 0.05 * n, 0.08 * n - 0.3)).ToList();
-            var result = new CourseDifficultyResult("Cassimbo", holes, 100, "b", DateTime.UtcNow, 1);
+            // 17: an 18-hole course whose hole 16 can't be played yet keeps its row, saying why.
+            var holes = Enumerable.Range(1, count == 17 ? 18 : count).Where(n => count != 17 || n != 16)
+                .Select(n => Hole(n, n % 3 + 3, 0.05 * n, 0.08 * n - 0.3)).ToList();
+            var result = new CourseDifficultyResult("Cassimbo", holes, 100, "b", DateTime.UtcNow, 1)
+            {
+                Skipped = count == 17 ? [new SkippedHole(16, 5, 624, "no green drawn near its green point")] : [],
+            };
             using var renderer = new CourseCardRenderer(data, new CourseCardConfig(), null) { Difficulty = result };
             using var surface = SkiaSharp.SKSurface.Create(new SkiaSharp.SKImageInfo((int)CourseCardRenderer.CardPage.Width, (int)CourseCardRenderer.CardPage.Height));
             renderer.DrawDifficultyPage(surface.Canvas);
