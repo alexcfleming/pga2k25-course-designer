@@ -21,6 +21,7 @@ public sealed partial class ScorecardMapRenderer
     void DrawModernIllustrated(SKCanvas canvas, string courseName, CourseModel course, CourseLayers layers, MapProjection proj, SKSize page, SKRect mapRect)
     {
         _scenery ??= Scenery.Build(course, proj, mapRect);
+        _mowing = course.Mowing;
         _hasInlandWater = layers.WaterAreas.Count + layers.WaterBodies.Count + layers.WaterRibbons.Count > 0;
         canvas.Save();
         canvas.ClipRect(mapRect);
@@ -38,23 +39,40 @@ public sealed partial class ScorecardMapRenderer
         DrawStrip(canvas, courseName, course, page);
     }
 
+    /// <summary>The course's mowing sliders, set per map.</summary>
+    Mowing _mowing = Mowing.Default;
+
+    /// <summary>
+    /// Stripe spacing (points) for a mowing pattern: half its repeat (1 ÷ tiling metres) at the map's scale, kept between
+    /// <paramref name="min"/> and <paramref name="max"/> so it still reads as stripes at scorecard scale.
+    /// </summary>
+    static float StripeStep(double tiling, float pointsPerMetre, float min, float max) =>
+        tiling > 1e-6 ? Math.Clamp((float)(0.5 / tiling * pointsPerMetre), min, max) : min;
+
     void DrawIllustratedCourse(SKCanvas canvas, CourseLayers l, MapProjection p, SKRect mapRect)
     {
         float k = p.PointsPerMetre;
         if (_o.ShowWaste) DrawWaste(canvas, l, p);
 
-        // Rough, then the fairways mown lighter with diagonal stripes.
+        // Rough, then the fairways mown lighter. Stripes follow the course's fairway mowing: none when it's off (0),
+        // the theme's diagonal when it's the game's default (−1), and spaced and shaded by the setting when it's set.
         FillUnion(canvas, l.Grass, p, _t.GrassFill, null, 0);
         {
             using var fairways = UnionPath(l.Fairways, p);
             using (var fill = Fill(Fairway)) canvas.DrawPath(fairways, fill);
-            canvas.Save();
-            canvas.ClipPath(fairways, antialias: true);
-            using var stripe = Stroke(FairwayStripe, 2.6f);
-            stripe.StrokeCap = SKStrokeCap.Butt;
-            for (float d = -mapRect.Height; d < mapRect.Width; d += 6.5f)
-                canvas.DrawLine(mapRect.Left + d, mapRect.Top, mapRect.Left + d + mapRect.Height * 0.8f, mapRect.Bottom, stripe);
-            canvas.Restore();
+            double intensity = _mowing.FairwayIntensity;
+            if (intensity != 0)
+            {
+                canvas.Save();
+                canvas.ClipPath(fairways, antialias: true);
+                float step = intensity < 0 ? 6.5f : StripeStep(_mowing.FairwayTiling, k, 4f, 14f);
+                byte alpha = intensity < 0 ? FairwayStripe.Alpha : (byte)Math.Clamp(FairwayStripe.Alpha * (0.5 + intensity * 5), 40, 255);
+                using var stripe = Stroke(FairwayStripe.WithAlpha(alpha), step * 0.4f);
+                stripe.StrokeCap = SKStrokeCap.Butt;
+                for (float d = -mapRect.Height; d < mapRect.Width; d += step)
+                    canvas.DrawLine(mapRect.Left + d, mapRect.Top, mapRect.Left + d + mapRect.Height * 0.8f, mapRect.Bottom, stripe);
+                canvas.Restore();
+            }
         }
 
         // Water: a pale shore band, the water, and short ripple strokes on it.
@@ -100,6 +118,21 @@ public sealed partial class ScorecardMapRenderer
         var greens = l.Greens.Select(g => p.Path(g, true)).ToList();
         using (var collar = Stroke(GreenCollar, 2.2f)) foreach (var g in greens) canvas.DrawPath(g, collar);
         using (var fill = Fill(_t.GreenFill)) foreach (var g in greens) canvas.DrawPath(g, fill);
+        // Green mowing: faint fine stripes only when the course sets a pattern (above 0).
+        if (_mowing.GreenIntensity > 0)
+        {
+            float step = StripeStep(_mowing.GreenTiling, k, 1.6f, 4f);
+            using var stripe = Stroke(GreenCollar.WithAlpha((byte)Math.Clamp(60 + _mowing.GreenIntensity * 600, 60, 200)), step * 0.4f);
+            stripe.StrokeCap = SKStrokeCap.Butt;
+            foreach (var g in greens)
+            {
+                canvas.Save();
+                canvas.ClipPath(g, antialias: true);
+                var b = g.Bounds;
+                for (float d = -b.Height; d < b.Width; d += step) canvas.DrawLine(b.Left + d, b.Top, b.Left + d + b.Height * 0.8f, b.Bottom, stripe);
+                canvas.Restore();
+            }
+        }
         foreach (var g in greens) g.Dispose();
 
         // Bunkers: a dark lip, the sand, and the far side lit.

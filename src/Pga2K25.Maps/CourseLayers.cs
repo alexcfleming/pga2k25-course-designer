@@ -119,6 +119,8 @@ public sealed class CourseLayers
             if (b.Category == Surfaces.Bunker) layers.BunkerBrushes.Add(disc);
             else if (b.Category == Surfaces.Waste) layers.WasteBrushes.Add(disc);
         }
+        // Pot bunkers placed as objects are bunkers on every map (their size is an estimate).
+        foreach (var (centre, radius) in ObjectInventory.PotBunkers(course)) layers.BunkerBrushes.Add(new Disc(centre, radius));
 
         foreach (var h in course.Holes)
         {

@@ -402,14 +402,24 @@
   // ---- sun and shadows ----
   const sunDir = new THREE.Vector3();
   function setSun(hour) {
-    const s = clamp((hour - 5.5) / 15, 0, 1), el = Math.max(4, Math.sin(Math.PI * s) * 62) * Math.PI / 180, low = 1 - clamp(el / 0.6, 0, 1);
+    const s = clamp((hour - 5.5) / 15, 0, 1), el = Math.max(4, Math.sin(Math.PI * s) * 62) * Math.PI / 180;
     // East is −X and south is +Z in the game; the sun goes east, south, west (a northern course).
     sunDir.set(-Math.cos(Math.PI * s) * Math.cos(el), Math.sin(el), -Math.sin(Math.PI * s) * Math.cos(el));
+    const hh = Math.floor(hour), mm = Math.round((hour - hh) * 60);
+    lightSun(el, hh + ':' + String(mm).padStart(2, '0'));
+  }
+  // The course's own sun: a compass bearing and height. Scene x is the game's X (east is −X); scene z is −Z (north is +z).
+  function setGameSun(bearing, height) {
+    const b = bearing * Math.PI / 180, el = Math.max(4, height) * Math.PI / 180;
+    sunDir.set(-Math.sin(b) * Math.cos(el), Math.sin(el), Math.cos(b) * Math.cos(el));
+    lightSun(el, 'as in game');
+  }
+  function lightSun(el, label) {
+    const low = 1 - clamp(el / 0.6, 0, 1);
     sun.color.setRGB(1, 1 - 0.2 * low, 1 - 0.42 * low);
     sun.intensity = 2.7 - 0.7 * low;
     hemi.intensity = 1.25 - 0.3 * low;
-    const hh = Math.floor(hour), mm = Math.round((hour - hh) * 60);
-    $('clock').textContent = hh + ':' + String(mm).padStart(2, '0');
+    $('clock').textContent = label;
     shadowKey = '';
     invalidate();
   }
@@ -535,7 +545,8 @@
 
   const start = overview();
   P.copy(start.p); L.copy(start.l);
-  setSun(hour0);
+  // Opens lit by the course's own sun when the file has one; the slider then moves it through the day.
+  if (S.sun) setGameSun(S.sun[0], S.sun[1]); else setSun(hour0);
   resize();
   $('wait').remove();
   // A host (Studio's web view) hides the page's own course heading and picks holes from outside.

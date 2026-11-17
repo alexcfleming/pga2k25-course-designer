@@ -26,6 +26,8 @@ public sealed class TerrainSettings
     public bool ShowWaterFootprints { get; set; }
     /// <summary>Green-site circles on holes whose green spline is drawn (off: only greens not yet drawn keep theirs).</summary>
     public bool ShowDrawnGreenSites { get; set; } = true;
+    /// <summary>Relief lit from the game's sun instead of the page's upper left.</summary>
+    public bool SunLight { get; set; }
     /// <summary>
     /// The live map turned to the game's opening view of a plot: south at the top (+Z away from the camera, +X to the
     /// right), the north-up map turned 180°. Studio only; printed maps stay north up.
@@ -79,6 +81,7 @@ public sealed class TerrainSettings
         ShowWater = ShowWater,
         ShowWaterFootprints = ShowWaterFootprints,
         ShowDrawnGreenSites = ShowDrawnGreenSites,
+        SunLight = SunLight,
         PixelsPerMetre = pixelsPerMetre ?? PrintPixelsPerMetre,
         Planting = PrintPlantingOnMap ? PlantingLayers : PlantingLayers.None,
         TreesByType = TreesByType,

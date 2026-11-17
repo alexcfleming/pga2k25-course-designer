@@ -181,6 +181,17 @@ public sealed record PlayingConditions(double TerrainFirmness, double GreenFirmn
     public static readonly PlayingConditions Default = new(-1, -1, -1, -1, -1, -1, -1, -1);
 }
 
+/// <summary>
+/// The mowing pattern sliders (<c>GreenMowIntensity</c>, <c>GreenMowTiling</c>, <c>FairwayMowIntensity</c>,
+/// <c>FairwayMowTiling</c>). Intensity 0 is no pattern, −1 the theme's default, above 0 a pattern that strong. Tiling is
+/// how often the pattern repeats: read here as repeats per metre (0.05 on a fairway is a 20 m repeat, 0.7 on a green
+/// 1.4 m), which is how the illustrated map spaces its stripes. Neither reading is checked against the game.
+/// </summary>
+public sealed record Mowing(double GreenIntensity, double GreenTiling, double FairwayIntensity, double FairwayTiling)
+{
+    public static readonly Mowing Default = new(-1, 0.7, -1, 0.05);
+}
+
 /// <summary>The course's bunker depths (<c>bunkerSettings2</c>).</summary>
 /// <param name="HighResStamping">The designer's "high resolution bunkers" switch.</param>
 /// <param name="Regular">Painted and drawn bunkers.</param>
@@ -259,6 +270,12 @@ public sealed record WaterPlane(int Index, Vec2 Position, double HalfX, double H
 /// <param name="AssetPath">Prefab path, e.g. "Assets/Foliage/SpeedTree/Bushes/...".</param>
 /// <param name="Height">Explicit elevation (position.y); null when the object snaps to terrain ("-Infinity").</param>
 public sealed record PlacedObject(string AssetPath, Vec2 Position, double Scale, double? Height = null);
+
+/// <summary>
+/// One camera the designer placed for a hole's flyover (a <c>CameraPlaceholder</c> item): the hole it belongs to
+/// (numbered from 1), the shot it is part of and its place in that shot, from the item's metadata.
+/// </summary>
+public sealed record HoleCamera(int Hole, int Shot, int Index, Vec2 Position);
 
 /// <summary>
 /// A scatter group from placedObjects4 <c>clusters</c>: the game places <paramref name="Count"/> copies of the asset
@@ -405,6 +422,12 @@ public sealed class CourseModel
     /// <summary>The designer's speed and firmness sliders (0–1 each; −1 is the game's default).</summary>
     public PlayingConditions Conditions { get; init; } = PlayingConditions.Default;
 
+    /// <summary>The flyover cameras placed for each hole.</summary>
+    public IReadOnlyList<HoleCamera> Cameras { get; init; } = [];
+
+    /// <summary>The green and fairway mowing pattern sliders.</summary>
+    public Mowing Mowing { get; init; } = Mowing.Default;
+
     /// <summary>Out of bounds as the designer painted it (<c>outOfBounds2</c>): filled outlines on every file seen.</summary>
     public MapEdits OutOfBounds { get; init; } = MapEdits.None;
 
@@ -492,6 +515,7 @@ public sealed class CourseModel
             PlacedClusters = ReadClusters(desc["placedObjects4"] as JsonArray),
             PlacedAreas = ReadAreas(desc["placedObjects4"] as JsonArray),
             ObjectPaths = ReadObjectPaths(desc["placedObjects4"] as JsonArray),
+            Cameras = ReadCameras(desc["placedObjects4"] as JsonArray),
             WaterBrushes = ReadBrushes(desc["water"] as JsonArray),
             Water = ReadWater(desc["water"] as JsonArray),
             WaterPaths = ReadWaterPaths(desc["placedObjects4"] as JsonArray),
@@ -512,6 +536,8 @@ public sealed class CourseModel
             Conditions = new PlayingConditions(Num(desc["terrainFirmness"], -1), Num(desc["greenFirmness"], -1), Num(desc["fairwaySpeed"], -1),
                 Num(desc["fairwayFirmness"], -1), Num(desc["roughFirmness"], -1), Num(desc["heavyRoughFirmness"], -1),
                 Num(desc["bunkerSpeed"], -1), Num(desc["bunkerFirmness"], -1)),
+            Mowing = new Mowing(Num(desc["GreenMowIntensity"], -1), Num(desc["GreenMowTiling"], 0.7),
+                Num(desc["FairwayMowIntensity"], -1), Num(desc["FairwayMowTiling"], 0.05)),
             HillsHeightMetres = Num(desc["hillsHeight"]),
             GreenSpeed = Num(desc["greenSpeed"], -1),
             GreenFringeRadius = Num(desc["greenFringeRadius"], -1),
@@ -676,6 +702,24 @@ public sealed class CourseModel
     }
 
     /// <summary>Each asset group in placedObjects4, with its path, and the entries under <paramref name="key"/>.</summary>
+    /// <summary>Camera items carry their hole (numbered from 0), shot and index in a JSON string, <c>metadata</c>.</summary>
+    static List<HoleCamera> ReadCameras(JsonArray? groups)
+    {
+        var result = new List<HoleCamera>();
+        foreach (var (path, item) in Entries(groups, "items"))
+        {
+            if (!path.EndsWith("CameraPlaceholder", StringComparison.OrdinalIgnoreCase)) continue;
+            JsonNode? meta = null;
+            try { meta = item["metadata"] is JsonValue v && v.TryGetValue(out string? s) && s is { Length: > 0 } ? JsonNode.Parse(s) : item["metadata"] as JsonObject; }
+            catch (JsonException) { /* a camera whose metadata won't read is left without a hole */ }
+            if (meta is null) continue;
+            int hole = (int)Num(meta["hole"], -1);
+            if (hole < 0) continue;
+            result.Add(new HoleCamera(hole + 1, (int)Num(meta["shotIndex"]), (int)Num(meta["cameraIndex"]), ReadVec(item["position"])));
+        }
+        return result;
+    }
+
     static IEnumerable<(string Path, JsonNode Entry)> Entries(JsonArray? groups, string key) =>
         from g in groups ?? []
         let path = g?["Key"]?["path"]?.GetValue<string>() ?? ""

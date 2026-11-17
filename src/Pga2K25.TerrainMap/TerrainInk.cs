@@ -94,7 +94,8 @@ public abstract class TerrainInk : IDisposable
 
     /// <summary>
     /// Relief or slope tint with hillshade, plus the sea, rasterised at terrain resolution and drawn
-    /// through the projection (any rotation). The light always comes from the page's upper left.
+    /// through the projection (any rotation). The light comes from the page's upper left, or with
+    /// <see cref="TerrainMapOptions.SunLight"/> from the game's sun (<see cref="SunDirection"/>).
     /// </summary>
     protected void DrawShading(SKCanvas canvas, TerrainSurvey s, MapProjection p)
     {
@@ -102,8 +103,19 @@ public abstract class TerrainInk : IDisposable
         int w = f.Width, h = f.Height;
         double cell = f.Cell, range = Math.Max(1e-6, s.MaxFeet / TerrainSurvey.FeetPerMetre);
         // Heights exaggerated a little because golf-scale relief is subtle.
-        const double z = 1.5, alt = 45 * Math.PI / 180, strength = 0.45;
+        const double z = 1.5, strength = 0.45;
+        double alt = 45 * Math.PI / 180;
         double lx = -Math.Cos(alt) / Math.Sqrt(2), ly = -Math.Cos(alt) / Math.Sqrt(2), lz = Math.Sin(alt);
+        if (_o.SunLight && SunDirection(s.Course) is var (bearing, height))
+        {
+            // Not lower than 20°, or long slopes facing away from a low sun go black.
+            alt = Math.Max(20, height) * Math.PI / 180;
+            double b = bearing * Math.PI / 180;
+            // Towards the sun in the world (east is −X, north is −Z), then onto the page.
+            var page = p.MapDirection(new Vec2(-Math.Sin(b), -Math.Cos(b)));
+            double len = Math.Max(1e-9, Math.Sqrt(page.X * page.X + page.Y * page.Y));
+            lx = page.X / len * Math.Cos(alt); ly = page.Y / len * Math.Cos(alt); lz = Math.Sin(alt);
+        }
         // Page images of the world axes turn a world gradient into a page gradient.
         var ex = p.MapDirection(new Vec2(1, 0));
         var ez = p.MapDirection(new Vec2(0, 1));
@@ -138,6 +150,15 @@ public abstract class TerrainInk : IDisposable
 
         DrawRaster(canvas, f, p, pixels, SKAlphaType.Opaque);
     }
+
+    /// <summary>
+    /// The game's sun as a compass bearing (degrees clockwise from north) and height above the horizon, from the
+    /// course's <c>sunOrientation</c> and <c>sunInclination</c>; null when the file has no lighting. The designer turns
+    /// its sun light by the orientation about the vertical, so with north at −Z the sun stands at that bearing.
+    /// Worked out from the settings, not yet checked against a screenshot.
+    /// </summary>
+    public static (double Bearing, double Height)? SunDirection(CourseModel course) =>
+        course.Atmosphere is { } a ? (((a.SunOrientation % 360) + 360) % 360, Math.Clamp(a.SunInclination, 0, 90)) : null;
 
     /// <summary>Draws one pixel per terrain cell, mapping the raster's axes through the projection.</summary>
     static void DrawRaster(SKCanvas canvas, GreensBook.Heightfield f, MapProjection p, int[] pixels, SKAlphaType alpha)

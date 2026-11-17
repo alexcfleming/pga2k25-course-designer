@@ -77,6 +77,13 @@ public sealed record TerrainMapOptions
 
     public ReliefShading Shading { get; init; } = ReliefShading.Relief;
 
+    /// <summary>
+    /// Light the relief from the game's sun (the course's sun orientation and height) instead of the page's upper left.
+    /// Off by default: maps are lit from the upper left so hills read as hills; a sun from the bottom of the page can
+    /// make them read as hollows. On, the shading matches the shadows in the game.
+    /// </summary>
+    public bool SunLight { get; init; }
+
     /// <summary>Lettered reference grid at this spacing (yards); 0 hides it.</summary>
     public double GridYards { get; init; } = 100;
 
