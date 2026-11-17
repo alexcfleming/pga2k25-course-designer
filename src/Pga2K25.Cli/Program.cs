@@ -28,7 +28,7 @@ const string Usage = """
       --waste     also draw surface-15 waste areas (big sand over 1,500 sq yd always reads as waste)
     pga2k25 terrain <file.course> [-o <dir>] [--full-plot|--buildable] [--margin 150] [--interval 5] [--index 5]
                     [--shading relief|slope|none] [--ppm 4] [--cell 1.0] [--grid 100] [--no-features]
-                    [--hardness 0.85] [--large-hardness 0.3] [--bunker-depths] [--smooth 0] [--sea-level <m>] [--no-water]
+                    [--hardness 0.85] [--large-hardness 0.3] [--bunker-depths] [--sun-light] [--smooth 0] [--sea-level <m>] [--no-water]
                     [--water-footprints] [--pdf [--print-dpi 250]] [--holes 7,12|all [--sheet-grid 50] [--sheet-side 75] [--green-inset 50] [--no-pdf] [--no-png]]
       --holes     instead, one 8.5 x 11 in terrain sketch sheet per hole, oriented like the
                   yardage book (PNGs at 300 dpi + one PDF): a strip 75 yd past the route's
@@ -862,6 +862,7 @@ static int Terrain(string path, string[] rest)
             case "--hardness": options = options with { Terrain = options.Terrain with { Hardness = NextDouble() } }; break;
             case "--large-hardness": options = options with { Terrain = options.Terrain with { LargeBrushHardness = NextDouble() } }; break;
             case "--bunker-depths": options = options with { Terrain = options.Terrain with { BunkerDepths = true } }; break;
+            case "--sun-light": options = options with { SunLight = true }; break;
             case "--smooth": options = options with { SmoothMetres = NextDouble() }; break;
             case "--grid": options = options with { GridYards = NextDouble() }; break;
             case "--no-features": options = options with { ShowFeatures = false }; break;

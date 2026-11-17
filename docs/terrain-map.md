@@ -224,6 +224,7 @@ The images come from screenshots of the palette icons, so fine detail is approxi
 | `--cell` | 1.0 | Terrain raster (m) |
 | `--grid` | 100 | Grid square (yd); 0 hides the grid |
 | `--hardness` / `--large-hardness` | 0.85 / 0.3 | Falloff for small / large brushes of unknown shape (round-disc fallback) |
+| `--sun-light` | off | Light the relief from the course's sun (its orientation read as a compass bearing, its inclination as the height, not below 20°) instead of the page's upper left. Studio: **Light the relief from the game's sun** in the terrain options. Off by default because a sun from the bottom of the page can make hills read as hollows |
 | `--bunker-depths` | off | Cut the bunkers below their edges by the designer's bunker sliders (see "Terrain model"; a judged shape, not a measured one) |
 | `--smooth` | 0 | Extra Gaussian smoothing (sigma, m) before contouring |
 | `--no-features`, `--no-summits` | shown | |

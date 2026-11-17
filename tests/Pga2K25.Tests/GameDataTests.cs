@@ -158,6 +158,70 @@ public class GameDataTests
     }
 
     [Fact]
+    public void GameSun_IsACompassBearingAndHeight()
+    {
+        var (bearing, height) = TerrainInk.SunDirection(Cassimbo)!.Value;
+        Assert.Equal(187.2, bearing, 1);                                   // sunOrientation −172.8: low in the south
+        Assert.Equal(29.2, height, 1);
+        Assert.Equal(259.4, TerrainInk.SunDirection(Samples.Course("sagan-khushun.course"))!.Value.Bearing, 1);
+        Assert.False(new TerrainMapOptions().SunLight);                   // maps stay lit from the upper left unless asked
+    }
+
+    [Fact]
+    public void Mowing_IsRead()
+    {
+        Assert.Equal(new Mowing(0, 0, 0, 0), Cassimbo.Mowing);
+        Assert.Equal(new Mowing(-1, 0.7, 0, 0.05), Samples.Course("murray-estate.course").Mowing);
+    }
+
+    [Fact]
+    public void Cameras_AreReadPerHole()
+    {
+        var cams = Cassimbo.Cameras;
+        Assert.Equal(68, cams.Count);
+        Assert.Equal(Enumerable.Range(1, 18), cams.Select(c => c.Hole).Distinct().Order());
+        var c = Check(Cassimbo, "cameras");
+        Assert.Equal(Severity.Pass, c.Severity);
+        Assert.Contains("68 cameras in 23 shots over 18 holes", c.Detail);
+
+        var jungle = Check(Samples.Course("Jungleplot2.course"), "cameras");
+        Assert.Equal(Severity.Confirm, jungle.Severity);
+        Assert.Equal(Enumerable.Range(2, 16), jungle.Holes);              // cameras on 1 and 18 only
+        Assert.Equal(Severity.Confirm, Check(Samples.Course("sagan-khushun.course"), "cameras").Severity);
+    }
+
+    [Fact]
+    public void Inventory_SortsObjectsByKind()
+    {
+        Assert.Equal("Buildings", ObjectInventory.KindOf("Assets/CourseProps/ModularPacks/Wood01/MP_Wood01_House05Prefab"));
+        Assert.Equal("Signs", ObjectInventory.KindOf("Assets/CourseProps/Signs/OBMarkerAPrefab"));
+        Assert.Equal("Trees", ObjectInventory.KindOf("Assets/Foliage/SpeedTree8/Trees/Oak_LiveMoss/Prefabs/Oak_LiveMoss_904"));
+        Assert.Equal("Cameras", ObjectInventory.KindOf("Assets/CourseGen/Bundle/CameraPlaceholder"));
+        Assert.Equal("Water effects", ObjectInventory.KindOf("Assets/Effects/OceanFoam/Prefabs/OceanChurnWave_UserPrefab"));
+        Assert.Equal("Pot bunkers", ObjectInventory.KindOf("Assets/CourseProps/Bunkers/PotBunker01Prefab"));
+
+        var counts = ObjectInventory.Count(Cassimbo).ToDictionary(c => c.Kind, c => c.Count);
+        Assert.Equal(68, counts["Cameras"]);
+        Assert.Equal(92, counts["Buildings"]);
+        Assert.Contains("cameras 68", Check(Cassimbo, "objects").Detail);
+    }
+
+    [Fact]
+    public void PotBunkers_AreDrawnAsBunkers()
+    {
+        var course = WithOob();
+        var withPot = new CourseModel
+        {
+            Name = "Synthetic", Version = GameVersion.PGA2K25, SchemaVersion = 49, SurfaceSplines = [], HeightStamps = [], SurfaceBrushes = [],
+            Holes = course.Holes, PlacedObjects = [new PlacedObject("Assets/CourseProps/Bunkers/PotBunker01Prefab", new Vec2(5, 150), 1.2)],
+        };
+        var disc = Assert.Single(CourseLayers.From(withPot).BunkerBrushes);
+        Assert.Equal(new Vec2(5, 150), disc.Centre);
+        Assert.Equal(3.0, disc.Radius, 6);
+        Assert.Contains("Pot bunkers are drawn as bunkers", Check(withPot, "objects").Detail);
+    }
+
+    [Fact]
     public void CourseCards_NameTeesByTheGamesColours()
     {
         var data = CourseCardData.From(Cassimbo, null, null, []);
@@ -186,5 +250,7 @@ public class GameDataTests
         Assert.Equal("Narrow", Value(settings, "Tee markers"));
         Assert.Equal("3, 7", Value(settings, "Par set by hand"));
         Assert.StartsWith("greens 90", Value(settings, "Firmness"));
+        Assert.Equal("68 on 18 holes", Value(settings, "Cameras"));
+        Assert.Contains("buildings 92", Value(settings, "Placed objects"));
     }
 }

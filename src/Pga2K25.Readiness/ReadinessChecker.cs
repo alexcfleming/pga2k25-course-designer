@@ -803,6 +803,8 @@ public static class ReadinessChecker
         yield return StoredScorecardCheck(course, holes, rule);
         yield return OutOfBoundsCheck(course, holes);
         yield return SavedSettingsCheck(course, holes);
+        yield return CamerasCheck(course, holes);
+        yield return InventoryCheck(course);
 
         var budget = GameBudget.Estimate(course);
         yield return MetersCheck(budget, meters);
@@ -871,6 +873,41 @@ public static class ReadinessChecker
         var hand = holes.Where(h => h.CreatorPar is not null).Select(h => h.Number).ToList();
         parts.Add(hand.Count == 0 ? "Every par follows the hole's length." : $"Par set by hand on {List(hand)}.");
         return new(id, title, severity, string.Join(" ", parts), rule, []);
+    }
+
+    /// <summary>
+    /// Flyover cameras: every hole should have at least one shot. Holes without one are a Confirm (the review looks at
+    /// cameras, and a hole may be left to the game's own flyover on purpose); cameras on hole numbers the course doesn't
+    /// have are listed.
+    /// </summary>
+    static ReadinessCheck CamerasCheck(CourseModel course, List<Hole> holes)
+    {
+        const string id = "cameras", title = "Every hole has a flyover camera", rule = "Course designer · cameras";
+        var cams = course.Cameras;
+        var numbers = holes.Select(h => h.Number).ToHashSet();
+        var missing = holes.Where(h => !cams.Any(c => c.Hole == h.Number)).Select(h => h.Number).ToList();
+        var stray = cams.Select(c => c.Hole).Where(n => !numbers.Contains(n)).Distinct().OrderBy(n => n).ToList();
+        if (cams.Count == 0)
+            return new(id, title, Severity.Confirm, "No hole cameras placed yet.", rule, holes.Select(h => h.Number).ToList());
+        var shots = cams.GroupBy(c => c.Hole).ToDictionary(g => g.Key, g => (Shots: g.Select(c => c.Shot).Distinct().Count(), Cameras: g.Count()));
+        var parts = new List<string> { $"{cams.Count} cameras in {shots.Values.Sum(s => s.Shots)} shots over {shots.Count} hole{(shots.Count == 1 ? "" : "s")}." };
+        if (missing.Count > 0) parts.Add($"No camera on {List(missing)}.");
+        if (stray.Count > 0) parts.Add($"Cameras set for hole{(stray.Count == 1 ? "" : "s")} {List(stray)}, which the course doesn't have.");
+        var fewest = shots.Where(s => numbers.Contains(s.Key)).OrderBy(s => s.Value.Cameras).ThenBy(s => s.Key).FirstOrDefault();
+        if (missing.Count == 0 && fewest.Value.Cameras > 0) parts.Add($"Fewest on hole {fewest.Key} ({fewest.Value.Cameras}).");
+        return new(id, title, missing.Count > 0 || stray.Count > 0 ? Severity.Confirm : Severity.Pass, string.Join(" ", parts), rule,
+            missing.Concat(stray).OrderBy(n => n).ToList());
+    }
+
+    /// <summary>What's placed on the course, by kind, for the record (<see cref="ObjectInventory"/>).</summary>
+    static ReadinessCheck InventoryCheck(CourseModel course)
+    {
+        var counts = ObjectInventory.Count(course);
+        string detail = counts.Count == 0 ? "Nothing placed yet."
+            : string.Join(" · ", counts.Select(c => $"{c.Kind.ToLowerInvariant()} {c.Count:N0}")) + ".";
+        if (counts.Any(c => c.Kind == "Pot bunkers"))
+            detail += " Pot bunkers are drawn as bunkers on the maps, at an estimated size.";
+        return new("objects", "What's placed on the course", Severity.Info, Capital(detail), "Course designer · placed objects", []);
     }
 
     /// <summary>Out of bounds this close to a hole's line (yds) is listed with the hole.</summary>

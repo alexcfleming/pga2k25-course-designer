@@ -55,6 +55,16 @@ public static class CourseDetails
         }
         if (course.TeeMarkerWidthName is { } marker)
             settings.Add(new("Tee markers", marker, $"{course.TeeMarkerWidthMetres * 3.2808399:0} ft apart"));
+        if (course.Cameras.Count > 0)
+        {
+            int holesWith = course.Cameras.Select(c => c.Hole).Distinct().Count();
+            settings.Add(new("Cameras", $"{course.Cameras.Count} on {holesWith} hole{(holesWith == 1 ? "" : "s")}",
+                $"{course.Cameras.Select(c => (c.Hole, c.Shot)).Distinct().Count()} flyover shots"));
+        }
+        var placed = ObjectInventory.Count(course).Where(c => c.Kind is not ("Trees" or "Bushes" or "Grass" or "Plants and flowers" or "Rocks" or "Cameras")).ToList();
+        if (placed.Count > 0)
+            settings.Add(new("Placed objects", string.Join(" · ", placed.Take(3).Select(c => $"{c.Kind.ToLowerInvariant()} {c.Count:N0}")),
+                placed.Count > 3 ? string.Join(" · ", placed.Skip(3).Select(c => $"{c.Kind.ToLowerInvariant()} {c.Count:N0}")) : null));
         var hand = course.Holes.Where(h => h.CreatorPar is not null).Select(h => h.Number).ToList();
         settings.Add(new("Par set by hand", hand.Count == 0 ? "none" : string.Join(", ", hand),
             hand.Count == 0 ? "every hole takes the game's par for its length" : "the other holes take the game's par for their length"));

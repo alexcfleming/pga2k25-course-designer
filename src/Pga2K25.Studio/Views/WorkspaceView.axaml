@@ -792,6 +792,8 @@
                           IsEnabled="{Binding OptWater}" Margin="22,0,0,0"/>
                 <CheckBox Content="Green-site circles on drawn greens" IsChecked="{Binding OptDrawnGreenSites}"
                           ToolTip.Tip="Off: only greens not yet drawn keep the circle and fall arrow"/>
+                <CheckBox Content="Light the relief from the game's sun" IsChecked="{Binding OptSunLight}"
+                          ToolTip.Tip="Shade the hills from the course's sun setting, as the game's shadows fall. Off: lit from the upper left, so hills always read as hills"/>
                 <StackPanel Spacing="4" IsVisible="{Binding !!NotWaterRows.Count}">
                   <TextBlock Text="Marked not water in game" Classes="muted small"/>
                   <ItemsControl ItemsSource="{Binding NotWaterRows}">

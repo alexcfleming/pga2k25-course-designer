@@ -82,6 +82,8 @@ public static class View3DBuilder
             contourFeet = survey.IntervalFeet,
             indexEvery = survey.IndexEvery,
             timeOfDay = survey.Course.Atmosphere?.TimeOfDay,
+            // The game's sun: compass bearing and height (degrees); the page opens lit by it.
+            sun = TerrainMap.TerrainInk.SunDirection(survey.Course) is var (bearing, height) ? new[] { R(bearing), R(height) } : null,
             holes = survey.Holes.Select(h => new
             {
                 n = h.Hole.Number, par = h.Hole.Par, yards = h.Yards,
