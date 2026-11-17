@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Pga2K25.CourseFormat\Pga2K25.CourseFormat.csproj" />
+    <ProjectReference Include="..\Pga2K25.HoleSim\Pga2K25.HoleSim.csproj" />
     <ProjectReference Include="..\Pga2K25.Maps\Pga2K25.Maps.csproj" />
     <ProjectReference Include="..\Pga2K25.Readiness\Pga2K25.Readiness.csproj" />
     <ProjectReference Include="..\Pga2K25.TerrainMap\Pga2K25.TerrainMap.csproj" />

@@ -230,6 +230,23 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
+NEW IN 3.9.0
+- Course difficulty (a new product): every hole and pin played by the
+  hole design simulator, for Power Drive and Normal from the back tees,
+  on one sheet. On the left, the expected score for each player, the
+  round's figures (fairways, greens, scrambling, birdies, bogeys) and
+  where the strokes go (tee, approach, short game, putting). On the
+  right, a difficulty scorecard: each hole's expected scores, strokes
+  over par, birdie / par / bogey split, pin range, difficulty rank and
+  a suggested handicap (odd numbers on the harder nine, each nine
+  hardest first).
+  - It takes a minute or more, so Build all leaves it out: build it
+    from its own page.
+  - Treat the totals as an estimate (the simulated golfer reads harder
+    than the Tour); the hole ranking is the sturdier figure.
+  - A hollow ring marks a green the replay makes too steep to hold a
+    ball: check that hole in game.
+
 NEW IN 3.8.0
 - Studio reads much more of the course file, so the products match the
   game more closely.
