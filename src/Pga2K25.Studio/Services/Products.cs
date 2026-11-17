@@ -16,6 +16,9 @@ public sealed record ProductDefinition(string Name, string FileSuffix, Func<Buil
 {
     public IReadOnlyList<string> Pages { get; init; } = [];
     public IReadOnlyList<string> Pdfs { get; init; } = [];
+
+    /// <summary>False for a product too slow for "Build all products": it is built from its own page.</summary>
+    public bool InBuildAll { get; init; } = true;
 }
 
 public sealed record BuildContext(string CoursePath, string OutputDir, StudioSettings Settings, CourseExtras Extras, IProgress<string> Log);
@@ -33,6 +36,12 @@ public static class Products
 
     /// <summary>The build log's line when a course has no hole illustration style ticked.</summary>
     public const string NoIllustrationStyles = "No hole illustration styles are ticked, so none were built. Tick the styles you want on the Hole illustrations page.";
+
+    /// <summary>The Course Difficulty Estimate's product name.</summary>
+    public const string DifficultyProduct = "Course difficulty";
+
+    /// <summary>The build log's line for products "Build all" leaves out.</summary>
+    public const string LeftOutOfBuildAll = "{0} takes a minute or more, so Build all leaves it out. Build it from its own page.";
 
     /// <summary>Every product, in menu and "Build all" order (Alex's order, 4 Nov 2026).</summary>
     public static readonly IReadOnlyList<ProductDefinition> All =
@@ -64,6 +73,16 @@ public static class Products
         {
             Pages = ["{0} - Course Data Card.png", "{0} - Course Details Card.png", "{0} - Green Size Card.png", "{0} - Wind Card.png", "{0} - Shot Variety Card.png", "{0} - Hole Data Card.png", "{0} - Compass Rose.png"],
             Pdfs = ["{0} - Course Cards.pdf", "{0} - Course Data Card.pdf", "{0} - Course Details Card.pdf", "{0} - Green Size Card.pdf", "{0} - Wind Card.pdf", "{0} - Shot Variety Card.pdf", "{0} - Hole Data Card.pdf", "{0} - Compass Rose.pdf"],
+        },
+        // Every hole and pin played by the hole design simulator for both players: a minute or more, so not in Build all.
+        new(DifficultyProduct, " - Course Difficulty.png", c =>
+        {
+            var config = c.Extras.CardConfig is { } cfg && File.Exists(cfg) ? CourseCardConfig.Load(cfg) : new CourseCardConfig();
+            return CourseDifficultyBuilder.Build(c.CoursePath, c.OutputDir, config, c.Log).Files
+                .FirstOrDefault(f => f.EndsWith(".png", StringComparison.OrdinalIgnoreCase));
+        })
+        {
+            Pages = ["{0} - Course Difficulty.png"], Pdfs = ["{0} - Course Difficulty.pdf"], InBuildAll = false,
         },
         new("Greens book", " - Greens Book.png", c =>
             GreensBookBuilder.Build(c.CoursePath, c.OutputDir, new GreensBookOptions { Credit = c.Settings.Credit },

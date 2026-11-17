@@ -21,7 +21,7 @@ public partial class WorkspaceViewModel
     {
         public const string Back = "", Terrain = "", Simulator = "", Measure = "", Readiness = "",
             Sheets = "", Cards = "", Greens = "", Yardage = "", Illustrations = "",
-            Estimate = "", Scorecard = "", Products = "", Settings = "", EstimateInputs = "",
+            Estimate = "", Scorecard = "", Products = "", Settings = "", EstimateInputs = "", Difficulty = "",
             Recent = "", Collapse = "", Expand = "", Open = "", Shut = "";
     }
 
@@ -31,6 +31,7 @@ public partial class WorkspaceViewModel
         [ReadinessSection] = Glyph.Readiness, [SettingsSection] = Glyph.Settings, [EstimateInputsSection] = Glyph.EstimateInputs,
         ["Hole sheets"] = Glyph.Sheets, ["Course cards"] = Glyph.Cards, ["Greens book"] = Glyph.Greens, ["Yardage book"] = Glyph.Yardage,
         ["Hole illustrations"] = Glyph.Illustrations, [EstimateProduct] = Glyph.Estimate, ["Scorecard map"] = Glyph.Scorecard,
+        [Products.DifficultyProduct] = Glyph.Difficulty,
     };
 
     public string BackGlyph => Glyph.Back;

@@ -58,6 +58,11 @@ const string Usage = """
       --wind is used only when there is no wind rose (the rose's prevailing wind always wins);
       ERRORs stop the build unless --force, which draws the cards marked DRAFT with the first
       error (errors are still reported); Studio always builds that way
+    pga2k25 difficulty <file.course> [-o <dir>] [--config course-card.json] [--formats png,pdf] [--dpi 300] [--samples 600]
+      course difficulty estimate: the hole design simulator's whole-hole play-out on every hole, every pin,
+      for Power Drive and Normal from the back tees, on one sheet ("<course> - Course Difficulty"): expected
+      scores, round figures, strokes lost by phase, and a difficulty scorecard with a suggested handicap.
+      About 8 s a hole
     pga2k25 estimate <file.course> [-o <dir>] [--holes 3,7|all] [--cell 1.0]
       construction estimate: cut/fill against an assumed starting ground (play splines are
       manufactured, everything else natural), hole and course-wide quantities with provenance,
@@ -134,6 +139,7 @@ try
         case "illustrations": return Illustrations(args[1], args[2..]);
         case "terrain": return Terrain(args[1], args[2..]);
         case "cards": return Cards(args[1], args[2..]);
+        case "difficulty": return Difficulty(args[1], args[2..]);
         case "hole-notes": return HoleNotesCommand(args[1]);
         case "sketches": return Sketches(args[1], args[2..]);
         case "estimate": return Estimate(args[1], args[2..]);
@@ -933,6 +939,34 @@ static int Cards(string path, string[] rest)
         }
     }
     CourseCardBuilder.Build(path, outDir, config, new SyncProgress(Console.WriteLine), force);
+    return 0;
+}
+
+static int Difficulty(string path, string[] rest)
+{
+    var config = new CourseCardConfig();
+    string outDir = Path.GetDirectoryName(Path.GetFullPath(path))!;
+    int samples = Pga2K25.HoleSim.CourseDifficulty.DefaultSamples;
+    for (int i = 0; i < rest.Length; i++)
+    {
+        string Next() => i + 1 < rest.Length ? rest[++i] : throw new ArgumentException($"{rest[i]} needs a value");
+        switch (rest[i])
+        {
+            case "-o": case "--out": outDir = Next(); break;
+            case "--config": config = CourseCardConfig.Load(Next()) with { }; break;
+            case "--formats": config = config with { Formats = Next().Split(',') }; break;
+            case "--dpi": config = config with { Dpi = double.Parse(Next(), CultureInfo.InvariantCulture) }; break;
+            case "--samples": samples = int.Parse(Next(), CultureInfo.InvariantCulture); break;
+            default: throw new ArgumentException($"unknown option {rest[i]}");
+        }
+    }
+    var built = CourseDifficultyBuilder.Build(path, outDir, config, new SyncProgress(Console.WriteLine), samples: samples);
+    var r = built.Result;
+    Console.WriteLine($"Power Drive {r.Power.Score:0.0} ({r.Power.ToPar:+0.0;-0.0}), Normal {r.Normal.Score:0.0} ({r.Normal.ToPar:+0.0;-0.0}) on par {r.Par}");
+    var index = Pga2K25.HoleSim.CourseDifficulty.StrokeIndex(r.Ranked);
+    foreach (var h in r.Holes)
+        Console.WriteLine($"  hole {h.Hole,2}  par {h.Par}  {h.Yards,3} yds  power {h.PowerScore:0.00}  normal {h.NormalScore:0.00}  " +
+                          $"pins {h.PinRange.Easiest:+0.00;-0.00} to {h.PinRange.Hardest:+0.00;-0.00}  hcp {index[h.Hole],2}{(h.Doubtful ? $"  green {h.SteepGreen:P0} too steep" : "")}");
     return 0;
 }
 

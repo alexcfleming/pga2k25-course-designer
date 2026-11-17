@@ -290,7 +290,11 @@ public partial class WorkspaceViewModel : ObservableObject
         TerrainImage = File.Exists(image) ? image : null;
     }
 
-    [RelayCommand] private Task BuildAll() => BuildAsync(Products.All);
+    [RelayCommand] private async Task BuildAll()
+    {
+        await BuildAsync(Products.All.Where(p => p.InBuildAll).ToList());
+        foreach (var p in Products.All.Where(p => !p.InBuildAll)) Log.Add(string.Format(Products.LeftOutOfBuildAll, p.Name));
+    }
 
     async Task BuildAsync(IReadOnlyList<ProductDefinition> products)
     {
