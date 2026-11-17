@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 3.7.0
+COURSE DESIGNER STUDIO - release 3.8.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -229,6 +229,46 @@ USING IT
   Building the course cards takes about a minute longer for it.
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
+
+NEW IN 3.8.0
+- Studio reads much more of the course file, so the products match the
+  game more closely.
+- Out of bounds is drawn on the terrain map, hole sheets and yardage
+  book: the ground beyond hatched grey, its edge a dark line with white
+  stakes.
+- Course Details Card (a new course card): what players see before a
+  round (par, length by tee set, difficulty, green speed, pins, wind,
+  time of day, weather, theme) and the settings behind it (firmness and
+  speed sliders, playoff holes, tee colours, tee markers, flyover
+  cameras, placed objects, pars set by hand).
+- Tee names default to the tee colours the game saved with the course
+  (Red, Green, White, Blue ...) when you haven't named them.
+- Publish readiness has the course designer's own checks:
+  - every hole has a tee marker and a route;
+  - the scorecard the game saved matches the holes as drawn (its "Keep
+    Yardages" option can hold old lengths);
+  - tees, greens and lines of play clear of out of bounds;
+  - playoff holes chosen, not left at the default 18 and 10;
+  - a flyover camera on every hole;
+  - everything placed, by kind (buildings, bridges, signs, furniture
+    ...);
+  - the designer's four meters under their limits. Type what the
+    designer shows on the Sign-off card; readings win over Studio's
+    estimates. The terrain meter has no estimate, so it needs a reading;
+  - bunker depths will be cut (high-resolution bunkers on, memory to
+    spare).
+- Planting overlay: a Cleared layer showing where you cleared the game's
+  own trees and detail, with the acres on the Planting card.
+- Light the relief from the game's sun: a terrain option (off by
+  default, so hills keep reading as hills). The 3D view now opens lit by
+  the course's own sun.
+- Modern Illustrated: fairway stripes follow the course's fairway mowing
+  (none when it's off), and greens get fine stripes when green mowing is
+  set.
+- Pot bunkers placed as objects are drawn as bunkers.
+- CLI: --bunker-depths cuts bunkers below their edges from the bunker
+  depth sliders (off by default: the game's distance markers don't
+  include the cut, so its shape is a judgement); --sun-light.
 
 NEW IN 3.7.0
 - Publish readiness: "Rate pins from the greens" on the Pins page plays

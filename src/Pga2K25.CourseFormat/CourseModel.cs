@@ -701,7 +701,6 @@ public sealed class CourseModel
         return result;
     }
 
-    /// <summary>Each asset group in placedObjects4, with its path, and the entries under <paramref name="key"/>.</summary>
     /// <summary>Camera items carry their hole (numbered from 0), shot and index in a JSON string, <c>metadata</c>.</summary>
     static List<HoleCamera> ReadCameras(JsonArray? groups)
     {
@@ -720,6 +719,7 @@ public sealed class CourseModel
         return result;
     }
 
+    /// <summary>Each asset group in placedObjects4, with its path, and the entries under <paramref name="key"/>.</summary>
     static IEnumerable<(string Path, JsonNode Entry)> Entries(JsonArray? groups, string key) =>
         from g in groups ?? []
         let path = g?["Key"]?["path"]?.GetValue<string>() ?? ""
