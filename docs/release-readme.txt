@@ -230,6 +230,34 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
+NEW IN 3.7.0
+- Publish readiness: "Rate pins from the greens" on the Pins page plays
+  every pin with the hole design simulator's green putting model and
+  sets each pin's difficulty for you, ranked across the whole course:
+  the hardest third by average putts from the whole green Hard, the
+  easiest third Easy, the rest Medium. A pin whose cup is too steep for
+  a ball to stop on is always Hard. Big, sloping greens can come out
+  with every pin Hard, and small flat ones every pin Easy.
+  - It fills only the pins you haven't set; a rated pin shows a small
+    diamond, and its putting figures are in its tip. Click one to set
+    it yourself, and rating again won't change it.
+  - After you save the course in the designer, the page says the
+    ratings are out of date; rate again to bring them up to date.
+  - 18 holes take about half a minute.
+
+FIXED IN 3.7.0
+- Yardage book fairway widths now match what you measure in game. A
+  width is taken where that yardage's arc from the back tee crosses the
+  line of play (so the 300 width sits on the 300 arc), edge to edge
+  across the fairway and square to the line of play there. Before, the
+  station was measured along the bent line of play (up to 12 yds short
+  on a dogleg), the width ran straight across the page (too wide where
+  the fairway angles away) and it stopped at any bunker in the
+  fairway. Rebuild your yardage books to pick it up.
+- Publish readiness, the Hole Data Card and the yardage book now print
+  the same width at the same station. Some readiness width warnings
+  shift by a yard or two; on a sharp dogleg the width can change more.
+
 NEW IN 3.6.0
 - Three new scorecard map styles, drawn like course architects' own
   plans. Each prints "In the style of ..." before your designer credit.

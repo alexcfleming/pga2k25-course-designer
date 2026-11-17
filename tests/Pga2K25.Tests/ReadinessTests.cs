@@ -238,8 +238,9 @@ public class ReadinessTests
         // Driver: narrow or no fairway by the line on 16 and 18, wide on 1, 3, 4, 6, 7, 9, 11–14.
         // 3-wood: narrow on 8 and 18, wide on 1, 3, 4, 6, 7, 9, 11–14 and 17.
         Assert.Equal([1, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 16, 17, 18], c.Holes);
-        Assert.Contains("Driver (300/325/350), 25–35 yds: under 25 (or no fairway by the line) on 16 (30/30/none), 18 (", c.Detail);
-        Assert.Contains("3-wood (260/275/290), 30–50 yds: under 30 (or no fairway by the line) on 8 (27/25/27), 18 (", c.Detail);
+        // Stations at straight-line distance from the back tee, widths square to the line there (FairwayArea, 3.7.0).
+        Assert.Contains("Driver (300/325/350), 25–35 yds: under 25 (or no fairway by the line) on 16 (30/28/none), 18 (", c.Detail);
+        Assert.Contains("3-wood (260/275/290), 30–50 yds: under 30 (or no fairway by the line) on 8 (27/25/28), 18 (", c.Detail);
         Assert.Contains("over 50 on 1 (", c.Detail);
         Assert.Contains("Measured across the built fairway", c.Detail);
         Assert.DoesNotContain("Not measured", c.Detail);                     // every Cassimbo fairway is built
@@ -253,7 +254,7 @@ public class ReadinessTests
         Assert.All(Report.Value.Holes[7].Stations, s => Assert.InRange(s.WidthYards!.Value, 25, 35));
         Assert.Null(Report.Value.Holes[17].Stations[0].WidthYards);          // no fairway by the line at 300 on 18
         Assert.Empty(Report.Value.Holes[16].Stations);                       // 17 is too short to land 40 yds short of the green
-        Assert.Contains("1, 7, 11, 12, 13", c.Detail);                       // reasons to write: over 60
+        Assert.Contains("1, 4, 7, 11, 12, 13", c.Detail);                    // reasons to write: over 60 (4: 100 yds square to its dogleg at 325)
         Assert.Equal([1, 8, 11, 12, 13], Check("width-pattern").Holes);     // 3-wood distance against driver distance
         Assert.True(Check("width-steadiness").Passed);
     }

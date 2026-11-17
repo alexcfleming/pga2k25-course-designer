@@ -115,7 +115,7 @@ Retired in the November revision (Principles §11.4): drivable and near-drivable
 
 **Widths.** The ranges are a tester's, given on the Nodens Estate fairway sketches in November 2026: 25–35 yds wide at driver distance and 30–50 at 3-wood distance (260–290 yds). The tester gave no figure for driver distance, so it is the design tee shot, 300–350: the Shot Variety Card's Power Drive bag has 3-wood at 290 and driver at 320 carry, 345 with roll. They replace the earlier 25–70 warning and 35–50 target, and a width outside its range warns either way.
 
-- **What is measured:** the built fairway only, meaning the fairway splines in the course file. The line of play (back tee, aim points, green) is measured across at three stations for each distance (the short, middle and long of its range); the fairway strip under the line, or the nearest within 15 yds of it, counts.
+- **What is measured:** the built fairway only, meaning the fairway splines in the course file. The line of play (back tee, aim points, green) is measured across at three stations for each distance (the short, middle and long of its range); the fairway strip under the line, or the nearest within 15 yds of it, counts. Since 3.7.0 each station is where that straight-line distance from the back tee crosses the line of play, and the width runs edge to edge square to the line there (`FairwayArea.WidthAt`, the same measure the yardage book prints). The 5-yd samples behind the fairway start and steadiness still walk along the line.
 - **What can't be:** a hole with no fairway strip that close anywhere along its line has nothing built to measure. It is listed as "not measured, no fairway built by the line yet" and isn't called narrow. A fairway sketched on a hole sheet isn't in the course file, and measure-tool lines aren't read as widths.
 - **No fairway at a station:** on a hole that does have built fairway, a station with no strip that close is "no fairway" and warns as under the range.
 - **Short holes:** a station within 40 yds of the green isn't measured, so a short par 4 may have fewer than three at a distance.
@@ -132,6 +132,12 @@ Elevation, plot range and green relief come from the replayed terrain, so they s
 **Fringe.** Cassimbo and Sagan-Khushun are both set to 0.5 and show no visible fringe in game. Other files have 0.54–0.63, and −1 is the game's default.
 
 **Pins.** Each pin is placed by thirds of its green along the approach (F, C, B) and across it (L, C, R, as the golfer faces the green), with its distance from the green's edge and the slope by the cup. The 2 yd edge limit points to pins worth a look. The TGC minimum is three grid squares, and you can count them in the designer while building.
+
+**Pin difficulty from the greens** (3.7.0). **Rate pins from the greens** on the Pins page plays every pin on every hole with the hole design simulator's green putting model, the same as its green step's "play every pin" (the replayed terrain smoothed as the simulator smooths it, the Stimp from the course file's green speed, the putter fitted to the baseline), and rates them across the whole course (`PinGreenRatings`): the hardest third by average putts from the whole green are Hard, the easiest third Easy, the rest Medium. A pin whose cup is steeper than a ball can stop on is always Hard. Because it ranks the whole course, a big or steep green can come out with all its pins Hard and a small flat one all Easy (Cassimbo: holes 6, 7 and 9 against hole 2).
+
+- It fills only pins you haven't set. A rated pin shows ◆ after its difficulty and its putting figures in its tip; clicking it makes it yours, and rating again never replaces it (`PinState.FromGreens`, `ReadinessState.FillPinsFromGreens`). Rating again does replace the earlier ratings.
+- The run is saved with the course file's stamp (`ReadinessState.PinRatings`); after the course is saved again the status line says to rate again. Rated pins count as set for the Pins tally and the gate, like ones you set.
+- Cassimbo's 72 pins take about half a minute.
 
 ## The Cassimbo test
 

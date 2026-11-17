@@ -52,7 +52,7 @@ public static class ReadinessChecker
         internal List<Hole> Holes { get; init; } = default!;
         internal Dictionary<int, GreenOutline> Outlines { get; init; } = default!;
         internal GreenSizes Sizes { get; init; } = default!;
-        internal List<List<Vec2>> Fairways { get; init; } = default!;
+        internal FairwayArea Fairways { get; init; } = default!;
         internal TerrainSurvey Survey { get; init; } = default!;
         internal List<IReadOnlyList<Vec2>> Practice { get; init; } = default!;
         internal CourseLayers Layers { get; init; } = default!;
@@ -80,8 +80,7 @@ public static class ReadinessChecker
         return new Inputs
         {
             Course = course, CellMetres = cellMetres, Holes = holes, Outlines = outlines, Sizes = GreenSizes.From(course),
-            Fairways = course.SurfaceSplines.Where(s => s.Surface == Surfaces.Fairway && s.Closed)
-                .Select(s => Geometry.SampleSpline(s)).Where(p => p.Count >= 3).ToList(),
+            Fairways = FairwayArea.From(course),
             Survey = survey,
             Practice = CourseLayers.From(course).Greens.Where(g => g.Count >= 3)
                 .Where(g => holes.All(h => (Geometry.Contains(g, h.GreenAnchor) ? 0 : Geometry.DistanceToEdge(g, h.GreenAnchor)) > PracticeGreenMetres))
@@ -211,8 +210,7 @@ public static class ReadinessChecker
     public static IReadOnlyList<HoleFairwayWidths> FairwayWidths(CourseModel course, ReadinessLimits? limits = null)
     {
         var L = limits ?? new ReadinessLimits();
-        var fairways = course.SurfaceSplines.Where(s => s.Surface == Surfaces.Fairway && s.Closed)
-            .Select(s => Geometry.SampleSpline(s)).Where(p => p.Count >= 3).ToList();
+        var fairways = FairwayArea.From(course);
         var list = new List<HoleFairwayWidths>();
         foreach (var h in course.Holes.OrderBy(h => h.Number).Where(h => h.Par >= 4))
             if (LineFigures(h, BackTee(h), fairways, [], L) is { } fig)
@@ -256,40 +254,6 @@ public static class ReadinessChecker
             }
         }
         return best;
-    }
-
-    /// <summary>
-    /// The fairway run across the line at <paramref name="p"/>: the one under it, else the nearest, as its width and
-    /// how far its edge is from the line (0 when under it). No fairway within 90 m is (0, ∞).
-    /// </summary>
-    /// <summary>Each fairway's bounding box (min X, max X, min Z, max Z), so a point can skip the polygons it can't be in.</summary>
-    static (double X0, double X1, double Z0, double Z1)[] Boxes(List<List<Vec2>> fairways) =>
-        fairways.Select(f => (f.Min(q => q.X), f.Max(q => q.X), f.Min(q => q.Z), f.Max(q => q.Z))).ToArray();
-
-    static (double Metres, double Gap) Strip(Vec2 p, Vec2 across, List<List<Vec2>> fairways, (double X0, double X1, double Z0, double Z1)[] boxes)
-    {
-        const double step = 0.5, reach = 90;
-        var runs = new List<(double From, double To)>();
-        double? start = null;
-        for (double s = -reach; s <= reach + 1e-9; s += step)
-        {
-            var q = p + across * s;
-            bool inside = false;
-            for (int i = 0; i < fairways.Count && !inside; i++)
-            {
-                var b = boxes[i];
-                // Outside a fairway's box is outside the fairway: only the boxes it falls in need the polygon test.
-                if (q.X < b.X0 || q.X > b.X1 || q.Z < b.Z0 || q.Z > b.Z1) continue;
-                inside = Geometry.Contains(fairways[i], q);
-            }
-            if (inside && start is null) start = s;
-            if (!inside && start is double a) { runs.Add((a, s)); start = null; }
-        }
-        if (start is double open) runs.Add((open, reach));
-        if (runs.Count == 0) return (0, double.PositiveInfinity);
-        static double Gap((double From, double To) r) => r.From <= 0 && r.To >= 0 ? 0 : Math.Min(Math.Abs(r.From), Math.Abs(r.To));
-        var near = runs.MinBy(Gap);
-        return (near.To - near.From, Gap(near));
     }
 
     /// <summary>The point and heading <paramref name="metres"/> along a polyline (clamped to its last leg).</summary>
@@ -368,7 +332,7 @@ public static class ReadinessChecker
     /// <item>bunkers and water within reach of the line between the landing-hazard distances</item>
     /// </list>
     /// </summary>
-    static LineFigure? LineFigures(Hole h, Vec2 tee, List<List<Vec2>> fairways, List<Hazard> hazards, ReadinessLimits L)
+    static LineFigure? LineFigures(Hole h, Vec2 tee, FairwayArea fairways, List<Hazard> hazards, ReadinessLimits L)
     {
         if (h.Route.Count < 2) return null;
         var line = new List<Vec2> { tee };
@@ -377,15 +341,15 @@ public static class ReadinessChecker
         for (int i = 0; i + 1 < line.Count; i++) total += Vec2.Distance(line[i], line[i + 1]);
         double totalYds = total * YardsPerMetre;
         const double step = 5, from = 60;
-        var boxes = Boxes(fairways);
         int hold = Math.Max(1, (int)Math.Round(L.FairwayStartHoldYards / step));
         double end = totalYds - 40;
 
         (double Width, double Gap) At(double yd)
         {
             var (p, dir) = Along(line, yd / YardsPerMetre);
-            var (w, gap) = fairways.Count == 0 ? (0, double.PositiveInfinity) : Strip(p, new Vec2(-dir.Z, dir.X), fairways, boxes);
-            return (w * YardsPerMetre, gap * YardsPerMetre);
+            // Edge to edge, square to the line here (FairwayArea).
+            return fairways.RunAcross(p, new Vec2(-dir.Z, dir.X), step: 0.5) is { } r
+                ? ((r.Hi - r.Lo) * YardsPerMetre, r.Gap * YardsPerMetre) : (0, double.PositiveInfinity);
         }
 
         var stations = new List<(double Yds, double Width, double Gap)>();
@@ -408,9 +372,13 @@ public static class ReadinessChecker
         var past = stations.Where(x => x.Yds >= 200 && x.Yds <= end && Near(x)).Select(x => x.Width).OrderBy(x => x).ToList();
         double? steadiness = past.Count >= 5 ? Percentile(past, 0.9) / Percentile(past, 0.1) : null;
 
-        // The design tee shot's three stations, where the hole is long enough to land short of the green.
+        // The design tee shot's three stations, where the hole is long enough to land short of the green: each at that
+        // straight-line distance from the back tee, measured edge to edge square to the line there, the same as the
+        // yardage book prints (FairwayArea.WidthAt).
         List<StationWidth> WidthsAt(params double[] yds) => yds.Where(y => y <= end)
-            .Select(y => { var (w, gap) = At(y); return new StationWidth((int)Math.Round(y), gap <= FairwayNearLineYards && w > 0 ? w : null); }).ToList();
+            .Select(y => fairways.WidthAt(line, y / YardsPerMetre) is { } w && w.Gap * YardsPerMetre <= FairwayNearLineYards
+                ? new StationWidth((int)Math.Round(y), Vec2.Distance(w.Left, w.Right) * YardsPerMetre)
+                : new StationWidth((int)Math.Round(y), null)).ToList();
         var widths = WidthsAt(L.DesignDriveMinYards, L.DesignDriveMidYards, L.DesignDriveMaxYards);
         // The same at 3-wood distance, the lay-up short of it.
         var threeWood = WidthsAt(L.ThreeWoodMinYards, L.ThreeWoodMidYards, L.ThreeWoodMaxYards);

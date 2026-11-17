@@ -1,3 +1,4 @@
+using Pga2K25.HoleSim;
 using System.Collections.ObjectModel;
 using System.Globalization;
 using Avalonia.Media;
@@ -494,9 +495,65 @@ public partial class ReadinessViewModel : ObservableObject
     void RebuildPins()
     {
         PinRows.Clear();
+        UpdatePinRatingText();
         if (_report is null) return;
         foreach (var h in _report.Holes) PinRows.Add(new PinRowViewModel(h, _state, () => { Save(); RefreshSummary(); UpdatePinTally(); }));
         UpdatePinTally();
+    }
+
+    [ObservableProperty] private string _pinRatingText = "";
+
+    void UpdatePinRatingText()
+    {
+        if (_state.PinRatings is not { } run)
+        {
+            PinRatingText = "Plays every pin with the hole design simulator's green putting model and rates them across the course: "
+                + "the hardest third by average putts Hard, the easiest third Easy. Fills only the pins you haven't set. About half a minute for 18 holes.";
+            return;
+        }
+        string took = run.Seconds >= 60 ? $"{(int)(run.Seconds / 60)} m {(int)(run.Seconds % 60)} s" : $"{run.Seconds:0} s";
+        bool stale = _stamp is { Length: > 0 } now && now != run.Stamp;
+        PinRatingText = $"Rated from the greens {run.Rated:d MMM HH:mm} · {run.Pins} pins in {took}"
+            + (stale ? " · the course file has been saved since, so rate again to bring them up to date." : ". Pins marked ◆ are rated from the greens; click one to set it yourself.");
+    }
+
+    /// <summary>
+    /// Plays every pin on the green putting model, rates them across the course and fills the pins the designer hasn't
+    /// set (see <see cref="PinGreenRatings"/> and <see cref="ReadinessState.FillPinsFromGreens"/>).
+    /// </summary>
+    [RelayCommand] private void RatePins()
+    {
+        if (Busy) return;
+        Busy = true;
+        Show("Rating the pins from the greens…");
+        var progress = new Progress<string>(line => Show(line));
+        string path = _coursePath;
+        Task.Run(() =>
+        {
+            try
+            {
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                var results = PinGreenRatings.Measure(path, progress);
+                var rated = PinGreenRatings.Rate(results);
+                string stamp = ReadinessStore.Stamp(path);
+                var ratings = results.Select(r => new GreenPinRating($"{r.Hole}.{r.Pin}", rated[(r.Hole, r.Pin)], r.AveragePutts, r.HardShare, r.CupSlopePct, r.TooSteep)).ToList();
+                double seconds = clock.Elapsed.TotalSeconds;
+                Dispatcher.UIThread.Post(() =>
+                {
+                    int filled = _state.FillPinsFromGreens(ratings, stamp, seconds);
+                    int yours = ratings.Count - filled;
+                    Save();
+                    Busy = false;
+                    RebuildPins();
+                    RefreshSummary();
+                    Show($"Rated {ratings.Count} pins from the greens" + (yours > 0 ? $"; kept the {yours} you set yourself." : "."));
+                });
+            }
+            catch (Exception ex)
+            {
+                Dispatcher.UIThread.Post(() => { Busy = false; Show($"Could not rate the pins: {ex.Message}", error: true); });
+            }
+        });
     }
 
     void UpdatePinTally()
@@ -857,14 +914,19 @@ public partial class PinCellViewModel : ObservableObject
         _changed = changed;
         Position = position;
         string noted = state.Pins.TryGetValue(key, out var ps) && (ps.NotedDepth ?? ps.NotedSide) is not null ? $" (checklist had {ps.NotedDepth}{ps.NotedSide})" : "";
-        Tip = $"Pin {number}: {(position == "—" ? "not in the file" : position)} by thirds along the approach and across the green{noted}. Click for difficulty.";
+        string greens = ps?.AveragePutts is double avg
+            ? $" On the greens: {avg:0.00} putts on average from the whole green, {ps.HardShare:P0} of it needs 2.3 or more, cup slope {ps.CupSlopePct:0.0}%"
+              + (ps.TooSteep ? " (steeper than a ball can stop on, so rated Hard)" : "") + "."
+            : "";
+        Tip = $"Pin {number}: {(position == "—" ? "not in the file" : position)} by thirds along the approach and across the green{noted}.{greens} Click for difficulty.";
         Refresh();
     }
 
     void Refresh()
     {
         string d = _state.Pins.TryGetValue(_key, out var ps) ? ps.Difficulty ?? "" : "";
-        Difficulty = d switch { "R" => "Hard", "A" => "Medium", "G" => "Easy", _ => "Set" };
+        bool fromGreens = _state.Pins.TryGetValue(_key, out var st) && st.FromGreens && d.Length > 0;
+        Difficulty = (d switch { "R" => "Hard", "A" => "Medium", "G" => "Easy", _ => "Set" }) + (fromGreens ? " ◆" : "");
         (Fill, Ink) = d switch
         {
             "R" => (Brush.Parse("#F6E0DA"), Brush.Parse("#8E2F1E")),
@@ -879,6 +941,7 @@ public partial class PinCellViewModel : ObservableObject
         if (!_state.Pins.TryGetValue(_key, out var ps)) _state.Pins[_key] = ps = new PinState();
         ps.Difficulty = Order[(Array.IndexOf(Order, ps.Difficulty ?? "") + 1) % Order.Length];
         if (ps.Difficulty == "") ps.Difficulty = null;
+        ps.FromGreens = false;   // set by hand now: "Rate pins from the greens" leaves it alone
         Refresh();
         _changed();
     }

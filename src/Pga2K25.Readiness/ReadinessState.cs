@@ -20,13 +20,35 @@ public sealed class DeliberateMark
     public DateTime Marked { get; set; } = DateTime.Now;
 }
 
-/// <summary>A pin's difficulty (R, A or G) and, from an imported checklist, where the designer noted it.</summary>
+/// <summary>
+/// A pin's difficulty (R, A or G), whether it was rated from the greens (<see cref="FromGreens"/>) or set by the
+/// designer, the putting figures behind a rating, and, from an imported checklist, where the designer noted it.
+/// </summary>
 public sealed class PinState
 {
     public string? Difficulty { get; set; }
     public string? NotedDepth { get; set; }
     public string? NotedSide { get; set; }
+
+    /// <summary>True while the difficulty is the one "Rate pins from the greens" gave; setting it by hand clears it.</summary>
+    public bool FromGreens { get; set; }
+    public double? AveragePutts { get; set; }
+    public double? HardShare { get; set; }
+    public double? CupSlopePct { get; set; }
+    public bool TooSteep { get; set; }
 }
+
+/// <summary>When the pins were last rated from the greens, against which save of the course file, and how long it took.</summary>
+public sealed class PinRatingRun
+{
+    public DateTime Rated { get; set; }
+    public string Stamp { get; set; } = "";
+    public int Pins { get; set; }
+    public double Seconds { get; set; }
+}
+
+/// <summary>One pin's rating and putting figures from the greens, keyed <c>{hole}.{pin}</c>.</summary>
+public sealed record GreenPinRating(string Key, string Difficulty, double AveragePutts, double HardShare, double CupSlopePct, bool TooSteep);
 
 /// <summary>One playtest profile's coverage: wind directions at high intensity, tee sets and pins played.</summary>
 public sealed class PlaytestProfile
@@ -93,6 +115,8 @@ public sealed class ReadinessState
     public Dictionary<string, DeliberateMark> Deliberate { get; set; } = [];
     /// <summary>Keyed <c>{hole}.{pin}</c>.</summary>
     public Dictionary<string, PinState> Pins { get; set; } = [];
+    /// <summary>The last "Rate pins from the greens"; null until it has been run.</summary>
+    public PinRatingRun? PinRatings { get; set; }
     public List<PlaytestProfile> Playtest { get; set; } = [new(), new()];
     public List<CustomItem> Custom { get; set; } = [];
     public Dictionary<int, HoleState> Holes { get; set; } = [];
@@ -109,6 +133,28 @@ public sealed class ReadinessState
         s.Status = status;
         if (note is not null) s.Note = note;
         s.Updated = DateTime.Now;
+    }
+
+    /// <summary>
+    /// Takes the ratings from the greens: every pin's putting figures are kept, and its difficulty is set unless the
+    /// designer set it by hand (a difficulty that isn't <see cref="PinState.FromGreens"/>), which is never replaced.
+    /// Returns how many difficulties were filled.
+    /// </summary>
+    public int FillPinsFromGreens(IEnumerable<GreenPinRating> ratings, string stamp, double seconds)
+    {
+        int filled = 0, count = 0;
+        foreach (var r in ratings)
+        {
+            count++;
+            if (!Pins.TryGetValue(r.Key, out var p)) Pins[r.Key] = p = new PinState();
+            (p.AveragePutts, p.HardShare, p.CupSlopePct, p.TooSteep) = (r.AveragePutts, r.HardShare, r.CupSlopePct, r.TooSteep);
+            if (p.Difficulty is { Length: > 0 } && !p.FromGreens) continue;   // the designer's own
+            p.Difficulty = r.Difficulty;
+            p.FromGreens = true;
+            filled++;
+        }
+        PinRatings = new PinRatingRun { Rated = DateTime.Now, Stamp = stamp, Pins = count, Seconds = seconds };
+        return filled;
     }
 
     public HoleState Hole(int number) => Holes.TryGetValue(number, out var h) ? h : Holes[number] = new HoleState();

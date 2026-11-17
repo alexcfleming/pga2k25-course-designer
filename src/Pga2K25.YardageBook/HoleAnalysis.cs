@@ -163,7 +163,9 @@ public sealed class HoleAnalysis
         List<List<Vec2>> Closed(params int[] surfaces) => course.SurfaceSplines
             .Where(s => s.Closed && s.Points.Count >= 3 && surfaces.Contains(s.Surface))
             .Select(s => Geometry.SampleSpline(s, 12)).Where(AnyInView).ToList();
-        var fairways = Closed(Surfaces.Fairway);
+        // Fairways keep their spline index for the shared width measure (FairwayArea).
+        var fairwaySplines = FairwayArea.Splines(course, 12, Surfaces.Fairway).Where(x => AnyInView(x.Outline)).ToList();
+        var fairways = fairwaySplines.Select(x => x.Outline).ToList();
         var rough = Closed(Surfaces.Rough, Surfaces.HeavyRough);
         var greens = Closed(Surfaces.Green);
         var water = Closed(Surfaces.Water);
@@ -351,14 +353,15 @@ public sealed class HoleAnalysis
             }
         }
 
-        // Fairway widths across the route at fixed distances from the back tee.
+        // Fairway widths at fixed straight-line distances from the back tee (where that yardage's arc crosses the line
+        // of play), edge to edge and square to the line there, the way they're measured in game; bunkers inside the
+        // fairway don't cut them short (FairwayArea, shared with Publish readiness and the Hole Data Card).
+        var widthArea = new FairwayArea(fairwaySplines.Where(x => !foreign.Contains(x.Outline)), []);
         var widths = new List<WidthLabel>();
         foreach (int station in o.WidthStationsYards)
         {
             if (station > holeYards - 60) continue;
-            var (pt, _) = PointAtDistance(route, station * Yard);
-            // Measured square to the page axis so stations on different dogleg legs never cross.
-            if (MeasureAcross(ownFairways, bunkers.Concat(inPlay).ToList(), pt, side) is { } w)
+            if (widthArea.WidthAt(route, station * Yard) is { } w && w.Gap <= WidthNearLineMetres)
                 widths.Add(new WidthLabel((w.Left + w.Right) * 0.5, w.Left, w.Right, (int)Math.Round(Vec2.Distance(w.Left, w.Right) / Yard), station));
         }
 
@@ -452,25 +455,6 @@ public sealed class HoleAnalysis
         return best;
     }
 
-    /// <summary>
-    /// Walks across the fairway along ±n from <paramref name="p"/>; returns the contiguous run of playable
-    /// fairway (inside a fairway shape and not inside a bunker) nearest p.
-    /// </summary>
-    static (Vec2 Left, Vec2 Right)? MeasureAcross(IReadOnlyList<List<Vec2>> fairways, IReadOnlyList<List<Vec2>> bunkers, Vec2 p, Vec2 n)
-    {
-        const double step = 0.5, reach = 70;
-        bool Inside(Vec2 q) => fairways.Any(f => Geometry.Contains(f, q)) && !bunkers.Any(b => Geometry.Contains(b, q));
-        // Start from the route point, or the nearest fairway cell if the route is off the fairway here.
-        double start = double.NaN;
-        for (double s = 0; s <= reach && double.IsNaN(start); s += step)
-        {
-            if (Inside(p + n * s)) start = s;
-            else if (Inside(p - n * s)) start = -s;
-        }
-        if (double.IsNaN(start)) return null;
-        double lo = start, hi = start;
-        while (hi + step <= reach && Inside(p + n * (hi + step))) hi += step;
-        while (lo - step >= -reach && Inside(p + n * (lo - step))) lo -= step;
-        return (p + n * lo, p + n * hi);
-    }
+    /// <summary>A width is printed only for a fairway within this of the line of play (15 yds, as Publish readiness).</summary>
+    const double WidthNearLineMetres = 15 * Yard;
 }

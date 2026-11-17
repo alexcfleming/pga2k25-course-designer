@@ -128,7 +128,8 @@ public class HoleSimTests
         Assert.Equal(4, m.Par);
         Assert.Equal(new[] { 460, 483, 500, 515 }, m.Tees.Select(t => t.Yards));
         Assert.Equal(286, m.AimFromTeeYards);
-        Assert.Equal(new[] { (250, 78), (300, 79), (325, 71), (350, 68) }, m.Widths.Select(w => (w.Station, w.Yards)));
+        // The yardage book's widths: edge to edge, square to the line, at straight-line distances from the back tee (3.7.0).
+        Assert.Equal(new[] { (250, 78), (300, 82), (325, 69), (350, 67) }, m.Widths.Select(w => (w.Station, w.Yards)));
         Assert.Equal(38, m.GreenDepthYards);
         var bunker = Assert.Single(m.Hazards, h => h.Ground == Ground.Bunker);
         Assert.Equal("Right", bunker.Side);

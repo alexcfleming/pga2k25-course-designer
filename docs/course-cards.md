@@ -24,7 +24,7 @@ The layouts follow the reference matplotlib build from the Cassimbo card handoff
 
 ## Fairway width columns (hole data card)
 
-Two columns between the bearings and the hazards, **Width 3W** and **Width Dr**: the fairway's width at 3-wood distance (260–290 yds from the back tee) and at driver distance (the design tee shot, 300–350). They are the figures the readiness check `landing-widths` judges (`ReadinessChecker.FairwayWidths`; see [readiness.md](readiness.md)), against the course's own limits from `Readiness.json` beside the products.
+Two columns between the bearings and the hazards, **Width 3W** and **Width Dr**: the fairway's width at 3-wood distance (260–290 yds from the back tee) and at driver distance (the design tee shot, 300–350). They are the figures the readiness check `landing-widths` judges (`ReadinessChecker.FairwayWidths`; see [readiness.md](readiness.md)), against the course's own limits from `Readiness.json` beside the products. Since 3.7.0 they match the yardage book's widths at the same stations (`FairwayArea`).
 
 - **A cell** is the narrowest to the widest of the distance's three stations in yards, or one number when they agree.
 - **Red** means a station is outside the range (30–50 at 3-wood, 25–35 at driver) or has no fairway by the line (`none`).
