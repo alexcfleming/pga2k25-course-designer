@@ -15,6 +15,12 @@ namespace Pga2K25.TerrainMap;
 /// is still the 2026-10-26 fit: it matches those four within a point, but the two bare plots read 16.8 % and 12.6 %
 /// against about 11.5 and 14.6, the other way round from anything in the file (the second had its theme and backdrop
 /// changed), so something the file doesn't show adds to memory. Treat both as rough.
+/// <para>
+/// The designer has a fourth meter, terrain, with no estimate here: no reading of it has been taken yet. What it
+/// likely follows is the high-resolution ground the game builds (painted surfaces, brushes and spline points) rather
+/// than objects. Readings typed on the Readiness page (Readiness.json, <c>Info.Meters</c>) are kept per course, so
+/// once four to six courses have one, a fit can go here.
+/// </para>
 /// </remarks>
 public sealed record GameBudget(int UniqueAssets, double Objects, double ObjectPercent, double MemoryPercent, double? FilePercent = null)
 {

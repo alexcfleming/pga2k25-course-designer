@@ -54,8 +54,12 @@ public sealed class CourseCardData
     {
         int sets = Math.Max(1, course.Holes.Max(h => h.Tees.Count));
         var studio = entries?.Tees ?? [];
+        // Without names of its own, a card uses the tee colours the game saved (Red, Green, White, Blue on Cassimbo).
+        var colours = (course.Stored?.TeeColours ?? []).Select(StoredScorecard.TeeColourName).ToList();
+        bool coloured = colours.Count == sets && colours.All(c => c is not null) && colours.Distinct().Count() == sets;
         var names = teeNames is { Count: > 0 } && teeNames.Count == sets ? teeNames
             : studio.Count == sets ? studio
+            : coloured ? colours!
             : sets == 1 ? ["Back"] : Enumerable.Range(1, sets).Select(i => i == sets ? "Back" : $"Tee {i}").ToList();
         if (teeNames is { Count: > 0 } && teeNames.Count != sets)
             issues.Add(new(Severity.Warn, $"Card settings name {teeNames.Count} tee sets ({string.Join(", ", teeNames)}) " +

@@ -39,6 +39,29 @@ public sealed record Hole(int Number, int Par, IReadOnlyList<Vec2> Route, IReadO
         var tee = Tees[Math.Min(set, Tees.Count - 1)];
         return Vec2.Distance(tee, Route[1]) + Route.Skip(1).Zip(Route.Skip(2), Vec2.Distance).Sum();
     }
+
+    /// <summary>
+    /// The par the designer set by hand (<c>creatorDefinedPar</c>), or null when the hole follows the game's own par
+    /// from its length. Where it is set it matches <see cref="Par"/> on every file seen.
+    /// </summary>
+    public int? CreatorPar { get; init; }
+
+    /// <summary>The flag's offset from the cup (<c>flagOffset</c>, m); zero on every file seen.</summary>
+    public Vec2 FlagOffset { get; init; }
+
+    /// <summary>Each pin's <c>description</c> number, in pin order; 0 on every file seen, and its meaning isn't known.</summary>
+    public IReadOnlyList<int> PinDescriptions { get; init; } = [];
+}
+
+/// <summary>
+/// A map layer the designer paints with brushes and closed outlines (<c>outOfBounds2</c>, <c>clearTrees</c>,
+/// <c>clearDetail</c>, <c>crowdMap2</c>). Splines with <see cref="SurfaceSpline.Closed"/> set are filled areas
+/// (state 3 on every file seen); open ones are ribbons their width wide; brushes are their stamp.
+/// </summary>
+public sealed record MapEdits(IReadOnlyList<SurfaceBrush> Brushes, IReadOnlyList<SurfaceSpline> Splines)
+{
+    public static readonly MapEdits None = new([], []);
+    public bool IsEmpty => Brushes.Count == 0 && Splines.Count == 0;
 }
 
 public sealed record SplinePoint(Vec2 In, Vec2 Anchor, Vec2 Out, double Width);
@@ -68,7 +91,7 @@ public sealed record BunkerDepression(double BaseDepth, double LipStart, double 
 /// <summary>
 /// One bunker brush's or spline's own sliders (<c>bunkerOverrideParameters</c>). A negative value means "use the
 /// course's" (<see cref="BunkerSettings.Resolve"/>). <paramref name="FlatFloor"/> is 0 for the course's setting and 1
-/// for on; 2 is read as off, going by the game's own three-way switch.
+/// for on (the only values seen); 2 is read as off.
 /// </summary>
 public sealed record BunkerOverride(double BaseDepth, double LipStart, double LipDepth, double LipSteepness, int FlatFloor);
 
@@ -81,15 +104,81 @@ public sealed record BunkerOverride(double BaseDepth, double LipStart, double Li
 /// <param name="TeeSetLengths">Metres by tee set, then by hole (<c>teeSetInfos[].holeLengths</c>).</param>
 public sealed record StoredScorecard(IReadOnlyList<int> Pars, IReadOnlyList<IReadOnlyList<double>> TeeSetLengths)
 {
+    /// <summary>Each tee set's colour number (<c>teeSetInfos[].color</c>), front to back; see <see cref="TeeColourName"/>.</summary>
+    public IReadOnlyList<int> TeeColours { get; init; } = [];
+
+    /// <summary>How many pin sets the course has (<c>pinSets</c>).</summary>
+    public int PinSets { get; init; }
+
+    /// <summary>The sudden-death playoff holes, numbered from 1 (<c>PlayoffHolesSuddenDeath</c> stores them from 0).</summary>
+    public IReadOnlyList<int> SuddenDeathHoles { get; init; } = [];
+
+    /// <summary>The aggregate playoff holes, numbered from 1; empty on every file seen.</summary>
+    public IReadOnlyList<int> AggregateHoles { get; init; } = [];
+
+    /// <summary>The single playoff hole for a front nine, back nine and full round, numbered from 1; null when not set (−1).</summary>
+    public int? PlayoffFront9 { get; init; }
+    public int? PlayoffBack9 { get; init; }
+    public int? PlayoffFull { get; init; }
+
+    /// <summary>The course's difficulty rating (<c>difficulty</c>): 0 until the game rates it, then 1 Easiest to 5 Hardest.</summary>
+    public int Difficulty { get; init; }
+
+    /// <summary>The sudden-death holes a new course gets ([17, 9] in the file: holes 18 and 10).</summary>
+    public static readonly IReadOnlyList<int> DefaultSuddenDeath = [18, 10];
+
+    /// <summary>True when the playoff holes are still the game's defaults.</summary>
+    public bool PlayoffsAreDefault => SuddenDeathHoles.SequenceEqual(DefaultSuddenDeath) && AggregateHoles.Count == 0
+        && PlayoffFront9 is null && PlayoffBack9 is null && PlayoffFull is null;
+
+    /// <summary>
+    /// The game's tee colour names by number: Green, Black, Blue, White, Red, Gold. Cassimbo's front tee set is 4, Red,
+    /// as its scorecard shows; the other numbers aren't checked colour by colour.
+    /// </summary>
+    public static string? TeeColourName(int colour) => colour switch
+    {
+        0 => "Green", 1 => "Black", 2 => "Blue", 3 => "White", 4 => "Red", 5 => "Gold", _ => null,
+    };
+
+    /// <summary><see cref="Difficulty"/> in the game's words, or null before it is rated.</summary>
+    public string? DifficultyName => Difficulty switch
+    {
+        1 => "Easiest", 2 => "Easy", 3 => "Medium", 4 => "Hard", 5 => "Hardest", _ => null,
+    };
+
     public static StoredScorecard? Read(JsonObject? meta)
     {
         if (meta is null) return null;
         var pars = (meta["pars"] as JsonArray ?? []).Select(p => (int)CourseModel.Num(p)).ToList();
-        var sets = (meta["teeSetInfos"] as JsonArray ?? [])
+        var infos = meta["teeSetInfos"] as JsonArray ?? [];
+        var sets = infos
             .Select(s => (IReadOnlyList<double>)(s?["holeLengths"] as JsonArray ?? []).Select(l => CourseModel.Num(l, double.NaN)).ToList())
             .ToList();
-        return pars.Count == 0 && sets.Count == 0 ? null : new StoredScorecard(pars, sets);
+        if (pars.Count == 0 && sets.Count == 0) return null;
+        static List<int> Holes(JsonNode? list) => (list as JsonArray ?? []).Select(h => (int)CourseModel.Num(h) + 1).ToList();
+        static int? One(JsonNode? h) => CourseModel.Num(h, -1) is var n && n >= 0 ? (int)n + 1 : null;
+        return new StoredScorecard(pars, sets)
+        {
+            TeeColours = infos.Select(s => (int)CourseModel.Num(s?["color"], -1)).ToList(),
+            PinSets = (int)CourseModel.Num(meta["pinSets"]),
+            SuddenDeathHoles = Holes(meta["PlayoffHolesSuddenDeath"]),
+            AggregateHoles = Holes(meta["PlayoffHolesAggregate"]),
+            PlayoffFront9 = One(meta["PlayoffHoleFront9"]),
+            PlayoffBack9 = One(meta["PlayoffHoleBack9"]),
+            PlayoffFull = One(meta["PlayoffHoleFullCourse"]),
+            Difficulty = (int)CourseModel.Num(meta["difficulty"]),
+        };
     }
+}
+
+/// <summary>
+/// The designer's speed and firmness sliders, as the file stores them: 0–1, or −1 for the game's default. The game's
+/// own words for them (Soft … Ultra firm, Slow … Ultra fast) are known, but not where on the slider each starts.
+/// </summary>
+public sealed record PlayingConditions(double TerrainFirmness, double GreenFirmness, double FairwaySpeed, double FairwayFirmness,
+    double RoughFirmness, double HeavyRoughFirmness, double BunkerSpeed, double BunkerFirmness)
+{
+    public static readonly PlayingConditions Default = new(-1, -1, -1, -1, -1, -1, -1, -1);
 }
 
 /// <summary>The course's bunker depths (<c>bunkerSettings2</c>).</summary>
@@ -313,6 +402,39 @@ public sealed class CourseModel
     /// <summary>The course's bunker depths (<c>bunkerSettings2</c>); <see cref="BunkerSettings.None"/> when the file has none.</summary>
     public BunkerSettings Bunkers { get; init; } = BunkerSettings.None;
 
+    /// <summary>The designer's speed and firmness sliders (0–1 each; −1 is the game's default).</summary>
+    public PlayingConditions Conditions { get; init; } = PlayingConditions.Default;
+
+    /// <summary>Out of bounds as the designer painted it (<c>outOfBounds2</c>): filled outlines on every file seen.</summary>
+    public MapEdits OutOfBounds { get; init; } = MapEdits.None;
+
+    /// <summary>Where the designer cleared the game's own trees (<c>clearTrees</c>).</summary>
+    public MapEdits ClearTrees { get; init; } = MapEdits.None;
+
+    /// <summary>Where the designer cleared the game's own detail: grass tufts, rocks and plants (<c>clearDetail</c>).</summary>
+    public MapEdits ClearDetail { get; init; } = MapEdits.None;
+
+    /// <summary>Crowd areas (<c>crowdMap2</c>).</summary>
+    public MapEdits Crowd { get; init; } = MapEdits.None;
+
+    /// <summary>Entries in <c>treeDensityMap</c>: empty on every file seen, so their form isn't known.</summary>
+    public int TreeDensityEntries { get; init; }
+
+    /// <summary>
+    /// Entries in <c>terrainHeight</c>, a second height layer beside <c>height</c>. Empty on every file seen, and not in
+    /// the terrain replay.
+    /// </summary>
+    public int TerrainHeightEntries { get; init; }
+
+    /// <summary>The course's tee marker width (<c>teeMarkerWidth</c>, m): 3.048, 3.9624, 4.572 or 6.096 (10, 13, 15, 20 ft).</summary>
+    public double TeeMarkerWidthMetres { get; init; }
+
+    /// <summary>The designer's name for <see cref="TeeMarkerWidthMetres"/>, as its tee marker setting shows it.</summary>
+    public string? TeeMarkerWidthName => Math.Round(TeeMarkerWidthMetres, 3) switch
+    {
+        3.048 => "Very narrow", 3.962 => "Narrow", 4.572 => "Standard", 6.096 => "Wide", _ => null,
+    };
+
     /// <summary>True when any painted or drawn bunker is cut below its edge.</summary>
     public bool HasBunkerDepths =>
         SurfaceBrushes.Any(b => b.Category == Surfaces.Bunker && Bunkers.Resolve(b.Bunker).Depression.Depth > 0)
@@ -380,6 +502,16 @@ public sealed class CourseModel
             FlattenGreens = desc["flattenGreens"]?.GetValue<bool>() ?? false,
             BlurHeight = desc["blurHeight"]?.GetValue<bool>() ?? false,
             Bunkers = ReadBunkerSettings(desc["bunkerSettings2"] as JsonObject),
+            OutOfBounds = ReadMapEdits(desc["outOfBounds2"] as JsonObject),
+            ClearTrees = ReadMapEdits(desc["clearTrees"] as JsonObject),
+            ClearDetail = ReadMapEdits(desc["clearDetail"] as JsonObject),
+            Crowd = ReadMapEdits(desc["crowdMap2"] as JsonObject),
+            TreeDensityEntries = (desc["treeDensityMap"] as JsonArray)?.Count ?? 0,
+            TerrainHeightEntries = (desc["terrainHeight"] as JsonArray)?.Count ?? 0,
+            TeeMarkerWidthMetres = Num(desc["teeMarkerWidth"]),
+            Conditions = new PlayingConditions(Num(desc["terrainFirmness"], -1), Num(desc["greenFirmness"], -1), Num(desc["fairwaySpeed"], -1),
+                Num(desc["fairwayFirmness"], -1), Num(desc["roughFirmness"], -1), Num(desc["heavyRoughFirmness"], -1),
+                Num(desc["bunkerSpeed"], -1), Num(desc["bunkerFirmness"], -1)),
             HillsHeightMetres = Num(desc["hillsHeight"]),
             GreenSpeed = Num(desc["greenSpeed"], -1),
             GreenFringeRadius = Num(desc["greenFringeRadius"], -1),
@@ -418,7 +550,13 @@ public sealed class CourseModel
             var anchor = route[^1];
             var tees = Array(h["tees"]).Select(t => ReadVec(t!["position"])).ToList();
             var pins = Array(h["pins"]).Select(p => anchor + ReadVec(p!["position"])).ToList();
-            result.Add(new Hole(i + 1, (int)Num(h["par"], 0), route, tees, pins));
+            int creator = (int)Num(h["creatorDefinedPar"], -1);
+            result.Add(new Hole(i + 1, (int)Num(h["par"], 0), route, tees, pins)
+            {
+                CreatorPar = creator > 0 ? creator : null,
+                FlagOffset = h["flagOffset"] is JsonObject fo ? new Vec2(Num(fo["x"]), Num(fo["y"])) : default,
+                PinDescriptions = Array(h["pins"]).Select(p => (int)Num(p?["description"])).ToList(),
+            });
         }
         return result;
     }
@@ -437,6 +575,9 @@ public sealed class CourseModel
         }
         return result;
     }
+
+    static MapEdits ReadMapEdits(JsonObject? e) => e is null ? MapEdits.None
+        : new(ReadBrushes(e["brushes"] as JsonArray), ReadSplines(e["splines"] as JsonArray));
 
     static BunkerSettings ReadBunkerSettings(JsonObject? b)
     {

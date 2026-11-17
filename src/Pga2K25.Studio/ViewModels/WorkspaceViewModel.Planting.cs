@@ -15,7 +15,8 @@ namespace Pga2K25.Studio.ViewModels;
 public partial class WorkspaceViewModel
 {
     static readonly IBrush TreeBrush = Brush.Parse("#4F7F3A"), ConiferBrush = Brush.Parse("#25523F"), BroadleafBrush = Brush.Parse("#7FA65E"),
-        BushBrush = Brush.Parse("#5B7A30"), GrassBrush = Brush.Parse("#A88B45"), FlowerBrush = Brush.Parse("#C0477A"), WallBrush = Brush.Parse("#4A4F4B");
+        BushBrush = Brush.Parse("#5B7A30"), GrassBrush = Brush.Parse("#A88B45"), FlowerBrush = Brush.Parse("#C0477A"), WallBrush = Brush.Parse("#4A4F4B"),
+        ClearedBrush = Brush.Parse("#8A5A2B");
 
     public ObservableCollection<PlantingRowViewModel> PlantingRows { get; } = [];
     public ObservableCollection<PlantingRowViewModel> TreeSpeciesRows { get; } = [];
@@ -31,6 +32,7 @@ public partial class WorkspaceViewModel
     public bool PlantGrass { get => Terrain.PlantGrass; set => SetPlanting(t => t.PlantGrass = value, redraw: Terrain.ShowPlanting); }
     public bool PlantFlowers { get => Terrain.PlantFlowers; set => SetPlanting(t => t.PlantFlowers = value, redraw: Terrain.ShowPlanting); }
     public bool PlantWalls { get => Terrain.PlantWalls; set => SetPlanting(t => t.PlantWalls = value, redraw: Terrain.ShowPlanting); }
+    public bool PlantCleared { get => Terrain.PlantCleared; set => SetPlanting(t => t.PlantCleared = value, redraw: Terrain.ShowPlanting); }
     public bool TreesByType { get => Terrain.TreesByType; set => SetPlanting(t => t.TreesByType = value, redraw: Terrain.ShowPlanting); }
     public bool PrintPlantingOnMap { get => Terrain.PrintPlantingOnMap; set => SetPlanting(t => t.PrintPlantingOnMap = value, redraw: false); }
     public bool PrintPlantingOnSheets { get => Terrain.PrintPlantingOnSheets; set => SetPlanting(t => t.PrintPlantingOnSheets = value, redraw: false); }
@@ -38,7 +40,7 @@ public partial class WorkspaceViewModel
     static readonly string[] PlantingProperties =
     [
         nameof(ShowPlanting), nameof(PlantTrees), nameof(PlantBushes), nameof(PlantGrass), nameof(PlantFlowers), nameof(PlantWalls),
-        nameof(TreesByType), nameof(PrintPlantingOnMap), nameof(PrintPlantingOnSheets),
+        nameof(PlantCleared), nameof(TreesByType), nameof(PrintPlantingOnMap), nameof(PrintPlantingOnSheets),
     ];
 
     void SetPlanting(Action<TerrainSettings> change, bool redraw)
@@ -84,6 +86,12 @@ public partial class WorkspaceViewModel
             PlantingRows.Add(new PlantingRowViewModel(brush, label, How(kind, placed), Count(placed, scattered)));
         }
         PlantingRows.Add(new PlantingRowViewModel(WallBrush, "Walls & fences", "lines", p.Walls.Count.ToString("N0")));
+        if (p.HasCleared)
+        {
+            var (trees_, detail) = p.ClearedArea();
+            PlantingRows.Add(new PlantingRowViewModel(ClearedBrush, "Cleared ground", $"trees {trees_ / 4046.86:0.#} ac · detail {detail / 4046.86:0.#} ac",
+                (p.ClearedTrees.Count + p.ClearedDetail.Count).ToString("N0")));
+        }
 
         var (trees, scatteredTrees) = p.Count(PlantKind.Tree);
         PlantingTrees = Count(trees, scatteredTrees);

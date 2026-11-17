@@ -92,8 +92,9 @@ public static class ReadinessChecker
     /// <param name="cellMetres">Terrain cell for the elevation survey; the greens use the greens book's own.</param>
     /// <param name="overrides">The designer's own fairway starts and shared fairways, by hole.</param>
     /// <param name="inputs">The course already measured (<see cref="Prepare"/>), so only the limits are applied; prepared here when null.</param>
+    /// <param name="meters">The designer's meters as read in the game, when typed in; they win over Studio's estimates.</param>
     public static ReadinessReport Run(CourseModel course, ReadinessLimits? limits = null, double cellMetres = 2,
-        IReadOnlyDictionary<int, HoleOverride>? overrides = null, Inputs? inputs = null)
+        IReadOnlyDictionary<int, HoleOverride>? overrides = null, Inputs? inputs = null, GameMeterReadings? meters = null)
     {
         if (inputs is not null && (!ReferenceEquals(inputs.Course, course) || inputs.CellMetres != cellMetres))
             throw new ArgumentException("The prepared inputs are for another course or terrain cell.", nameof(inputs));
@@ -193,7 +194,7 @@ public static class ReadinessChecker
             return Math.Sqrt(gx * gx + gz * gz) * 100;
         }, L));
         checks.AddRange(SettingChecks(course, stimp, L));
-        checks.AddRange(DesignerChecks(course));
+        checks.AddRange(DesignerChecks(course, meters));
         checks.AddRange(PromptChecks(measures, medGreen, medStart, L));
 
         return new ReadinessReport
@@ -779,12 +780,11 @@ public static class ReadinessChecker
     public const double StoredYardsTolerance = 0.5;
 
     /// <summary>
-    /// What the course designer checks for itself, going by its own messages ("Missing a tee marker", "Fewer than 2
-    /// waypoints!", "First and last waypoints should not be in the same location", "Failed to 'Keep Yardages'…",
-    /// "High-res bunker stamping disabled due to insufficient memory budget"; found in the game's strings, 17 Nov 2026).
-    /// They need no terrain, so they can run on their own.
+    /// Checks on what the course designer itself asks of a course: a tee and a route on every hole, the saved scorecard
+    /// against the layout, out of bounds clear of play, and whether bunker depths will be cut. They need no terrain, so
+    /// they can run on their own.
     /// </summary>
-    public static IEnumerable<ReadinessCheck> DesignerChecks(CourseModel course)
+    public static IEnumerable<ReadinessCheck> DesignerChecks(CourseModel course, GameMeterReadings? meters = null)
     {
         const string rule = "Course designer · its own checks";
         var holes = course.Holes.OrderBy(h => h.Number).ToList();
@@ -801,8 +801,141 @@ public static class ReadinessChecker
             rule, noTee.Concat(short_).Concat(loop).Distinct().OrderBy(n => n).ToList());
 
         yield return StoredScorecardCheck(course, holes, rule);
+        yield return OutOfBoundsCheck(course, holes);
+        yield return SavedSettingsCheck(course, holes);
 
-        if (course.HasBunkerDepths) yield return BunkerStampingCheck(course, GameBudget.Estimate(course), rule);
+        var budget = GameBudget.Estimate(course);
+        yield return MetersCheck(budget, meters);
+        if (course.HasBunkerDepths) yield return BunkerStampingCheck(course, budget, rule, meters?.Memory);
+    }
+
+    /// <summary>A meter reading at or over this (percent) is close to the designer's limit.</summary>
+    public const double MeterWarningPercent = 90;
+
+    /// <summary>
+    /// The designer's four meters: each reading typed in, else Studio's estimate (objects, memory, file size). Any meter
+    /// at 100 % or more is a Flag and 90 % a Warning. The terrain meter has no estimate, so without a reading it's a
+    /// Confirm.
+    /// </summary>
+    static ReadinessCheck MetersCheck(GameBudget budget, GameMeterReadings? meters)
+    {
+        const string id = "game-meters", title = "The designer's meters under their limits", rule = "Course designer · budget meters";
+        var rows = new List<(string Name, double? Value, bool Read)>
+        {
+            ("objects", meters?.Objects ?? budget.ObjectPercent, meters?.Objects is not null),
+            ("memory", meters?.Memory ?? budget.MemoryPercent, meters?.Memory is not null),
+            ("file size", meters?.File ?? budget.FilePercent, meters?.File is not null),
+            ("terrain", meters?.Terrain, meters?.Terrain is not null),
+        };
+        string Show((string Name, double? Value, bool Read) r) =>
+            r.Value is double v ? $"{r.Name} {(r.Read ? "" : "≈ ")}{v:0.#} %{(r.Read ? "" : " (estimate)")}" : $"{r.Name} not read yet";
+        var known = rows.Where(r => r.Value is not null).ToList();
+        var severity = known.Any(r => r.Value >= 100) ? Severity.Flag
+            : known.Any(r => r.Value >= MeterWarningPercent) ? Severity.Warning
+            : meters?.Terrain is null ? Severity.Confirm : Severity.Pass;
+        string detail = Capital(string.Join(" · ", rows.Select(Show))) + ".";
+        if (meters?.Terrain is null) detail += " Read the terrain meter in the designer and type it in: Studio can't estimate it yet.";
+        if (meters is { Any: true, ReadOn.Length: > 0 }) detail += $" Readings from {meters.ReadOn}.";
+        return new(id, title, severity, detail, rule, []);
+    }
+
+    /// <summary>
+    /// The settings that go with the scorecard: playoff holes (Confirm while they're still the game's 18 and 10, so
+    /// they're chosen rather than left), pin sets, tee colours, tee markers and pars set by hand, recorded.
+    /// </summary>
+    static ReadinessCheck SavedSettingsCheck(CourseModel course, List<Hole> holes)
+    {
+        const string id = "playoffs", title = "Playoff holes chosen", rule = "Course designer · scorecard settings";
+        var parts = new List<string>();
+        var stored = course.Stored;
+        Severity severity = Severity.Pass;
+        if (stored is null)
+        {
+            severity = Severity.Confirm;
+            parts.Add("No saved scorecard: save the course in the designer, then check the playoff holes.");
+        }
+        else
+        {
+            string sd = stored.SuddenDeathHoles.Count > 0 ? string.Join(", ", stored.SuddenDeathHoles) : "none";
+            if (stored.PlayoffsAreDefault)
+            {
+                severity = Severity.Confirm;
+                parts.Add($"Sudden-death playoff holes are still the game's default, {sd}: pick them in the designer, or keep them on purpose.");
+            }
+            else parts.Add($"Sudden-death playoff holes {sd}.");
+            parts.Add($"{stored.PinSets} pin set{(stored.PinSets == 1 ? "" : "s")}.");
+            var colours = stored.TeeColours.Select(StoredScorecard.TeeColourName).ToList();
+            if (colours.Count > 0) parts.Add($"Tee colours {string.Join(", ", colours.Select(c => c ?? "?"))}, front to back.");
+        }
+        if (course.TeeMarkerWidthName is { } marker) parts.Add($"Tee markers {marker.ToLowerInvariant()} ({course.TeeMarkerWidthMetres * FeetPerMetre:0} ft).");
+        var hand = holes.Where(h => h.CreatorPar is not null).Select(h => h.Number).ToList();
+        parts.Add(hand.Count == 0 ? "Every par follows the hole's length." : $"Par set by hand on {List(hand)}.");
+        return new(id, title, severity, string.Join(" ", parts), rule, []);
+    }
+
+    /// <summary>Out of bounds this close to a hole's line (yds) is listed with the hole.</summary>
+    public const double OutOfBoundsNearYards = 30;
+
+    /// <summary>
+    /// Out of bounds against play: a tee or green inside it is a Flag; a line of play crossing it is a Warning (a
+    /// dogleg may cut a corner of it on purpose); otherwise the holes it comes within <see cref="OutOfBoundsNearYards"/>
+    /// of are listed for the record.
+    /// </summary>
+    static ReadinessCheck OutOfBoundsCheck(CourseModel course, List<Hole> holes)
+    {
+        const string id = "out-of-bounds", title = "Tees, greens and lines of play clear of out of bounds", rule = "Course designer · out of bounds";
+        var ob = MapEditShapes.Outlines(course.OutOfBounds);
+        if (ob.Count == 0)
+            return new(id, title, Severity.Info, "No out of bounds painted: the plot edge is the only boundary.", rule, []);
+
+        // Only distances up to the listing limit matter, so outlines whose box is further off are skipped.
+        double reach = OutOfBoundsNearYards / YardsPerMetre;
+        var boxes = ob.Select(o => (Poly: o, MinX: o.Min(q => q.X), MaxX: o.Max(q => q.X), MinZ: o.Min(q => q.Z), MaxZ: o.Max(q => q.Z))).ToList();
+        bool InBox((List<Vec2> Poly, double MinX, double MaxX, double MinZ, double MaxZ) b, Vec2 p, double pad) =>
+            p.X >= b.MinX - pad && p.X <= b.MaxX + pad && p.Z >= b.MinZ - pad && p.Z <= b.MaxZ + pad;
+        bool Inside(Vec2 p) => boxes.Any(b => InBox(b, p, 0) && Geometry.Contains(b.Poly, p));
+        double Clear(Vec2 p)
+        {
+            double best = double.MaxValue;
+            foreach (var b in boxes)
+            {
+                if (!InBox(b, p, reach)) continue;
+                if (Geometry.Contains(b.Poly, p)) return 0;
+                best = Math.Min(best, Geometry.DistanceToEdge(b.Poly, p));
+            }
+            return best;
+        }
+        var inTee = new List<int>();
+        var inGreen = new List<int>();
+        var crossing = new List<int>();
+        var near = new List<(int Hole, double Yards)>();
+        foreach (var h in holes.Where(h => h.Route.Count >= 2))
+        {
+            if (h.Tees.Any(Inside)) inTee.Add(h.Number);
+            if (Inside(h.GreenAnchor)) inGreen.Add(h.Number);
+            var line = new List<Vec2> { BackTee(h) };
+            line.AddRange(h.Route.Skip(1));
+            double best = double.MaxValue;
+            for (int i = 1; i < line.Count; i++)
+            {
+                double len = Vec2.Distance(line[i - 1], line[i]);
+                int steps = Math.Max(1, (int)(len / 2));
+                for (int k = 0; k <= steps; k++) best = Math.Min(best, Clear(line[i - 1] + (line[i] - line[i - 1]) * (k / (double)steps)));
+            }
+            if (best <= 0) crossing.Add(h.Number);
+            else if (best * YardsPerMetre <= OutOfBoundsNearYards) near.Add((h.Number, best * YardsPerMetre));
+        }
+        var parts = new List<string>();
+        if (inTee.Count > 0) parts.Add($"A tee inside out of bounds on {List(inTee)}.");
+        if (inGreen.Count > 0) parts.Add($"The green inside out of bounds on {List(inGreen)}.");
+        crossing = crossing.Except(inTee).Except(inGreen).ToList();
+        if (crossing.Count > 0) parts.Add($"The line of play crosses out of bounds on {List(crossing)} (fine if the hole asks the player to carry it).");
+        if (near.Count > 0) parts.Add($"Within {OutOfBoundsNearYards:0} yds of the line: {string.Join(", ", near.Select(n => $"{n.Hole} ({(n.Yards < 1 ? "under 1" : n.Yards.ToString("0", Inv))} yds)"))}.");
+        var severity = inTee.Count + inGreen.Count > 0 ? Severity.Flag : crossing.Count > 0 ? Severity.Warning : Severity.Pass;
+        string count = $"{ob.Count} out-of-bounds area{(ob.Count == 1 ? "" : "s")}";
+        return new(id, title, severity,
+            parts.Count > 0 ? $"{count}. {string.Join(" ", parts)}" : $"{count}, none within {OutOfBoundsNearYards:0} yds of a line of play.",
+            rule, inTee.Concat(inGreen).Concat(crossing).Concat(near.Select(n => n.Hole)).Distinct().OrderBy(n => n).ToList());
     }
 
     /// <summary>The scorecard the game saved against the holes as drawn: pars, and every tee set's hole lengths.</summary>
@@ -848,24 +981,27 @@ public static class ReadinessChecker
     }
 
     /// <summary>
-    /// The game only cuts bunkers below their edges with its high-resolution bunkers switched on and memory to spare
-    /// ("High-res bunker stamping disabled due to insufficient memory budget"). Where it gives up isn't known: the
+    /// The game only cuts bunkers below their edges with its high-resolution bunkers switched on and memory to spare.
+    /// Where it gives up isn't known: the
     /// memory figure is Studio's estimate of the designer's meter (<see cref="GameBudget"/>), fitted to six readings.
     /// </summary>
-    static ReadinessCheck BunkerStampingCheck(CourseModel course, GameBudget budget, string rule)
+    static ReadinessCheck BunkerStampingCheck(CourseModel course, GameBudget budget, string rule, double? readMemory = null)
     {
         const string id = "bunker-stamping", title = "Bunker depths will be cut in game";
-        string memory = $"about {budget.MemoryPercent:0} %";
+        // A memory reading from the designer wins over the estimate.
+        double memoryPercent = readMemory ?? budget.MemoryPercent;
+        string memory = readMemory is null ? $"about {budget.MemoryPercent:0} %" : $"{memoryPercent:0.#} %";
         if (!course.Bunkers.HighResStamping)
             return new(id, title, Severity.Confirm,
                 "Bunkers have depths set, but high-resolution bunkers are off, and the game cuts bunkers in high resolution. " +
                 "Turn them on, or check in game that the bunkers sit below their edges.", rule, []);
-        if (budget.MemoryPercent > BunkerMemoryWarningPercent)
+        string source = readMemory is null ? "Studio's estimate" : "as read in the designer";
+        if (memoryPercent > BunkerMemoryWarningPercent)
             return new(id, title, Severity.Warning,
-                $"High-resolution bunkers are on, but memory is {memory} (Studio's estimate), and the game skips the cut when " +
+                $"High-resolution bunkers are on, but memory is {memory} ({source}), and the game skips the cut when " +
                 "memory runs short. Where it gives up isn't known: confirm in game that the bunkers sit below their edges.", rule, []);
         return new(id, title, Severity.Pass,
-            $"High-resolution bunkers are on and memory is {memory} (Studio's estimate), under the {BunkerMemoryWarningPercent:0} % " +
+            $"High-resolution bunkers are on and memory is {memory} ({source}), under the {BunkerMemoryWarningPercent:0} % " +
             "this check warns at.", rule, []);
     }
 

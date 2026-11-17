@@ -120,12 +120,14 @@ public static class CourseCardBuilder
             // The widths the readiness check judges, against the course's own limits (Readiness.json beside the products).
             WidthLimits = widthLimits,
             FairwayWidths = Readiness.ReadinessChecker.FairwayWidths(course, widthLimits).ToDictionary(w => w.Number),
+            Details = CourseDetails.For(course, data, config.WindFromDegrees),
         };
         var pages = new List<(string Name, SKSize Size, Action<SKCanvas> Draw)>
         {
             ("Compass Rose", CourseCardRenderer.RosePage, renderer.DrawRosePage),
             ("Hole Data Card", CourseCardRenderer.TablePage, renderer.DrawTablePage),
             ("Course Data Card", CourseCardRenderer.CardPage, renderer.DrawCoursePage),
+            ("Course Details Card", CourseCardRenderer.CardPage, renderer.DrawDetailsPage),
         };
         if (greenCard) pages.Add(("Green Size Card", CourseCardRenderer.CardPage, renderer.DrawGreenSizePage));
         if (wind is not null) pages.Add(("Wind Card", CourseCardRenderer.CardPage, renderer.DrawWindPage));
@@ -171,7 +173,7 @@ public static class CourseCardBuilder
         string? combined = null;
         if (formats.Contains("pdf"))
         {
-            string[] order = ["Course Data Card", "Green Size Card", "Wind Card", "Shot Variety Card", "Hole Data Card", "Compass Rose"];
+            string[] order = ["Course Data Card", "Course Details Card", "Green Size Card", "Wind Card", "Shot Variety Card", "Hole Data Card", "Compass Rose"];
             combined = Path.Combine(outputDir, $"{baseName} - {CombinedName}.pdf");
             using var stream = File.Create(combined);
             using var doc = SKDocument.CreatePdf(stream, new SKDocumentPdfMetadata

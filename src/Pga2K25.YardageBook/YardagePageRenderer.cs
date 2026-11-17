@@ -128,6 +128,7 @@ public sealed class YardagePageRenderer : IDisposable
         }
         // In-play hazards (inside this hole's fairway) mix rock and scrub: a strong olive.
         DrawMasses(canvas, proj, a.Outcrops.Where(a.InPlay.Contains), HazardFill.WithAlpha(220), HazardEdge, 0.9f);
+        DrawOutOfBounds(canvas, proj, a);
 
         foreach (var t in a.TeeSets.Select(t => t.Tee).Distinct()) DrawTeePad(canvas, proj, t, a.Forward);
         FillAll(canvas, proj, a.Greens, GreenFill, GreenEdge, a.Foreign);
@@ -185,6 +186,69 @@ public sealed class YardagePageRenderer : IDisposable
         using var b = new SKPathBuilder();
         foreach (var s in shapes.Where(s => s.Count >= 3)) p.AddPolyline(b, s, true);
         return b.Detach();
+    }
+
+    static readonly SKColor OutOfBoundsInk = SKColor.Parse("#3d3f40");
+
+    /// <summary>
+    /// Out of bounds: the ground beyond lightly hatched, its edge a dark line with white stakes every 12 yds, and an
+    /// "OB" tag on the biggest piece in view.
+    /// </summary>
+    void DrawOutOfBounds(SKCanvas canvas, MapProjection p, HoleAnalysis a)
+    {
+        if (a.OutOfBounds.Count == 0) return;
+        float stakeGap = (float)(12 * Yard * p.PointsPerMetre);
+        using var hatch = Stroke(OutOfBoundsInk.WithAlpha(70), 0.5f);
+        using var line = Stroke(OutOfBoundsInk, 1.1f);
+        using var stake = Fill(SKColors.White);
+        using var ring = Stroke(OutOfBoundsInk, 0.6f);
+        SKPath? biggest = null;
+        var paths = a.OutOfBounds.Where(o => o.Count >= 3).Select(o => p.Path(o, true)).ToList();
+        foreach (var path in paths)
+        {
+            canvas.Save();
+            canvas.ClipPath(path, antialias: true);
+            var b = path.Bounds;
+            for (float x = b.Left - b.Height; x < b.Right; x += 5) canvas.DrawLine(x, b.Top, x + b.Height, b.Bottom, hatch);
+            canvas.Restore();
+            canvas.DrawPath(path, line);
+            using var measure = new SKPathMeasure(path, true);
+            do
+            {
+                for (float d = stakeGap / 2; d < measure.Length; d += stakeGap)
+                    if (measure.GetPosition(d, out var at)) { canvas.DrawCircle(at, 1.7f, stake); canvas.DrawCircle(at, 1.7f, ring); }
+            } while (measure.NextContour());
+            if (biggest is null || path.Bounds.Width * path.Bounds.Height > biggest.Bounds.Width * biggest.Bounds.Height) biggest = path;
+        }
+        if (biggest is not null)
+        {
+            // The tag goes on a point inside the biggest piece and on the page: out-of-bounds areas wrap round play, so
+            // the middle of their box is often open ground. Of the grid points inside, the one most surrounded by others.
+            var view = biggest.Bounds;
+            view.Intersect(MapRect);
+            if (!view.IsEmpty)
+            {
+                const int n = 16;
+                var inside = new List<SKPoint>();
+                for (int i = 1; i < n; i++)
+                    for (int j = 1; j < n; j++)
+                    {
+                        var at = new SKPoint(view.Left + view.Width * i / n, view.Top + view.Height * j / n);
+                        if (biggest.Contains(at.X, at.Y)) inside.Add(at);
+                    }
+                if (inside.Count > 0)
+                {
+                    float dx = view.Width / n, dy = view.Height / n;
+                    var spot = inside.OrderByDescending(a => inside.Count(b => Math.Abs(b.X - a.X) <= dx * 1.5f && Math.Abs(b.Y - a.Y) <= dy * 1.5f)).First();
+                    using var font = new SKFont(_bold, 8);
+                    using var ink = Fill(OutOfBoundsInk);
+                    using var halo = Stroke(SKColors.White.WithAlpha(220), 2.4f);
+                    canvas.DrawText("OB", spot.X, spot.Y + 3, SKTextAlign.Center, font, halo);
+                    canvas.DrawText("OB", spot.X, spot.Y + 3, SKTextAlign.Center, font, ink);
+                }
+            }
+        }
+        foreach (var path in paths) path.Dispose();
     }
 
     /// <summary>

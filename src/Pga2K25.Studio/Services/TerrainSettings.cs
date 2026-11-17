@@ -54,6 +54,8 @@ public sealed class TerrainSettings
     public bool PlantGrass { get; set; } = true;
     public bool PlantFlowers { get; set; } = true;
     public bool PlantWalls { get; set; } = true;
+    /// <summary>Where the designer cleared the game's own trees and detail.</summary>
+    public bool PlantCleared { get; set; } = true;
     public bool TreesByType { get; set; } = true;
     /// <summary>Builds print the planting layers that are switched on: on the terrain map by default, not on hole sheets.</summary>
     public bool PrintPlantingOnMap { get; set; } = true;
@@ -62,7 +64,7 @@ public sealed class TerrainSettings
     [JsonIgnore]
     public PlantingLayers PlantingLayers =>
         (PlantTrees ? PlantingLayers.Trees : 0) | (PlantBushes ? PlantingLayers.Bushes : 0) | (PlantGrass ? PlantingLayers.Grass : 0)
-        | (PlantFlowers ? PlantingLayers.Flowers : 0) | (PlantWalls ? PlantingLayers.Walls : 0);
+        | (PlantFlowers ? PlantingLayers.Flowers : 0) | (PlantWalls ? PlantingLayers.Walls : 0) | (PlantCleared ? PlantingLayers.Cleared : 0);
 
     public TerrainMapOptions ToOptions(string credit, double? pixelsPerMetre = null) => new()
     {

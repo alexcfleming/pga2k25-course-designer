@@ -67,9 +67,10 @@ public class CourseCardTests
         Assert.Equal("Hand-written green", d.Holes[1].GreenNotes);
         Assert.Equal(["Hand-written hazard"], d.Holes[1].Hazards);
 
-        // Names for the wrong number of tee sets are reported and not used.
+        // Names for the wrong number of tee sets are reported and not used: the cards fall back to the tee colours the
+        // game saved with the course (since 3.8; "Tee 1 … Back" before, and still when the file has no colours).
         var wrong = Data(CassimboPath, out var wrongIssues, new CourseHoles { TeeNames = ["Red", "Blue"] });
-        Assert.Equal(new[] { "Tee 1", "Tee 2", "Tee 3", "Back" }, wrong.TeeNames);
+        Assert.Equal(new[] { "Red", "Green", "White", "Blue" }, wrong.TeeNames);
         Assert.Contains(wrongIssues, i => i.Severity == Severity.Warn && i.Message.StartsWith("The Holes card names 2 tee sets"));
     }
 
@@ -125,7 +126,8 @@ public class CourseCardTests
             Assert.Throws<InvalidDataException>(() => CourseCardBuilder.Build(CassimboPath, dir, config));
             Assert.Empty(Directory.GetFiles(dir, "*.png"));
             var forced = CourseCardBuilder.Build(CassimboPath, dir, config, force: true);
-            Assert.Equal(5, forced.Files.Count);   // compass rose, hole data, course data, green size and shot variety cards
+            Assert.Equal(6, forced.Files.Count);   // compass rose, hole data, course data, course details, green size and shot variety cards
+            Assert.Contains(forced.Files, f => f.EndsWith("Course Details Card.png"));
             // With PDFs, every card also goes into one "Course Cards" PDF, a page per card.
             var sagan = CourseCardBuilder.Build(SaganPath, dir, config with { Formats = ["pdf"] });
             Assert.Equal("WEST", sagan.OceanSide);
