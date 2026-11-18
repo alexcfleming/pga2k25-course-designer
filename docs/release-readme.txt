@@ -230,6 +230,23 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
+NEW IN 3.10.0
+- Streams and ponds built from a bunker wall filled with water planes
+  (instead of the retaining-wall tool) are drawn as water edged with a
+  stone wall on every product: every scorecard map style, the terrain
+  map, hole sheets, yardage book, hole illustrations and the 3D view.
+  Before, they showed as a long sand ribbon with a separate strip of
+  water wandering beside it.
+- They also play as water: a penalty in the hole design simulator and
+  the course difficulty, and a water crossing with carry numbers in the
+  yardage book and Publish readiness.
+- How it's recognised: a closed bunker outline with water on it, either
+  at least 3 water planes at one level, or a water-tool body of water
+  drawn round it (often lined with retaining-wall pieces). Long and thin
+  is a stream; rounder is a pond or lake.
+- The water covers whatever was drawn under the pond; surfaces drawn
+  after the bunker (a fairway run out to the edge) stay on top.
+
 FIXED IN 3.9.1
 - Course difficulty no longer stops when a hole can't be played yet
   (no green drawn, no tee marker, no route or no pins). That hole is

@@ -472,7 +472,7 @@ public sealed class TerrainMapRenderer : TerrainInk
                     canvas.DrawRect(sx + 2 * u, cy - 5 * u, sw - 4 * u, 10 * u, e);
                 }, "Water plane: lower ground inside floods");
         }
-        if (_o.ShowFeatures && (s.Layers.Grass.Count + s.Layers.Greens.Count + s.Layers.BunkerAreas.Count + s.Layers.WaterAreas.Count) > 0)
+        if (_o.ShowFeatures && (s.Layers.Grass.Count + s.Layers.Greens.Count + s.Layers.BunkerAreas.Count + s.Layers.WaterAreas.Count + s.Layers.WaterWalls.Count) > 0)
             Row(cy =>
             {
                 using var e = Stroke(SKColor.Parse("#4f7f3f"), 0.6f * u);

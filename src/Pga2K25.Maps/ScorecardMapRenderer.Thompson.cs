@@ -72,6 +72,8 @@ public sealed partial class ScorecardMapRenderer
             for (float wy = wb.Top; wy < wb.Bottom; wy += 3.2f) canvas.DrawLine(wb.Left, wy, wb.Right, wy, dash);
             canvas.Restore();
         }
+        // The wall in chalk on the blueprint: a chalk line with blue gaps between its stones.
+        WaterWall.Draw(canvas, l, p, _t.Background, TChalk, _t.Background, 1.1f);
 
         // Roads as double lines.
         if (_o.ShowPaths)

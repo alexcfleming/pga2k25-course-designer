@@ -141,6 +141,15 @@ public sealed class HoleIllustrationRenderer : IPlateRenderer
                 c.Ink(cv => { using var wob = InkLines.Wobble(water, 1.0f, rng); using var ink = InkLines.Stroke(_s.WaterInk, 1.6f); cv.DrawPath(wob, ink); });
             }
         }
+        // The wall round walled water: a dark ink line with pale stones.
+        if (a.WaterWalls.Count > 0)
+            c.Ink(cv =>
+            {
+                using var wb = new SKPathBuilder();
+                foreach (var w in a.WaterWalls.Where(w => w.Count >= 3)) PlateProjection.AddPixels(wb, proj.Pixels(w));
+                using var walls = wb.Detach();
+                Maps.WaterWall.Draw(cv, [walls], null, _s.WaterInk, SKColor.Parse("#f4ecd8"), 3.2f);
+            });
         var foreignTurf = c.Mask((cv, p) =>
         {
             foreach (var s in a.Fairways.Concat(a.Greens).Where(s => !Own(s) && s.Count >= 3)) { using var path = proj.Path(s); cv.DrawPath(path, p); }

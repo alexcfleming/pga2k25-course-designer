@@ -33,10 +33,14 @@ public class WaterPathTests
         // None of these has a water[] entry: before, the maps showed dry ground at every one.
         var course = Load();
         var o = new TerrainModelOptions { CellMetres = 1 };
+        // A pond round a bunker wall is drawn from the wall's outline (WalledWaterTests); traced with the wall's
+        // water put back, every body still fills to its level.
+        Assert.NotEmpty(WalledWaterRules.ClaimedPaths(course));
+        var all = new WaterOptions { IncludeWalled = true };
         foreach (var pond in course.WaterPaths.Where(p => p.IsBody))
         {
             var c = Centre(pond);
-            var water = WaterTracer.Trace(course, TerrainReplay.Build(course, c - new Vec2(80, 80), c + new Vec2(80, 80), o));
+            var water = WaterTracer.Trace(course, TerrainReplay.Build(course, c - new Vec2(80, 80), c + new Vec2(80, 80), o), all);
             int body = water.BodyAt(c);
             Assert.True(body >= 0, $"pond at {c} is dry");
             Assert.Equal(pond.Level!.Value, water.Bodies[body].Level, 3);

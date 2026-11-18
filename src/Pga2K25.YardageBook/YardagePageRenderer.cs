@@ -128,6 +128,8 @@ public sealed class YardagePageRenderer : IDisposable
         }
         // In-play hazards (inside this hole's fairway) mix rock and scrub: a strong olive.
         DrawMasses(canvas, proj, a.Outcrops.Where(a.InPlay.Contains), HazardFill.WithAlpha(220), HazardEdge, 0.9f);
+        // Walled water over everything drawn before it (surfaces drawn after the wall stay on top).
+        Maps.WaterWall.Draw(canvas, a.WaterWalls, a.WaterWallOver, w => proj.Path(w, true), WaterFill, SKColor.Parse("#3d3f40"), SKColors.White, 1.0f);
         DrawOutOfBounds(canvas, proj, a);
 
         foreach (var t in a.TeeSets.Select(t => t.Tee).Distinct()) DrawTeePad(canvas, proj, t, a.Forward);

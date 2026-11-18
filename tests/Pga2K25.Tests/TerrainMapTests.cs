@@ -181,15 +181,14 @@ public class WaterAndGreenSiteTests
 
     [Trait("Speed", "Slow")]
     [Fact]
-    public void PaintedWater_IsOneContinuousStroke()
+    public void PaintedWaterInABunkerWall_IsDrawnAsTheWall()
     {
         var s = Berwick.Value;
         Assert.Equal(55, s.Course.WaterBrushes.Count);                     // a 700 m stream at 8.5 m
         Assert.Equal(0, s.SeaLevelMetres);                                   // no ocean props: the game's sea plane
-        Assert.NotEmpty(s.PaintedWaterEdges);
-        int wet = s.PaintedWater.Count(w => w);
-        // About 700 m long and 10 m wide: the dabs are joined into one stroke, not a string of beads.
-        Assert.InRange(wet * s.Field.Cell * s.Field.Cell, 6000, 9000);
+        // The dabs fill a bunker wall, so the map draws the wall's outline as water (WalledWaterTests), not the stroke.
+        Assert.Empty(s.PaintedWaterEdges);
+        Assert.Single(s.Layers.WaterWalls);
     }
 
     [Trait("Speed", "Slow")]

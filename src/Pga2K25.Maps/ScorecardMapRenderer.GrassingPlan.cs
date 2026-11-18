@@ -91,6 +91,9 @@ public sealed partial class ScorecardMapRenderer
             FillTexture(canvas, fairways, speck);
         using (var edge = Stroke(GPFairwayEdge, 0.9f)) { edge.PathEffect = Wobble(0.35f, 13); canvas.DrawPath(fairways, edge); }
 
+        // Walled water over the fairways drawn before it (surfaces drawn after the wall stay on top).
+        WaterWall.Draw(canvas, l, p, GPWater, GPProperty, _t.Background, 1.1f);
+
         // Bunkers: ochre with a brown edge.
         using (var bunkers = BunkerPath(l, p))
         {

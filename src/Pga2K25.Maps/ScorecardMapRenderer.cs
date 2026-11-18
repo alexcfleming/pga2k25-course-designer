@@ -254,6 +254,8 @@ public sealed partial class ScorecardMapRenderer : IDisposable
 
         // Grass corridor: outline the union by stroking every shape, then filling every shape on top.
         FillUnion(canvas, l.Grass, p, _t.GrassFill, _t.GrassOutline, 1.1f);
+        // Walled water over the grass drawn before it (surfaces drawn after the wall stay on top).
+        WaterWall.Draw(canvas, l, p, _t.WaterFill, _t.Ink.WithAlpha(220), _t.Background, 1.1f);
 
         // Tee boxes: small pads at each tee marker, aligned with the hole.
         foreach (var h in l.Holes)

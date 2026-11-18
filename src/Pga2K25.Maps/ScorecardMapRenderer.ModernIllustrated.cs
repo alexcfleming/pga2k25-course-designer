@@ -22,7 +22,7 @@ public sealed partial class ScorecardMapRenderer
     {
         _scenery ??= Scenery.Build(course, proj, mapRect);
         _mowing = course.Mowing;
-        _hasInlandWater = layers.WaterAreas.Count + layers.WaterBodies.Count + layers.WaterRibbons.Count > 0;
+        _hasInlandWater = layers.WaterAreas.Count + layers.WaterWalls.Count + layers.WaterBodies.Count + layers.WaterRibbons.Count > 0;
         canvas.Save();
         canvas.ClipRect(mapRect);
         _scenery.DrawGround(canvas);
@@ -48,6 +48,19 @@ public sealed partial class ScorecardMapRenderer
     /// </summary>
     static float StripeStep(double tiling, float pointsPerMetre, float min, float max) =>
         tiling > 1e-6 ? Math.Clamp((float)(0.5 / tiling * pointsPerMetre), min, max) : min;
+
+    /// <summary>Short ripple strokes over water, within the current clip.</summary>
+    static void DrawRipples(SKCanvas canvas, SKRect box)
+    {
+        using var ripple = Stroke(Ripple, 0.5f);
+        var rnd = new Random(3);
+        for (float y = box.Top; y < box.Bottom; y += 3.2f)
+            for (float x = box.Left; x < box.Right; x += 7f)
+            {
+                float jx = x + (float)rnd.NextDouble() * 6, jy = y + (float)(rnd.NextDouble() - 0.5) * 2;
+                canvas.DrawLine(jx, jy, jx + 2.6f, jy, ripple);
+            }
+    }
 
     void DrawIllustratedCourse(SKCanvas canvas, CourseLayers l, MapProjection p, SKRect mapRect)
     {
@@ -97,18 +110,13 @@ public sealed partial class ScorecardMapRenderer
             {
                 canvas.Save();
                 canvas.ClipPath(water, antialias: true);
-                var box = SKRect.Intersect(water.Bounds, mapRect);
-                using var ripple = Stroke(Ripple, 0.5f);
-                var rnd = new Random(3);
-                for (float y = box.Top; y < box.Bottom; y += 3.2f)
-                    for (float x = box.Left; x < box.Right; x += 7f)
-                    {
-                        float jx = x + (float)rnd.NextDouble() * 6, jy = y + (float)(rnd.NextDouble() - 0.5) * 2;
-                        canvas.DrawLine(jx, jy, jx + 2.6f, jy, ripple);
-                    }
+                DrawRipples(canvas, SKRect.Intersect(water.Bounds, mapRect));
                 canvas.Restore();
             }
         }
+        // Walled water after the grass and fairways (surfaces drawn after the wall stay on top).
+        WaterWall.Draw(canvas, l, p, _t.WaterFill, _t.Ink.WithAlpha(200), _t.Background, 1.1f,
+            texture: (c, outline) => DrawRipples(c, SKRect.Intersect(outline.Bounds, mapRect)));
 
         foreach (var h in l.Holes)
             foreach (var tee in h.Hole.Tees)
