@@ -299,7 +299,7 @@ public static class ReadinessChecker
     static List<Hazard> Hazards(CourseLayers layers, TerrainSurvey survey)
     {
         var list = layers.MergedBunkers().Where(b => b.Count >= 3).Select(b => new Hazard("bunker", b)).ToList();
-        list.AddRange(layers.WaterAreas.Where(w => w.Count >= 3).Select(w => new Hazard("water", w)));
+        list.AddRange(layers.WaterAreas.Concat(layers.WaterWalls).Where(w => w.Count >= 3).Select(w => new Hazard("water", w)));
         list.AddRange(survey.PaintedWaterEdges.Where(w => w.Count >= 3).Select(w => new Hazard("water", w)));
         list.AddRange(layers.WaterRibbons.Where(r => r.Points.Count >= 2).Select(r => new Hazard("water", RibbonOutline(r.Points, r.Width / 2))));
         return list;

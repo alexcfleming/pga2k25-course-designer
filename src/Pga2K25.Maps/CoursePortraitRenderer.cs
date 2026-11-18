@@ -290,8 +290,14 @@ public sealed class CoursePortraitRenderer : IDisposable
                 c.DrawPath(path, p);
             }
         }, K(1.2f));
-        PaintOver(cv.Map(i => Math.Max(wa[i], Math.Max(wr[i], wb[i]))), "#b3cad3", 1);
-        wa = null; wr = null; wb = null;
+        // Walled water (a bunker outline holding water) covers the turf drawn before it; surfaces drawn after the wall stay on top.
+        var ww = Polys(_layers.WaterWalls, K(1.2f));
+        var over = Polys(_layers.WaterWallOver.SelectMany(o => o), K(1.2f));
+        PaintOver(cv.Map(i => Math.Max(Math.Max(wa[i], ww[i] * (1 - over[i])), Math.Max(wr[i], wb[i]))), "#b3cad3", 1);
+        wa = null; wr = null; wb = null; ww = null; over = null;
+        // The wall round walled water (a bunker outline holding water): a dark stone line on its edge.
+        if (_layers.WaterWalls.Count > 0)
+            PaintOver(Lines(_layers.WaterWalls.Select(w => ((IReadOnlyList<Vec2>)w.Append(w[0]).ToList(), K(3.5f))), K(0.6f)), "#4e4a3e", 0.85f);
 
         // 7. Bush and tree masses (soft shadow, dark body, sunlit rim) and rocks.
         var bushes = _course.PlacedObjects.Where(o => Landscape_IsTreeOrBush(o))

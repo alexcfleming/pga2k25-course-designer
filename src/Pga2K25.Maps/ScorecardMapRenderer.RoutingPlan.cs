@@ -84,6 +84,8 @@ public sealed partial class ScorecardMapRenderer
             Aerial.DrawContours(canvas, _contours[2], 70);
             using (var edge = Stroke(_t.GrassOutline!.Value, 1.25f)) canvas.DrawPath(grass, edge);
         }
+        // Walled water over the corridors drawn before it (surfaces drawn after the wall stay on top).
+        WaterWall.Draw(canvas, l, p, _t.WaterFill, _t.Ink.WithAlpha(200), _t.Background, 1.1f);
 
         foreach (var h in l.Holes)
             foreach (var tee in h.Hole.Tees) RoutingTeePad(canvas, p, tee, h.Direction);

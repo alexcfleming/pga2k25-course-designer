@@ -112,6 +112,10 @@ public static class GroundPicture
         Fill(canvas, layers.MergedBunkers(), Sand);
         Fill(canvas, layers.WaterAreas, Stream);
         Stroke(canvas, layers.WaterRibbons, Stream);
+        // Walled water over everything drawn before it, its wall about 0.8 m wide (this canvas is in metres); surfaces
+        // drawn after the wall stay on top.
+        Maps.WaterWall.Draw(canvas, layers.WaterWalls, layers.WaterWallOver, w => Polygons([w], SKPathFillType.Winding),
+            Stream, SKColor.Parse("#5a5548"), SKColor.Parse("#cfc7b2"), 0.8f);
     }
 
     static SKPath Polygons(IEnumerable<IReadOnlyList<Vec2>> loops, SKPathFillType fill)

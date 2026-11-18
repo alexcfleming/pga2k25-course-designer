@@ -27,7 +27,7 @@ public static class ScorecardMapBuilder
         log?.Report($"{course.Name}: {layers.Grass.Count} grass areas, {layers.Greens.Count} greens, " +
                     $"{layers.BunkerAreas.Count + layers.BunkerRibbons.Count} bunker shapes + {layers.BunkerBrushes.Count} bunker brushes, " +
                     $"{layers.WasteAreas.Count + layers.WasteRibbons.Count} waste shapes + {layers.WasteBrushes.Count} waste brushes, " +
-                    $"{layers.WaterAreas.Count + layers.WaterRibbons.Count} water shapes + {layers.WaterBodies.Count} ponds/creeks from water entries, " +
+                    $"{layers.WaterAreas.Count + layers.WaterWalls.Count + layers.WaterRibbons.Count} water shapes + {layers.WaterBodies.Count} ponds/creeks from water entries, " +
                     $"{layers.Paths.Count + layers.Roads.Count} paths/roads.");
 
         if (options.Holes is null) options = options with { Holes = CourseHolesFile.Load(outputDir) };

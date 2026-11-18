@@ -276,6 +276,8 @@ public abstract class TerrainInk : IDisposable
         foreach (var poly in L.WaterAreas) { using var path = p.Path(poly, true); canvas.DrawPath(path, water); canvas.DrawPath(path, waterEdge); }
         foreach (var r in L.WaterRibbons) DrawRibbon(canvas, p, r, SKColor.Parse("#9cc3dd"));
         foreach (var poly in L.Grass) { using var path = p.Path(poly, true); canvas.DrawPath(path, grassEdge); }
+        // Walled water over the grass edges drawn before it (surfaces drawn after the wall stay on top).
+        Maps.WaterWall.Draw(canvas, L, p, SKColor.Parse("#9cc3dd").WithAlpha(220), SKColor.Parse("#3d3f40"), SKColors.White, 0.9f * u);
         foreach (var poly in L.Greens) { using var path = p.Path(poly, true); canvas.DrawPath(path, green); canvas.DrawPath(path, greenEdge); }
         // Waste areas (rock and scrub) are left off: this sheet is for planning the golf.
         foreach (var poly in L.BunkerAreas) { using var path = p.Path(poly, true); canvas.DrawPath(path, sand); canvas.DrawPath(path, sandEdge); }

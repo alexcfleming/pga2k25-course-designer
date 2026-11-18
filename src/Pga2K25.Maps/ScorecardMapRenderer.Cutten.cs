@@ -150,6 +150,7 @@ public sealed partial class ScorecardMapRenderer
             creek.PathEffect = SKPathEffect.CreateDash([0.8f, 1.6f], 0);
             foreach (var r in l.WaterRibbons) { using var path = p.Path(r.Points, false); canvas.DrawPath(path, creek); }
         }
+        WaterWall.Draw(canvas, l, p, CMPaperLight, CMInk, CMPaperLight, 1.1f);
         if (_o.ShowPaths)
             using (var dashed = Stroke(CMBrown.WithAlpha(190), 0.55f))
             {

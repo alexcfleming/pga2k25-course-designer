@@ -41,9 +41,10 @@ public class WaterTests
     [Fact]
     public void SmallDabs_AreCutStrokes()
     {
-        var berwick = WaterTracer.Trace(Load("berwick-coast.course"), new TerrainModelOptions { CellMetres = 1 });
+        // Berwick Coast's stream dabs sit inside a bunker wall, so products draw the wall's outline (WalledWaterTests);
+        // traced on their own they are still cut strokes joined into one continuous 700 m × 10 m stroke.
+        var berwick = WaterTracer.Trace(Load("berwick-coast.course"), new TerrainModelOptions { CellMetres = 1 }, new WaterOptions { IncludeWalled = true });
         Assert.All(berwick.Strokes, s => Assert.Equal(WaterKind.CutStroke, s.Kind));
-        // The stream is one continuous 700 m × 10 m stroke, as before.
         Assert.Single(berwick.Bodies);
         Assert.InRange(berwick.Bodies[0].AreaM2, 6000, 9000);
     }

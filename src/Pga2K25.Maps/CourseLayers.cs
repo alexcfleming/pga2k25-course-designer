@@ -52,6 +52,22 @@ public sealed class CourseLayers
     /// <summary>Out of bounds as the designer painted it (<see cref="CourseModel.OutOfBounds"/>), as outlines.</summary>
     public List<List<Vec2>> OutOfBounds { get; init; } = [];
 
+    /// <summary>
+    /// Bunker outlines that hold water (<see cref="WalledWaterRules"/>), left out of the bunkers. Kept apart from
+    /// <see cref="WaterAreas"/> because they are drawn after the turf (<see cref="WaterWall"/>): water with a wall.
+    /// </summary>
+    public List<List<Vec2>> WaterWalls { get; init; } = [];
+
+    /// <summary>
+    /// For each of <see cref="WaterWalls"/> (same order), the playing surfaces drawn after its bunker that lie on it.
+    /// The game paints later outlines over earlier ones, so those stay on top of the water (a fairway run out over a
+    /// pond's edge); everything drawn before the wall is under the water (Alex, 18 Nov 2026).
+    /// </summary>
+    public List<List<List<Vec2>>> WaterWallOver { get; init; } = [];
+
+    /// <summary>Surfaces a later outline of keeps on top of walled water: fairway, rough, heavy rough, green, cart path, waste.</summary>
+    static readonly HashSet<int> OverWater = [Surfaces.Fairway, Surfaces.Rough, Surfaces.HeavyRough, Surfaces.Green, Surfaces.CartPath, Surfaces.Waste];
+
     readonly Dictionary<double, List<List<Vec2>>> _mergedBunkers = new();
 
     /// <summary>
@@ -84,9 +100,21 @@ public sealed class CourseLayers
             OutOfBounds = MapEditShapes.Outlines(course.OutOfBounds),
         };
 
+        // Bunker outlines holding water are water with a wall, not sand.
+        var walled = WalledWaterRules.Find(course).ToDictionary(w => w.SplineIndex);
+        foreach (var w in walled.Values)
+        {
+            layers.WaterWalls.Add(w.Outline);
+            layers.WaterWallOver.Add(course.SurfaceSplines
+                .Where(s => s.Closed && s.Index > w.SplineIndex && s.Points.Count >= 3 && OverWater.Contains(s.Surface))
+                .Select(s => Geometry.SampleSpline(s, 12))
+                .Where(o => o.Count >= 3 && (o.Any(q => Geometry.Contains(w.Outline, q)) || w.Outline.Any(q => Geometry.Contains(o, q))))
+                .ToList());
+        }
+
         foreach (var s in course.SurfaceSplines)
         {
-            if (s.Points.Count < 2) continue;
+            if (s.Points.Count < 2 || walled.ContainsKey(s.Index)) continue;
             var pts = Geometry.SampleSpline(s, 12);
             if (s.Closed && pts.Count >= 3)
             {
@@ -149,6 +177,9 @@ public sealed class CourseLayers
                 if (DistanceToPlay(p) <= reach) yield return p;
         foreach (var body in WaterBodies)
             foreach (var p in body[0]) yield return p;
+        // Walled water near play is kept whole, like the traced ponds: a stream shouldn't run off the page.
+        foreach (var wall in WaterWalls.Where(w => w.Any(p => DistanceToPlay(p) <= reach)))
+            foreach (var p in wall) yield return p;
     }
 
     /// <summary>
@@ -170,6 +201,8 @@ public sealed class CourseLayers
             WaterAreas = Keep(WaterAreas), WaterRibbons = KeepRibbons(WaterRibbons),
             WasteAreas = Keep(WasteAreas), WasteRibbons = KeepRibbons(WasteRibbons), WasteBrushes = KeepDiscs(WasteBrushes),
             Paths = Paths, Roads = Roads, Holes = Holes, OutOfBounds = OutOfBounds,
+            WaterWalls = WaterWalls.Where(Near).ToList(),
+            WaterWallOver = WaterWalls.Select((w, i) => (w, i)).Where(x => Near(x.w)).Select(x => WaterWallOver[x.i]).ToList(),
         };
         routed.Fairways.AddRange(Fairways.Where(f => grass.Contains(f)));
         routed.WaterBodies.AddRange(WaterBodies);

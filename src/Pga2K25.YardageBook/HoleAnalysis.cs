@@ -96,6 +96,12 @@ public sealed class HoleAnalysis
 
     /// <summary>Ponds and creeks from water planes and painted streams: each body's shores (outer first, then islands; fill even-odd).</summary>
     public required IReadOnlyList<IReadOnlyList<List<Vec2>>> WaterBodies { get; init; }
+
+    /// <summary>Walls round walled water (bunker outlines holding water planes); each is also in <see cref="Water"/>.</summary>
+    public IReadOnlyList<List<Vec2>> WaterWalls { get; init; } = [];
+
+    /// <summary>For each of <see cref="WaterWalls"/>, the playing surfaces drawn after it that stay on top of its water.</summary>
+    public IReadOnlyList<List<List<Vec2>>> WaterWallOver { get; init; } = [];
     public required IReadOnlyList<Ribbon> Paths { get; init; }
     public required IReadOnlyList<PlacedObject> Scrub { get; init; }
     public required IReadOnlyList<PlacedObject> Trees { get; init; }
@@ -171,7 +177,10 @@ public sealed class HoleAnalysis
         var fairways = fairwaySplines.Select(x => x.Outline).ToList();
         var rough = Closed(Surfaces.Rough, Surfaces.HeavyRough);
         var greens = Closed(Surfaces.Green);
-        var water = Closed(Surfaces.Water);
+        // Bunker outlines holding water are water (a carry, a penalty), drawn with their wall.
+        var wallsInView = layers.WaterWalls.Select((w, i) => (w, i)).Where(x => AnyInView(x.w)).ToList();
+        var walls = wallsInView.Select(x => x.w).ToList();
+        var water = Closed(Surfaces.Water).Concat(walls).ToList();
         var waterBodies = (inlandWater?.Bodies ?? []).Where(b => AnyInView(b.Outline)).ToList();
         var waterShapes = new HashSet<List<Vec2>>(water.Concat(waterBodies.Select(b => b.Outline)), ReferenceEqualityComparer.Instance);
         var greenOutline = greens.Where(g => Geometry.Contains(g, green)).OrderBy(Geometry.Area).FirstOrDefault();
@@ -399,7 +408,7 @@ public sealed class HoleAnalysis
             Window = window, TeeSets = teeSets, Fairways = fairways, Rough = rough, Greens = greens,
             GreenOutline = greenOutline, Bunkers = bunkers, Water = water, Paths = paths,
             OutOfBounds = layers.OutOfBounds.Where(AnyInView).ToList(),
-            WaterBodies = waterBodies.Select(b => b.Shores).ToList(),
+            WaterBodies = waterBodies.Select(b => b.Shores).ToList(), WaterWalls = walls, WaterWallOver = wallsInView.Select(x => layers.WaterWallOver[x.i]).ToList(),
             Scrub = scrub, Trees = trees, Rocks = rocks, Vegetation = vegetation, Outcrops = outcrops,
             InPlay = inPlay, Foreign = foreign, AimPoints = aims, BunkerLabels = labels, Diagnostics = diagnostics, Widths = widths, Spots = spots,
             GreenDepthYards = depth, GreenFrontYards = front, GreenBackYards = backYards,

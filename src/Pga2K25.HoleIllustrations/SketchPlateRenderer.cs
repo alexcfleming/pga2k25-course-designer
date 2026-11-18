@@ -159,6 +159,14 @@ public sealed class SketchPlateRenderer : IPlateRenderer
                 using var bank = Pencil(3.2f, 230, 4); c.DrawPath(water, bank);
             }
         }
+        // The wall round walled water: a heavy pencil line with paper showing between its stones.
+        if (a.WaterWalls.Count > 0)
+        {
+            using var wallBuilder = new SKPathBuilder();
+            foreach (var wall in a.WaterWalls.Where(x => x.Count >= 3)) PlateProjection.AddPixels(wallBuilder, proj.Pixels(wall));
+            using var walls = wallBuilder.Detach();
+            Maps.WaterWall.Draw(c, [walls], null, SKColor.Parse("#3a3833"), Paper, 4f);
+        }
 
         // Slopes: short strokes running downhill, heavier the steeper, fading out away from the hole.
         if (a.Field is { } field)

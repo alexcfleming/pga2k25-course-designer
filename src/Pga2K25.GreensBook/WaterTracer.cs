@@ -56,6 +56,12 @@ public sealed record WaterOptions
 
     /// <summary>Overrides the plane / cut-stroke rule for every stroke (null = decide per stroke).</summary>
     public WaterKind? ForceKind { get; init; }
+
+    /// <summary>
+    /// Also trace the entries inside a bunker wall (<see cref="WalledWaterRules"/>). Off for every product: that water
+    /// is the wall's outline. For studying the entries themselves.
+    /// </summary>
+    public bool IncludeWalled { get; init; }
 }
 
 /// <summary>Water from a course's <c>water[]</c> entries over one heightfield window.</summary>
@@ -105,8 +111,8 @@ public static class WaterTracer
     /// <summary>Replays the ground over every water entry and water-tool path (plus a margin) and traces it.</summary>
     public static WaterMap Trace(CourseModel course, TerrainModelOptions terrain, WaterOptions? options = null)
     {
-        var reach = Usable(course).Select(w => (w.Position, w.Reach))
-            .Concat(course.WaterPaths.SelectMany(p => Sample(p).Select(q => (q, p.Path.Width / 2)))).ToList();
+        var reach = Usable(course, options ?? new WaterOptions()).Select(w => (w.Position, w.Reach))
+            .Concat(UsablePaths(course, options ?? new WaterOptions()).SelectMany(p => Sample(p).Select(q => (q, p.Path.Width / 2)))).ToList();
         if (reach.Count == 0)
             return Trace(course, new Heightfield(new Vec2(0, 0), terrain.CellMetres, 1, 1), options);
         double pad = 10;
@@ -145,7 +151,7 @@ public static class WaterTracer
         var pathLevel = new double[n];
         Array.Fill(pathLevel, double.NaN);
         var stream = new bool[n];
-        foreach (var p in course.WaterPaths) PaintPath(ground, p, wet, depth, pathLevel, stream);
+        foreach (var p in UsablePaths(course, o)) PaintPath(ground, p, wet, depth, pathLevel, stream);
 
         var comp = Label(ground, wet, out var sizes);
         DropSlivers(ground, planes, level, wet, depth, comp, sizes, o);
@@ -216,8 +222,23 @@ public static class WaterTracer
             .OrderByDescending(l => Math.Abs(Geometry.Area(l))).ToList();
     }
 
-    static List<WaterPlane> Usable(CourseModel course) =>
-        course.Water.Where(p => p.HalfX > 0 && p.HalfZ > 0 && double.IsFinite(p.Level)).ToList();
+    /// <summary>
+    /// The entries to trace: those inside a bunker wall (<see cref="WalledWaterRules"/>) are left out, since that water
+    /// is the wall's outline (the maps' water areas). Traced on their own, Berwick Coast's 10 m dabs drew a 10 m stroke
+    /// wandering either side of its 5 m wall.
+    /// </summary>
+    /// <summary>Water-tool paths to trace: a body of water round a bunker wall is the wall's outline instead.</summary>
+    static IEnumerable<WaterPath> UsablePaths(CourseModel course, WaterOptions o)
+    {
+        var walled = o.IncludeWalled ? [] : WalledWaterRules.ClaimedPaths(course);
+        return course.WaterPaths.Where((_, i) => !walled.Contains(i));
+    }
+
+    static List<WaterPlane> Usable(CourseModel course, WaterOptions o)
+    {
+        var walled = o.IncludeWalled ? [] : WalledWaterRules.ClaimedPlanes(course);
+        return course.Water.Where(p => p.HalfX > 0 && p.HalfZ > 0 && double.IsFinite(p.Level) && !walled.Contains(p.Index)).ToList();
+    }
 
     /// <summary>
     /// Joins consecutive entries at the same level into strokes (dabs of one drag are stored separately,
@@ -225,7 +246,7 @@ public static class WaterTracer
     /// </summary>
     static List<WaterStroke> Strokes(CourseModel course, WaterOptions o)
     {
-        var water = Usable(course);
+        var water = Usable(course, o);
         var runs = new List<List<WaterPlane>>();
         foreach (var p in water)
         {
