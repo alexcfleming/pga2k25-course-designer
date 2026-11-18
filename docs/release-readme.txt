@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 3.9.1
+COURSE DESIGNER STUDIO - release 4.0.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -230,7 +230,7 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
-NEW IN 3.10.0
+NEW IN 4.0.0
 - Streams and ponds built from a bunker wall filled with water planes
   (instead of the retaining-wall tool) are drawn as water edged with a
   stone wall on every product: every scorecard map style, the terrain

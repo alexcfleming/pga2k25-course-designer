@@ -1,6 +1,6 @@
 # Walled water
 
-Some designers don't use the retaining-wall tool. They draw a long, thin bunker outline as the wall and fill it with water planes, so the bunker's cut digs the channel and the planes fill it. Alex's Berwick Coast stream is built this way. Since 3.10, Studio recognises the combination and draws and plays it as water held in by a wall, not as sand.
+Some designers don't use the retaining-wall tool. They draw a long, thin bunker outline as the wall and fill it with water planes, so the bunker's cut digs the channel and the planes fill it. Alex's Berwick Coast stream is built this way. Since 4.0, Studio recognises the combination and draws and plays it as water held in by a wall, not as sand.
 
 ## How it's recognised
 
@@ -19,4 +19,4 @@ Its level is the planes' level or the body's height. Compactness (4π × area ÷
 - **Yardage book:** the outline is water. It gets carry numbers like any water crossing and is drawn with its wall (`HoleAnalysis.WaterWalls`).
 - **Hole design simulator, Publish readiness, course difficulty:** the outline plays as water (a penalty), not sand, because they take their surfaces from the same layers.
 
-Before 3.10 the outline was a sand ribbon on every map, with a separate 10 m stroke of water running beside and over it, and every product played the stream as a bunker.
+Before 4.0 the outline was a sand ribbon on every map, with a separate 10 m stroke of water running beside and over it, and every product played the stream as a bunker.
