@@ -534,6 +534,53 @@ public class ScorecardMapTests
         }
     }
 
+    /// <summary>
+    /// The architect-plan styles fit the map round their title, card and legend boxes: no tee, line of play, green, grass,
+    /// bunker or water outline lies under a box, and the property parcel and every bunker near play stay on the sheet.
+    /// (Nodens Estate, 18 Nov 2026: boxes sat over holes 1, 2, 4, 5 and 7 and the parcel ran off the page.)
+    /// </summary>
+    [Theory]
+    [InlineData(MapThemeKind.TravisSketch, "murray-estate.course")]
+    [InlineData(MapThemeKind.MacKenzieSketch, "murray-estate.course")]
+    [InlineData(MapThemeKind.HanseDesign, "murray-estate.course")]
+    [InlineData(MapThemeKind.GrassingPlan, "murray-estate.course")]
+    [InlineData(MapThemeKind.CuttenMap, "murray-estate.course")]
+    [InlineData(MapThemeKind.Thompson, "murray-estate.course")]
+    [InlineData(MapThemeKind.MacKenzieSketch, "cassimbo.course")]
+    [InlineData(MapThemeKind.GrassingPlan, "cassimbo.course")]
+    [InlineData(MapThemeKind.Thompson, "cassimbo.course")]
+    public void ArchitectPlans_BoxesClearThePlay_AndTheCourseStaysOnTheSheet(MapThemeKind kind, string file)
+    {
+        var course = Samples.Course(file);
+        var layers = CourseLayers.From(course);
+        using var renderer = new ScorecardMapRenderer(new ScorecardMapOptions { Theme = kind, Credit = "Test Designer" });
+        var (page, _, map, proj, boxes) = renderer.Layout(course.Name ?? "Test", layers);
+
+        int expected = kind switch { MapThemeKind.TravisSketch => 0, MapThemeKind.HanseDesign => 1, MapThemeKind.Thompson => 2, MapThemeKind.CuttenMap => 5, _ => 3 };
+        Assert.Equal(expected, boxes.Count);
+        var play = ScorecardMapRenderer.PlayPoints(layers).Select(proj.Map).ToList();
+        for (int i = 0; i < boxes.Count; i++)
+        {
+            var box = boxes[i];
+            Assert.True(new SKRect(0, 0, page.Width, page.Height).Contains(box), $"box {i} on the page");
+            int under = play.Count(box.Contains);
+            Assert.True(under == 0, $"box {i} {box} covers {under} points of play");
+            for (int j = i + 1; j < boxes.Count; j++) Assert.False(box.IntersectsWith(boxes[j]), $"boxes {i} and {j} overlap");
+        }
+        var outside = renderer.FitExtent(layers).Select(proj.Map).Count(q => !SKRect.Inflate(map, 0.5f, 0.5f).Contains(q));
+        Assert.Equal(0, outside);
+    }
+
+    [Fact]
+    public void Travis_TheLegendTitleAndCardSitUnderTheMap()
+    {
+        using var renderer = new ScorecardMapRenderer(new ScorecardMapOptions { Theme = MapThemeKind.TravisSketch });
+        var layers = CourseLayers.From(Samples.Cassimbo);
+        var (page, _, map, _, _) = renderer.Layout("Cassimbo", layers);
+        Assert.True(map.Top < 40, $"the map starts at the top ({map.Top})");
+        Assert.True(page.Height - map.Bottom >= 170, $"room for the band under the map ({page.Height - map.Bottom})");
+    }
+
     [Fact]
     public void RgdStyles_PlanSheetIsRgdStyle1_AndTheGrassingPlanIsRgdStyle2()
     {

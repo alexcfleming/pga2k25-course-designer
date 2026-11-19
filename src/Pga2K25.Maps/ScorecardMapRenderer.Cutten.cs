@@ -22,6 +22,21 @@ public sealed partial class ScorecardMapRenderer
 
     static SKRect CuttenMapRect(SKSize page) => new(40, 40, page.Width - 40, page.Height - 40);
 
+    float CuttenTitleHeight => 46 + PlaceList().Count * 16 + (_logo is not null ? 96 : 10) + 50;
+    const float CuttenRoseSide = 2 * CompassRadius + 30;
+    static readonly (float X, float Y)[] CuttenCardSpots = [(0.5f, 1f), (0f, 1f), (1f, 1f), (0.25f, 1f), (0.75f, 1f)];
+    static readonly (float X, float Y)[] CuttenRoseSpots = [(1f, 0.55f), (1f, 0f), (0f, 0.55f), (1f, 1f), (0f, 1f)];
+
+    /// <summary>Title, card, rose; then the bar scale (bottom left) and the credit lines (bottom right), which don't move.</summary>
+    List<BoxAsk> CuttenBoxes(SKSize page, SKRect map) =>
+    [
+        new(300, CuttenTitleHeight, [(0, 0), (1, 0)]),
+        new(300, 150, CuttenCardSpots),
+        new(CuttenRoseSide, CuttenRoseSide, CuttenRoseSpots),
+        BoxAsk.At(new SKRect(map.Left + 16, page.Height - 62, map.Left + 290, page.Height - 38)),
+        BoxAsk.At(new SKRect(page.Width - 250, page.Height - 56, page.Width - 46, page.Height - 32)),
+    ];
+
     /// <summary>
     /// A torn edge for an outline (page units): walked every 1.8 units and pushed in and out along its normal by three
     /// waves of noise (up to about 6 units) and a few deeper bites into the land, like the edge of an old chart. Seeded,
@@ -75,7 +90,7 @@ public sealed partial class ScorecardMapRenderer
         _scenery ??= Scenery.Build(course, p, map);
         _aerial ??= Aerial.Build(course, l, p, map, maxContours: 30);
         var contours = _aerial.Zoned(1, _ => 0)[0];
-        var parcel = PortraitParcel.Build(l);
+        var parcel = ParcelOf(l);
         using var property = parcel.Count >= 3 ? TornOutline(parcel.Select(p.Map).ToList(), course.Name.GetHashCode() & 0x7fffffff) : null;
         using var grass = UnionPath(l.Grass, p);
         using var fairways = UnionPath(l.Fairways, p);
@@ -219,10 +234,8 @@ public sealed partial class ScorecardMapRenderer
         }
 
         // Title block in the quietest top corner: the name in large and small capitals, place, seal, credits.
-        var place = (string.IsNullOrWhiteSpace(_o.Location) ? _o.PlaceLines : _o.Location.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).ToList();
-        bool seal = _logo is not null;
-        float tbH = 46 + place.Count * 16 + (seal ? 96 : 10) + 50;
-        var tb = QuietCorner(l, p, map, 300, tbH, (0, 0), (1, 0));
+        var place = PlaceList();
+        var tb = Reserved(0, () => QuietCorner(l, p, map, 300, CuttenTitleHeight, (0, 0), (1, 0)));
         float x = tb.Left + 6, y = tb.Top + 34;
         float nameW = SmallCaps(canvas, courseName, x, y, 30, 0, measureOnly: true);
         float nameSize = nameW > 290 ? 30 * 290 / nameW : 30;
@@ -237,14 +250,14 @@ public sealed partial class ScorecardMapRenderer
         }
 
         // Card of the Course in the quietest bottom spot.
-        var cardBox = QuietCorner(l, p, map, 300, 150, (0.5f, 1f), (0f, 1f), (1f, 1f), (0.25f, 1f), (0.75f, 1f));
+        var cardBox = Reserved(1, () => QuietCorner(l, p, map, 300, 150, CuttenCardSpots));
         DrawCuttenCard(canvas, course, cardBox);
 
         // Compass rose in a free corner, bar scale bottom left, the style credit bottom right.
         var taken = new[] { SKRect.Inflate(tb, 6, 6), SKRect.Inflate(cardBox, 6, 6) };
-        float side = 2 * CompassRadius + 30;
-        var roseSpots = new[] { (1f, 0.55f), (1f, 0f), (0f, 0.55f), (1f, 1f), (0f, 1f) }.Where(f => taken.All(t => !SpotBox(map, f, side, side).IntersectsWith(t))).DefaultIfEmpty((1f, 0.5f)).ToArray();
-        var rb = QuietCorner(l, p, map, side, side, roseSpots);
+        float side = CuttenRoseSide;
+        var rb = Reserved(2, () => QuietCorner(l, p, map, side, side,
+            CuttenRoseSpots.Where(f => taken.All(t => !SpotBox(map, f, side, side).IntersectsWith(t))).DefaultIfEmpty((1f, 0.5f)).ToArray()));
         DrawCompassRose(canvas, p, new SKPoint(rb.MidX, rb.MidY), CompassRadius);
         DrawCuttenScale(canvas, p, new SKPoint(map.Left + 26, page.Height - 44));
         SmallCaps(canvas, CuttenStyleCredit, page.Width - 52, page.Height - 44, 7, 0.6f, SKTextAlign.Right);

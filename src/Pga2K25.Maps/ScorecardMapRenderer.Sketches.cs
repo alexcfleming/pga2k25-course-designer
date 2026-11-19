@@ -8,7 +8,7 @@ namespace Pga2K25.Maps;
 /// <list type="bullet">
 /// <item><b>Travis Sketch</b>, after Walter J. Travis's ink plans: wobbly outlines on white, rough as scattered ticks, trees
 /// as small rings, mounds with sand pits, hole numbers in circles at the tees, a hand-lettered title, ruled scorecard and
-/// legend across the top.</item>
+/// legend across the bottom, under the map.</item>
 /// <item><b>MacKenzie Sketch</b>, after Alister MacKenzie's pen plans: heavy-outlined greens with flags, woods as clumps of
 /// scalloped crowns, slope strokes, plain numerals on the shot lines, a boxed serif title, a hatched-frame scorecard and a
 /// signed credit.</item>
@@ -29,14 +29,33 @@ public sealed partial class ScorecardMapRenderer
     bool IsHanse => _t.Kind == MapThemeKind.HanseDesign;
     bool IsSketchStyle => IsTravis || IsMacKenzie || IsHanse;
 
-    const float TravisBand = 168;
+    /// <summary>Height of Travis's band (scale, legend, title, card, architect) under the map.</summary>
+    const float TravisBand = 172;
 
     SKRect SketchMapRect(SKSize page) =>
-        IsTravis ? new SKRect(30, TravisBand + 8, page.Width - 30, page.Height - 28)
+        IsTravis ? new SKRect(30, 28, page.Width - 30, page.Height - TravisBand - 16)
         : IsHanse ? new SKRect(HanseColumn + 18, 46, page.Width - 46, page.Height - 46)
         : new SKRect(30, 30, page.Width - 30, page.Height - 30);
 
     const float HanseColumn = 300;
+
+    const float MacKenzieSignW = 234;
+    static readonly (float X, float Y)[] HanseTitleSpots = [(1, 1), (0, 1), (1, 0)];
+
+    float MacKenzieTitleHeight(string courseName)
+    {
+        float nameSize = Math.Min(30, 30 * 250 / Math.Max(1, Measure(courseName.ToUpperInvariant(), 30, SerifBold)));
+        return 34 + nameSize + 30 + PlaceList().Count * 15 + 14;
+    }
+
+    /// <summary>
+    /// MacKenzie: title (top), card (bottom), and the scale and signature in the other bottom corner. Hanse: its title
+    /// in the map (the cards have their own column). Travis has none: its band sits under the map.
+    /// </summary>
+    List<BoxAsk> SketchBoxes(string courseName) =>
+        IsMacKenzie ? [new(290, MacKenzieTitleHeight(courseName), [(0, 0), (1, 0)]), new(230, 150, [(0, 1), (1, 1)]), new(MacKenzieSignW, 66, [(1, 1), (0, 1)])]
+        : IsHanse ? [new(330, 190, HanseTitleSpots)]
+        : [];
 
     // Faces bundled next to the app (fonts/sketches, all SIL Open Font License) when present, else installed lookalikes:
     // Architects Daughter for hand lettering, Caveat for signatures, Old Standard TT for the MacKenzie serif, Macondo for
@@ -65,7 +84,7 @@ public sealed partial class ScorecardMapRenderer
     {
         _scenery ??= Scenery.Build(course, proj, map);
         if (!IsHanse) _landscape ??= Landscape.Build(course, proj, map);
-        var parcel = PortraitParcel.Build(layers);
+        var parcel = ParcelOf(layers);
         using var parcelPath = parcel.Count >= 3 ? proj.Path(parcel, true) : null;
         if (IsTravis) DrawTravis(canvas, courseName, course, layers, proj, page, map, parcelPath);
         else if (IsMacKenzie) DrawMacKenzie(canvas, courseName, course, layers, proj, page, map, parcelPath);
@@ -326,7 +345,10 @@ public sealed partial class ScorecardMapRenderer
             Text(canvas, h.Hole.Number.ToString(), pin.X - 1.2f, pin.Y + 2.4f, 5.5f, Hand, ink, SKTextAlign.Right);
         }
 
-        // Across the top: north arrow and scale, the legend, then the title, the card and the architect.
+        // Across the bottom, under the map: north arrow and scale, the legend, then the title, the card and the architect.
+        // Laid out as a band 30-180 units down, moved down under the map.
+        canvas.Save();
+        canvas.Translate(0, map.Bottom + 6 - 30);
         var north = p.MapDirection(MapProjection.North);
         var arrowAt = new SKPoint(map.Left + 330, 92);
         using (var ap = Stroke(ink, 1.1f))
@@ -373,6 +395,7 @@ public sealed partial class ScorecardMapRenderer
             Text(canvas, "GOLF COURSE ARCHITECT", tx + tw / 2, by + 22, 7, Hand, ink, SKTextAlign.Center, tracking: 1.2f);
             using var u = Stroke(ink, 0.6f); canvas.DrawLine(tx + tw / 2 - 60, by + 25, tx + tw / 2 + 60, by + 25, u);
         }
+        canvas.Restore();
         Text(canvas, TravisStyleCredit, map.Left, page.Height - 12, 6, Hand, _t.MutedInk);
         Text(canvas, Attribution.Text, map.Right, page.Height - 12, 6, _body, _t.MutedInk, SKTextAlign.Right);
     }
@@ -512,9 +535,8 @@ public sealed partial class ScorecardMapRenderer
         // Title block, boxed, in the quietest top corner.
         string name = courseName.ToUpperInvariant();
         float nameSize = Math.Min(30, 30 * 250 / Math.Max(1, Measure(name, 30, SerifBold)));
-        var place = (string.IsNullOrWhiteSpace(_o.Location) ? _o.PlaceLines : _o.Location.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).ToList();
-        float titleH = 34 + nameSize + 30 + place.Count * 15 + 14;
-        var tb = QuietCorner(l, p, map, 290, titleH, (0, 0), (1, 0));
+        var place = PlaceList();
+        var tb = Reserved(0, () => QuietCorner(l, p, map, 290, MacKenzieTitleHeight(courseName), (0, 0), (1, 0)));
         using (var paper = Fill(_t.Background)) canvas.DrawRect(tb, paper);
         using (var rule = Stroke(ink, 0.7f)) { canvas.DrawLine(tb.Left, tb.Bottom, tb.Right, tb.Bottom, rule); canvas.DrawLine(tb.Right, tb.Top, tb.Right, tb.Bottom, rule); }
         float ty = tb.Top + 26;
@@ -524,7 +546,7 @@ public sealed partial class ScorecardMapRenderer
         foreach (var line in place) { ty += 16; Text(canvas, line.ToUpperInvariant() + ".", tb.MidX, ty, 10.5f, SerifBold, ink, SKTextAlign.Center, tracking: 1.4f); }
 
         // Scorecard in a hatched double frame, in the quietest bottom corner; the scale line and signature opposite.
-        var cb = QuietCorner(l, p, map, 230, 150, (0, 1), (1, 1));
+        var cb = Reserved(1, () => QuietCorner(l, p, map, 230, 150, (0, 1), (1, 1)));
         using (var paper = Fill(_t.Background)) canvas.DrawRect(cb, paper);
         using (var outer = Stroke(ink, 1.4f)) canvas.DrawRect(cb, outer);
         var inner = SKRect.Inflate(cb, -6, -6);
@@ -536,17 +558,19 @@ public sealed partial class ScorecardMapRenderer
         DrawNinesCard(canvas, course, SKRect.Inflate(inner, -6, -6), TeeColumns(course).Names.Count - 1, Serif, SerifBold, 7f, ink, grid: false, rowH: 10.2f);
 
         bool cardLeft = cb.MidX < map.MidX;
-        float sx = cardLeft ? map.Right - 10 : map.Left + 10;
-        var align = cardLeft ? SKTextAlign.Right : SKTextAlign.Left;
-        using (var paper = Fill(_t.Background.WithAlpha(230)))
-            canvas.DrawRect(cardLeft ? new SKRect(sx - 230, map.Bottom - 70, sx + 4, map.Bottom - 4) : new SKRect(sx - 4, map.Bottom - 70, sx + 230, map.Bottom - 4), paper);
-        Text(canvas, $"Scale – 1 inch to {FeetPerInch(p)} feet", sx, map.Bottom - 54, 11, SerifBold, ink, align);
+        var sb = Reserved(2, () => cardLeft ? new SKRect(map.Right - 10 - MacKenzieSignW, map.Bottom - 70, map.Right - 6, map.Bottom - 4)
+            : new SKRect(map.Left + 6, map.Bottom - 70, map.Left + 10 + MacKenzieSignW, map.Bottom - 4));
+        bool signRight = sb.MidX > map.MidX;
+        float sx = signRight ? sb.Right - 4 : sb.Left + 4, sTop = sb.Top;
+        var align = signRight ? SKTextAlign.Right : SKTextAlign.Left;
+        using (var paper = Fill(_t.Background.WithAlpha(230))) canvas.DrawRect(sb, paper);
+        Text(canvas, $"Scale – 1 inch to {FeetPerInch(p)} feet", sx, sTop + 16, 11, SerifBold, ink, align);
         if (!string.IsNullOrWhiteSpace(_o.Credit))
         {
-            Text(canvas, _o.Credit, sx, map.Bottom - 34, 13, Script, ink, align);
-            Text(canvas, "Golf Course Architect · " + DateTime.Now.ToString("MMMM yyyy"), sx, map.Bottom - 20, 9.5f, Script, ink, align);
+            Text(canvas, _o.Credit, sx, sTop + 36, 13, Script, ink, align);
+            Text(canvas, "Golf Course Architect · " + DateTime.Now.ToString("MMMM yyyy"), sx, sTop + 50, 9.5f, Script, ink, align);
         }
-        Text(canvas, MacKenzieStyleCredit, sx, map.Bottom - 8, 7f, SerifItalic, _t.MutedInk, align);
+        Text(canvas, MacKenzieStyleCredit, sx, sTop + 62, 7f, SerifItalic, _t.MutedInk, align);
         Text(canvas, Attribution.Text, page.Width / 2, page.Height - 12, 6, _body, _t.MutedInk, SKTextAlign.Center);
     }
 
@@ -749,7 +773,7 @@ public sealed partial class ScorecardMapRenderer
         var words = titleLine.Split(' ');
         int cut = Math.Max(1, words.Length / 2);
         var lines = words.Length > 1 ? new[] { "The " + string.Join(' ', words[..cut]), string.Join(' ', words[cut..]) } : ["The " + titleLine];
-        var tb = QuietCorner(l, p, map, 330, 190, (1, 1), (0, 1), (1, 0));
+        var tb = Reserved(0, () => QuietCorner(l, p, map, 330, 190, HanseTitleSpots));
         float size = Math.Min(40, lines.Min(t => 40 * 320 / Math.Max(1, Measure(t, 40, Ornament))));
         float ty = tb.Top + size;
         using var goldPaint = new SKPaint { IsAntialias = true, Color = HGold };

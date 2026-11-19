@@ -101,7 +101,7 @@ public sealed partial class ScorecardMapRenderer : IDisposable
     public (SKSize Page, bool Landscape, double Rotation) Plan(CourseLayers layers)
     {
         _teeSets = layers.Holes.Count == 0 ? 1 : layers.Holes.Max(h => Math.Max(1, h.Hole.Tees.Count));
-        var pts = layers.ExtentPoints().ToList();
+        var pts = FitPoints(layers);
         if (IsGrassing || IsCutten || IsThompson)
         {
             // Landscape or portrait, whichever draws the course larger.
@@ -160,12 +160,42 @@ public sealed partial class ScorecardMapRenderer : IDisposable
         IsThompson ? ThompsonMapRect(page) : IsCutten ? CuttenMapRect(page) : IsGrassing ? GrassingMapRect(page) : IsSketchStyle ? SketchMapRect(page) : IsPlanSheet ? PlanSheetMapRect(page) : IsRoutingPlan ? _routingRect : landscape ? StripMapRect(page)
         : new SKRect(40, 118, page.Width - 40, page.Height - 40 - PortraitBand(_teeSets));
 
-    public void Draw(SKCanvas canvas, string courseName, CourseModel course, CourseLayers layers)
+    /// <summary>
+    /// The sheet's layout before anything is drawn: page, map rect, projection, and the boxes (title, card, legend…) the
+    /// architect-plan styles lay over the map, fitted so no hole lies under them (empty for the other styles).
+    /// </summary>
+    public (SKSize Page, bool Landscape, SKRect Map, MapProjection Proj, IReadOnlyList<SKRect> Boxes) Layout(string courseName, CourseLayers layers)
     {
         var (page, landscape, rotation) = Plan(layers);
-        canvas.Clear(_t.Background);
         var mapRect = MapRectFor(page, landscape);
-        var proj = MapProjection.Fit(layers.ExtentPoints().ToList(), mapRect, rotation);
+        MapProjection proj;
+        _boxes = [];
+        if (FitsAroundBoxes)
+        {
+            var (extent, play, asks) = (FitPoints(layers), PlayPoints(layers), StyleBoxes(courseName, page, mapRect));
+            // Where the property is a filled cut-out (Cutten's torn chart, Hanse's painted plan), its edge keeps clear too.
+            if (IsCutten || IsHanse) play.AddRange(Densify(ParcelOf(layers), 4));
+            (proj, _boxes) = FitAroundBoxes(extent, play, mapRect, rotation, asks);
+            // Auto-rotated sheets may turn further when that draws the course clearly larger round the boxes.
+            // Only worth trying when the boxes cost the map real size at the planned turn.
+            if (_o.AutoRotate && asks.Count > 0 && proj.PointsPerMetre < MapProjection.Fit(extent, mapRect, rotation).PointsPerMetre * 0.9)
+                foreach (var turn in AutoTurns(rotation))
+                {
+                    var tried = FitAroundBoxes(extent, play, mapRect, turn, asks);
+                    if (tried.Proj.PointsPerMetre > proj.PointsPerMetre * 1.05) (proj, _boxes) = tried;
+                }
+        }
+        else proj = MapProjection.Fit(layers.ExtentPoints().ToList(), mapRect, rotation);
+        return (page, landscape, mapRect, proj, _boxes);
+    }
+
+    /// <summary>What the architect-plan styles fit inside the map rect: the play, the property parcel, bunkers and ponds whole.</summary>
+    public IReadOnlyList<Vec2> FitExtent(CourseLayers layers) => FitPoints(layers);
+
+    public void Draw(SKCanvas canvas, string courseName, CourseModel course, CourseLayers layers)
+    {
+        var (page, landscape, mapRect, proj, _) = Layout(courseName, layers);
+        canvas.Clear(_t.Background);
         if (IsModernIllustrated)
         {
             DrawModernIllustrated(canvas, courseName, course, layers, proj, page, mapRect);

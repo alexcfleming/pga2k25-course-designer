@@ -4,8 +4,8 @@ using SkiaSharp;
 namespace Pga2K25.Maps;
 
 /// <summary>
-/// The Course Portrait scorecard map style: the whole course as a watercolour aerial cut-out on white paper, north
-/// up, fitted to its property parcel (<see cref="PortraitParcel"/>), with a centred spaced-caps title, the designer
+/// The Course Portrait scorecard map style: the whole course as a watercolour aerial on white paper, its land fading out
+/// at a soft, ragged edge, north up, fitted to its soft property parcel (<see cref="PortraitParcel"/>), with a centred spaced-caps title, the designer
 /// credit and "IN THE STYLE OF BRUSH &amp; BIRDIE" underneath. No scorecard, numbers, legend or scale: it is a wall
 /// print. 12 × 16 in (or 16 × 12 when the parcel is wider than tall). The art is a raster (PNG, and embedded in the
 /// PDF as a JPEG); the type is vector in both. Seeded from the course name, so a course renders the same twice.
@@ -34,7 +34,7 @@ public sealed class CoursePortraitRenderer : IDisposable
     public CoursePortraitRenderer(CourseModel course, CourseLayers layers, ScorecardMapOptions options)
     {
         _course = course; _layers = layers; _o = options;
-        Parcel = PortraitParcel.Build(layers);
+        Parcel = PortraitParcel.Build(layers, soft: true);
         var (minX, minY, maxX, maxY) = Bounds(Parcel.Select(North));
         Landscape = maxX - minX >= maxY - minY;
         Page = Landscape ? new SKSize(LongSide, ShortSide) : new SKSize(ShortSide, LongSide);
@@ -205,7 +205,14 @@ public sealed class CoursePortraitRenderer : IDisposable
         Tint(cv.Map(i => bleed[i] * (0.55f + 0.45f * Math.Clamp((mid[i] - 0.38f) * 3, 0, 1))), "#d3dfc6", 0.75f);
         Tint(cv.Map(i => bleed[i] * Math.Clamp((fine[i] - 0.55f) * 3, 0, 1)), "#b9c9b2", 0.35f);
         Tint(cv.Map(i => bleed[i] * bleed[i] * bleed[i] * Math.Clamp((mid[i] - 0.5f) * 4, 0, 1)), "#c4c8c2", 0.45f);
-        distOut = null;
+
+        // The land's edge: soft and a little ragged, like a wash that dried where it stopped. Signed distance to the
+        // parcel's edge, nudged in and out by the big washes and the fine mottle, feathered over about 16 px.
+        var dIn = cv.Distance(pm, v => v < 0.5f);
+        var edge = cv.Map(i => (pm[i] >= 0.5f ? dIn[i] : -distOut[i]) + (big[i] - 0.5f) * K(30) + (fine[i] - 0.5f) * K(9));
+        float feather = K(16);
+        var inside = cv.Map(i => { float t = Math.Clamp(0.5f + edge[i] / feather, 0, 1); return t * t * (3 - 2 * t); });
+        distOut = null; dIn = null;
 
         // 2. Sea: seaward of the foam line, a pale wash fading with distance from the foam.
         if (Land is { Count: >= 3 } land)
@@ -228,7 +235,6 @@ public sealed class CoursePortraitRenderer : IDisposable
         }
 
         // 3. The parcel's rough ground, mottled like a satellite view.
-        var inside = cv.Blur(pm, K(0.8f));
         var rough = Rgb("#55722f");
         cv.Cover(inside, i => { float s = (0.84f + 0.26f * mid[i]) * (0.90f + 0.20f * fine[i]); return (rough.R * s, rough.G * s, rough.B * s); });
         // Waste scrub: surface-15 brushes and areas, blurred and broken up by the mottle.
@@ -334,13 +340,10 @@ public sealed class CoursePortraitRenderer : IDisposable
         PaintOver(gm, "#b3d466", 1);
         gm = null; gGrown = null; collar = null;
 
-        // 10. Parcel edge: a crisp dark property line, a slight inner shade, and satellite grain inside.
-        var dIn = cv.Distance(pm, v => v < 0.5f);
-        var e3 = cv.Blur(cv.Map(i => dIn[i] > K(3) ? 1f : 0f), K(1.2f));
-        var pmBlur = cv.Blur(pm, K(1.2f));
-        PaintOver(cv.Map(i => Math.Clamp(pmBlur[i] - e3[i], 0, 1)), "#22301a", 0.85f);
-        var e14 = cv.Blur(cv.Map(i => dIn[i] > K(14) ? 1f : 0f), K(8));
-        Tint(cv.Map(i => Math.Clamp(pm[i] - e14[i], 0, 1)), "#33441f", 0.25f);
+        // 10. Edge: where the wash stopped, the pigment pools a little darker just inside, fading in over 30 px; then
+        // satellite grain inside.
+        Tint(cv.Map(i => inside[i] * MathF.Exp(-Math.Max(0, edge[i]) / K(12)) * (0.7f + 0.3f * mid[i])), "#2f4220", 0.45f);
+        Tint(cv.Map(i => inside[i] * Math.Clamp(1 - Math.Max(0, edge[i]) / K(40), 0, 1)), "#33441f", 0.2f);
         cv.Multiply(i => (1 + 0.035f * (grain[i] - 0.5f) * inside[i]) * (1 - 0.012f * (fine[i] - 0.5f)));
         return cv.ToImage();
     }
