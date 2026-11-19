@@ -21,11 +21,28 @@ public sealed partial class ScorecardMapRenderer
 
     static SKRect ThompsonMapRect(SKSize page) => new(30, 30, page.Width - 30, page.Height - 30);
 
+    const float ThompsonCardW = 224, ThompsonCardH = 146;
+    static readonly (float X, float Y)[] ThompsonCardSpots = [(1f, 0.6f), (1f, 1f), (0f, 1f), (0f, 0f), (1f, 0f), (0.5f, 1f)];
+
+    float ThompsonNameSize(string courseName) => Math.Min(24, 24 * 300 / Math.Max(1, Measure(courseName.ToUpperInvariant(), 24, Hand)));
+    float ThompsonTitleHeight(string courseName) => 30 + ThompsonNameSize(courseName) + 8 + PlaceList().Count * 20 + 24 + 70;
+
+    /// <summary>Title, then card; the card goes where the title isn't.</summary>
+    List<BoxAsk> ThompsonBoxes(string courseName) =>
+        [new(320, ThompsonTitleHeight(courseName), [(1, 0), (0, 0)]), new(ThompsonCardW, ThompsonCardH, ThompsonCardSpots)];
+
+    /// <summary>A patch of plain blueprint under chalk lettering, so no tree stipple or line runs through it.</summary>
+    static void ThompsonBacking(SKCanvas canvas, SKRect box)
+    {
+        using var blue = new SKPaint { IsAntialias = true, Color = TBlue.WithAlpha(235), MaskFilter = SKMaskFilter.CreateBlur(SKBlurStyle.Normal, 3) };
+        canvas.DrawRoundRect(SKRect.Inflate(box, 4, 4), 4, 4, blue);
+    }
+
     void DrawThompson(SKCanvas canvas, string courseName, CourseModel course, CourseLayers l, MapProjection p, SKSize page, SKRect map)
     {
         float k = p.PointsPerMetre;
         _scenery ??= Scenery.Build(course, p, map);
-        var parcel = PortraitParcel.Build(l);
+        var parcel = ParcelOf(l);
         using var property = parcel.Count >= 3 ? p.Path(parcel, true) : null;
         using var grass = UnionPath(l.Grass, p);
         using var water = WaterPath(l, p);
@@ -140,11 +157,11 @@ public sealed partial class ScorecardMapRenderer
         canvas.Restore();
 
         // Title in the quietest top corner: PROPOSED / NAME / place / scale, hand-lettered in chalk.
-        var place = (string.IsNullOrWhiteSpace(_o.Location) ? _o.PlaceLines : _o.Location.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).ToList();
+        var place = PlaceList();
         string name = courseName.ToUpperInvariant();
-        float nameSize = Math.Min(24, 24 * 300 / Math.Max(1, Measure(name, 24, Hand)));
-        float tbH = 30 + nameSize + 8 + place.Count * 20 + 24 + 70;
-        var tb = QuietCorner(l, p, map, 320, tbH, (1, 0), (0, 0));
+        float nameSize = ThompsonNameSize(courseName);
+        var tb = Reserved(0, () => QuietCorner(l, p, map, 320, ThompsonTitleHeight(courseName), (1, 0), (0, 0)));
+        ThompsonBacking(canvas, tb);
         float cx = tb.MidX, y = tb.Top + 24;
         Text(canvas, "PROPOSED", cx, y, 18, Hand, TChalk, SKTextAlign.Center, tracking: 2); y += nameSize + 6;
         Text(canvas, name, cx, y, nameSize, Hand, TChalk, SKTextAlign.Center, tracking: 1.2f);
@@ -164,9 +181,13 @@ public sealed partial class ScorecardMapRenderer
 
         // A small card in chalk, and the style credit bottom right like the original's "Plan drawn by" note.
         var taken = SKRect.Inflate(tb, 6, 6);
-        var spots = new[] { (1f, 0.6f), (1f, 1f), (0f, 1f), (0f, 0f), (1f, 0f), (0.5f, 1f) }.Where(f => !SpotBox(map, f, 200, 128).IntersectsWith(taken)).ToArray();
-        var cb = QuietCorner(l, p, map, 200, 128, spots.Length > 0 ? spots : [(0.5f, 1f)]);
-        DrawNinesCard(canvas, course, SKRect.Inflate(cb, -4, -2), TeeColumns(course).Names.Count - 1, Hand, Hand, 6.6f, TChalk, grid: true, rowH: 9.2f);
+        var cb = Reserved(1, () =>
+        {
+            var spots = ThompsonCardSpots.Where(f => !SpotBox(map, f, ThompsonCardW, ThompsonCardH).IntersectsWith(taken)).ToArray();
+            return QuietCorner(l, p, map, ThompsonCardW, ThompsonCardH, spots.Length > 0 ? spots : [(0.5f, 1f)]);
+        });
+        ThompsonBacking(canvas, cb);
+        DrawNinesCard(canvas, course, SKRect.Inflate(cb, -6, -4), TeeColumns(course).Names.Count - 1, Hand, Hand, 7.4f, TChalk, grid: true, rowH: 10.2f);
         Text(canvas, ThompsonStyleCredit, page.Width - 36, page.Height - 20, 6.5f, Hand, TChalk.WithAlpha(220), SKTextAlign.Right, tracking: 0.6f);
         Text(canvas, Attribution.Text, page.Width - 36, page.Height - 11, 5.5f, _body, TChalk.WithAlpha(190), SKTextAlign.Right);
     }

@@ -4,26 +4,35 @@ using SkiaSharp;
 namespace Pga2K25.Maps;
 
 /// <summary>
-/// The Course Portrait's "property parcel": the crisp cut-out the course sits in. Every hole route (back tee through
-/// its waypoints) widened by <see cref="RouteReach"/> m and every fairway and green widened by <see cref="SurfaceReach"/>
-/// m, closed so the gaps between holes fill (grow <see cref="CloseGrow"/>, shrink <see cref="CloseShrink"/>), kept as the
-/// largest piece without holes, then simplified (Douglas–Peucker, <see cref="FacetTolerance"/> m) into long straight
-/// property-line facets. Built on a raster in world metres with exact distance transforms, so the closing has round
-/// joins; the simplify straightens them.
+/// The "property parcel" the course sits in (the Course Portrait's cut-out, and the property line on the architect
+/// plans). Every hole route (back tee through its waypoints) widened by <see cref="RouteReach"/> m and every fairway,
+/// green, tee and bunker near play widened by <see cref="SurfaceReach"/> m, closed so the gaps between holes fill (grow
+/// <see cref="CloseGrow"/>, shrink <see cref="CloseShrink"/>), kept as the largest piece without holes, then simplified
+/// (Douglas–Peucker, <see cref="FacetTolerance"/> m) into long straight property-line facets. Built on a raster in world
+/// metres with exact distance transforms, so the closing has round joins; the simplify straightens them.
+/// <para>The soft parcel (the Course Portrait) reaches <see cref="SoftExtra"/> m further and keeps its round joins
+/// (simplified to <see cref="SoftTolerance"/> m only), so it reads as land rather than a surveyed lot.</para>
 /// </summary>
 public static class PortraitParcel
 {
     public const double RouteReach = 42, SurfaceReach = 18, CloseGrow = 170, CloseShrink = 150, FacetTolerance = 16;
+    public const double SoftExtra = 22, SoftTolerance = 2.5;
+    /// <summary>Bunkers this close to a line of play count as the course's (practice bunkers far off it don't).</summary>
+    public const double BunkerReach = 60;
     const double Cell = 2;
 
     /// <summary>The parcel outline in world X/Z, or empty for a course with no holes.</summary>
-    public static List<Vec2> Build(CourseLayers layers)
+    public static List<Vec2> Build(CourseLayers layers, bool soft = false)
     {
         var routes = layers.Holes.Select(h => h.Route).Where(r => r.Count > 0).ToList();
-        var surfaces = layers.Fairways.Concat(layers.Greens).Where(p => p.Count >= 3).ToList();
-        var pts = routes.SelectMany(r => r).Concat(surfaces.SelectMany(p => p)).ToList();
+        bool Near(IReadOnlyList<Vec2> s) => s.Any(p => layers.DistanceToPlay(p) <= BunkerReach);
+        var bunkers = layers.BunkerAreas.Where(p => p.Count >= 3 && Near(p)).ToList();
+        var brushes = layers.BunkerBrushes.Where(d => layers.DistanceToPlay(d.Centre) <= BunkerReach + d.Radius).ToList();
+        var tees = layers.Holes.SelectMany(h => h.Hole.Tees).ToList();
+        var surfaces = layers.Fairways.Concat(layers.Greens).Concat(bunkers).Where(p => p.Count >= 3).ToList();
+        var pts = routes.SelectMany(r => r).Concat(surfaces.SelectMany(p => p)).Concat(tees).Concat(brushes.Select(d => d.Centre)).ToList();
         if (pts.Count == 0) return [];
-        double pad = RouteReach + SurfaceReach + CloseGrow + 4 * Cell;
+        double pad = RouteReach + SurfaceReach + CloseGrow + SoftExtra + 10 + 4 * Cell;
         double minX = pts.Min(p => p.X) - pad, minZ = pts.Min(p => p.Z) - pad;
         int w = (int)Math.Ceiling((pts.Max(p => p.X) + pad - minX) / Cell), h = (int)Math.Ceiling((pts.Max(p => p.Z) + pad - minZ) / Cell);
         SKPoint G(Vec2 v) => new((float)((v.X - minX) / Cell), (float)((v.Z - minZ) / Cell));
@@ -57,11 +66,14 @@ public static class PortraitParcel
         {
             using var fill = new SKPaint { Color = SKColors.White, IsAntialias = true };
             foreach (var poly in surfaces) using (var path = Path(poly, G)) c.DrawPath(path, fill);
+            foreach (var d in brushes) c.DrawCircle(G(d.Centre), (float)Math.Max(0.5, d.Radius / Cell), fill);
+            foreach (var t in tees) c.DrawCircle(G(t), (float)(5 / Cell), fill);
         });
 
         // core = routes ∪ surfaces grown by 18 m; then grow 170 and shrink 150 (Euclidean, exact).
         var core = Grow(surfaceMask, w, h, SurfaceReach / Cell);
         for (int i = 0; i < core.Length; i++) core[i] |= routeMask[i];
+        if (soft) core = Grow(core, w, h, SoftExtra / Cell);
         var grown = Grow(core, w, h, CloseGrow / Cell);
         var shrunk = Grow(grown.Select(b => !b).ToArray(), w, h, CloseShrink / Cell);
         var field = new float[w * h];
@@ -73,7 +85,7 @@ public static class PortraitParcel
             .Where(l => l.Count >= 3).ToList();
         if (loops.Count == 0) return [];
         var outer = loops.MaxBy(l => Math.Abs(Geometry.Area(l)))!;
-        return SimplifyClosed(outer, FacetTolerance);
+        return SimplifyClosed(outer, soft ? SoftTolerance : FacetTolerance);
     }
 
     /// <summary>Cells within <paramref name="cells"/> of a set cell.</summary>

@@ -36,6 +36,35 @@ public class CoursePortraitTests
             }
     }
 
+    /// <summary>
+    /// Bunkers near play are inside the parcel (Nodens Estate's Course Portrait cut them off, 18 Nov 2026), and the
+    /// Portrait's soft parcel reaches further with round corners instead of straight property-line facets.
+    /// </summary>
+    [Fact]
+    public void Parcel_HoldsEveryBunkerNearPlay_AndTheSoftParcelIsRounderAndBigger()
+    {
+        var layers = CourseLayers.From(Samples.Course("murray-estate.course"));
+        var hard = PortraitParcel.Build(layers);
+        var soft = PortraitParcel.Build(layers, soft: true);
+        var bunkers = layers.BunkerAreas.Where(b => b.Any(p => layers.DistanceToPlay(p) <= PortraitParcel.BunkerReach)).ToList();
+        Assert.NotEmpty(bunkers);
+        foreach (var parcel in new[] { hard, soft })
+            foreach (var b in bunkers) Assert.All(b, p => Assert.True(Geometry.Contains(parcel, p), $"bunker point {p} outside the parcel"));
+        foreach (var d in layers.BunkerBrushes.Where(d => layers.DistanceToPlay(d.Centre) <= PortraitParcel.BunkerReach))
+            Assert.True(Geometry.Contains(hard, d.Centre), $"bunker brush at {d.Centre} outside the parcel");
+        Assert.True(Math.Abs(Geometry.Area(soft)) > Math.Abs(Geometry.Area(hard)) * 1.05, "the soft parcel reaches further");
+        Assert.True(soft.Count > hard.Count * 2, $"round corners kept ({soft.Count} points against {hard.Count})");
+        Assert.All(hard, p => Assert.True(Geometry.Contains(soft, p) || DistanceTo(soft, p) < 3, $"hard corner {p} outside the soft parcel"));
+    }
+
+    static double DistanceTo(IReadOnlyList<Vec2> ring, Vec2 p) => ring.Select((a, i) =>
+    {
+        var b = ring[(i + 1) % ring.Count];
+        double dx = b.X - a.X, dz = b.Z - a.Z, len2 = dx * dx + dz * dz;
+        double t = len2 == 0 ? 0 : Math.Clamp(((p.X - a.X) * dx + (p.Z - a.Z) * dz) / len2, 0, 1);
+        return Vec2.Distance(p, new Vec2(a.X + t * dx, a.Z + t * dz));
+    }).Min();
+
     static bool Cross(Vec2 a, Vec2 b, Vec2 c, Vec2 d)
     {
         static double O(Vec2 p, Vec2 q, Vec2 r) => (q.X - p.X) * (r.Z - p.Z) - (q.Z - p.Z) * (r.X - p.X);

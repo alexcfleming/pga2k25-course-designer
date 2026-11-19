@@ -27,6 +27,15 @@ public sealed partial class ScorecardMapRenderer
 
     static SKRect GrassingMapRect(SKSize page) => new(26, 26, page.Width - 26, page.Height - 26);
 
+    static readonly (float X, float Y)[] GrassingCorners = [(0f, 0f), (1f, 0f), (0f, 1f), (1f, 1f)];
+    static readonly (float X, float Y)[] GrassingCardSpots = [(0f, 1f), (1f, 1f), (0f, 0f), (1f, 0f), (0.5f, 1f), (0.5f, 0f)];
+    float GrassingNameSize(string courseName) => Math.Min(28, 28 * 240 / Math.Max(1, Measure(courseName, 28, Serif)));
+    float GrassingTitleHeight(string courseName) => 30 + 22 + 16 + GrassingNameSize(courseName) + 10 + PlaceList().Count * 16 + 18 + 26 + 30;
+
+    /// <summary>Title, legend, card (each on a paper patch 4 units bigger all round, inside the boxes' gap).</summary>
+    List<BoxAsk> GrassingBoxes(string courseName) =>
+        [new(260, GrassingTitleHeight(courseName), GrassingCorners), new(230, 150, GrassingCorners), new(210, 132, GrassingCardSpots)];
+
     void DrawGrassingPlan(SKCanvas canvas, string courseName, CourseModel course, CourseLayers l, MapProjection p, SKSize page, SKRect map)
     {
         float k = p.PointsPerMetre;
@@ -36,7 +45,7 @@ public sealed partial class ScorecardMapRenderer
         using var grass = UnionPath(l.Grass, p);
         using var fairways = UnionPath(l.Fairways, p);
         using var water = WaterPath(l, p);
-        var parcel = PortraitParcel.Build(l);
+        var parcel = ParcelOf(l);
         using var property = parcel.Count >= 3 ? p.Path(parcel, true) : null;
 
         canvas.Save();
@@ -165,10 +174,9 @@ public sealed partial class ScorecardMapRenderer
         }
 
         // Title block in the quietest top corner.
-        var place = (string.IsNullOrWhiteSpace(_o.Location) ? _o.PlaceLines : _o.Location.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).ToList();
-        float nameSize = Math.Min(28, 28 * 240 / Math.Max(1, Measure(courseName, 28, Serif)));
-        float tbH = 30 + 22 + 16 + nameSize + 10 + place.Count * 16 + 18 + 26 + 30;
-        var tb = QuietCorner(l, p, map, 260, tbH, (0, 0), (1, 0), (0, 1), (1, 1));
+        var place = PlaceList();
+        float nameSize = GrassingNameSize(courseName);
+        var tb = Reserved(0, () => QuietCorner(l, p, map, 260, GrassingTitleHeight(courseName), GrassingCorners));
         using (var paper = Fill(_t.Background.WithAlpha(235))) canvas.DrawRect(SKRect.Inflate(tb, 4, 4), paper);
         float x = tb.Left + 12, y = tb.Top + 22;
         Text(canvas, "A", x, y, 15, SerifItalic, GPPlum); y += 22;
@@ -189,8 +197,8 @@ public sealed partial class ScorecardMapRenderer
         Text(canvas, GrassingStyleCredit, x + 2, y, 7.5f, SerifItalic, _t.MutedInk);
 
         // Grassing legend and note in another quiet corner.
-        var lb = QuietCorner(l, p, map, 230, 150, new[] { (0f, 0f), (1f, 0f), (0f, 1f), (1f, 1f) }
-            .Where(f => !SpotBox(map, f, 230, 150).IntersectsWith(SKRect.Inflate(tb, 6, 6))).DefaultIfEmpty((1f, 1f)).ToArray());
+        var lb = Reserved(1, () => QuietCorner(l, p, map, 230, 150, GrassingCorners
+            .Where(f => !SpotBox(map, f, 230, 150).IntersectsWith(SKRect.Inflate(tb, 6, 6))).DefaultIfEmpty((1f, 1f)).ToArray()));
         using (var paper = Fill(_t.Background.WithAlpha(235))) canvas.DrawRect(SKRect.Inflate(lb, 4, 4), paper);
         float lx = lb.Left + 14, ly = lb.Top + 20;
         Text(canvas, "Grassing Legend :", lx, ly, 13, SerifItalic, GPPlum);
@@ -226,9 +234,8 @@ public sealed partial class ScorecardMapRenderer
 
         // A small ruled card in a remaining quiet corner.
         var taken = new[] { SKRect.Inflate(tb, 6, 6), SKRect.Inflate(lb, 6, 6) };
-        var cardSpots = new[] { (0f, 1f), (1f, 1f), (0f, 0f), (1f, 0f), (0.5f, 1f), (0.5f, 0f) }
-            .Where(f => taken.All(t => !SpotBox(map, f, 210, 132).IntersectsWith(t))).DefaultIfEmpty((0.5f, 1f)).ToArray();
-        var cb = QuietCorner(l, p, map, 210, 132, cardSpots);
+        var cb = Reserved(2, () => QuietCorner(l, p, map, 210, 132, GrassingCardSpots
+            .Where(f => taken.All(t => !SpotBox(map, f, 210, 132).IntersectsWith(t))).DefaultIfEmpty((0.5f, 1f)).ToArray()));
         using (var paper = Fill(_t.Background.WithAlpha(235))) canvas.DrawRect(SKRect.Inflate(cb, 4, 4), paper);
         DrawNinesCard(canvas, course, SKRect.Inflate(cb, -4, -2), TeeColumns(course).Names.Count - 1, SerifItalic, Serif, 6.6f, GPPlum, grid: true, rowH: 9.3f);
 

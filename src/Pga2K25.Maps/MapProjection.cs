@@ -104,6 +104,10 @@ public sealed class MapProjection
         return keep;
     }
 
+    /// <summary>A projection putting world <paramref name="centre"/> at <paramref name="pageCentre"/>, at a set scale and rotation.</summary>
+    public static MapProjection Place(double rotationDegrees, Vec2 centre, float pointsPerMetre, SKPoint pageCentre) =>
+        new(rotationDegrees, centre, pointsPerMetre, pageCentre);
+
     /// <summary>Fits points into <paramref name="rect"/> at a fixed rotation.</summary>
     public static MapProjection Fit(IReadOnlyList<Vec2> points, SKRect rect, double rotationDegrees, double padding = 1.04)
     {
