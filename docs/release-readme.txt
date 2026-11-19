@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 4.0.0
+COURSE DESIGNER STUDIO - release 4.1.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -229,6 +229,19 @@ USING IT
   Building the course cards takes about a minute longer for it.
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
+
+NEW IN 4.1.0
+- Travis Sketch, MacKenzie Sketch, Hanse Design, RGD Style 2, Cutten
+  Map and Thompson fit the map round their title, scorecard and legend
+  boxes, so no box sits over a hole any more. The property line and
+  every bunker near play stay on the sheet instead of running off it.
+- Thompson's title and card sit on plain blueprint, so the chalk
+  lettering reads cleanly; the card is a little larger.
+- Travis Sketch puts its scale, legend, title and card in a band under
+  the map instead of across the top.
+- Course Portrait's land has a soft, slightly ragged watercolour edge
+  instead of a crisp property line, and reaches further with rounded
+  corners, so bunkers near the edge are no longer cut off.
 
 NEW IN 4.0.0
 - Streams and ponds built from a bunker wall filled with water planes
