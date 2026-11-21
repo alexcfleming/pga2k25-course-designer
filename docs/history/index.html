@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Studio, Tee to Green</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&display=swap">
+<style>
+html { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px) } body { margin: 0 } img { max-width: 100% } [hidden] { display: none !important }
+/* Layout: one long golf hole down the page. A mown fairway rail on the left carries a yardage marker per release; each era is a stretch of the hole with a swipeable gallery of real Studio output beside it. Tee at 0.x, green and flag at 4.2. */
+:root {
+  --bg: #f4efe2; --paper: #fbf8f0; --ink: #1d2a20; --muted: #5d685f; --line: #d9d0bb;
+  --pine: #16402a; --fairway: #8fb24a; --fairway-2: #7fa23e; --rough: #c9d6a6; --flag: #c8742a; --sand: #ecdfa4;
+  --display: "Lora", Georgia, "Times New Roman", serif;
+  --body: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --rail: 56px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1913; --paper: #16241b; --ink: #ece6d6; --muted: #a8b2a6; --line: #2c3d31;
+  --pine: #d9e7c4; --fairway: #5f7f2e; --fairway-2: #56742a; --rough: #26361f; --flag: #e08c45; --sand: #6b6240; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f1913; --paper: #16241b; --ink: #ece6d6; --muted: #a8b2a6; --line: #2c3d31;
+  --pine: #d9e7c4; --fairway: #5f7f2e; --fairway-2: #56742a; --rough: #26361f; --flag: #e08c45; --sand: #6b6240; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font: 16px/1.6 var(--body); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; text-wrap: balance; margin: 0; color: var(--pine) }
+.eyebrow { font: 600 12px/1 var(--body); letter-spacing: .14em; text-transform: uppercase; color: var(--flag) }
+.num { font-variant-numeric: tabular-nums }
+
+/* Hero */
+.hero { padding-block: 48px 28px }
+.hero h1 { font-size: clamp(2.2rem, 6vw, 4rem); line-height: 1.05; margin-top: 12px }
+.hero p.lede { font-family: var(--display); font-style: italic; font-size: clamp(1.1rem, 2.4vw, 1.4rem); color: var(--muted); max-width: 40ch; margin: 14px 0 0 }
+
+/* The card: the whole history as a golf scorecard, one hole per era */
+.card { margin-top: 28px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto }
+.card table { width: 100%; border-collapse: collapse; min-width: 560px; font-variant-numeric: tabular-nums }
+.card th, .card td { padding: 10px 12px; text-align: center; border-bottom: 1px solid var(--line); font-size: 14px }
+.card th { font: 600 11px/1 var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted) }
+.card td:first-child, .card th:first-child { text-align: left }
+.card tr.total td { font-weight: 600; color: var(--pine); border-bottom: 0 }
+.card .era-name { font-family: var(--display); font-weight: 600; color: var(--pine) }
+.card-note { font-size: 13px; color: var(--muted); margin: 10px 2px 0 }
+
+/* The hole */
+.hole { position: relative; padding-left: calc(var(--rail) + 18px); padding-block: 8px 0 }
+.hole::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--rail); border-radius: 28px 28px 0 0;
+  background: repeating-linear-gradient(180deg, var(--fairway) 0 46px, var(--fairway-2) 46px 92px); }
+.hole::after { content: ""; position: absolute; left: calc(var(--rail) + 4px); top: 0; bottom: 0; width: 8px; background: var(--rough); border-radius: 4px }
+.tee { position: relative; padding-block: 18px 6px }
+.tee .box { position: absolute; left: calc(-1 * (var(--rail) + 18px) + 10px); top: 22px; width: calc(var(--rail) - 20px); height: 22px; border-radius: 4px; background: var(--pine); }
+.tee .label { font-size: 13px; color: var(--muted) }
+
+.era { position: relative; padding-block: 34px 10px }
+.plate { position: absolute; left: calc(-1 * (var(--rail) + 18px) + 4px); top: 34px; width: calc(var(--rail) - 8px); height: calc(var(--rail) - 8px);
+  border-radius: 50%; background: var(--paper); border: 3px solid var(--pine); display: grid; place-items: center;
+  font: 600 13px/1 var(--display); color: var(--pine); }
+.era h2 { font-size: clamp(1.5rem, 3.6vw, 2.2rem); line-height: 1.15; margin-top: 6px }
+.era .dates { font-size: 14px; color: var(--muted); margin-top: 6px }
+.era p.intro { max-width: 62ch; margin: 12px 0 0 }
+
+.stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px }
+.stat { background: var(--paper); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; font-size: 13px; color: var(--muted) }
+.stat b { color: var(--ink); font-weight: 600 }
+
+/* Gallery: a swipeable strip */
+.strip { display: grid; grid-auto-flow: column; grid-auto-columns: min(78%, 340px); gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory;
+  padding-block: 16px 10px; margin-right: calc(-1 * max(16px, env(safe-area-inset-right, 0px))); padding-right: 16px; overscroll-behavior-x: contain }
+.strip figure { margin: 0; scroll-snap-align: start; min-width: 0 }
+.strip button { all: unset; cursor: zoom-in; display: block; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); background: var(--paper); aspect-ratio: 4 / 3; width: 100% }
+.strip button:focus-visible { outline: 3px solid var(--flag); outline-offset: 2px }
+.strip img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block }
+.strip figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; line-height: 1.4 }
+.strip figcaption b { color: var(--ink); font-weight: 600 }
+.strip.wide { grid-auto-columns: min(88%, 520px) }
+.swipe { font-size: 12px; color: var(--muted); margin: 0 }
+
+/* Releases: yardage markers on the rail */
+.releases { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px }
+.rel { position: relative; padding: 8px 0 8px 0; display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 10px; align-items: baseline }
+.rel::before { content: ""; position: absolute; left: calc(-1 * (var(--rail) + 18px) + var(--rail) / 2 - 6px); top: 14px; width: 12px; height: 12px; border-radius: 50%;
+  background: var(--paper); border: 2px solid var(--pine) }
+.rel.big::before { width: 16px; height: 16px; left: calc(-1 * (var(--rail) + 18px) + var(--rail) / 2 - 8px); top: 12px; background: var(--flag); border-color: var(--flag) }
+.rel .v { font: 600 15px/1.3 var(--display); color: var(--pine) }
+.rel .what { min-width: 0 }
+.rel .what b { font-weight: 600 }
+.rel .d { font-size: 12px; color: var(--muted); display: block }
+
+/* Green */
+.green { position: relative; padding-block: 34px 40px }
+.green .flag { position: absolute; left: calc(-1 * (var(--rail) + 18px) - 8px); top: 22px; width: calc(var(--rail) + 16px); }
+
+/* Growth chart */
+.growth { padding-block: 36px 16px }
+.growth h2 { font-size: clamp(1.4rem, 3vw, 2rem) }
+.chart { margin-top: 16px; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; padding: 14px; overflow-x: auto }
+.chart svg { display: block; width: 100%; min-width: 520px; height: auto }
+.chart text { font: 12px var(--body); fill: var(--muted) }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--muted); margin-top: 8px }
+.legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 6px; border-radius: 2px }
+
+footer { padding-block: 28px 48px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--line); margin-top: 24px }
+
+dialog { border: 0; padding: 0; background: transparent; max-width: min(96vw, 1200px); max-height: 92vh }
+dialog::backdrop { background: rgba(10, 18, 12, .82) }
+dialog img { display: block; max-width: 100%; max-height: 86vh; border-radius: 6px; margin: 0 auto }
+dialog p { color: #f4efe2; text-align: center; font-size: 14px; margin: 8px 0 0 }
+dialog form { text-align: center; margin-top: 8px }
+dialog form button { font: 500 14px var(--body); background: #f4efe2; color: #16402a; border: 0; border-radius: 999px; padding: 8px 18px; cursor: pointer }
+
+@media (max-width: 560px) { :root { --rail: 40px } .rel { grid-template-columns: 52px minmax(0, 1fr) } .plate { font-size: 11px } }
+@media (prefers-reduced-motion: no-preference) { .strip { scroll-behavior: smooth } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <div class="eyebrow">Course Designer Studio · 27 Sep to 21 Nov 2026</div>
+    <h1>Studio, tee to green</h1>
+    <p class="lede">Eight weeks, 36 releases: from one greens-book experiment to a studio that draws the whole course.</p>
+
+    <div class="card" role="region" aria-label="The history as a scorecard" tabindex="0">
+      <table>
+        <thead><tr><th>Hole</th><th>Stretch</th><th>Dates</th><th>Days</th><th>Releases</th><th>Code</th><th>Tests</th></tr></thead>
+        <tbody>
+          <tr><td class="num">0</td><td class="era-name">Practice range</td><td>27 Sep – 10 Oct</td><td class="num">14</td><td class="num">0</td><td class="num">10.5k</td><td class="num">57</td></tr>
+          <tr><td class="num">1</td><td class="era-name">Out to testers</td><td>11 – 29 Oct</td><td class="num">19</td><td class="num">11</td><td class="num">10.4k → 17.6k</td><td class="num">59 → 113</td></tr>
+          <tr><td class="num">2</td><td class="era-name">A place for every course</td><td>30 Oct – 13 Nov</td><td class="num">15</td><td class="num">10</td><td class="num">26.4k → 38.7k</td><td class="num">202 → 306</td></tr>
+          <tr><td class="num">3</td><td class="era-name">Faster, deeper, in 3D</td><td>13 – 17 Nov</td><td class="num">5</td><td class="num">12</td><td class="num">46.1k → 48.7k</td><td class="num">377 → 398</td></tr>
+          <tr><td class="num">4</td><td class="era-name">The physical course</td><td>18 – 21 Nov</td><td class="num">4</td><td class="num">3</td><td class="num">54.6k → 55.3k</td><td class="num">468 → 478</td></tr>
+          <tr class="total"><td></td><td>Total</td><td>27 Sep – 21 Nov</td><td class="num">56</td><td class="num">36</td><td class="num">55.3k lines</td><td class="num">478</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="card-note">171 commits. Releases are public tester releases (2.6.0 was never published). Code is lines of C# and tests are test cases, at the versions shown in the chart below; 13 November falls in two stretches.</p>
+  </header>
+
+  <main class="hole">
+    <div class="tee">
+      <span class="box" aria-hidden="true"></span>
+      <div class="eyebrow">The tee · 27 September</div>
+      <div class="label">An empty repository and one question: can a course file tell us the shape of the ground?</div>
+    </div>
+
+    <section class="era" aria-labelledby="e0">
+      <span class="plate" aria-hidden="true">0.x</span>
+      <div class="eyebrow">Hole 0</div>
+      <h2 id="e0">The practice range</h2>
+      <div class="dates">27 September – 10 October · before any release</div>
+      <p class="intro">A greens book came first, with the terrain rebuilt from the brush stamps and checked against heights measured in game. Maps, books and cards followed within days. A port of a reference tool was built and then removed: from 3 October the app would only ever read a course, never change it. The same day, Course Designer Studio replaced the first desktop app.</p>
+      <div class="stats"><span class="stat"><b class="num">10.5k</b> lines</span><span class="stat"><b class="num">57</b> tests</span><span class="stat">greens checked to <b class="num">12%</b></span></div>
+      <div class="strip" aria-label="Practice range gallery">
+        <figure><button data-full="img/greens-book.jpg" aria-label="Enlarge the greens book"><img src="img/greens-book.jpg" alt="Greens book: every green of Nodens Estate in slope colour with contours and fall arrows" loading="lazy"></button><figcaption><b>Greens book</b> · the first product, 27 Sep</figcaption></figure>
+        <figure><button data-full="img/map-vintage.jpg" aria-label="Enlarge the Vintage scorecard map"><img src="img/map-vintage.jpg" alt="Vintage scorecard map on parchment" loading="lazy"></button><figcaption><b>Vintage scorecard map</b> · 30 Sep</figcaption></figure>
+        <figure><button data-full="img/map-modern.jpg" aria-label="Enlarge the Modern scorecard map"><img src="img/map-modern.jpg" alt="Modern scorecard map" loading="lazy"></button><figcaption><b>Modern scorecard map</b> · 30 Sep</figcaption></figure>
+        <figure><button data-full="img/terrain-map.jpg" aria-label="Enlarge the terrain map"><img src="img/terrain-map.jpg" alt="Terrain map with contours and the routing" loading="lazy"></button><figcaption><b>Terrain map</b> · contours and the routing, 1 Oct</figcaption></figure>
+        <figure><button data-full="img/course-data-card.jpg" aria-label="Enlarge the course data card"><img src="img/course-data-card.jpg" alt="Course data card" loading="lazy"></button><figcaption><b>Course cards</b> · 2 Oct</figcaption></figure>
+      </div>
+      <p class="swipe">Swipe for more · tap to enlarge</p>
+      <ol class="releases" aria-label="Milestones">
+        <li class="rel"><span class="v num">27 Sep</span><span class="what">Course file format decoded; <b>greens book</b>; terrain calibrated against in-game spot heights</span></li>
+        <li class="rel"><span class="v num">30 Sep</span><span class="what"><b>Scorecard maps</b> (Vintage and Modern) and the <b>yardage book</b></span></li>
+        <li class="rel"><span class="v num">1–2 Oct</span><span class="what"><b>Terrain map</b>, hole sheets and <b>course cards</b></span></li>
+        <li class="rel big"><span class="v num">3 Oct</span><span class="what">Read-only for good; <b>Course Designer Studio</b> becomes the app</span></li>
+      </ol>
+    </section>
+
+    <section class="era" aria-labelledby="e1">
+      <span class="plate" aria-hidden="true">1.0</span>
+      <div class="eyebrow">Hole 1</div>
+      <h2 id="e1">Out to testers</h2>
+      <div class="dates">11 – 29 October · 1.0 to 1.9</div>
+      <p class="intro">The first tester release went out on 11 October as one exe with nothing to install. Releases came every two or three days after that: green sizes, a Routing Test for sketching holes before building them, and a third and fourth scorecard style.</p>
+      <div class="stats"><span class="stat"><b class="num">11</b> releases</span><span class="stat"><b class="num">10.4k → 17.6k</b> lines</span><span class="stat"><b class="num">59 → 113</b> tests</span></div>
+      <div class="strip" aria-label="Out to testers gallery">
+        <figure><button data-full="img/flyer-beta.jpg" aria-label="Enlarge the beta flyer"><img src="img/flyer-beta.jpg" alt="Beta flyer showing Studio's terrain map workspace" loading="lazy"></button><figcaption><b>The beta</b> · Studio's terrain map workspace</figcaption></figure>
+        <figure><button data-full="img/green-size-card.jpg" aria-label="Enlarge the green size card"><img src="img/green-size-card.jpg" alt="Green size card" loading="lazy"></button><figcaption><b>Green size card</b> · 1.4</figcaption></figure>
+        <figure><button data-full="img/map-illustrated.jpg" aria-label="Enlarge the Illustrated scorecard map"><img src="img/map-illustrated.jpg" alt="Illustrated scorecard map with landscape" loading="lazy"></button><figcaption><b>Illustrated map</b> · 1.7</figcaption></figure>
+        <figure><button data-full="img/hole-sheet.jpg" aria-label="Enlarge the hole sheet"><img src="img/hole-sheet.jpg" alt="Hole sheet for sketching on" loading="lazy"></button><figcaption><b>Hole sheets</b> · a page per hole to sketch on</figcaption></figure>
+        <figure><button data-full="img/map-rgd1.jpg" aria-label="Enlarge the Plan Sheet map"><img src="img/map-rgd1.jpg" alt="Plan Sheet scorecard map, later RGD Style 1" loading="lazy"></button><figcaption><b>Plan Sheet</b> · 1.9, later RGD Style 1</figcaption></figure>
+      </div>
+      <ol class="releases" aria-label="Releases">
+        <li class="rel big"><span class="v num">1.0</span><span class="what"><b>First tester release</b><span class="d">11 Oct</span></span></li>
+        <li class="rel"><span class="v num">1.4</span><span class="what">Green sizes on the greens book and cards<span class="d">20 Oct</span></span></li>
+        <li class="rel"><span class="v num">1.7</span><span class="what"><b>Routing Test</b>: drag par 3, 4 and 5 arrows over the terrain; Illustrated map<span class="d">24 Oct</span></span></li>
+        <li class="rel"><span class="v num">1.8</span><span class="what">Doglegs at the landing zones; planting overlay<span class="d">26 Oct</span></span></li>
+        <li class="rel"><span class="v num">1.9</span><span class="what">Plan Sheet map after a hand-drawn grassing plan<span class="d">29 Oct</span></span></li>
+      </ol>
+    </section>
+
+    <section class="era" aria-labelledby="e2">
+      <span class="plate" aria-hidden="true">2.0</span>
+      <div class="eyebrow">Hole 2</div>
+      <h2 id="e2">A place for every course</h2>
+      <div class="dates">30 October – 13 November · 2.0 to 2.9</div>
+      <p class="intro">2.0 gave each course a place: a real or invented coastline, ten years of wind, and hole notes written from the course itself. The fortnight that followed added a QA checklist, a hole simulator that plays whole holes, watercolour hole plates, and a new workspace.</p>
+      <div class="stats"><span class="stat"><b class="num">10</b> releases</span><span class="stat"><b class="num">26.4k → 38.7k</b> lines</span><span class="stat"><b class="num">202 → 306</b> tests</span></div>
+      <div class="strip" aria-label="A place for every course gallery">
+        <figure><button data-full="img/flyer-2.jpg" aria-label="Enlarge the 2.0 release flyer"><img src="img/flyer-2.jpg" alt="Version 2.0 release flyer" loading="lazy"></button><figcaption><b>2.0</b> · place, wind rose and hole notes</figcaption></figure>
+        <figure><button data-full="img/map-modern-illustrated.jpg" aria-label="Enlarge the Modern Illustrated map"><img src="img/map-modern-illustrated.jpg" alt="Modern Illustrated scorecard map" loading="lazy"></button><figcaption><b>Modern Illustrated</b> · 2.3</figcaption></figure>
+        <figure><button data-full="img/yardage.jpg" aria-label="Enlarge the yardage book page"><img src="img/yardage.jpg" alt="Yardage book page for hole 5" loading="lazy"></button><figcaption><b>Yardage book</b> · carries and green depths</figcaption></figure>
+        <figure><button data-full="img/illustration.jpg" aria-label="Enlarge the hole illustration"><img src="img/illustration.jpg" alt="Watercolour hole illustration" loading="lazy"></button><figcaption><b>Hole illustrations</b> · 2.7</figcaption></figure>
+        <figure><button data-full="img/map-routing.jpg" aria-label="Enlarge the Routing Plan map"><img src="img/map-routing.jpg" alt="Routing Plan scorecard map" loading="lazy"></button><figcaption><b>Routing Plan</b> · 2.7</figcaption></figure>
+        <figure><button data-full="img/map-portrait.jpg" aria-label="Enlarge the Course Portrait"><img src="img/map-portrait.jpg" alt="Course Portrait wall print" loading="lazy"></button><figcaption><b>Course Portrait</b> · 2.8</figcaption></figure>
+      </div>
+      <ol class="releases" aria-label="Releases">
+        <li class="rel big"><span class="v num">2.0</span><span class="what"><b>A place for the course</b>: coastline, wind rose and Wind Card, hole notes<span class="d">30 Oct</span></span></li>
+        <li class="rel"><span class="v num">2.3</span><span class="what">Modern Illustrated; a scorecard strip for five tees; course logos<span class="d">1 Nov</span></span></li>
+        <li class="rel"><span class="v num">2.4</span><span class="what"><b>Publish readiness</b>: 39 checks per hole<span class="d">4 Nov</span></span></li>
+        <li class="rel"><span class="v num">2.5</span><span class="what">The <b>hole simulator</b> plays whole holes<span class="d">6 Nov</span></span></li>
+        <li class="rel"><span class="v num">2.7</span><span class="what">Hole illustrations, Routing Plan, measurements from your measure lines<span class="d">10 Nov</span></span></li>
+        <li class="rel"><span class="v num">2.8</span><span class="what">A new workspace; Course Portrait; a more accurate terrain model<span class="d">10 Nov</span></span></li>
+        <li class="rel"><span class="v num">2.9</span><span class="what">Course renames followed; a Surfaces card<span class="d">13 Nov</span></span></li>
+      </ol>
+    </section>
+
+    <section class="era" aria-labelledby="e3">
+      <span class="plate" aria-hidden="true">3.0</span>
+      <div class="eyebrow">Hole 3</div>
+      <h2 id="e3">Faster, deeper, in 3D</h2>
+      <div class="dates">13 – 17 November · 3.0 to 3.9</div>
+      <p class="intro">Twelve releases in five days. The terrain got much faster, the ground could be turned in 3D, and six new map styles took after golf architects' own drawings. Then Studio started reading more of what a designer sets: out of bounds, cameras, the meters, the sun. It also began to judge a course: pin difficulty from the greens, and a whole course difficulty sheet with a suggested handicap.</p>
+      <div class="stats"><span class="stat"><b class="num">12</b> releases in <b class="num">5</b> days</span><span class="stat"><b class="num">13</b> map styles</span><span class="stat"><b class="num">377 → 398</b> tests by 3.5</span></div>
+      <div class="strip wide" aria-label="Architect plan styles gallery">
+        <figure><button data-full="img/map-travis.jpg" aria-label="Enlarge Travis Sketch"><img src="img/map-travis.jpg" alt="Travis Sketch map" loading="lazy"></button><figcaption><b>Travis Sketch</b> · 3.6</figcaption></figure>
+        <figure><button data-full="img/map-mackenzie.jpg" aria-label="Enlarge MacKenzie Sketch"><img src="img/map-mackenzie.jpg" alt="MacKenzie Sketch map" loading="lazy"></button><figcaption><b>MacKenzie Sketch</b> · 3.6</figcaption></figure>
+        <figure><button data-full="img/map-hanse.jpg" aria-label="Enlarge Hanse Design"><img src="img/map-hanse.jpg" alt="Hanse Design map" loading="lazy"></button><figcaption><b>Hanse Design</b> · 3.6</figcaption></figure>
+        <figure><button data-full="img/map-rgd2.jpg" aria-label="Enlarge RGD Style 2"><img src="img/map-rgd2.jpg" alt="RGD Style 2 grassing plan" loading="lazy"></button><figcaption><b>RGD Style 2</b> · 3.6</figcaption></figure>
+        <figure><button data-full="img/map-cutten.jpg" aria-label="Enlarge Cutten Map"><img src="img/map-cutten.jpg" alt="Cutten parchment map" loading="lazy"></button><figcaption><b>Cutten Map</b> · 3.6</figcaption></figure>
+        <figure><button data-full="img/map-thompson.jpg" aria-label="Enlarge Thompson blueprint"><img src="img/map-thompson.jpg" alt="Thompson blueprint map" loading="lazy"></button><figcaption><b>Thompson</b> · 3.6</figcaption></figure>
+      </div>
+      <div class="strip" aria-label="Faster, deeper gallery">
+        <figure><button data-full="img/illustration-pencil.jpg" aria-label="Enlarge the pencil hole plate"><img src="img/illustration-pencil.jpg" alt="Pencil hole sketch" loading="lazy"></button><figcaption><b>Pencil hole sketches</b> · 3.6</figcaption></figure>
+        <figure><button data-full="img/details-card.jpg" aria-label="Enlarge the Course Details Card"><img src="img/details-card.jpg" alt="Course Details Card" loading="lazy"></button><figcaption><b>Course Details Card</b> · 3.8</figcaption></figure>
+        <figure><button data-full="img/difficulty.jpg" aria-label="Enlarge the course difficulty sheet"><img src="img/difficulty.jpg" alt="Course difficulty sheet" loading="lazy"></button><figcaption><b>Course difficulty</b> · 3.9</figcaption></figure>
+        <figure><button data-full="img/shot-variety.jpg" aria-label="Enlarge the shot variety card"><img src="img/shot-variety.jpg" alt="Shot variety card" loading="lazy"></button><figcaption><b>Shot variety card</b></figcaption></figure>
+      </div>
+      <ol class="releases" aria-label="Releases">
+        <li class="rel big"><span class="v num">3.0</span><span class="what"><b>Much faster terrain</b> and a faster simulator<span class="d">13 Nov</span></span></li>
+        <li class="rel"><span class="v num">3.4</span><span class="what">Archive a course; fairway width at driver and 3-wood; cards rebuilt<span class="d">15 Nov</span></span></li>
+        <li class="rel big"><span class="v num">3.5</span><span class="what">The <b>3D view</b><span class="d">15 Nov</span></span></li>
+        <li class="rel"><span class="v num">3.6</span><span class="what"><b>Six architect-plan map styles</b>; pencil hole sketches<span class="d">15 Nov</span></span></li>
+        <li class="rel"><span class="v num">3.7</span><span class="what">Pin difficulty from the greens; yardage widths match the game<span class="d">16 Nov</span></span></li>
+        <li class="rel"><span class="v num">3.8</span><span class="what">Out of bounds, the Course Details Card, the designer's own checks<span class="d">17 Nov</span></span></li>
+        <li class="rel"><span class="v num">3.9</span><span class="what"><b>Course difficulty</b> with a suggested handicap<span class="d">17 Nov</span></span></li>
+      </ol>
+    </section>
+
+    <section class="era" aria-labelledby="e4">
+      <span class="plate" aria-hidden="true">4.0</span>
+      <div class="eyebrow">Hole 4</div>
+      <h2 id="e4">The physical course</h2>
+      <div class="dates">18 – 21 November · 4.0 to 4.2</div>
+      <p class="intro">The latest work makes the maps match what you see in game. Streams built from bunker walls are drawn as walled water. Boxes now move off the holes. And every rock shape was measured in game, using shadows and a sun ladder, so boulders, rock walls and half-buried ridges show at their real size.</p>
+      <div class="stats"><span class="stat"><b class="num">40</b> rock shapes measured</span><span class="stat">sun at <b class="num">17.4°</b>, from a ladder of shadows</span><span class="stat"><b class="num">478</b> tests</span></div>
+      <div class="strip" aria-label="The physical course gallery">
+        <figure><button data-full="img/walled-water.jpg" aria-label="Enlarge the walled stream"><img src="img/walled-water.jpg" alt="A stream built from a bunker wall, drawn as water edged with stone" loading="lazy"></button><figcaption><b>Walled water</b> · Berwick Coast's stream, 4.0</figcaption></figure>
+        <figure><button data-full="img/rocks-hole5.jpg" aria-label="Enlarge the hole 5 rocks"><img src="img/rocks-hole5.jpg" alt="Nodens hole 5: a ridge of half-buried rocks" loading="lazy"></button><figcaption><b>Rocks</b> · Nodens hole 5's buried ridge, 4.2</figcaption></figure>
+        <figure><button data-full="img/rocks-hole5-ink.jpg" aria-label="Enlarge the hole 5 rocks in ink"><img src="img/rocks-hole5-ink.jpg" alt="The same rocks in MacKenzie's ink" loading="lazy"></button><figcaption><b>The same rocks in ink</b> · MacKenzie Sketch</figcaption></figure>
+        <figure><button data-full="img/rocks-sagan.jpg" aria-label="Enlarge the Sagan boulders"><img src="img/rocks-sagan.jpg" alt="Sagan-Khushun shoreline boulders" loading="lazy"></button><figcaption><b>Shoreline boulders</b> · Sagan-Khushun</figcaption></figure>
+      </div>
+      <ol class="releases" aria-label="Releases">
+        <li class="rel big"><span class="v num">4.0</span><span class="what"><b>Walled water</b>: drawn and played as water<span class="d">18 Nov</span></span></li>
+        <li class="rel"><span class="v num">4.1</span><span class="what">Maps fitted round their boxes; a soft Course Portrait edge<span class="d">18 Nov</span></span></li>
+        <li class="rel big"><span class="v num">4.2</span><span class="what"><b>Rocks drawn as they show in game</b><span class="d">21 Nov</span></span></li>
+      </ol>
+    </section>
+
+    <div class="green">
+      <svg class="flag" viewBox="0 0 80 90" aria-hidden="true">
+        <ellipse cx="40" cy="74" rx="38" ry="14" fill="var(--fairway)"/>
+        <ellipse cx="40" cy="74" rx="26" ry="9" fill="var(--fairway-2)"/>
+        <line x1="40" y1="74" x2="40" y2="10" stroke="var(--ink)" stroke-width="2"/>
+        <path d="M40 10 L64 18 L40 26 Z" fill="var(--flag)"/>
+        <circle cx="40" cy="74" r="2.5" fill="var(--ink)"/>
+      </svg>
+      <div class="eyebrow">On the green · 21 November</div>
+      <h2 style="font-size: clamp(1.4rem, 3vw, 2rem); margin-top: 6px">Version 4.2</h2>
+      <p class="intro" style="max-width: 60ch; margin-top: 10px">Thirteen scorecard map styles, books, cards, plates, a simulator, a QA checklist, a difficulty sheet and a 3D view, all from one course file that Studio never changes.</p>
+    </div>
+  </main>
+
+  <section class="growth" aria-labelledby="g">
+    <div class="eyebrow">How it grew</div>
+    <h2 id="g">Code and tests, release by release</h2>
+    <div class="chart" role="img" aria-label="Lines of code grew from 10,500 to 55,300 and test cases from 57 to 478 between 3 October and 21 November 2026">
+      <svg id="growth" viewBox="0 0 720 300"></svg>
+    </div>
+    <div class="legend"><span><i style="background: var(--pine)"></i>Lines of C# (left scale)</span><span><i style="background: var(--flag)"></i>Test cases (right scale)</span></div>
+  </section>
+
+  <footer>Built from Course Designer Studio's own history: its releases, its commits, and products it made for Nodens Estate, Sagan-Khushun and Berwick Coast. Course Designer Studio is a fan tool by Alex C. Fleming, not affiliated with PGA TOUR 2K25 or 2K.</footer>
+</div>
+
+<dialog id="zoom" aria-label="Enlarged image">
+  <img id="zoom-img" alt="">
+  <p id="zoom-cap"></p>
+  <form method="dialog"><button id="zoom-close">Close</button></form>
+</dialog>
+
+<script>
+(function () {
+  const dlg = document.getElementById('zoom'), img = document.getElementById('zoom-img'), cap = document.getElementById('zoom-cap');
+  document.querySelectorAll('.strip button').forEach(b => b.addEventListener('click', () => {
+    img.src = b.dataset.full; img.alt = b.querySelector('img').alt;
+    cap.textContent = b.parentElement.querySelector('figcaption').textContent;
+    if (dlg.showModal) dlg.showModal(); else window.open(b.dataset.full);
+  }));
+  dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+
+  // Growth chart, drawn to scale: dates along the bottom, lines on the left scale, tests on the right.
+  const pts = [
+    ['2026-10-03', 10510, 57], ['2026-10-11', 10405, 59], ['2026-10-20', 17565, 113], ['2026-10-30', 26418, 202],
+    ['2026-11-06', 38676, 306], ['2026-11-13', 46053, 377], ['2026-11-15', 48738, 398], ['2026-11-18', 54592, 468], ['2026-11-21', 55296, 478]];
+  const labels = ['WPF', '1.0', '1.5', '2.0', '2.5', '3.0', '3.5', '4.0', '4.2'];
+  const svg = document.getElementById('growth'), NS = 'http://www.w3.org/2000/svg';
+  const L = 56, R = 664, T = 20, B = 250;
+  const t0 = Date.parse('2026-10-01'), t1 = Date.parse('2026-11-23');
+  const x = d => L + (Date.parse(d) - t0) / (t1 - t0) * (R - L);
+  const yl = v => B - v / 60000 * (B - T), yt = v => B - v / 600 * (B - T);
+  const el = (n, a, txt) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); if (txt) e.textContent = txt; svg.appendChild(e); return e; };
+  for (let v = 0; v <= 60000; v += 20000) {
+    el('line', { x1: L, x2: R, y1: yl(v), y2: yl(v), stroke: 'var(--line)', 'stroke-width': 1 });
+    el('text', { x: L - 8, y: yl(v) + 4, 'text-anchor': 'end' }, v === 0 ? '0' : (v / 1000) + 'k');
+    el('text', { x: R + 8, y: yl(v) + 4 }, String(v / 100));
+  }
+  [['2026-10-01', '1 Oct'], ['2026-10-15', '15 Oct'], ['2026-11-01', '1 Nov'], ['2026-11-15', '15 Nov']].forEach(([d, s]) =>
+    el('text', { x: x(d), y: B + 22, 'text-anchor': 'middle' }, s));
+  const area = 'M' + x(pts[0][0]) + ',' + B + ' ' + pts.map(p => 'L' + x(p[0]) + ',' + yl(p[1])).join(' ') + ' L' + x(pts[pts.length - 1][0]) + ',' + B + ' Z';
+  el('path', { d: area, fill: 'var(--fairway)', opacity: .35 });
+  el('polyline', { points: pts.map(p => x(p[0]) + ',' + yl(p[1])).join(' '), fill: 'none', stroke: 'var(--pine)', 'stroke-width': 2.5 });
+  el('polyline', { points: pts.map(p => x(p[0]) + ',' + yt(p[2])).join(' '), fill: 'none', stroke: 'var(--flag)', 'stroke-width': 2.5, 'stroke-dasharray': '6 4' });
+  pts.forEach((p, i) => {
+    el('circle', { cx: x(p[0]), cy: yl(p[1]), r: 3.5, fill: 'var(--pine)' });
+    if (i % 2 === 0 || i === pts.length - 1) el('text', { x: x(p[0]), y: yl(p[1]) - 10, 'text-anchor': 'middle', fill: 'var(--ink)' }, labels[i]);
+  });
+  const last = pts[pts.length - 1];
+  el('text', { x: x(last[0]) - 6, y: yl(last[1]) + 20, 'text-anchor': 'end', fill: 'var(--ink)' }, '55.3k lines · 478 tests');
+})();
+</script>
+
+</body>
+</html>

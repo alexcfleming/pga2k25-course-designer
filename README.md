@@ -12,6 +12,7 @@ A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer
 - [Scorecard maps](docs/scorecard-maps.md): themes, layout, how features are traced, and known limits.
 - [Yardage book](docs/yardage-book.md): page contents, hazard numbering, rocks, and PDF output.
 - [Rocks](docs/rocks.md): rock shapes measured in game, how each rock's outline above the ground is worked out, and where products draw rocks.
+- [Studio, tee to green](docs/history/index.html): an illustrated history of Course Designer Studio from the first experiments to 4.2, as one long golf hole with real product images (open the HTML file in a browser).
 - [Hole illustrations](docs/hole-illustrations.md): one plate per hole, in watercolour and ink after the hole plates of Jim Ryan, illustrated by Tyler J. Rae, or in pencil after Coore & Crenshaw's hole sketches.
 - [Terrain map](docs/terrain-map.md): contour planning sheet of the plot with the routing as sticks and dots; terrain model notes and options.
 - [3D view](docs/3d-view.md): the terrain map's ground as a 3D model in Studio, or as one web page from the command line; what it shows and what it can't.
