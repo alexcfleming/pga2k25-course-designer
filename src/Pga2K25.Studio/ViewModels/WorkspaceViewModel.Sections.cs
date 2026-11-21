@@ -87,7 +87,7 @@ public partial class WorkspaceViewModel
     List<StyleChoiceViewModel> IllustrationStyles()
     {
         var picked = Settings.ExtrasFor(Entry.Path).IllustrationLookKinds();
-        var looks = new[] { (Pga2K25.HoleIllustrations.IllustrationLook.Watercolour, "Watercolour"), (Pga2K25.HoleIllustrations.IllustrationLook.CooreCrenshaw, "Coore & Crenshaw") };
+        var looks = new[] { (Pga2K25.HoleIllustrations.IllustrationLook.Watercolour, "Watercolour"), (Pga2K25.HoleIllustrations.IllustrationLook.CooreCrenshaw, "Coore & Crenshaw"), (Pga2K25.HoleIllustrations.IllustrationLook.FriedEgg, "Fried Egg") };
         return looks.Select(l => new StyleChoiceViewModel(l.Item2, picked.Contains(l.Item1), on =>
         {
             Settings.ExtrasFor(Entry.Path).SetIllustrationLook(l.Item1, on);

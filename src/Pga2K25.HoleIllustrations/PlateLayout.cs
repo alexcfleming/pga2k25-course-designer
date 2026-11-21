@@ -33,11 +33,18 @@ public static class PlateLayout
     public static float UnitsPerYard(int rulerTop) => (ZeroY - TopTickY) / rulerTop;
 }
 
+/// <summary>How a plate places the world: on the page (units) and on its art raster (pixels).</summary>
+public interface IPlateProjection
+{
+    SKPoint Page(Vec2 w);
+    SKPoint Pixel(Vec2 w);
+}
+
 /// <summary>
 /// World → plate transform at the ruler's scale: play runs up the page (the yardage book's rotation), the back tee
 /// sits on the "0 YDS." line, and the route's lateral spread is centred on the map.
 /// </summary>
-public sealed class PlateProjection
+public sealed class PlateProjection : IPlateProjection
 {
     readonly double _cos, _sin, _uMid, _vBack;
     public float UnitsPerMetre { get; }

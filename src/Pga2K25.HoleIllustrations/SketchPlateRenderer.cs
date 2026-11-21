@@ -12,6 +12,8 @@ public enum IllustrationLook
     Watercolour,
     /// <summary>Graphite pencil on cream, after Coore &amp; Crenshaw's hand-drawn hole sketches.</summary>
     CooreCrenshaw,
+    /// <summary>Ink and flat washes on a landscape page, play left to right, inspired by Fried Egg Golf's hole sketches.</summary>
+    FriedEgg,
 }
 
 /// <summary>What the builder needs from a plate style.</summary>
@@ -19,6 +21,9 @@ public interface IPlateRenderer : IDisposable
 {
     Plate Render(HoleAnalysis a, string? holeName = null, WasteShapes? waste = null);
     void DrawPage(SKCanvas canvas, string courseName, Plate plate);
+
+    /// <summary>The page in units of 1/100 in: US Letter portrait unless a look says otherwise.</summary>
+    SKSize PageSize => new(PlateLayout.PageWidth, PlateLayout.PageHeight);
 }
 
 /// <summary>
@@ -278,7 +283,9 @@ public sealed class SketchPlateRenderer : IPlateRenderer
                 c.DrawText("T", p.X, p.Y + 9, SKTextAlign.Center, tFont, tPaint);
             }
 
-        // The green: dense graphite, a heavy outline, the flag on the first pin.
+        // The green, over everything: paper first, so the fairway's line and anything else drawn earlier doesn't show
+        // through the graphite; then dense graphite, a heavy outline, the flag on the first pin.
+        using (var paper = new SKPaint { IsAntialias = true, Color = Paper }) c.DrawPath(green, paper);
         using (var tile = GraphiteTile(700, 80, 170, 41, -40)) Shade(c, green, tile);
         using (var edge = Pencil(4.2f, 250, 43)) c.DrawPath(green, edge);
         var pin = proj.Pixel(a.Hole.Pins.Count > 0 ? a.Hole.Pins[0] : a.Green);

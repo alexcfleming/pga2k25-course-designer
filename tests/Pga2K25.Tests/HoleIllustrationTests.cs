@@ -34,8 +34,8 @@ public class HoleIllustrationTests
         var names = Products.All.Select(p => p.Name).ToList();
         Assert.Equal(names.IndexOf("Yardage book") + 1, names.IndexOf("Hole illustrations"));
         var p = Products.All.Single(x => x.Name == "Hole illustrations");
-        Assert.Equal(["{0} - Hole Illustrations/*.png", "{0} - Hole Illustrations (Coore & Crenshaw)/*.png"], p.Pages);
-        Assert.Equal(["{0} - Hole Illustrations.pdf", "{0} - Hole Illustrations (Coore & Crenshaw).pdf"], p.Pdfs);
+        Assert.Equal(["{0} - Hole Illustrations/*.png", "{0} - Hole Illustrations (Coore & Crenshaw)/*.png", "{0} - Hole Illustrations (Fried Egg)/*.png"], p.Pages);
+        Assert.Equal(["{0} - Hole Illustrations.pdf", "{0} - Hole Illustrations (Coore & Crenshaw).pdf", "{0} - Hole Illustrations (Fried Egg).pdf"], p.Pdfs);
     }
 
     [Trait("Speed", "Slow")]
@@ -151,6 +151,9 @@ public class HoleIllustrationTests
         Assert.Equal("Hole Illustrations (Coore & Crenshaw)", cc.ProductName);
         Assert.Equal("Hole_05 (Coore & Crenshaw)", cc.PngName(5));
         Assert.Equal(("Hole Illustrations", "Hole_05"), (new IllustrationOptions().ProductName, new IllustrationOptions().PngName(5)));
+        var fe = new IllustrationOptions { Look = IllustrationLook.FriedEgg };
+        Assert.Equal(("Hole Illustrations (Fried Egg)", "Hole_05 (Fried Egg)"), (fe.ProductName, fe.PngName(5)));
+        Assert.Equal("Inspired by Fried Egg Golf", FriedEggPlateRenderer.StyleCredit);
     }
 
     sealed class LogLines : IProgress<string>
@@ -168,6 +171,65 @@ public class HoleIllustrationTests
         Assert.Null(product.Build(new BuildContext(Path.Combine(dir, "missing.course"), dir, new StudioSettings(), new CourseExtras(), log)));
         Assert.Equal([Products.NoIllustrationStyles], log.Lines);
         Assert.False(Directory.Exists(dir));
+    }
+
+    /// <summary>
+    /// The green is drawn over everything, so nothing drawn before it shows through: on Cassimbo hole 7 the fairway's
+    /// outline runs well inside the green, and neither look may draw that line there. (The pencil look shaded the green
+    /// with translucent strokes only, so the fairway's heavy line showed across it; found on Nodens hole 6, 21 Nov 2026.)
+    /// </summary>
+    [Trait("Speed", "Slow")]
+    [Theory]
+    [InlineData(IllustrationLook.Watercolour)]
+    [InlineData(IllustrationLook.CooreCrenshaw)]
+    [InlineData(IllustrationLook.FriedEgg)]
+    public void Green_CoversTheFairwayOutlineUnderIt(IllustrationLook look)
+    {
+        var a = Analyses[7].Value;
+        IPlateRenderer r = look switch
+        {
+            IllustrationLook.CooreCrenshaw => new SketchPlateRenderer(Options with { Look = look }),
+            IllustrationLook.FriedEgg => new FriedEggPlateRenderer(Options with { Look = look }),
+            _ => new HoleIllustrationRenderer(Options),
+        };
+        using var plate = r.Render(a);
+        r.Dispose();
+        var green = a.Greens.Where(g => !a.Foreign.Contains(g) && g.Count >= 3).OrderBy(g => Vec2.Distance(new Vec2(g.Average(p => p.X), g.Average(p => p.Z)), a.Green)).First();
+        static double Edge(Vec2 p, List<Vec2> ring) => ring.Select((s, i) =>
+        {
+            var e = ring[(i + 1) % ring.Count]; double dx = e.X - s.X, dz = e.Z - s.Z, l = dx * dx + dz * dz;
+            double t = l == 0 ? 0 : Math.Clamp(((p.X - s.X) * dx + (p.Z - s.Z) * dz) / l, 0, 1);
+            return Vec2.Distance(p, new Vec2(s.X + t * dx, s.Z + t * dz));
+        }).Min();
+        // Points on the fairway's outline at least 3 m inside the green, walked every 0.5 m.
+        var under = new List<Vec2>();
+        foreach (var fw in a.Fairways)
+            for (int i = 0; i < fw.Count; i++)
+            {
+                var (s, e) = (fw[i], fw[(i + 1) % fw.Count]);
+                int n = Math.Max(1, (int)(Vec2.Distance(s, e) / 0.5));
+                for (int k = 0; k < n; k++)
+                {
+                    var p = s + (e - s) * ((double)k / n);
+                    if (Geometry.Contains(green, p) && Edge(p, green) > 3) under.Add(p);
+                }
+            }
+        Assert.True(under.Count >= 20, $"hole 7's fairway runs inside its green ({under.Count} points)");
+        int w = plate.Art.Width, h = plate.Art.Height;
+        float At(Vec2 p) { var px = plate.Projection.Pixel(p); return plate.Darkness(Math.Clamp((int)px.X, 0, w - 1), Math.Clamp((int)px.Y, 0, h - 1)); }
+        // The green's own shading, sampled on a grid inside it away from the fairway line.
+        var inside = new List<float>();
+        double minX = green.Min(p => p.X), maxX = green.Max(p => p.X), minZ = green.Min(p => p.Z), maxZ = green.Max(p => p.Z);
+        for (double x = minX; x <= maxX; x += 0.7)
+            for (double z = minZ; z <= maxZ; z += 0.7)
+            {
+                var p = new Vec2(x, z);
+                if (Geometry.Contains(green, p) && Edge(p, green) > 3 && under.All(q => Vec2.Distance(q, p) > 2)) inside.Add(At(p));
+            }
+        inside.Sort();
+        float typical = inside[inside.Count / 2], loud = inside[(int)(inside.Count * 0.9)];
+        double onLine = under.Select(At).OrderBy(d => d).ElementAt(under.Count / 2);
+        Assert.True(onLine <= loud + 0.08, $"{look}: the fairway line shows through the green (darkness {onLine:0.00} on the line, green {typical:0.00}, its 90th percentile {loud:0.00})");
     }
 
     [Trait("Speed", "Slow")]
@@ -224,6 +286,50 @@ public class HoleIllustrationTests
             Assert.Contains("JIM RYAN", HoleIllustrationRenderer.StyleCredit);
             Assert.Contains("TYLER J. RAE", HoleIllustrationRenderer.StyleCredit);
             Assert.InRange(new FileInfo(result.PdfPath!).Length, 100_000, 8_000_000);
+        }
+        finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
+    }
+
+    /// <summary>The Fried Egg look turns the hole a quarter turn: play runs left to right, the back tee left of the green.</summary>
+    [Trait("Speed", "Slow")]
+    [Theory]
+    [InlineData(5)]
+    [InlineData(7)]
+    public void FriedEgg_PlaysLeftToRightAndRendersTheSameTwice(int hole)
+    {
+        var a = Analyses[hole].Value;
+        using var r = new FriedEggPlateRenderer(Options with { Look = IllustrationLook.FriedEgg });
+        using var plate = r.Render(a);
+        var tee = plate.Projection.Page(a.BackTee);
+        var green = plate.Projection.Page(a.Green);
+        Assert.True(green.X - tee.X > 600, $"hole {hole}: tee at {tee.X:0}, green at {green.X:0}");
+        Assert.True(Math.Abs(green.Y - tee.Y) < 300, "the hole runs across the page");
+        Assert.True(FriedEggPlateRenderer.ArtZone.Contains(tee) && FriedEggPlateRenderer.ArtZone.Contains(green), "tee and green inside the art");
+        using var again = r.Render(a);
+        using (var x = plate.Art.Encode(SKEncodedImageFormat.Png, 100))
+        using (var y = again.Art.Encode(SKEncodedImageFormat.Png, 100))
+            Assert.True(x.ToArray().AsSpan().SequenceEqual(y.ToArray()), $"two Fried Egg renders of hole {hole} differ");
+    }
+
+    [Trait("Speed", "Slow")]
+    [Fact]
+    public void Build_FriedEgg_WritesItsOwnLandscapeFiles()
+    {
+        string dir = Path.Combine(Path.GetTempPath(), $"illustrations-{Guid.NewGuid():N}");
+        try
+        {
+            var result = HoleIllustrationBuilder.Build(CassimboPath, dir, Options with { Look = IllustrationLook.FriedEgg }, new IllustrationOutputs { Pngs = true }, [5]);
+            var png = Assert.Single(result.PngPaths);
+            Assert.EndsWith(Path.Combine("Cassimbo - Hole Illustrations (Fried Egg)", "Hole_05 (Fried Egg).png"), png);
+            Assert.EndsWith("Cassimbo - Hole Illustrations (Fried Egg).pdf", result.PdfPath);
+            using (var img = SKBitmap.Decode(png))
+            {
+                Assert.Equal((4500, 3000), (img.Width, img.Height));   // 15 × 10 in, landscape
+                Assert.Equal(new SKColor(0xf8, 0xe9, 0xb3), img.GetPixel(10, 10));   // yellow paper
+            }
+            var pdf = Encoding.Latin1.GetString(File.ReadAllBytes(result.PdfPath!));
+            Assert.Contains("/MediaBox [0 0 1080 720]", pdf);
+            Assert.InRange(new FileInfo(result.PdfPath!).Length, 100_000, 10_000_000);
         }
         finally { if (Directory.Exists(dir)) Directory.Delete(dir, true); }
     }

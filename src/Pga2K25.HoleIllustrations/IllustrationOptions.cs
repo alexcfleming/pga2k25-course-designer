@@ -41,12 +41,21 @@ public sealed record IllustrationOptions
 
     public IllustrationStyle Style { get; init; } = IllustrationStyle.Default;
 
-    /// <summary>Watercolour plates (the default) or Coore &amp; Crenshaw pencil sketches.</summary>
+    /// <summary>Watercolour plates (the default), Coore &amp; Crenshaw pencil sketches or Fried Egg landscape sketches.</summary>
     public IllustrationLook Look { get; init; } = IllustrationLook.Watercolour;
 
-    /// <summary>The files' name for this look: "Hole Illustrations", or "Hole Illustrations (Coore &amp; Crenshaw)", so both can be built.</summary>
-    public string ProductName => Look == IllustrationLook.CooreCrenshaw ? "Hole Illustrations (Coore & Crenshaw)" : "Hole Illustrations";
+    /// <summary>The course's place lines (from the Place card) for the looks that print them; empty reads them from the output folder.</summary>
+    public IReadOnlyList<string> PlaceLines { get; init; } = [];
+
+    /// <summary>The course's logo set for the looks that print its seal; null reads it from the output folder.</summary>
+    public GreensBook.CourseLogoArt? Logos { get; init; }
+
+    /// <summary>The look's name in brackets after "Hole Illustrations" and on each PNG ("Coore &amp; Crenshaw", "Fried Egg"); null for watercolour.</summary>
+    public string? LookName => Look switch { IllustrationLook.CooreCrenshaw => "Coore & Crenshaw", IllustrationLook.FriedEgg => "Fried Egg", _ => null };
+
+    /// <summary>The files' name for this look: "Hole Illustrations", or "Hole Illustrations (Coore &amp; Crenshaw)" and so on, so every look can be built.</summary>
+    public string ProductName => LookName is { } n ? $"Hole Illustrations ({n})" : "Hole Illustrations";
 
     /// <summary>A plate's PNG name: "Hole_05", or "Hole_05 (Coore &amp; Crenshaw)" so the viewer tells the looks apart.</summary>
-    public string PngName(int hole) => Look == IllustrationLook.CooreCrenshaw ? $"Hole_{hole:00} (Coore & Crenshaw)" : $"Hole_{hole:00}";
+    public string PngName(int hole) => LookName is { } n ? $"Hole_{hole:00} ({n})" : $"Hole_{hole:00}";
 }

@@ -793,7 +793,7 @@ static int Illustrations(string path, string[] rest)
             case "--waste": options = options with { Waste = true }; break;
             case "--credit": options = options with { Credit = Next() }; break;
             case "--year": options = options with { Year = int.Parse(Next(), CultureInfo.InvariantCulture) }; break;
-            case "--look": options = options with { Look = Next().ToLowerInvariant() switch { "coore" or "coore-crenshaw" or "cc" => IllustrationLook.CooreCrenshaw, "watercolour" or "watercolor" => IllustrationLook.Watercolour, var l => throw new ArgumentException($"unknown look {l}") } }; break;
+            case "--look": options = options with { Look = Next().ToLowerInvariant() switch { "coore" or "coore-crenshaw" or "cc" => IllustrationLook.CooreCrenshaw, "watercolour" or "watercolor" => IllustrationLook.Watercolour, "fried-egg" or "friedegg" or "fe" => IllustrationLook.FriedEgg, var l => throw new ArgumentException($"unknown look {l}") } }; break;
             default: throw new ArgumentException($"unknown option {rest[i]}");
         }
     }

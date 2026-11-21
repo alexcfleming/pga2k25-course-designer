@@ -1,10 +1,10 @@
 # Hole illustrations
 
-One illustrated plate per hole, in either or both of two looks: watercolour and ink (below), and Coore & Crenshaw pencil (see **Coore & Crenshaw look**). The watercolour plate is on US Letter portrait (8.5 × 11 in), after the hole plates posted by Jim Ryan (`jimryangcdesign`), such as the Wakonda Club plates illustrated by Tyler J. Rae, and every plate credits both in its footer, before the designer credit, the same way the Plan Sheet scorecard map credits the RGD Artworks Course Graphics Dept.
+One illustrated plate per hole, in any of three looks: watercolour and ink (below), Coore & Crenshaw pencil (see **Coore & Crenshaw look**) and Fried Egg ink and washes on a landscape page (see **Fried Egg look**). The watercolour plate is on US Letter portrait (8.5 × 11 in), after the hole plates posted by Jim Ryan (`jimryangcdesign`), such as the Wakonda Club plates illustrated by Tyler J. Rae, and every plate credits both in its footer, before the designer credit, the same way the Plan Sheet scorecard map credits the RGD Artworks Course Graphics Dept.
 
 ```
 pga2k25 illustrations <file.course> [-o <dir>] [--holes 1,4,11] [--png] [--no-pdf] [--waste]
-                      [--credit "NAME"] [--year 2026] [--look watercolour|coore] [--verbose]
+                      [--credit "NAME"] [--year 2026] [--look watercolour|coore|fried-egg] [--verbose]
 ```
 
 Output: `<course> - Hole Illustrations.pdf` (one plate per page) and, with `--png`, `<course> - Hole Illustrations/Hole_NN.png` at 300 dpi (2550 × 3300 px). The Studio builds both from **Products → Hole illustrations**, with the designer credit from Settings.
@@ -36,7 +36,7 @@ The hole analysis is the yardage book's, with 30 m behind the tee and 45 m past 
 
 Added in 3.6.0: graphite pencil on cream, after Coore & Crenshaw's hand-drawn hole sketches (`SketchPlateRenderer`, `IllustrationLook.CooreCrenshaw`, CLI `--look coore`). In Studio the Hole illustrations page has a **Styles to build** tick for each look, like the scorecard maps (none ticked to start with, saved per course in `CourseExtras.IllustrationLooks`; with none ticked a build skips hole illustrations and says so in the log). Each look writes its own files: `<course> - Hole Illustrations (Coore & Crenshaw).pdf` and `<course> - Hole Illustrations (Coore & Crenshaw)/Hole_NN (Coore & Crenshaw).png`, so a course can have both. Same page size, scale and geometry as the watercolour plate.
 
-- **Fairway:** one heavy wobbling pencil outline round graphite shading (a tile of slanted strokes). **Green:** denser graphite, the heaviest outline, a flag on the first pin.
+- **Fairway:** one heavy wobbling pencil outline round graphite shading (a tile of slanted strokes). **Green:** drawn over everything else, on fresh paper so no fairway line or shading shows through it; denser graphite, the heaviest outline, a flag on the first pin.
 - **Bunkers:** paper inside with a light stipple and a heavy lip on the face the player looks into (toward the green within 45 yds of it, else toward the tee). A sandy expanse over 1,500 sq yd is drawn lightly as waste: sparse stipple and a soft line.
 - **Tees:** shaded pads marked T. **Pines** as asterisks, other trees as scribbled rings (near play only). Water as an outline with level strokes.
 - **Slopes:** short strokes running downhill wherever the ground falls more than 7 %, longer, heavier and darker the steeper, lighter on the fairway and fading out 34–62 yds from the line of play. From the hole analysis's heightfield.
@@ -46,3 +46,16 @@ Added in 3.6.0: graphite pencil on cream, after Coore & Crenshaw's hand-drawn ho
 ## Tests
 
 `HoleIllustrationTests`: the ruler formula; the back tee on the `0 YDS.` line and the green at its up-page yards on Cassimbo H1, H5 and H7; the hole-name line only when a name is given; byte-identical re-renders; no art at the zone's edges; and a built PDF set in Lora with a PNG per hole.
+
+## Fried Egg look
+
+Added in 4.3.0: ink and flat washes on yellow paper, inspired by Fried Egg Golf's hole sketches (`FriedEggPlateRenderer`, `IllustrationLook.FriedEgg`, CLI `--look fried-egg`; a **Fried Egg** tick under **Styles to build**). It writes `<course> - Hole Illustrations (Fried Egg).pdf` and `<course> - Hole Illustrations (Fried Egg)/Hole_NN (Fried Egg).png`.
+
+- **Page:** landscape, 15 × 10 in for every hole (4500 × 3000 px). Play runs left to right: the hole is turned a quarter turn from the yardage book's rotation, so the player's right is down the page. Each hole is fitted to the page (its length plus 75 m across, its lateral spread plus 110 m down), so holes don't share a scale.
+- **Turf:** rough within 45 yds of the line of play in a pale olive, fairway over it in a deeper olive, the ground's rise and fall shaded into both from the heightfield. Each outline stops where the surface over it starts: rough under fairway, both under the green.
+- **Slopes:** combs of short ink strokes hanging downhill from 0.5 m contour lines wherever the ground falls more than 12 % (the contours themselves aren't drawn); fainter on the turf, fading out 35–55 yds from play.
+- **Bunkers:** ochre with a stipple, an ink edge and a fringe of short strokes on the face the player looks into. Sand over 1,500 sq yd is a pale waste with a light stipple and a soft edge.
+- **Green:** drawn last, over everything: a pale wash, 6 in contour rings, fall arrows, the firmest line, a flag on the first pin. Tees as small olive pads.
+- **Around the hole:** fescue tufts on the paper, thinning out away from play; trees and bushes near play as scalloped crowns (never on the fairway or green); rock outcrops in pale stone; water and walled water. The art fades into the paper at its edges.
+- **Type:** Lora italic: the course and its place lines top left (`PGA TOUR 2K25` when the course has no place), `Hole n · Par p` and the back-tee yards top right with the hole's name under them, the designer credit and year bottom left, and the course seal (when the course has a logo), "Inspired by Fried Egg Golf" and the Studio note bottom right. Small handwritten yardages (Caveat) along the top every 100 yds, or every 50 on a hole of 260 yds or less, measured straight across the page from the back tee.
+- The art is a raster; the type is vector. Seeded by the hole number, so a plate renders the same pixels every time.

@@ -15,7 +15,7 @@ public sealed record WasteShapes(IReadOnlyList<List<Vec2>> Areas, IReadOnlyList<
 public sealed class Plate : IDisposable
 {
     public required HoleAnalysis Analysis { get; init; }
-    public required PlateProjection Projection { get; init; }
+    public required IPlateProjection Projection { get; init; }
     public required int RulerTop { get; init; }
     public required float UnitsPerYard { get; init; }
     public required string? HoleName { get; init; }

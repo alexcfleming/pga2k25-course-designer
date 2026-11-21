@@ -72,8 +72,16 @@ public static class HoleIllustrationBuilder
         Directory.CreateDirectory(outputDir);
         string baseName = string.Concat((string.IsNullOrWhiteSpace(course.Name) ? Path.GetFileNameWithoutExtension(coursePath) : course.Name)
             .Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)).Trim();
-        using IPlateRenderer renderer = options.Look == IllustrationLook.CooreCrenshaw
-            ? new SketchPlateRenderer(options, log) : new HoleIllustrationRenderer(options, log);
+        if (options.PlaceLines.Count == 0) options = options with { PlaceLines = CoursePlaces.Load(outputDir).PlaceLines };
+        using var ownLogos = options.Logos is null ? GreensBook.CourseLogoArt.Load(outputDir) : null;
+        if (ownLogos is not null) options = options with { Logos = ownLogos };
+        using IPlateRenderer renderer = options.Look switch
+        {
+            IllustrationLook.CooreCrenshaw => new SketchPlateRenderer(options, log),
+            IllustrationLook.FriedEgg => new FriedEggPlateRenderer(options, log),
+            _ => new HoleIllustrationRenderer(options, log),
+        };
+        var page = renderer.PageSize;
 
         string? pdfPath = outputs.Pdf ? Path.Combine(outputDir, $"{baseName} - {options.ProductName}.pdf") : null;
         string pngDir = Path.Combine(outputDir, $"{baseName} - {options.ProductName}");
@@ -108,7 +116,7 @@ public static class HoleIllustrationBuilder
                     // The art goes in as a JPEG so an 18-plate book stays a sensible size; the type stays vector.
                     using var jpeg = plate.Art.Encode(SKEncodedImageFormat.Jpeg, outputs.PdfArtQuality);
                     using var art = SKImage.FromEncodedData(jpeg);
-                    var canvas = doc.BeginPage(PlateLayout.PageWidth * PointsPerUnit, PlateLayout.PageHeight * PointsPerUnit);
+                    var canvas = doc.BeginPage(page.Width * PointsPerUnit, page.Height * PointsPerUnit);
                     canvas.Scale(PointsPerUnit);
                     renderer.DrawPage(canvas, course.Name, new Plate
                     {
@@ -120,7 +128,7 @@ public static class HoleIllustrationBuilder
 
                 if (outputs.Pngs)
                 {
-                    var info = new SKImageInfo((int)(PlateLayout.PageWidth * PlateLayout.RasterScale), (int)(PlateLayout.PageHeight * PlateLayout.RasterScale));
+                    var info = new SKImageInfo((int)(page.Width * PlateLayout.RasterScale), (int)(page.Height * PlateLayout.RasterScale));
                     using var surface = SKSurface.Create(info);
                     surface.Canvas.Scale(PlateLayout.RasterScale);
                     renderer.DrawPage(surface.Canvas, course.Name, plate);
@@ -139,7 +147,7 @@ public static class HoleIllustrationBuilder
             stream?.Dispose();
         }
         if (pdfPath is not null) log?.Report($"Hole illustrations PDF ({analyses.Count} plates, {new FileInfo(pdfPath).Length / 1048576.0:0.0} MB): {pdfPath}");
-        if (outputs.Pngs) log?.Report($"Hole illustration PNGs ({pngs.Count}, 2550 × 3300 px): {pngDir}");
+        if (outputs.Pngs) log?.Report($"Hole illustration PNGs ({pngs.Count}, {page.Width * PlateLayout.RasterScale:0} × {page.Height * PlateLayout.RasterScale:0} px): {pngDir}");
         return new IllustrationResult(pdfPath, pngs, analyses);
     }
 }

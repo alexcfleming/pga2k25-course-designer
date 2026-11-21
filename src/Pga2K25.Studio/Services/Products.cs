@@ -114,8 +114,8 @@ public static class Products
                 new IllustrationOutputs { Pdf = true, Pngs = true }, log: c.Log).PdfPath).ToList().FirstOrDefault();
         })
         {
-            Pages = ["{0} - Hole Illustrations/*.png", "{0} - Hole Illustrations (Coore & Crenshaw)/*.png"],
-            Pdfs = ["{0} - Hole Illustrations.pdf", "{0} - Hole Illustrations (Coore & Crenshaw).pdf"],
+            Pages = ["{0} - Hole Illustrations/*.png", "{0} - Hole Illustrations (Coore & Crenshaw)/*.png", "{0} - Hole Illustrations (Fried Egg)/*.png"],
+            Pdfs = ["{0} - Hole Illustrations.pdf", "{0} - Hole Illustrations (Coore & Crenshaw).pdf", "{0} - Hole Illustrations (Fried Egg).pdf"],
         },
         // Reads Estimate.json from the course's output folder for per-course choices (zones, overrides).
         new("Construction estimate", " - Estimate.pdf", c => EstimateBuilder.Build(c.CoursePath, c.OutputDir, log: c.Log).PdfPath)
