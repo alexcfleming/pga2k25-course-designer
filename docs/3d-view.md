@@ -43,7 +43,7 @@ Not shown, or only roughly:
 - **Trees right beside the eye.** Anything of a tree within 20 m of the camera is cut away, so a tee or green among trees still gives a clear view; the tree keeps its shadow.
 - **Grass and flowers**, and anything the game plants by itself (that vegetation isn't in the course file).
 - **Rocks, buildings and other props.**
-- **The sun's real path.** The view opens lit by the course's own sun setting (its orientation as a compass bearing and its inclination as the height; the clock reads "as in game"), so shadows fall the game's way. Moving the slider takes over and moves the sun east, south, west through the day. Reading the orientation as a compass bearing is worked out from how the setting turns the sun, and isn't yet checked against a screenshot.
+- **The sun's real path.** The view opens lit by the course's own sun (the clock reads "as in game"), so shadows fall the game's way. The game's sun runs a circle across the sky: at noon it stands at the course's sun orientation (a compass bearing), at its sun inclination above the horizon, and it rises 90° to the left of that bearing and sets 90° to the right, 15° an hour; the time of day places it on that circle. Moving the slider moves the sun along the same circle. This was checked in game: on a test plot the shadows fell within 7° of where it puts them and the sun's height came out within 1.5°.
 - **Pre-made hills**, as on the terrain map.
 
 ## How it is made

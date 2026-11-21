@@ -152,13 +152,11 @@ public abstract class TerrainInk : IDisposable
     }
 
     /// <summary>
-    /// The game's sun as a compass bearing (degrees clockwise from north) and height above the horizon, from the
-    /// course's <c>sunOrientation</c> and <c>sunInclination</c>; null when the file has no lighting. The designer turns
-    /// its sun light by the orientation about the vertical, so with north at −Z the sun stands at that bearing.
-    /// Worked out from the settings, not yet checked against a screenshot.
+    /// The game's sun as a compass bearing (degrees clockwise from north) and height above the horizon (0–90), from
+    /// the course's time of day and sun settings (<see cref="Atmosphere.Sun"/>); null when the file has no lighting.
     /// </summary>
     public static (double Bearing, double Height)? SunDirection(CourseModel course) =>
-        course.Atmosphere is { } a ? (((a.SunOrientation % 360) + 360) % 360, Math.Clamp(a.SunInclination, 0, 90)) : null;
+        course.Atmosphere?.Sun() is var (bearing, height) ? (bearing, Math.Clamp(height, 0, 90)) : null;
 
     /// <summary>Draws one pixel per terrain cell, mapping the raster's axes through the projection.</summary>
     static void DrawRaster(SKCanvas canvas, GreensBook.Heightfield f, MapProjection p, int[] pixels, SKAlphaType alpha)

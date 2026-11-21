@@ -157,13 +157,29 @@ public class GameDataTests
         Assert.True(detail > 1000, $"{detail:N0} m²");
     }
 
+    /// <summary>
+    /// The game's sun runs a circle: at noon it stands at sunOrientation, sunInclination high, and it rises 90° to
+    /// the left of that bearing and sets 90° to the right, 15° an hour. Checked in game on 21 Nov 2026: a calibration
+    /// plot set to 119°, 43° at 0.6725 (16:08) cast shadows 1–7° east of north, and a cliff sunk in 4 m steps
+    /// shortened its shadow 3.2 m a metre, a sun 17.4° high. (Earlier releases read the orientation as the sun's
+    /// bearing and the inclination as its height, which put it at 119°, 43° on that plot.)
+    /// </summary>
     [Fact]
-    public void GameSun_IsACompassBearingAndHeight()
+    public void GameSun_FollowsItsPathThroughTheDay_AsMeasuredInGame()
     {
-        var (bearing, height) = TerrainInk.SunDirection(Cassimbo)!.Value;
-        Assert.Equal(187.2, bearing, 1);                                   // sunOrientation −172.8: low in the south
-        Assert.Equal(29.2, height, 1);
-        Assert.Equal(259.4, TerrainInk.SunDirection(Samples.Course("sagan-khushun.course"))!.Value.Bearing, 1);
+        var plot = new Atmosphere(0.6725, 119, 43, 0, null, null, 0, 0, 0, false);
+        var (bearing, height) = plot.Sun();
+        Assert.InRange(bearing, 181, 189);        // shadows fell 1–7° (lines) to 8° east of north
+        Assert.InRange(height, 15.9, 19.4);       // 17.4° measured, within 1.5°
+        Assert.Equal((119.0, 43.0), (Math.Round(plot.With(0.5).Sun().Bearing, 6), Math.Round(plot.With(0.5).Sun().Height, 6)));   // noon
+        Assert.Equal(29, plot.With(0.25).Sun().Bearing, 3);                // rises 90° left of the noon bearing
+        Assert.Equal(0, plot.With(0.25).Sun().Height, 3);
+        Assert.Equal(209, plot.With(0.75).Sun().Bearing, 3);               // sets 90° right
+        Assert.True(plot.With(0.0).Sun().Height < 0, "below the horizon at midnight");
+
+        var cassimbo = TerrainInk.SunDirection(Cassimbo)!.Value;            // 15:44, noon at 187°, 29° high
+        Assert.Equal(246.6, cassimbo.Bearing, 1);
+        Assert.Equal(15.9, cassimbo.Height, 1);
         Assert.False(new TerrainMapOptions().SunLight);                   // maps stay lit from the upper left unless asked
     }
 
@@ -253,4 +269,9 @@ public class GameDataTests
         Assert.Equal("68 on 18 holes", Value(settings, "Cameras"));
         Assert.Contains("buildings 92", Value(settings, "Placed objects"));
     }
+}
+
+static class AtmosphereTime
+{
+    public static Atmosphere With(this Atmosphere a, double timeOfDay) => a with { TimeOfDay = timeOfDay };
 }

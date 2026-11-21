@@ -402,18 +402,29 @@
   // ---- sun and shadows ----
   const sunDir = new THREE.Vector3();
   function setSun(hour) {
+    const hh = Math.floor(hour), mm = Math.round((hour - hh) * 60), clock = hh + ':' + String(mm).padStart(2, '0');
+    // The course's own sun path: at noon it stands at the noon bearing and height; it rises 90° left of that bearing
+    // and sets 90° right, 15° an hour along the circle (Atmosphere.Sun in Studio).
+    if (S.sunPath) {
+      const r = Math.PI / 180, h = (hour - 12) * 15 * r, tilt = S.sunPath[1] * r, noon = S.sunPath[0] * r;
+      const e = Math.cos(h) * Math.cos(tilt) * Math.sin(noon) + Math.sin(h) * Math.sin(noon + Math.PI / 2);
+      const n = Math.cos(h) * Math.cos(tilt) * Math.cos(noon) + Math.sin(h) * Math.cos(noon + Math.PI / 2);
+      const up = Math.cos(h) * Math.sin(tilt);
+      aimSun(Math.atan2(e, n) / r, Math.atan2(up, Math.hypot(e, n)) / r, clock);
+      return;
+    }
     const s = clamp((hour - 5.5) / 15, 0, 1), el = Math.max(4, Math.sin(Math.PI * s) * 62) * Math.PI / 180;
     // East is −X and south is +Z in the game; the sun goes east, south, west (a northern course).
     sunDir.set(-Math.cos(Math.PI * s) * Math.cos(el), Math.sin(el), -Math.sin(Math.PI * s) * Math.cos(el));
-    const hh = Math.floor(hour), mm = Math.round((hour - hh) * 60);
-    lightSun(el, hh + ':' + String(mm).padStart(2, '0'));
+    lightSun(el, clock);
   }
-  // The course's own sun: a compass bearing and height. Scene x is the game's X (east is −X); scene z is −Z (north is +z).
-  function setGameSun(bearing, height) {
+  // A sun at a compass bearing and height. Scene x is the game's X (east is −X); scene z is −Z (north is +z).
+  function aimSun(bearing, height, label) {
     const b = bearing * Math.PI / 180, el = Math.max(4, height) * Math.PI / 180;
     sunDir.set(-Math.sin(b) * Math.cos(el), Math.sin(el), Math.cos(b) * Math.cos(el));
-    lightSun(el, 'as in game');
+    lightSun(el, label);
   }
+  function setGameSun(bearing, height) { aimSun(bearing, height, 'as in game'); }
   function lightSun(el, label) {
     const low = 1 - clamp(el / 0.6, 0, 1);
     sun.color.setRGB(1, 1 - 0.2 * low, 1 - 0.42 * low);

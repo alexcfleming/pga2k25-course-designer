@@ -242,6 +242,27 @@ public sealed record Atmosphere(double TimeOfDay, double SunOrientation, double 
 {
     /// <summary>Time of day as a 24-hour clock reading.</summary>
     public string Clock => TimeSpan.FromHours(Math.Clamp(TimeOfDay, 0, 1) * 24).ToString(@"hh\:mm");
+
+    /// <summary>
+    /// Where the sun stands: its compass bearing (degrees clockwise from north, north being −Z) and its height above
+    /// the horizon (degrees; below zero at night). The sun runs a great circle across the sky: it stands at
+    /// <see cref="SunOrientation"/> at noon, <see cref="SunInclination"/> above the horizon, and rises 90° to the left
+    /// of that bearing and sets 90° to the right. <see cref="TimeOfDay"/> moves it along the circle, 15° an hour, with
+    /// 0.5 as noon. Checked in game (2026-11-21): on a plot set to 119° and 43° at 0.6725 (16:08), a cliff sunk in 4 m
+    /// steps gave a sun 17.4° high, and shadows fell 1–7° east of north; this puts the sun at 188°, 18.7° high.
+    /// </summary>
+    public (double Bearing, double Height) Sun()
+    {
+        const double rad = Math.PI / 180;
+        double hour = (TimeOfDay - 0.5) * 360 * rad, tilt = SunInclination * rad, noon = SunOrientation * rad;
+        // East and north parts of the noon direction and of the setting direction (90° clockwise of it).
+        double ne = Math.Sin(noon), nn = Math.Cos(noon), se = Math.Sin(noon + Math.PI / 2), sn = Math.Cos(noon + Math.PI / 2);
+        double e = Math.Cos(hour) * Math.Cos(tilt) * ne + Math.Sin(hour) * se;
+        double n = Math.Cos(hour) * Math.Cos(tilt) * nn + Math.Sin(hour) * sn;
+        double up = Math.Cos(hour) * Math.Sin(tilt);
+        double bearing = (Math.Atan2(e, n) / rad + 360) % 360;
+        return (bearing, Math.Atan2(up, Math.Sqrt(e * e + n * n)) / rad);
+    }
 }
 
 /// <summary>

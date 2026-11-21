@@ -60,5 +60,5 @@ other `SinkHole_Rocks_Medium` shapes), and one with no family is drawn as a typi
 - **Shapes not yet measured** use their family's size; a new pack's shapes are drawn as stones until measured.
 - **The ground model:** how much of a half-buried rock shows depends on the replayed ground under it. Where the ground model
   is off (see the terrain map's known limits), a deeply sunk rock can show too much or too little.
-- **The game's sun:** the sun heights the measurements used came from shadows, not from the course's sun settings, which
-  don't read as the sun's height and bearing.
+- **The sun used for heights:** the sun's height on the calibration plots came from a ladder of shadows. The course's
+  own sun settings, read as a path through the day, put it within 1.5° of that.
