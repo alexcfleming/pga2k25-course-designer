@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 4.1.0
+COURSE DESIGNER STUDIO - release 4.2.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -229,6 +229,18 @@ USING IT
   Building the course cards takes about a minute longer for it.
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
+
+NEW IN 4.2.0
+- Rocks are drawn as they show in game, on every scorecard map style,
+  the Course Portrait, the yardage book, hole sheets, hole illustrations
+  and the 3D view. Each rock shape's size was measured in game, so
+  shoreline boulders, rock walls beside ponds and big cliffs show at
+  their real size instead of as small dots or circles.
+- Rocks you bury in a hill show only the part above the ground: a
+  deeply sunk rock shows just its top, and a rock sunk out of sight
+  isn't drawn.
+- Each rock is turned and scaled as you placed it.
+- The terrain map leaves rocks off, as it does waste areas.
 
 NEW IN 4.1.0
 - Travis Sketch, MacKenzie Sketch, Hanse Design, RGD Style 2, Cutten
