@@ -576,8 +576,7 @@ public sealed class GreensBookRenderer : IDisposable
 }
 
 /// <summary>
-/// Slope colour ramp (0–8 %, dark green → red), matching the reference Course
-/// reference tool's greens-book scale. Values above the top stop clamp to it.
+/// Slope colour ramp (0–8 %, dark green → red). Values above the top stop clamp to it.
 /// </summary>
 public static class SlopePalette
 {

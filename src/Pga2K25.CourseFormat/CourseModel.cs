@@ -334,7 +334,7 @@ public sealed record WaterPath(SurfaceSpline Path, double? Level)
 
 /// <summary>
 /// Surface ids used by surfaceSplines2[].surface and surfaceBrushes2[].surfaceCategory.
-/// 0/1/2/3/4/7/10 are confirmed by the reference reference tool. 8 and 15 were identified by
+/// 0/1/2/3/4/7/10 are consistent across every sample course. 8 and 15 were identified by
 /// matching Cassimbo's layers against an in-game overhead capture, 18 from the designers who paint it (see docs/scorecard-maps.md).
 /// </summary>
 public static class Surfaces

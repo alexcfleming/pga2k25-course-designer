@@ -4,7 +4,7 @@ The tool generates greens-book graphics straight from a Course Designer `.course
 
 **Default output: one PNG with every green** (`<Course> - Greens Book.png`, 4800 × 3000 px). Every green is drawn **at one scale**, the largest that lets each green fit its cell, so the greens compare by their real size; a 20 yd bar on the legend line gives the scale. Each green is shown in a 6 × 3 grid with:
 
-- a slope-colour heat map (0–8 %+ on a dark green → yellow → red ramp, the same scale the reference reference tool uses)
+- a slope-colour heat map (0–8 %+ on a dark green → yellow → red ramp)
 - half-foot contours, slope arrows, pin dots, and a "N sq ft · falls X in. · median Y %" caption ("est. outline" for an estimated green)
 - slope arrows re-laid on a lattice at least 24 sheet units apart, so each green carries arrows in proportion to its area and the small greens aren't crowded
 

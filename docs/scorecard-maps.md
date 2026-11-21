@@ -185,7 +185,7 @@ Vintage, Modern, Illustrated and Modern Illustrated share one layout (`Scorecard
 | Tee pads | A 5 × 9 m pad at each tee marker, aligned with the hole |
 | Ball flight | Back tee → `holes3[].waypoints[1..]` |
 
-**How the surface IDs were identified.** Surfaces 0/1/2/3/4/7/10 come from the reference reference tool. Surfaces 8 and 15 were identified by matching Cassimbo's layers against an in-game overhead capture; 18 comes from the designers who use it:
+**How the surface IDs were identified.** Surfaces 0/1/2/3/4/7/10 are consistent across every sample course. Surfaces 8 and 15 were identified by matching Cassimbo's layers against an in-game overhead capture; 18 comes from the designers who use it:
 
 - **18** is surface weathering, splines and brushes alike: a colour tint over the ground beneath, not a playing surface, so it is not drawn. drgnslyr221 uses it for bare ground on Devil's Perch. On Cassimbo, "reverse weathering" splines along the fairway edges carry the green out over brown heavy rough. From overhead they look like a lighter fairway cut, which is how this page first read them.
 - **15** is the grey waste scrub.

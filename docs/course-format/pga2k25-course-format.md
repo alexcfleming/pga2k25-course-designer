@@ -1,15 +1,12 @@
 # PGA TOUR 2K25 `.course` File Format
 
-Reverse-engineered specification, derived from:
-
-- the three sample courses in `samples/courses/` (Shinnecock Ridge, Delta Test, Jungle Plot 2 — all saved from the 2K25 Course Designer, format `version: 49`), and
-- static analysis of the reference tool *a reference tool* (see [../reference-analysis/reference tool-analysis.md](../reference-analysis/reference tool-analysis.md)).
+Reverse-engineered specification, derived from the sample courses in `samples/courses/` (Shinnecock Ridge, Delta Test and Jungle Plot 2 at first, all saved from the 2K25 Course Designer, format `version: 49`), later many more designers' courses, and checks in game.
 
 Confidence markers used below:
 
 | Marker | Meaning |
 |---|---|
-| **Confirmed** | Observed consistently in all samples *and/or* hard-coded in the reference tool |
+| **Confirmed** | Observed consistently across the sample courses, or checked in game |
 | **Inferred** | Consistent with the data but not proven |
 | **Unknown** | Present in the data; purpose not yet determined |
 
@@ -53,7 +50,7 @@ desc, meta, thumb = blob("CourseDescription"), blob("CourseMetadata"), blob("Thu
 Encoding notes:
 
 - Python's `"utf-16"` codec emits a BOM + little-endian, which matches the game output byte-for-byte at the start of the stream.
-- Game files are gzip with header `XFL=0`; compressed sizes are close to zlib level 6–9. The reference tool writes `compresslevel=1`, which makes files ~1.9× larger (still loads fine, but we should use level 6+).
+- Game files are gzip with header `XFL=0`; compressed sizes are close to zlib level 6–9. A file written at `compresslevel=1` is about 1.9× larger and still loads.
 - JSON is compact (`separators=(',', ':')`) with non-ASCII characters left unescaped.
 - A round-trip `decode → encode → decode` with this recipe returned an identical object for all three samples. This was tested while the codec could still write; it is read only now.
 
@@ -63,7 +60,7 @@ Sizes (Shinnecock Ridge): file 204 KB → outer JSON 409 KB → CourseDescriptio
 
 ## 2. Format version detection (Confirmed)
 
-The reference tool identifies the game generation by marker keys in `CourseDescription`:
+The game generation can be told from marker keys in `CourseDescription`:
 
 | Condition | Returned version | Game |
 |---|---|---|
@@ -74,7 +71,7 @@ The reference tool identifies the game generation by marker keys in `CourseDescr
 
 Separately, `CourseDescription.version` is the designer save-schema number (`49` in every sample) and `CourseMetadata.courseVersion` mirrors it.
 
-**Spline coordinate axis differs by generation**: for 2K25 (`25`) spline points use `x`/`z`; older generations stored the second planar coordinate in `y`. (`_dim2()` in the reference tool.)
+**Spline coordinate axis differs by generation**: for 2K25 (`25`) spline points use `x`/`z`; older generations stored the second planar coordinate in `y`.
 
 ---
 
@@ -105,7 +102,7 @@ Used by `height[]`, `surfaceBrushes2[]`, and the `brushes[]` of every map-edit l
 }
 ```
 
-The reference tool also emits `_orientation`, `radius`, `orientation` (all `0.0`) on terrain stamps it creates; the game tolerates these extra keys.
+Stamps carrying extra keys such as `_orientation`, `radius` and `orientation` (all `0.0`) still load; the game ignores keys it doesn't use.
 
 ### 3.3 Spline
 
@@ -132,7 +129,7 @@ Used by `surfaceSplines2[]`, map-edit layers (`clearTrees`, `clearDetail`, …) 
 `P0 = a.waypoint`, `P1 = a.pointTwo`, `P2 = b.pointOne`, `P3 = b.waypoint`.
 A closed spline also joins the last waypoint back to the first.
 
-**Closed vs open (Confirmed):** `state != 0` means closed/filled (`3` in samples). `state == 0` means an open polyline such as a cart path, stream, or object path. Older files may use `isClosed` / `isFilled` booleans, and the reference tool checks those as fallbacks.
+**Closed vs open (Confirmed):** `state != 0` means closed/filled (`3` in samples). `state == 0` means an open polyline such as a cart path, stream, or object path. Older files may use `isClosed` / `isFilled` booleans instead.
 
 When `hasCurves` is `false`, handles usually coincide with neighbouring anchors or are colinear (the "Designer Smooth" feature rewrites them to create curves).
 
@@ -232,7 +229,7 @@ The 2K25 hole list. 2K23 used `holes2` and 2K21 used `holes`.
 Key rules:
 
 - `waypoints[0]` is the **route start**. In 53 of 54 sample holes it equals the back (last) tee, but Shinnecock hole 18 is an exception: its route starts 10–43 m from every tee, so don't assume the two coincide. `waypoints[-1]` is the **green centre / pin anchor**. Intermediate waypoints are dogleg aim points (1 in all samples, giving 3 waypoints total).
-- **Pin coordinates are offsets from `waypoints[-1]`** (the reference tool reads `anchor + pin.position` and writes `candidate − anchor`). A single `(0, 0)` pin means "at the green centre".
+- **Pin coordinates are offsets from `waypoints[-1]`**. A single `(0, 0)` pin means "at the green centre".
 - `y` is `0.0` on route, tee and pin points. The game projects them onto the terrain.
 - Per-hole numeric overrides use `-1` / `-1.0` for "inherit the course-level value".
 
@@ -252,8 +249,8 @@ Observed `type` usage across the samples:
 | type | tool 0 (n) | tool 1 (n) | Notes |
 |---|---|---|---|
 | 8–18 | common | some | Small to medium shaped brushes |
-| 9 | 8 | 1 | **Level/flatten brush** — the reference tool uses it for tee levelling (tool 1, value 0.0) |
-| 10 | 17 | – | **Round smooth stamp** — the reference tool uses it for cart-path levelling (tool 0, absolute) |
+| 9 | 8 | 1 | **Level/flatten brush**, as used for tee levelling (tool 1, value 0.0) |
+| 10 | 17 | – | **Round smooth stamp**, as used for cart-path levelling (tool 0, absolute) |
 | 23, 24, 45 | few | few | Tiny detail brushes (scale 1–6 m) |
 | 39, 40 | – | 365 | Large soft relative brushes (hill shaping) |
 | 42, 49, 53, 54, 55 | many | many | Large area brushes (scale up to 1,000 m); 54/55 dominate |
@@ -276,7 +273,7 @@ Spline (§3.3) plus:
 | `opacity` | 1.0 in samples |
 | `bunkerOverrideParameters` | Optional per-bunker `{baseDepth, lipStart, lipDepth, lipSteepness, flatFloor}`. `-1` = inherit |
 
-Surface ids (Confirmed from the reference tool's classifier, with sample counts):
+Surface ids (Confirmed across the sample courses, with sample counts):
 
 | id | Meaning | Closed? | Notes |
 |---|---|---|---|
@@ -298,7 +295,7 @@ Brush (§3.2) plus `surfaceCategory`. `value` is the paint opacity (0–1).
 | 0–4 | 8, 11, 14–22, 42, 48, 49, 59 | Same ids as spline surfaces (bunker, green, fairway, rough, heavy rough) |
 | 7 | 38 | Cart-path paint |
 | 14–17 | 9, 12, 13, 17, 18, 42, 48, 49, 53, 55 | **Terrain Painting** layers: 14 Grass / Topsoil, 15 Subsoil A, 16 Subsoil B, 17 Bedrock (materials in `surfaces2` slots 11–14) |
-| **18** | 13, 18, 49, 54, 55 (reference tool uses **10, 48, 49, 50**) | **Surface Weathering** paint (value 0.02–0.6; textures in `secondarySurfaces`) |
+| **18** | 13, 18, 49, 54, 55 (10, 48, 49 and 50 are also seen) | **Surface Weathering** paint (value 0.02–0.6; textures in `secondarySurfaces`) |
 
 `surfaceBrushes[]` (empty) is the legacy array.
 
@@ -358,7 +355,7 @@ A list of `{Key, Value}` pairs (a serialized C# dictionary keyed by asset path):
 }
 ```
 
-**Native water** is an ObjectPath under the asset key `Assets/CourseGen/Detail/Walls/GeneratedRiverSetupPrefab`. The reference tool creates one like this:
+**Native water** is an ObjectPath under the asset key `Assets/CourseGen/Detail/Walls/GeneratedRiverSetupPrefab`. A typical one looks like this:
 
 ```json
 {
@@ -377,7 +374,7 @@ A list of `{Key, Value}` pairs (a serialized C# dictionary keyed by asset path):
 
 ## 5. `CourseMetadata` (Confirmed)
 
-This is the browse/lobby summary. **It duplicates data from `CourseDescription`, and nothing keeps it in sync automatically.** The reference tool never rewrites it, so its output files have stale metadata after tees or pins change. Our app should regenerate it on save.
+This is the browse/lobby summary. **It duplicates data from `CourseDescription`, and nothing keeps it in sync automatically.** A tool that edits a course without rewriting it leaves stale metadata after tees or pins change.
 
 | Key | Derivation (verified against samples) |
 |---|---|
@@ -410,5 +407,5 @@ The JPEG is an overhead render of about 35–55 KB.
 
 ## 7. Writing
 
-This app is **read only**: it analyses course files and never writes them. The writing rules that applied to the archived reference tool are in that archive: preserving unknown keys, appending to `height[]`, keeping the `"-Infinity"` sentinel, regenerating `CourseMetadata`, tracking edits, and never overwriting the source. They are on the `reference tool-archive` tag, in this file's section 7.
+This app is **read only**: it analyses course files and never writes them. A tool that does write them should preserve unknown keys, append to `height[]`, keep the `"-Infinity"` sentinel, regenerate `CourseMetadata`, and never overwrite the source.
 

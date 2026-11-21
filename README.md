@@ -7,7 +7,6 @@ A custom Windows desktop application that analyses PGA TOUR 2K25 Course Designer
 ## Documentation
 
 - [Course file format spec](docs/course-format/pga2k25-course-format.md): how `.course` files are structured and how to read them.
-- [Reference app analysis](docs/reference-analysis/reference tool-analysis.md): architecture, UI, features and algorithms of *a reference tool*, plus a blueprint for our app.
 - [Greens book](docs/greens-book.md): what it produces, how the terrain is reconstructed, current limits, and calibration.
 - [Scorecard maps](docs/scorecard-maps.md): themes, layout, how features are traced, and known limits.
 - [Yardage book](docs/yardage-book.md): page contents, hazard numbering, rocks, and PDF output.
@@ -84,12 +83,3 @@ Studio uses Avalonia 12 on .NET 8. Avalonia's XAML source generator needs a newe
 1. Add calibration captures from more courses and holes (`pga2k25 calibrate`).
 2. Check yardage-book hazard numbers against in-game rangefinder readings on a second course.
 3. Reproduce game-generated green outlines and levelling.
-
-## Archived: reference tool
-
-The C# port of *a reference tool* (v0.10) edited course files, so it was taken out of this analysis-only app on 2026-10-03. The full code is kept, with its tests, docs (`docs/reference tool.md`) and packaging script. It is on the `archive/reference tool` branch and tagged `reference tool-archive`:
-
-```bash
-git checkout reference tool-archive
-```
-

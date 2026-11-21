@@ -1,4 +1,4 @@
-# Reference application binaries (analyzed locally, never committed)
+# Local reference material (never committed)
 reference/*
 !reference/.gitkeep
 
