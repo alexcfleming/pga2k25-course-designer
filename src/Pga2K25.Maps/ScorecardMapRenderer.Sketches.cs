@@ -314,6 +314,7 @@ public sealed partial class ScorecardMapRenderer
 
         // Walled water over the fairways drawn before it (surfaces drawn after the wall stay on top).
         WaterWall.Draw(canvas, l, p, _t.Background, ink, _t.Background, 1.2f);
+        DrawRocks(canvas, p, RockStyle.Ink(_t.Background, ink, 0.7f));
 
         // Greens: outlined, the hole number and a flag inside.
         using (var gp = Stroke(ink, 0.9f))
@@ -449,6 +450,7 @@ public sealed partial class ScorecardMapRenderer
             canvas.DrawPath(path, bank);
         }
         WaterWall.Draw(canvas, l, p, _t.Background, ink, _t.Background, 1.4f);
+        DrawRocks(canvas, p, RockStyle.Ink(_t.Background, ink, 0.8f));
         if (_o.ShowPaths)
             foreach (var r in l.TrimToPlay(l.Roads.Concat(l.Paths).ToList(), _o.PathReachMetres))
             {
@@ -677,6 +679,7 @@ public sealed partial class ScorecardMapRenderer
             using var s = Stroke(HWater, Math.Max(1.2f, (float)(r.Width * k))); canvas.DrawPath(path, s);
         }
         WaterWall.Draw(canvas, l, p, HWater, SKColor.Parse("#4a4a40"), _t.Background, 1.2f);
+        DrawRocks(canvas, p, RockStyle.Painted(0.6f));
 
         // Cart paths: thin grey lines.
         if (_o.ShowPaths)

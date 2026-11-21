@@ -12,29 +12,16 @@ public class YardageBookTests
     static readonly string CassimboPath = Path.Combine(TestPaths.SamplesDir, "cassimbo.course");
     static readonly Lazy<CourseModel> Course = new(() => CourseFile.Load(CassimboPath).ReadModel());
     static readonly Lazy<CourseLayers> Layers = new(() => CourseLayers.From(Course.Value));
-    static readonly Lazy<RockFootprints> Rocks = new(() => new RockFootprints(Course.Value));
 
     static HoleAnalysis Analyze(int number) =>
         HoleAnalysis.Analyze(Course.Value, Layers.Value, Course.Value.Holes.Single(h => h.Number == number), new YardageOptions(),
-            YardagePageRenderer.MapRect.Width / YardagePageRenderer.MapRect.Height, Rocks.Value);
+            YardagePageRenderer.MapRect.Width / YardagePageRenderer.MapRect.Height);
 
     static void AssertLabel(HoleAnalysis a, bool front, int fromTee, int toGreen) =>
         Assert.True(a.BunkerLabels.Any(l => l.IsFront == front && Math.Abs(l.FromTeeYards - fromTee) <= 2 && Math.Abs(l.ToGreenYards - toGreen) <= 2),
             $"no {(front ? "front" : "carry")} label at {fromTee}/{toGreen}; have " +
             string.Join(", ", a.BunkerLabels.Select(l => $"{(l.IsFront ? "front" : "carry")} {l.FromTeeYards:0}/{l.ToGreenYards:0}")) +
             "; " + string.Join("; ", a.Diagnostics));
-
-    [Trait("Speed", "Slow")]
-    [Fact]
-    public void RockFootprints_AreEstimatedFromTheCourseAndOrderedBySize()
-    {
-        var report = Rocks.Value.Report;
-        Assert.True(report["cluster"].Measured && report["stone"].Measured && report["rock"].Measured);
-        Assert.True(report["cluster"].Radius > report["small"].Radius);
-        Assert.True(report["small"].Radius > report["stone"].Radius);
-        Assert.True(report["stone"].Radius > report["rock"].Radius);
-        Assert.Equal("cluster", RockFootprints.Family("Assets/Rocks/Desert_Rock_Cluster_03.prefab"));
-    }
 
     [Trait("Speed", "Slow")]
     [Fact]

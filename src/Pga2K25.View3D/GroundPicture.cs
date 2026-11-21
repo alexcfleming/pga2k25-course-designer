@@ -64,6 +64,9 @@ public static class GroundPicture
             if (survey.InlandWater is { } water)
                 foreach (var body in water.Bodies)
                     Fill(canvas, body.Shores, body.MaxDepthMetres > Scene3D.MinWaterDepthMetres ? WaterBed : Stream, SKPathFillType.EvenOdd);
+            // Rocks as they show above the ground, in stone grey with a darker rim (this canvas is in metres).
+            Maps.RockArt.Draw(canvas, GreensBook.RockOutlines.For(survey.Course), o => Polygons([o], SKPathFillType.Winding),
+                Maps.RockStyle.Flat(SKColor.Parse("#aaa498"), SKColor.Parse("#6d675b"), 0.3f));
         }
 
         // A little mottle over everything, so mown areas aren't one flat colour: fine grain and a broad drift.

@@ -86,6 +86,7 @@ public sealed partial class ScorecardMapRenderer
         }
         // Walled water over the corridors drawn before it (surfaces drawn after the wall stay on top).
         WaterWall.Draw(canvas, l, p, _t.WaterFill, _t.Ink.WithAlpha(200), _t.Background, 1.1f);
+        DrawRocks(canvas, p, RockStyle.Flat(SKColor.Parse("#cfcac0"), _t.Ink.WithAlpha(200), 0.5f));
 
         foreach (var h in l.Holes)
             foreach (var tee in h.Hole.Tees) RoutingTeePad(canvas, p, tee, h.Direction);

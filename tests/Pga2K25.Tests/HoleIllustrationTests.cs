@@ -13,11 +13,10 @@ public class HoleIllustrationTests
 {
     static readonly string CassimboPath = Path.Combine(TestPaths.SamplesDir, "cassimbo.course");
     static readonly Lazy<CourseLayers> Layers = new(() => CourseLayers.From(Samples.Cassimbo));
-    static readonly Lazy<RockFootprints> Rocks = new(() => new RockFootprints(Samples.Cassimbo));
     static readonly IllustrationOptions Options = new() { Credit = "Test Designer", Year = 2026 };
     static readonly Dictionary<int, Lazy<HoleAnalysis>> Analyses = new[] { 1, 5, 7 }.ToDictionary(n => n, n => new Lazy<HoleAnalysis>(() =>
         HoleIllustrationBuilder.Analyze(Samples.Cassimbo, Layers.Value, Samples.Cassimbo.Holes.Single(h => h.Number == n), Options,
-            HoleIllustrationBuilder.YardageFor(Options, new CourseHoles()), Rocks.Value)));
+            HoleIllustrationBuilder.YardageFor(Options, new CourseHoles()))));
     static readonly Lazy<Plate> Hole5 = new(() => { using var r = new HoleIllustrationRenderer(Options); return r.Render(Analyses[5].Value); });
 
     [Theory]
