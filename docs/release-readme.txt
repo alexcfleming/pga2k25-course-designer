@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 4.2.0
+COURSE DESIGNER STUDIO - release 4.2.1
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -229,6 +229,14 @@ USING IT
   Building the course cards takes about a minute longer for it.
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
+
+FIXED IN 4.2.1
+- The game's sun now stands where the game puts it. A course's sun
+  direction and height are where the sun stands at noon; Studio now
+  moves it along its path to the course's time of day, as the game
+  does. The terrain map's "Light the relief from the game's sun" and
+  the 3D view are lit from the right side, and the 3D view's time
+  slider moves the sun the way the game would.
 
 NEW IN 4.2.0
 - Rocks are drawn as they show in game, on every scorecard map style,
