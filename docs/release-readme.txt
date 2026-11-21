@@ -1,4 +1,4 @@
-COURSE DESIGNER STUDIO - release 4.2.1
+COURSE DESIGNER STUDIO - release 4.3.0
 Analysis and print products for PGA TOUR 2K25 course designer files.
 By Alex C. Fleming
 
@@ -10,8 +10,9 @@ Reads your .course files and makes printable products from them:
   - Greens book: slope and fall of every green
   - Yardage book, scorecard maps (thirteen styles) and course cards
     (including a Wind Card when the course has a wind rose)
-  - Hole illustrations: a watercolour plate per hole, after the hole
-    plates of Jim Ryan, illustrated by Tyler J. Rae (PNG and PDF)
+  - Hole illustrations: a plate per hole in watercolour (after the hole
+    plates of Jim Ryan, illustrated by Tyler J. Rae), Coore & Crenshaw
+    pencil, or Fried Egg ink and washes on a landscape page (PNG and PDF)
   - Construction estimate: what the course might cost to build as a real
     course, with a low / likely / high range (illustrative, not a bid)
 And a Hole design simulator that plays one hole thousands of times, tee
@@ -230,6 +231,18 @@ USING IT
 - Terrain map page (new in 2.0.0): "Open PDF" and "Open image" at the
   top open the built terrain map, so you no longer need the folder.
 
+NEW IN 4.3.0
+- Hole illustrations in a third look, inspired by Fried Egg Golf's hole
+  sketches: a landscape page (15 x 10 in) with play running left to
+  right, ink and flat washes on yellow paper. Rough and fairway in olive
+  washes with your ground's rise and fall shaded in, slopes as soft
+  pencil strokes, ochre bunkers, fescue tufts, trees and rocks, and the
+  green on top with its contours and fall arrows. The course and its
+  place top left, the hole and yards top right, your course seal and
+  the credits bottom right, small handwritten yardages along the top.
+  Tick "Fried Egg" under Styles to build on the Hole illustrations page.
+- Coore & Crenshaw pencil plates: the fairway's outline no longer shows
+  through the green.
 FIXED IN 4.2.1
 - The game's sun now stands where the game puts it. A course's sun
   direction and height are where the sun stands at noon; Studio now
