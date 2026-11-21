@@ -141,9 +141,8 @@ public sealed class HoleAnalysis
     public int LengthYards => TeeSets.Count > 0 ? TeeSets[^1].Yards : (int)Math.Round(Hole.RouteLength / Yard);
 
     public static HoleAnalysis Analyze(CourseModel course, CourseLayers layers, Hole hole, YardageOptions o, double pageAspect,
-        RockFootprints? rockSizes = null, WaterMap? inlandWater = null)
+        WaterMap? inlandWater = null)
     {
-        rockSizes ??= new RockFootprints(course);
         inlandWater ??= course.HasWater ? WaterTracer.Trace(course, o.Terrain) : null;
         var back = hole.Tees.Count > 0 ? hole.Tees[^1] : hole.Route[0];
         var green = hole.GreenAnchor;
@@ -190,7 +189,7 @@ public sealed class HoleAnalysis
         var objects = course.PlacedObjects.Where(p => InView(p.Position, 30)).ToList();
         var trees = objects.Where(p => p.AssetPath.Contains("/Trees/", StringComparison.OrdinalIgnoreCase)).ToList();
         var scrub = objects.Where(p => p.AssetPath.Contains("/Bushes/", StringComparison.OrdinalIgnoreCase)).ToList();
-        var rocks = objects.Where(p => p.AssetPath.Contains("/Rocks/", StringComparison.OrdinalIgnoreCase)).ToList();
+        var rocks = objects.Where(RockCatalogue.IsRock).ToList();
 
         // Vegetation: each plant is a canopy disc; nearby canopies fuse into masses, never across fairways/greens.
         // Scatter groups of trees and bushes join as their whole circle, and planted areas as their outline:
@@ -208,10 +207,10 @@ public sealed class HoleAnalysis
             keepOut: fairways.Concat(greens).Select(g => (IReadOnlyList<Vec2>)g).ToList(), keepOutReach: 2.5)
             .Where(v => Geometry.Area(v) >= o.MinVegetationArea).ToList();
 
-        // Rocks: merged into outcrop shapes (no keep-out, so an outcrop inside a fairway stays whole).
-        // Rock footprints come from the course's own vegetation clearances (see RockFootprints).
-        var rockDiscs = rocks.Select(r => new Disc(r.Position, rockSizes.RadiusOf(r))).ToList();
-        var outcrops = rockDiscs.Count == 0 ? [] : ShapeMerger.Merge([], [], rockDiscs,
+        // Rocks: each as it shows above the ground (measured shapes, see RockOutlines), merged into outcrop shapes (no keep-out,
+        // so an outcrop inside a fairway stays whole). Rocks sunk out of sight are left out.
+        var rockShapes = RockOutlines.For(course).Where(r => InView(r.Rock.Position, 30)).Select(r => r.Outline).ToList();
+        var outcrops = rockShapes.Count == 0 ? [] : ShapeMerger.Merge(rockShapes, [], [],
             closeRadius: o.RockMergeMetres / 2, smooth: 0.8).Where(v => Geometry.Area(v) >= 4).ToList();
 
         // Ownership: each surface belongs to the hole whose line of play most of its outline is nearest to.

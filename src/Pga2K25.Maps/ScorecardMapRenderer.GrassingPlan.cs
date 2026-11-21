@@ -102,6 +102,7 @@ public sealed partial class ScorecardMapRenderer
 
         // Walled water over the fairways drawn before it (surfaces drawn after the wall stay on top).
         WaterWall.Draw(canvas, l, p, GPWater, GPProperty, _t.Background, 1.1f);
+        DrawRocks(canvas, p, RockStyle.Flat(SKColor.Parse("#ddd8cc"), GPProperty, 0.55f));
 
         // Bunkers: ochre with a brown edge.
         using (var bunkers = BunkerPath(l, p))

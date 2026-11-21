@@ -166,6 +166,7 @@ public sealed partial class ScorecardMapRenderer
             foreach (var r in l.WaterRibbons) { using var path = p.Path(r.Points, false); canvas.DrawPath(path, creek); }
         }
         WaterWall.Draw(canvas, l, p, CMPaperLight, CMInk, CMPaperLight, 1.1f);
+        DrawRocks(canvas, p, RockStyle.Flat(SKColor.Parse("#cdbd8f"), CMInk, 0.55f));
         if (_o.ShowPaths)
             using (var dashed = Stroke(CMBrown.WithAlpha(190), 0.55f))
             {

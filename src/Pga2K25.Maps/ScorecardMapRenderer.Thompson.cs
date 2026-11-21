@@ -91,6 +91,7 @@ public sealed partial class ScorecardMapRenderer
         }
         // The wall in chalk on the blueprint: a chalk line with blue gaps between its stones.
         WaterWall.Draw(canvas, l, p, _t.Background, TChalk, _t.Background, 1.1f);
+        DrawRocks(canvas, p, RockStyle.Ink(TBlue, TChalk, 0.6f));
 
         // Roads as double lines.
         if (_o.ShowPaths)

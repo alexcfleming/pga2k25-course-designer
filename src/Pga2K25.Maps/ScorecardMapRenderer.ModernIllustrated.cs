@@ -117,6 +117,7 @@ public sealed partial class ScorecardMapRenderer
         // Walled water after the grass and fairways (surfaces drawn after the wall stay on top).
         WaterWall.Draw(canvas, l, p, _t.WaterFill, _t.Ink.WithAlpha(200), _t.Background, 1.1f,
             texture: (c, outline) => DrawRipples(c, SKRect.Intersect(outline.Bounds, mapRect)));
+        DrawRocks(canvas, p, RockStyle.Painted());
 
         foreach (var h in l.Holes)
             foreach (var tee in h.Hole.Tees)

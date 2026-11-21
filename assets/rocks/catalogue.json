@@ -1,0 +1,444 @@
+{
+ "note": "Rock shapes at scale 1, measured in game on two calibration plots (2026-11-21): width is a north-south line across the rock where it meets the ground; height from its shadow (the sun's height solved from a sinking ladder) or the deepest sinking that still showed; sunkWidth is the width still showing when sunk sunkDepth; buriedAt is a depth where it no longer showed. usedTo is the depth below the ground (per unit of scale) that 90% of the shape's uses in 26 course files stay within, and uses how many there were. All metres.",
+ "shapes": {
+  "Asia_Rock2A": {
+   "width": 1.91,
+   "height": 0.9,
+   "sunkWidth": 1.7,
+   "sunkDepth": 0.91,
+   "usedTo": 0.91,
+   "uses": 5
+  },
+  "Asia_Rock3A": {
+   "width": 1.37,
+   "height": 0.6,
+   "sunkWidth": 1.0,
+   "sunkDepth": 0.64,
+   "usedTo": 0.76,
+   "uses": 8
+  },
+  "Asia_RockMountain_01": {
+   "width": 78.0,
+   "height": 81.2,
+   "sunkWidth": 44.4,
+   "sunkDepth": 81.23,
+   "usedTo": 89.59,
+   "uses": 25
+  },
+  "Asia_RockMountain_02a": {
+   "width": 50.17,
+   "height": 117.8,
+   "sunkWidth": 14.9,
+   "sunkDepth": 117.79,
+   "usedTo": 133.38,
+   "uses": 37
+  },
+  "Asia_RockMountain_04": {
+   "usedTo": 59.38,
+   "uses": 5
+  },
+  "Asia_RockMountain_05b": {
+   "usedTo": 92.3,
+   "uses": 50
+  },
+  "Asia_RockMountain_05c": {
+   "width": 70.58,
+   "height": 84.4,
+   "sunkWidth": 57.4,
+   "sunkDepth": 84.39,
+   "usedTo": 102.72,
+   "uses": 55
+  },
+  "AsianPack_Rock_01": {
+   "width": 0.9,
+   "height": 0.5,
+   "sunkWidth": 0.6,
+   "sunkDepth": 0.23
+  },
+  "AsianPack_Rock_02": {
+   "width": 0.52,
+   "height": 0.5
+  },
+  "AsianPack_Rock_04": {
+   "width": 1.43,
+   "height": 1.2,
+   "sunkWidth": 1.2,
+   "sunkDepth": 0.84,
+   "usedTo": 1.01,
+   "uses": 9
+  },
+  "AsianPack_Rock_05": {
+   "width": 11.55,
+   "height": 0.2
+  },
+  "AsianPack_Rock_06": {
+   "width": 5.57,
+   "height": 0.6
+  },
+  "CCA_Cliff_02": {
+   "width": 32.59,
+   "height": 18.2,
+   "sunkWidth": 27.2,
+   "sunkDepth": 18.22,
+   "usedTo": 19.56,
+   "uses": 15
+  },
+  "CCA_Cliff_03": {
+   "width": 18.38,
+   "height": 6.2
+  },
+  "CCA_Cliff_06": {
+   "height": 14.5,
+   "buriedAt": 16.0,
+   "usedTo": 12,
+   "uses": 6
+  },
+  "MP_RockSet2JA": {
+   "width": 0.23
+  },
+  "NOR_Rock_Large_02_Dry": {
+   "width": 6.6,
+   "height": 2.1,
+   "sunkWidth": 2.1,
+   "sunkDepth": 2.08,
+   "usedTo": 2.26,
+   "uses": 8
+  },
+  "NOR_Rock_Large_04_Wet": {
+   "width": 4.88,
+   "height": 1.7
+  },
+  "PEB_CliffPiece_02_Dry": {
+   "usedTo": 5.97,
+   "uses": 6
+  },
+  "PEB_CliffPiece_03_DryWet": {
+   "usedTo": 10.82,
+   "uses": 15
+  },
+  "PEB_CliffPiece_05_Dry": {
+   "width": 19.1,
+   "height": 5.4,
+   "sunkWidth": 17.2,
+   "sunkDepth": 5.39,
+   "usedTo": 5.77,
+   "uses": 20
+  },
+  "PEB_CliffPiece_06_Dry": {
+   "usedTo": 9.74,
+   "uses": 7
+  },
+  "PEB_RockFormations_04_Dry": {
+   "width": 4.29,
+   "height": 0.5,
+   "sunkWidth": 4.4,
+   "sunkDepth": 0.35,
+   "usedTo": 0.89,
+   "uses": 9
+  },
+  "PV_BouldersShared_AC": {
+   "width": 1.39,
+   "height": 0.3,
+   "sunkWidth": 1.0,
+   "sunkDepth": 0.28,
+   "usedTo": 0.3,
+   "uses": 14
+  },
+  "PV_BouldersShared_AE": {
+   "width": 1.41,
+   "height": 0.3,
+   "sunkWidth": 0.8,
+   "sunkDepth": 0.27,
+   "usedTo": 0.48,
+   "uses": 25
+  },
+  "PV_BouldersShared_AF": {
+   "width": 0.96,
+   "height": 0.9,
+   "sunkWidth": 0.8,
+   "sunkDepth": 0.93,
+   "usedTo": 1.22,
+   "uses": 11
+  },
+  "PV_BouldersShared_AG": {
+   "width": 2.11,
+   "height": 0.6,
+   "sunkWidth": 2.2,
+   "sunkDepth": 0.57,
+   "usedTo": 0.63,
+   "uses": 16
+  },
+  "PV_BouldersShared_AJ": {
+   "width": 1.98,
+   "height": 0.3,
+   "sunkWidth": 2.2,
+   "sunkDepth": 0.19,
+   "usedTo": 0.19,
+   "uses": 5
+  },
+  "PV_BouldersShared_AL": {
+   "width": 0.71,
+   "height": 0.2,
+   "usedTo": 0.26,
+   "uses": 20
+  },
+  "PV_Hole19_Walls_04_AD": {
+   "usedTo": 8.47,
+   "uses": 6
+  },
+  "RP_Rock19": {
+   "width": 2.05,
+   "height": 0.5,
+   "sunkWidth": 1.8,
+   "sunkDepth": 0.53,
+   "usedTo": 0.78,
+   "uses": 22
+  },
+  "RP_Rock20": {
+   "width": 2.59,
+   "height": 0.5
+  },
+  "Rock1A": {
+   "usedTo": 0.32,
+   "uses": 15
+  },
+  "Rock1AAutumn": {
+   "usedTo": 0.45,
+   "uses": 6
+  },
+  "Rock1B": {
+   "width": 1.44,
+   "height": 0.5,
+   "sunkWidth": 1.6,
+   "sunkDepth": 0.11,
+   "usedTo": 0.47,
+   "uses": 26
+  },
+  "Rock1BAutumn": {
+   "usedTo": 0.83,
+   "uses": 6
+  },
+  "Rock1BWinter": {
+   "usedTo": 0.63,
+   "uses": 7
+  },
+  "Rock2A": {
+   "usedTo": 0.78,
+   "uses": 22
+  },
+  "Rock2AAlpine": {
+   "width": 2.06,
+   "height": 0.6,
+   "buriedAt": 0.97,
+   "usedTo": 1.25,
+   "uses": 41
+  },
+  "Rock3A": {
+   "width": 1.39,
+   "height": 0.3,
+   "sunkWidth": 1.1,
+   "sunkDepth": 0.17,
+   "usedTo": 0.19,
+   "uses": 10
+  },
+  "Rock3AAutumn": {
+   "usedTo": 0.11,
+   "uses": 5
+  },
+  "Rock3D": {
+   "usedTo": 0.23,
+   "uses": 6
+  },
+  "SinkHole_Rock_Cluster_01_AA": {
+   "usedTo": 22.72,
+   "uses": 5
+  },
+  "SinkHole_Rock_Cluster_02_AB": {
+   "usedTo": 22.38,
+   "uses": 32
+  },
+  "SinkHole_Rock_Cluster_03_AC": {
+   "usedTo": 15.13,
+   "uses": 7
+  },
+  "SinkHole_Rock_Cluster_04_AD": {
+   "usedTo": 5.85,
+   "uses": 5
+  },
+  "SinkHole_Rock_Cluster_06_AF": {
+   "width": 74.63,
+   "height": 9.9,
+   "sunkWidth": 20.7,
+   "sunkDepth": 9.95,
+   "usedTo": 13.89,
+   "uses": 43
+  },
+  "SinkHole_Rock_Cluster_07_AG": {
+   "usedTo": 35.12,
+   "uses": 5
+  },
+  "SinkHole_Rock_Cluster_08_AH": {
+   "usedTo": 24.78,
+   "uses": 8
+  },
+  "SinkHole_Rock_Cluster_09_AI": {
+   "width": 26.93,
+   "height": 21.0,
+   "sunkWidth": 15.5,
+   "sunkDepth": 20.96,
+   "usedTo": 22.24,
+   "uses": 76
+  },
+  "SinkHole_Rocks_Inbetween_01_AA": {
+   "usedTo": 4.28,
+   "uses": 11
+  },
+  "SinkHole_Rocks_Inbetween_01_AB": {
+   "usedTo": 8.17,
+   "uses": 31
+  },
+  "SinkHole_Rocks_Inbetween_01_AC": {
+   "usedTo": 5.09,
+   "uses": 26
+  },
+  "SinkHole_Rocks_Inbetween_01_AE": {
+   "width": 9.24,
+   "height": 2.8,
+   "buriedAt": 4.58,
+   "usedTo": 5.61,
+   "uses": 46
+  },
+  "SinkHole_Rocks_Medium_01_BA": {
+   "usedTo": 20.37,
+   "uses": 27
+  },
+  "SinkHole_Rocks_Medium_02_AB": {
+   "width": 11.47,
+   "height": 26.3,
+   "sunkWidth": 5.8,
+   "sunkDepth": 26.26,
+   "usedTo": 26.71,
+   "uses": 47
+  },
+  "SinkHole_Rocks_Medium_02_BB": {
+   "usedTo": 25.14,
+   "uses": 40
+  },
+  "SinkHole_Rocks_Medium_03_AC": {
+   "width": 8.18,
+   "height": 16.8,
+   "sunkWidth": 5.2,
+   "sunkDepth": 16.79,
+   "usedTo": 18.05,
+   "uses": 50
+  },
+  "SinkHole_Rocks_Medium_03_BC": {
+   "usedTo": 16.06,
+   "uses": 17
+  },
+  "SinkHole_Rocks_Medium_04_BD": {
+   "usedTo": 19.21,
+   "uses": 34
+  },
+  "SinkHole_Rocks_Medium_05_AE": {
+   "usedTo": 12,
+   "uses": 19
+  },
+  "SinkHole_Rocks_Medium_05_BE": {
+   "width": 16.62,
+   "height": 11.6,
+   "sunkWidth": 18.8,
+   "sunkDepth": 11.63,
+   "usedTo": 14.64,
+   "uses": 50
+  },
+  "SinkHole_Rocks_Small_01_AA": {
+   "width": 3.69,
+   "height": 1.1,
+   "sunkWidth": 3.4,
+   "sunkDepth": 0.44,
+   "usedTo": 2.04,
+   "uses": 146
+  },
+  "SinkHole_Rocks_Small_01_BA": {
+   "width": 3.96,
+   "height": 0.8,
+   "sunkWidth": 3.6,
+   "sunkDepth": 0.84,
+   "usedTo": 1.79,
+   "uses": 116
+  },
+  "SinkHole_Rocks_Small_02_AB": {
+   "usedTo": 1.31,
+   "uses": 28
+  },
+  "SinkHole_Rocks_Small_02_BB": {
+   "width": 3.49,
+   "height": 0.7,
+   "sunkWidth": 1.4,
+   "sunkDepth": 0.67,
+   "usedTo": 1.65,
+   "uses": 62
+  },
+  "SinkHole_Rocks_Small_03_AC": {
+   "usedTo": 1.58,
+   "uses": 5
+  },
+  "SinkHole_Rocks_Small_03_BC": {
+   "usedTo": 2.08,
+   "uses": 33
+  },
+  "SinkHole_Rocks_Tiny_01_BA": {
+   "width": 1.32,
+   "height": 0.8,
+   "sunkWidth": 0.9,
+   "sunkDepth": 0.78,
+   "usedTo": 1.11,
+   "uses": 13
+  },
+  "SinkHole_Rocks_Tiny_03_AC": {
+   "usedTo": 0.82,
+   "uses": 5
+  },
+  "Stone01": {
+   "width": 2.68,
+   "height": 0.7,
+   "sunkWidth": 2.6,
+   "sunkDepth": 0.65,
+   "usedTo": 0.72,
+   "uses": 23
+  },
+  "Stone01Autumn": {
+   "usedTo": 0.9,
+   "uses": 5
+  },
+  "Stone01Desert": {
+   "usedTo": 0.62,
+   "uses": 9
+  },
+  "Stone01Winter": {
+   "usedTo": 0.68,
+   "uses": 14
+  },
+  "Stone02Autumn": {
+   "usedTo": 0.65,
+   "uses": 6
+  },
+  "Stone02Desert": {
+   "usedTo": 0.48,
+   "uses": 15
+  },
+  "Stone03Autumn": {
+   "usedTo": 0.79,
+   "uses": 8
+  },
+  "Stone03Desert": {
+   "width": 2.4,
+   "height": 0.7,
+   "sunkWidth": 2.1,
+   "sunkDepth": 0.39,
+   "usedTo": 0.72,
+   "uses": 17
+  }
+ }
+}

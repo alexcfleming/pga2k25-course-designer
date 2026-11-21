@@ -33,7 +33,7 @@ public static class HoleIllustrationBuilder
     /// whole art zone, so neighbouring shapes fade out instead of stopping at a window edge.
     /// </summary>
     public static HoleAnalysis Analyze(CourseModel course, CourseLayers layers, Hole hole, IllustrationOptions o, YardageOptions yardage,
-        RockFootprints? rocks = null, GreensBook.WaterMap? water = null)
+        GreensBook.WaterMap? water = null)
     {
         int set = Math.Max(0, hole.Tees.Count - 1);
         int yards = (int)Math.Round(hole.TeeSetLength(set) / HoleAnalysis.Yard);
@@ -50,7 +50,7 @@ public static class HoleIllustrationBuilder
         double windowWidth = zone.Width / upm + spread + 20;
         double aspect = windowWidth / (length + beyond + behind);
         yardage = yardage with { MetresBeyondGreen = beyond, MetresBehindTee = behind };
-        return HoleAnalysis.Analyze(course, layers, hole, yardage, aspect, rocks, water);
+        return HoleAnalysis.Analyze(course, layers, hole, yardage, aspect, water);
     }
 
     public static IllustrationResult Build(string coursePath, string outputDir, IllustrationOptions options,
@@ -66,7 +66,6 @@ public static class HoleIllustrationBuilder
         if (holes.Count == 0) throw new InvalidOperationException("No matching holes found in the course.");
 
         var yardage = YardageFor(options, options.Holes);
-        var rocks = new RockFootprints(course);
         var water = course.HasWater ? GreensBook.WaterTracer.Trace(course, yardage.Terrain) : null;
         var waste = options.Waste ? new WasteShapes(layers.WasteAreas, layers.WasteRibbons, layers.WasteBrushes) : null;
 
@@ -97,7 +96,7 @@ public static class HoleIllustrationBuilder
         {
             foreach (var h in holes)
             {
-                var a = Analyze(course, layers, h, options, yardage, rocks, water);
+                var a = Analyze(course, layers, h, options, yardage, water);
                 analyses.Add(a);
                 using var plate = renderer.Render(a, options.Holes?.NameOf(h.Number), waste);
                 log?.Report($"Hole {h.Number,2}: par {h.Par}, {a.LengthYards} yds, ruler to {plate.RulerTop} yds" +

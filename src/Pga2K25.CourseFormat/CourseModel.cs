@@ -269,7 +269,8 @@ public sealed record WaterPlane(int Index, Vec2 Position, double HalfX, double H
 /// <summary>One placed asset instance (tree, bush, rock, prop) from placedObjects4.</summary>
 /// <param name="AssetPath">Prefab path, e.g. "Assets/Foliage/SpeedTree/Bushes/...".</param>
 /// <param name="Height">Explicit elevation (position.y); null when the object snaps to terrain ("-Infinity").</param>
-public sealed record PlacedObject(string AssetPath, Vec2 Position, double Scale, double? Height = null);
+/// <param name="Yaw">Turn about the vertical (rotation.y, degrees); positive turns clockwise seen from above. Objects never tilt.</param>
+public sealed record PlacedObject(string AssetPath, Vec2 Position, double Scale, double? Height = null, double Yaw = 0);
 
 /// <summary>
 /// One camera the designer placed for a hole's flyover (a <c>CameraPlaceholder</c> item): the hole it belongs to
@@ -695,7 +696,7 @@ public sealed class CourseModel
             {
                 double y = Num(item!["position"]?["y"], double.NegativeInfinity);
                 result.Add(new PlacedObject(path, ReadVec(item["position"]), Num(item["scale"]?["x"], 1),
-                    double.IsFinite(y) ? y : null));
+                    double.IsFinite(y) ? y : null, Num(item["rotation"]?["y"])));
             }
         }
         return result;

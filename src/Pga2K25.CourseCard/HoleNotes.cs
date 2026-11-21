@@ -28,14 +28,13 @@ public static class HoleNotes
         var layers = CourseLayers.From(course);
         var yardage = new YardageOptions();
         var greens = new GreensBookOptions();
-        var rocks = new RockFootprints(course);
         var water = course.HasWater ? WaterTracer.Trace(course, yardage.Terrain) : null;
         var notes = new List<HoleNote>();
         foreach (var hole in course.Holes.OrderBy(h => h.Number))
         {
             try
             {
-                var a = HoleAnalysis.Analyze(course, layers, hole, yardage, 0.7, rocks, water);
+                var a = HoleAnalysis.Analyze(course, layers, hole, yardage, 0.7, water);
                 var g = GreenAnalyzer.Analyze(course, hole, greens);
                 notes.Add(new HoleNote(hole.Number, Hazards(a, g), Green(g)));
             }

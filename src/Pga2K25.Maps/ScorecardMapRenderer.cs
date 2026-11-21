@@ -192,8 +192,18 @@ public sealed partial class ScorecardMapRenderer : IDisposable
     /// <summary>What the architect-plan styles fit inside the map rect: the play, the property parcel, bunkers and ponds whole.</summary>
     public IReadOnlyList<Vec2> FitExtent(CourseLayers layers) => FitPoints(layers);
 
+    /// <summary>The course being drawn, for what the layers don't carry (its rocks).</summary>
+    CourseModel? _course;
+
+    /// <summary>The course's rocks as they show, in <paramref name="style"/> (nothing before <see cref="Draw"/> sets the course).</summary>
+    void DrawRocks(SKCanvas canvas, MapProjection p, RockStyle style)
+    {
+        if (_course is not null) RockArt.Draw(canvas, _course, p, style);
+    }
+
     public void Draw(SKCanvas canvas, string courseName, CourseModel course, CourseLayers layers)
     {
+        _course = course;
         var (page, landscape, mapRect, proj, _) = Layout(courseName, layers);
         canvas.Clear(_t.Background);
         if (IsModernIllustrated)
@@ -286,6 +296,7 @@ public sealed partial class ScorecardMapRenderer : IDisposable
         FillUnion(canvas, l.Grass, p, _t.GrassFill, _t.GrassOutline, 1.1f);
         // Walled water over the grass drawn before it (surfaces drawn after the wall stay on top).
         WaterWall.Draw(canvas, l, p, _t.WaterFill, _t.Ink.WithAlpha(220), _t.Background, 1.1f);
+        DrawRocks(canvas, p, _t.Kind == MapThemeKind.Modern ? RockStyle.Painted() : RockStyle.Ink(_t.Background, _t.Ink, 0.6f));
 
         // Tee boxes: small pads at each tee marker, aligned with the hole.
         foreach (var h in l.Holes)

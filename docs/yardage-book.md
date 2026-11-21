@@ -74,14 +74,9 @@ With a course logo (`Logos.json`, see [Course logo](course-logo.md)), the header
 
 ## Rock footprints
 
-A `.course` file stores each rock prefab as a path, position, yaw and uniform scale. The mesh size isn't in the file. Plants can't grow inside a rock, though, so the clearance from each rock to the nearest bush, grass or tree gives an upper bound on its radius.
-
-The estimate works like this:
-1. Rocks outside fairways and greens are sampled.
-2. The clearance is divided by the rock's scale and grouped by prefab family: cluster, small, tiny, stone or rock.
-3. The **lower quartile** of each family is taken as that family's radius per unit scale. It is capped at 25 m and needs at least 5 samples, otherwise a default is used.
-
-The estimates for Cassimbo are cluster 8.6 m, small 2.0, stone 1.2 and rock 0.8.
+Rocks are drawn as they show above the ground, from the measured rock shapes in [Rocks](rocks.md). Each rock's outline is
+turned by its yaw, scaled and cut where the ground meets it; nearby rocks merge into one outcrop shape. Rocks sunk out of
+sight are left out. (Earlier releases guessed each rock's size from the clear space between it and the nearest plant.)
 
 ## PDF size
 
@@ -94,4 +89,4 @@ Together these bring the 18-hole Cassimbo workbook from 39 MB down to about 6 MB
 ## Known limits
 
 - Par 3s under about 175 yds get no spot heights or widths. The page is mostly tee, green and arcs.
-- Rock and tree footprints are estimates. A prefab that is much wider than its clearance suggests will be drawn too small.
+- Tree footprints are estimates. Rock shapes are measured, but only across one direction, so a long slab may be drawn rounder than it is (see [Rocks](rocks.md)).

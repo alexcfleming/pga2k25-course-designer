@@ -316,9 +316,15 @@ public sealed class CoursePortraitRenderer : IDisposable
         var bmShift = cv.Shift(bm, lit, lit);
         PaintOver(cv.Map(i => grain[i] > 0.45f ? Math.Clamp(bm[i] - bmShift[i], 0, 1) : 0), "#5f7d36", 0.7f);
         bm = null; shadowed = null; bmShift = null;
-        var rocks = _course.PlacedObjects.Where(o => o.AssetPath.Contains("/Rocks", StringComparison.OrdinalIgnoreCase))
-            .Select(o => (o.Position, Math.Max(K(1.2f), 1.4f * (float)o.Scale * S)));
-        PaintOver(Clip(Discs(rocks, K(0.8f)), inside), "#8a8576", 0.9f);
+        // Rocks as they show above the ground (measured shapes, turned, scaled and cut by the ground), lit from the north-west.
+        var rockShapes = GreensBook.RockOutlines.For(_course).Select(r => r.Outline).ToList();
+        var rm = Clip(Polys(rockShapes, K(0.8f)), inside);
+        var rmShift = cv.Shift(rm, (int)Math.Round(K(2)), (int)Math.Round(K(2.5f)));
+        PaintOver(cv.Map(i => Math.Clamp(rmShift[i] - rm[i], 0, 1) * inside[i]), "#2c3d1c", 0.4f);
+        PaintOver(cv.Map(i => rm[i] * (0.8f + 0.2f * fine[i])), "#9a958a", 0.95f);
+        var rmLit = cv.Shift(rm, -(int)Math.Round(K(1.5f)), -(int)Math.Round(K(1.5f)));
+        PaintOver(cv.Map(i => Math.Clamp(rm[i] - rmLit[i], 0, 1)), "#5f5b52", 0.6f);
+        rm = null; rmShift = null; rmLit = null;
 
         // 8. Bunkers: merged outlines, cream sand with a faint darker lip.
         var bun = Clip(Polys(_layers.MergedBunkers(_o.BunkerMergeMetres).Select(b => (IReadOnlyList<Vec2>)b), K(1)), inside);

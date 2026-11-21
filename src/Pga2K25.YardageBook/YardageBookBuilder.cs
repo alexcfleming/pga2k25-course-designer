@@ -39,9 +39,9 @@ public static class YardageBookBuilder
         if (holes.Count == 0) throw new InvalidOperationException("No matching holes found in the course.");
 
         double aspect = YardagePageRenderer.MapRect.Width / YardagePageRenderer.MapRect.Height;
-        var rockSizes = new RockFootprints(course);
-        log?.Report("Rock footprints (radius per unit scale): " + string.Join(", ", rockSizes.Report.Select(kv =>
-            $"{kv.Key} {kv.Value.Radius:0.0} m ({(kv.Value.Measured ? $"from {kv.Value.Samples} rocks" : "default")})")));
+        var rocksShown = GreensBook.RockOutlines.For(course);
+        int rockCount = course.PlacedObjects.Count(GreensBook.RockCatalogue.IsRock);
+        if (rockCount > 0) log?.Report($"Rocks: {rocksShown.Count} of {rockCount} show above the ground.");
         // Ponds and creeks once for the whole course: every page shares the same shorelines.
         var water = course.HasWater ? GreensBook.WaterTracer.Trace(course, options.Terrain) : null;
         if (water is not null)
@@ -49,7 +49,7 @@ public static class YardageBookBuilder
         var analyses = new List<HoleAnalysis>();
         foreach (var h in holes)
         {
-            var a = HoleAnalysis.Analyze(course, layers, h, options, aspect, rockSizes, water);
+            var a = HoleAnalysis.Analyze(course, layers, h, options, aspect, water);
             analyses.Add(a);
             log?.Report($"Hole {h.Number,2}: par {h.Par}, {a.LengthYards} yds, {a.BunkerLabels.Count} hazard numbers, " +
                         $"{a.Widths.Count} widths, {a.Spots.Count} spot heights, green {a.GreenDepthYards} deep, " +
